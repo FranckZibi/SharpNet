@@ -116,53 +116,65 @@ namespace SharpNet.Layers
         public override void ForwardPropagation(List<Tensor> allX, Tensor y, bool isTraining)
         {
             Debug.Assert(allX.Count == 1);
-            var xAs2DMatrix = As2DMatrixForDotProduct(allX[0]);
-            var yAs2DMatrix = As2DMatrixForDotProduct(y);
-            //We compute y = x*Weights+B
-            yAs2DMatrix.Dot(xAs2DMatrix, _weights);
-            _bias?.BroadcastAddVectorToOutput(yAs2DMatrix);
+            DenseForwardPropagation(y, allX[0], _weights, _bias, _flattenInputTensorOnLastDimension);
         }
-       
+        public static void DenseForwardPropagation(/* Out */ Tensor y, /* In */ Tensor x, /* In */ Tensor weights, /* In */ Tensor biasIfAny, bool flattenInputTensorOnLastDimension)
+        {
+            var xAs2DMatrix = As2DMatrixForDotProduct(x, flattenInputTensorOnLastDimension);
+            var yAs2DMatrix = As2DMatrixForDotProduct(y, flattenInputTensorOnLastDimension);
+            //We compute y = x*Weights+B
+            yAs2DMatrix.Dot(xAs2DMatrix, weights);
+            biasIfAny?.BroadcastAddVectorToOutput(yAs2DMatrix);
+        }
+
         public override void BackwardPropagation(List<Tensor> allX, Tensor y_NotUsed, Tensor dy, List<Tensor> dx)
         {
             Debug.Assert(allX.Count == 1);
             Debug.Assert(y_NotUsed == null);
             Debug.Assert(dx.Count == 1);
-            int batchSize = dy.Shape[0];
+            DenseBackwardPropagation(dx[0], _weightGradients, _biasGradients, allX[0], dy, _weights, Sample, LambdaL2Regularization, PrevLayer.IsInputLayer, _flattenInputTensorOnLastDimension);
+        }
 
-            var xAs2DMatrix = As2DMatrixForDotProduct(allX[0]);
-            var dyAs2DMatrix = As2DMatrixForDotProduct(dy);
+        public static void DenseBackwardPropagation(/* Out */ Tensor dx, /* Out */ Tensor weightGradients, /* Out */ Tensor biasGradients, /* In */ Tensor x, /* In */ Tensor dy, /* In */ Tensor weights, NetworkSample sample, double LambdaL2Regularization, bool prevLayerIsInputLayer, bool flattenInputTensorOnLastDimension)
+        {
+            var xAs2DMatrix = As2DMatrixForDotProduct(x, flattenInputTensorOnLastDimension);
+            var dyAs2DMatrix = As2DMatrixForDotProduct(dy, flattenInputTensorOnLastDimension);
+
+            Debug.Assert(xAs2DMatrix.Shape.Length == 2);
+            Debug.Assert(dyAs2DMatrix.Shape.Length == 2);
+            int batchSize = dx.Shape[0];
 
             //we compute dW
             var multiplier = 1f / batchSize;
-            if (Sample.TensorFlowCompatibilityMode)
+            if (sample.TensorFlowCompatibilityMode)
             {
                 multiplier = 1f; //used only for tests and parallel run
             }
 
-            _weightGradients.Dot(xAs2DMatrix, true, dyAs2DMatrix, false, multiplier, 0);
+            weightGradients.Dot(xAs2DMatrix, true, dyAs2DMatrix, false, multiplier, 0);
 
             //L2 regularization on dW
-            if (UseL2Regularization)
+            if (LambdaL2Regularization > 0.0)
             {
                 var alpha = 2 * batchSize * (float)LambdaL2Regularization;
-                _weightGradients.Update_Adding_Alpha_X(alpha, _weights);
+                weightGradients.Update_Adding_Alpha_X(alpha, weights);
             }
 
-            if (UseBias)
+            if (biasGradients != null)
             {
-                Debug.Assert(_bias != null);
-                dyAs2DMatrix.Compute_BiasGradient_from_dy(_biasGradients);
+                //Debug.Assert(_bias != null);
+                //Debug.Assert(UseBias);
+                dyAs2DMatrix.Compute_BiasGradient_from_dy(biasGradients);
             }
 
             //no need to compute dx (= PrevLayer.dy) if previous Layer is the input layer
-            if (PrevLayer.IsInputLayer)
+            if (prevLayerIsInputLayer)
             {
                 return;
             }
 
             // we compute dx = dy * Weights.T
-            dx[0].Dot(dyAs2DMatrix, false, _weights, true, 1, 0);
+            dx.Dot(dyAs2DMatrix, false, weights, true, 1, 0);
         }
 
         /// <summary>
@@ -175,15 +187,16 @@ namespace SharpNet.Layers
         ///             so that the first dimension of the matrix (ex: a) is preserved
         /// </summary>
         /// <param name="x"></param>
+        /// <param name="flattenInputTensorOnLastDimension"></param>
         /// <returns>A 2D Matrix</returns>
-        private Tensor As2DMatrixForDotProduct(Tensor x)
+        public static Tensor As2DMatrixForDotProduct(Tensor x, bool flattenInputTensorOnLastDimension)
         {
             if (x.Shape.Length <= 2)
             {
                 return x;
             }
             var xTargetShape = new int[2];
-            if (_flattenInputTensorOnLastDimension)
+            if (flattenInputTensorOnLastDimension)
             {
                 xTargetShape[0] = x.Count / x.Shape.Last();
                 xTargetShape[1] = x.Shape.Last();
@@ -194,7 +207,7 @@ namespace SharpNet.Layers
                 xTargetShape[1] = x.Count / x.Shape[0];
             }
 
-            return x.WithNewShape(xTargetShape);
+            return x.Reshape(xTargetShape);
         }
 
         public override bool OutputNeededForBackwardPropagation => false;

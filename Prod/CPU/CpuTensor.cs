@@ -230,7 +230,7 @@ namespace SharpNet.CPU
             }
             RecomputeMultDim();
         }
-        public override Tensor WithNewShape(params int[] newShape)
+        public override Tensor Reshape(params int[] newShape)
         {
             AssertIsNotDisposed();
             newShape = FillMinusOneIfAny(Shape, newShape);
@@ -303,7 +303,7 @@ namespace SharpNet.CPU
             var targetShape = (int[])Shape.Clone();
             (targetShape[1], targetShape[2]) = (targetShape[2], targetShape[1]);
             target.ReshapeInPlace(targetShape);
-            var src = WithNewShape(Shape[0], Shape[1], Shape[2], -1);
+            var src = Reshape(Shape[0], Shape[1], Shape[2], -1);
             var srcSpan = src.AsFloatCpuSpan;
             var targetSpan = target.AsFloatCpuSpan;
 

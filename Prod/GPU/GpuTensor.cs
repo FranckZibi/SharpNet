@@ -477,7 +477,7 @@ namespace SharpNet.GPU
             }
         }
 
-        public override Tensor WithNewShape(params int[] newShape)
+        public override Tensor Reshape(params int[] newShape)
         {
             AssertIsNotDisposed();
             newShape = FillMinusOneIfAny(Shape, newShape);

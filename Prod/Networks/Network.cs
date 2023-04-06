@@ -387,6 +387,14 @@ namespace SharpNet.Networks
             return this;
         }
 
+        public Network MultiHeadAttention(int num_heads, int key_dim, int value_dim, bool use_bias, int embedding_dim,
+            bool use_causal_mask, int queriesLayerIndex, int valuesLayerIndex, int keysLayerIndex,
+            string layerName = "")
+        {
+            Debug.Assert(Layers.Count >= 1);
+            Layers.Add(new MultiHeadAttentionLayer(num_heads, key_dim, value_dim, use_bias, embedding_dim, use_causal_mask, queriesLayerIndex, valuesLayerIndex, keysLayerIndex, this, layerName));
+            return this;
+        }
 
         public Network Conv1D(int filtersCount, int kernelWidth, int stride, ConvolutionLayer.PADDING_TYPE paddingType, double lambdaL2Regularization, bool useBias, string layerName = "")
         {

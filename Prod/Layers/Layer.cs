@@ -35,7 +35,7 @@ namespace SharpNet.Layers
         /// </summary>
         public bool Trainable { get; set; } = true;
         protected readonly Network Network;
-        private bool _isDisposed;
+        protected bool _isDisposed;
         public int[] LazyOutputShape { private get; set; }
         private string _layerName;
         #endregion

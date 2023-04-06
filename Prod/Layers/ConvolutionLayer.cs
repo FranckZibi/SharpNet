@@ -213,7 +213,7 @@ namespace SharpNet.Layers
         }
         private static Tensor Conv1d_to_Conv2D(Tensor t)
         {
-            return t?.WithNewShape(ReshapeConv1d_to_Conv2D(t.Shape));
+            return t?.Reshape(ReshapeConv1d_to_Conv2D(t.Shape));
         }
         private static int[] ReshapeConv2d_to_Conv1D(int[] shape)
         {

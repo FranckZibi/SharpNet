@@ -21,25 +21,30 @@ namespace SharpNet.Layers;
 /// </summary>
 public class ScaledDotProductAttentionLayer : Layer
 {
-    private readonly bool _useScale;
-    private readonly bool _useCausalMask;
+    private readonly bool _use_scale;
+    private readonly bool _use_causal_mask;
 
     private Tensor _weights_buffer = null;
     public ScaledDotProductAttentionLayer(bool use_scale, bool use_causal_mask, int queriesLayerIndex, int valuesLayerIndex, int keysLayerIndex,
         Network network, string layerName = "") : base(network, new[]{queriesLayerIndex, valuesLayerIndex, keysLayerIndex }, layerName)
     {
-        _useScale = use_scale;
-        _useCausalMask = use_causal_mask;
+        _use_scale = use_scale;
+        _use_causal_mask = use_causal_mask;
     }
 
     #region forward and backward propagation
     public override void ForwardPropagation(List<Tensor> allX, Tensor y, bool isTraining)
     {
         Debug.Assert(allX.Count == 3);
-
         var Q = allX[QUERIES_LAYER_INDEX];      // queries: (batch_size, query_timeSteps == input_seq_length, embedding_dim)
         var V = allX[VALUES_LAYER_INDEX];       // values:  (batch_size, value_timeSteps, embedding_dim)
         var K = allX[KEYS_LAYER_INDEX];         // keys:    (batch_size, value_timeSteps, embedding_dim)
+
+        ScaledDotProductAttentionForwardPropagation(Q, V, K, y, isTraining, ref _weights_buffer, Network.MemoryPool, _use_scale, _use_causal_mask);
+    }
+
+    public static void ScaledDotProductAttentionForwardPropagation(Tensor Q, Tensor V, Tensor K, Tensor y, bool isTraining, ref Tensor _weights_buffer, TensorMemoryPool memoryPool, bool use_scale, bool use_causal_mask)
+    {
 
         if (!V.Shape.SequenceEqual(K.Shape))
         {
@@ -60,37 +65,36 @@ public class ScaledDotProductAttentionLayer : Layer
 
         //Scoring the queries against the keys after transposing the latter, and scaling
         //scores = matmul(Q, K, transpose_keys = True) / math.sqrt(embedding_dim))
-        var scores_buffer  = GetFloatTensor(new[] { batch_size, query_time_steps, value_time_steps });
-        float scaling = (_useScale)?(1.0f / MathF.Sqrt(embedding_dim)) :1.0f;
+        var scores_buffer = memoryPool.GetFloatTensor(new[] { batch_size, query_time_steps, value_time_steps });
+        float scaling = (use_scale) ? (1.0f / MathF.Sqrt(embedding_dim)) : 1.0f;
 
         scores_buffer.BatchMatrixMultiplication(Q, false, K, true, scaling, 0.0f);
 
-        if (_useCausalMask)
+        if (use_causal_mask)
         {
             scores_buffer.SetAllElementsAboveMainDiagonal(-1e12f);
         }
 
         //Computing the weights by a softmax operation
         //weights = softmax(scores)
-        GetFloatTensor(ref _weights_buffer, scores_buffer.Shape);       // (batch_size, query_time_steps, value_time_steps)
-        var weights2DShape = new [] { batch_size * query_time_steps, value_time_steps };
-        scores_buffer.WithNewShape(weights2DShape).ActivationForward(cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX, null, _weights_buffer.WithNewShape(weights2DShape));
+        memoryPool.GetFloatTensor(ref _weights_buffer, scores_buffer.Shape);       // (batch_size, query_time_steps, value_time_steps)
+        var weights2DShape = new[] { batch_size * query_time_steps, value_time_steps };
+        scores_buffer.Reshape(weights2DShape).ActivationForward(cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX, null, _weights_buffer.Reshape(weights2DShape));
 
         //Computing the attention by a weighted sum of the value vectors
         //y = matmul(weights, V)
         y.BatchMatrixMultiplication(_weights_buffer, false, V, false, 1.0f, 0.0f);
-
-        FreeFloatTensor(scores_buffer);
+        memoryPool.FreeFloatTensor(scores_buffer);
         if (!isTraining)
         {
-            FreeFloatTensor(ref _weights_buffer);
+            memoryPool.FreeFloatTensor(ref _weights_buffer);
         }
     }
-
 
     private const int QUERIES_LAYER_INDEX = 0;
     private const int VALUES_LAYER_INDEX = 1;
     private const int KEYS_LAYER_INDEX = 2;
+
 
     public override void BackwardPropagation(List<Tensor> allX, Tensor y_NotUsed, Tensor dy, List<Tensor> allDx)
     {
@@ -98,29 +102,42 @@ public class ScaledDotProductAttentionLayer : Layer
         var dQ = allDx[QUERIES_LAYER_INDEX];    // queries:    (batch_size, query_timeSteps == input_seq_length, embedding_dim)
         var dV = allDx[VALUES_LAYER_INDEX];     // values:     (batch_size, value_timeSteps, embedding_dim)
         var dK = allDx[KEYS_LAYER_INDEX];       // keys:       (batch_size, value_timeSteps, embedding_dim)
-        Debug.Assert(_weights_buffer != null);
-        var batch_size = dK.Shape[0];
-        var query_time_steps = dQ.Shape[1];
-        var value_time_steps = dV.Shape[1];
         var Q = allX[QUERIES_LAYER_INDEX];
         var V = allX[VALUES_LAYER_INDEX];
         var K = allX[KEYS_LAYER_INDEX];
-
-        dV.BatchMatrixMultiplication(_weights_buffer, true, dy, false, 1.0f, 0.0f);
-
-        var weights_gradients_buffer = GetFloatTensor(_weights_buffer.Shape);       // (batch_size, query_time_steps, value_time_steps)
-        weights_gradients_buffer.BatchMatrixMultiplication(dy, false, V, true, 1.0f, 0.0f);
-        var scores_gradients_buffer = GetFloatTensor(_weights_buffer.Shape);       // (batch_size, query_time_steps, value_time_steps)
-        var weights2DShape = new[] { batch_size * query_time_steps, value_time_steps };
-        scores_gradients_buffer.WithNewShape(weights2DShape).ActivationBackward(cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX, null, weights_gradients_buffer.WithNewShape(weights2DShape) /* dy*/, null /*x*/, _weights_buffer.WithNewShape(weights2DShape) /*y*/);
-        dQ.BatchMatrixMultiplication(scores_gradients_buffer, false, K, false, 1.0f, 0.0f);
-        dK.BatchMatrixMultiplication(scores_gradients_buffer, true, Q, false, 1.0f, 0.0f);
-
-        FreeFloatTensor(ref weights_gradients_buffer);
-        FreeFloatTensor(ref scores_gradients_buffer);
-
-        FreeFloatTensor(ref _weights_buffer);
+        ScaledDotProductAttentionBackwardPropagation(dQ, dV, dK, Q, V, K, dy, ref _weights_buffer, Network.MemoryPool, _use_scale);
     }
+
+    
+    public static void ScaledDotProductAttentionBackwardPropagation(/* Out */ Tensor dQ, /* Out */ Tensor dV, /* Out */ Tensor dK, /* In */ Tensor Q, /* In */ Tensor V, /* In */ Tensor K, /* In */ Tensor dy, /* In */ ref Tensor weights_buffer, TensorMemoryPool memoryPool, bool use_scale)
+    {
+        Debug.Assert(weights_buffer != null);
+        //dy:          (batch_size, value_timeSteps, value_embedding_dim)
+        var batch_size = dV.Shape[0];
+        var value_time_steps = dV.Shape[1];
+        var embedding_dim = dV.Shape[2];
+        var query_time_steps = dQ.Shape[1];
+
+        dV.BatchMatrixMultiplication(weights_buffer, true, dy, false, 1.0f, 0.0f);
+
+        float scaling = (use_scale) ? (1.0f / MathF.Sqrt(embedding_dim)) : 1.0f;
+        var weights_gradients_buffer = memoryPool.GetFloatTensor(weights_buffer.Shape);       // (batch_size, query_time_steps, value_time_steps)
+        weights_gradients_buffer.BatchMatrixMultiplication(dy, false, V, true, scaling, 0.0f);
+        var scores_gradients_buffer = memoryPool.GetFloatTensor(weights_buffer.Shape);       // (batch_size, query_time_steps, value_time_steps)
+        var weights2DShape = new[] { batch_size * query_time_steps, value_time_steps };
+        scores_gradients_buffer.Reshape(weights2DShape).ActivationBackward(cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX, null, weights_gradients_buffer.Reshape(weights2DShape) /* dy*/, null /*x*/, weights_buffer.Reshape(weights2DShape) /*y*/);
+
+
+        dQ.BatchMatrixMultiplication(scores_gradients_buffer, false, K, false, 1, 0.0f);
+        dK.BatchMatrixMultiplication(scores_gradients_buffer, true, Q, false, 1, 0.0f);
+
+        memoryPool.FreeFloatTensor(weights_gradients_buffer);
+        memoryPool.FreeFloatTensor(scores_gradients_buffer);
+
+        memoryPool.FreeFloatTensor(ref weights_buffer);
+    }
+
+  
     private Layer ValueLayer => PreviousLayers[VALUES_LAYER_INDEX];
     public override bool OutputNeededForBackwardPropagation => false;
     public override bool InputNeededForBackwardPropagation => true;
@@ -131,14 +148,14 @@ public class ScaledDotProductAttentionLayer : Layer
     public override string Serialize()
     {
         return RootSerializer()
-            .Add(nameof(_useScale), _useScale)
-            .Add(nameof(_useCausalMask), _useCausalMask)
+            .Add(nameof(_use_scale), _use_scale)
+            .Add(nameof(_use_causal_mask), _use_causal_mask)
             .ToString();
     }
     public static ScaledDotProductAttentionLayer Deserialize(IDictionary<string, object> serialized, Network network)
     {
-        var useScale = (bool)serialized[nameof(_useScale)];
-        var useCausalMask = (bool)serialized[nameof(_useCausalMask)];
+        var useScale = (bool)serialized[nameof(_use_scale)];
+        var useCausalMask = (bool)serialized[nameof(_use_causal_mask)];
         var previousLayerIndexes = (int[])serialized[nameof(PreviousLayerIndexes)];
         return new ScaledDotProductAttentionLayer(useScale, useCausalMask, previousLayerIndexes[0], previousLayerIndexes[1], previousLayerIndexes[2], network, (string)serialized[nameof(LayerName)]);
     }

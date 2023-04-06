@@ -290,7 +290,7 @@ namespace SharpNet.Data
         /// </summary>
         /// <param name="newShape"></param>
         /// <returns></returns>
-        public abstract Tensor WithNewShape(params int[] newShape);
+        public abstract Tensor Reshape(params int[] newShape);
 
         public static string ShapeToString(int[] shape)
         {

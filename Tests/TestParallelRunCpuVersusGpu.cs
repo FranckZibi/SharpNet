@@ -1147,7 +1147,7 @@ namespace SharpNetTests
             {
                 foreach (var length in new[] { 3, 4})
                 {
-                    var srcShape = new int[] { a, b, c, d}.Take(length).ToArray();
+                    var srcShape = new [] { a, b, c, d}.Take(length).ToArray();
                     var src = RandomTensor(srcShape);
                     var target = RandomTensor(srcShape);
                     TestAll(new[] { src, target }, tensors => tensors[0].TransposeSecondAndThirdDimension(tensors[1]));

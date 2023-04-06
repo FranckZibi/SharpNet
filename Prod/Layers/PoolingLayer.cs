@@ -69,8 +69,8 @@ namespace SharpNet.Layers
             Debug.Assert(allX.Count == 1);
             var x = allX[0];
 
-            var x4D = x.Shape.Length == 4 ? x : x.WithNewShape(Tensor.ToPooling4D(x.Shape));
-            var y4D = y.Shape.Length == 4 ? y : y.WithNewShape(Tensor.ToPooling4D(y.Shape));
+            var x4D = x.Shape.Length == 4 ? x : x.Reshape(Tensor.ToPooling4D(x.Shape));
+            var y4D = y.Shape.Length == 4 ? y : y.Reshape(Tensor.ToPooling4D(y.Shape));
 
             Debug.Assert(x4D.Dimension == y4D.Dimension);
             Debug.Assert(x4D.Dimension == 4);
@@ -86,10 +86,10 @@ namespace SharpNet.Layers
             var x = allX[0];
             var dx = allDx[0];
 
-            var x4D =   x.Shape.Length == 4 ? x  :  x.WithNewShape(Tensor.ToPooling4D(x.Shape));
-            var dx4D = dx.Shape.Length == 4 ? dx : dx.WithNewShape(Tensor.ToPooling4D(dx.Shape));
-            var y4D =   y.Shape.Length == 4 ? y  :  y.WithNewShape(Tensor.ToPooling4D(y.Shape));
-            var dy4D = dy.Shape.Length == 4 ? dy : dy.WithNewShape(Tensor.ToPooling4D(dy.Shape));
+            var x4D =   x.Shape.Length == 4 ? x  :  x.Reshape(Tensor.ToPooling4D(x.Shape));
+            var dx4D = dx.Shape.Length == 4 ? dx : dx.Reshape(Tensor.ToPooling4D(dx.Shape));
+            var y4D =   y.Shape.Length == 4 ? y  :  y.Reshape(Tensor.ToPooling4D(y.Shape));
+            var dy4D = dy.Shape.Length == 4 ? dy : dy.Reshape(Tensor.ToPooling4D(dy.Shape));
 
             Debug.Assert(x4D.Dimension == y4D.Dimension);
             Debug.Assert(x4D.Dimension == 4);
