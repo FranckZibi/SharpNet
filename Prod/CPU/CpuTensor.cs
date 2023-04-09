@@ -2730,6 +2730,30 @@ namespace SharpNet.CPU
             }
         }
 
+        public override void UpdateWithPositionalEncoding_AttnIsAllYouNeed(int n)
+        {
+            Debug.Assert(Shape.Length == 3);
+            int batchSize = Shape[0];
+            int timeSteps = Shape[1];
+            int embeddingDim = Shape[2];
+            var spanContent = AsFloatCpuSpan;
+            int idx = 0;
+            for (int batch = 0; batch < batchSize; ++batch)
+            {
+                for (int k = 0; k < timeSteps; ++k)
+                {
+                    for (int col = 0; col < embeddingDim; ++col)
+                    {
+                        int i = col / 2;
+                        float value = col % 2 == 0 
+                            ? MathF.Sin(k / MathF.Pow(n, (2f * i) / embeddingDim)) 
+                            : MathF.Cos(k / MathF.Pow(n, (2f * i) / embeddingDim));
+                        spanContent[idx++] = value;
+                    }
+                }
+            }
+        }
+
         public override void ZeroMemory()
         {
             SpanContent.Clear();

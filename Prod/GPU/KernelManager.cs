@@ -88,6 +88,7 @@ namespace SharpNet.GPU
                     "TransposeSecondAndThirdDimension_V1",
                     "TransposeSecondAndThirdDimension_V2",
                     "TransposeSecondAndThirdDimension_V3",
+                    "UpdateWithPositionalEncoding_AttnIsAllYouNeed",
                 },
                 "SharpNet.GPU.Kernels.SinglePrecision.cu",
                 out var errorMsg);

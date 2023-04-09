@@ -1000,6 +1000,22 @@
 		}
 	}
 
+	// add positional encoding to 'src' tensor of shape (batchSize, timeSteps, embeddingDim)
+	__global__ void UpdateWithPositionalEncoding_AttnIsAllYouNeed(int N, int timeSteps, int embeddingDim, int n, float* __restrict src)
+	{
+		int src_index = blockIdx.x * blockDim.x + threadIdx.x;
+		if (src_index >= N)
+			return;
+		int timeSteps_embeddingDim = src_index % (timeSteps*embeddingDim);
+		int k = timeSteps_embeddingDim / embeddingDim;
+		int col = timeSteps_embeddingDim %embeddingDim;
+		int i = col / 2;
+		float value = col % 2 == 0 
+                            ? sinf(k  / powf(n, (2.0f * i) / embeddingDim)) 
+                            : cosf(k / powf(n, (2.0f * i) / embeddingDim));
+		src[src_index] = value;
+	}
+
 	// transform a 'src' tensor of shape >= 3 [A,B,C,*] to a 'target' tensor of shape [A,C,B,*] 
 	__global__ void TransposeSecondAndThirdDimension_V1(int N, int B, int C, int D, const float* __restrict src, float* target)
 	{

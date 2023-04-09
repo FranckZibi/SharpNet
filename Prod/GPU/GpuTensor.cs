@@ -1278,7 +1278,7 @@ namespace SharpNet.GPU
         }
         public override Tensor Slice(int startIndex, int[] sliceShape)
         {
-            return new GPUTensor<T>((int[])sliceShape.Clone(), Pointer+startIndex*TypeSize, _wrapper);
+            return new GPUTensor<T>(sliceShape, Pointer+startIndex*TypeSize, _wrapper);
         }
 
         public override void WordEmbeddingForwardPropagation( /*in*/ Tensor x, /*in*/ Tensor wordEmbedding, int xIndexInLastDimensionToUse, int yIndexInLastDimensionToUse, int copyCountBeforeIndex, int copyCountAfterIndex)
@@ -1324,6 +1324,17 @@ namespace SharpNet.GPU
         }
 
         protected override int DeviceId => _wrapper.DeviceId;
+
+        public override void UpdateWithPositionalEncoding_AttnIsAllYouNeed(int n)
+        {
+            Debug.Assert(Shape.Length == 3);
+            int batchSize = Shape[0];
+            int timeSteps = Shape[1];
+            int embeddingDim = Shape[2];
+            _wrapper.RunKernel("UpdateWithPositionalEncoding_AttnIsAllYouNeed", batchSize * timeSteps* embeddingDim, new object[] { timeSteps, embeddingDim, n, this });
+        }
+
+
         public override void ZeroMemory()
         {
             AssertIsNotDisposed();

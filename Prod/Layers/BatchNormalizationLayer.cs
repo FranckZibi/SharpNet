@@ -258,6 +258,22 @@ namespace SharpNet.Layers
             return base.ComputeLayerName().Replace("batchnormalization", "batch_normalization");
         }
 
+        //https://docs.nvidia.com/deeplearning/sdk/cudnn-archived/cudnn_701/cudnn-user-guide/index.html#cudnnBatchNormMode_t
+        private cudnnBatchNormMode_t LayerBatchNormalizationMode()
+        {
+            //if previous layer is a dense layer
+            if (PrevLayer != null && (PrevLayer.OutputShape(1).Length == 2 || PrevLayer.IsInputLayer))
+            {
+                //Normalization is performed per-activation. 
+                //This mode is intended to be used after non-convolutional network layers. 
+                //In this mode bnBias and bnScale tensor dimensions are (1, C, H, W)
+                return cudnnBatchNormMode_t.CUDNN_BATCHNORM_PER_ACTIVATION;
+            }
+            //Normalization is performed over N + spatial dimensions.
+            //This mode is intended for use after convolutional layers(where spatial invariance is desired).
+            //In this mode bnBias, bnScale tensor dimensions are (1, C, 1, 1)
+            return cudnnBatchNormMode_t.CUDNN_BATCHNORM_SPATIAL;
+        }
         private int[] ScaleAndBiasShape()
         {
             var res = OutputShape(1);

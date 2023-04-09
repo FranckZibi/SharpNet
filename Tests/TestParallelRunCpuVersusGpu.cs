@@ -1137,6 +1137,17 @@ namespace SharpNetTests
             TestAll(new[] { src, target }, tensors => tensors[0].SwitchSecondAndThirdDimension(tensors[1]));
         }
 
+
+        [Test]
+        public void Test_UpdateWithPositionalEncoding_AttnIsAllYouNeed()
+        {
+            foreach (var n in new[] { 1, 100, 10000 })
+            {
+                var src = RandomTensor(new[] { 7, 13, 17 });
+                TestAll(new[] { src}, tensors => tensors[0].UpdateWithPositionalEncoding_AttnIsAllYouNeed(n));
+            }
+        }
+
         [Test]
         public void TestTransposeSecondAndThirdDimension()
         {

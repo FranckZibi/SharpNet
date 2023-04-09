@@ -111,6 +111,18 @@ namespace SharpNetTests.CPU
             Assert.IsTrue(TensorExtensions.SameFloatContent(expectedTarget, observedTarget, 1e-6));
         }
 
+
+        [Test]
+        public void TestUpdateWithPositionalEncoding_AttnIsAllYouNeed()
+        {
+            var X = new CpuTensor<float>(new[] { 2, 3, 4 });
+            X.ZeroMemory();
+            X.UpdateWithPositionalEncoding_AttnIsAllYouNeed(100);
+            var expectedTarget = TestNetworkPropagation.FromNumpyArray(@"numpy.array([[[0,1,0,1],[0.841470957,0.540302277,0.0998334214,0.995004177],[0.909297407,-0.416146845,0.198669329,0.980066597]],[[0,1,0,1],[0.841470957,0.540302277,0.0998334214,0.995004177],[0.909297407,-0.416146845,0.198669329,0.980066597]]], numpy.float)");
+            Assert.IsTrue(TensorExtensions.SameFloatContent(expectedTarget, X, 1e-6));
+        }
+
+
         [Test]
         public void TestSetToZeroAllElementsBelowMainDiagonal()
         {

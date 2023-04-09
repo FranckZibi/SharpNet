@@ -32,7 +32,7 @@ public class CFM60DatasetSample : DatasetSampleForTimeSeries
 
     public override bool PredictionsMustBeOrderedByIdColumn => true;
 
-    public override int CountOfDistinctCategoricalValues(string columnName)
+    protected override int CountOfDistinctCategoricalValues(string columnName)
     {
         switch (columnName)
         {

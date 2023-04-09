@@ -162,12 +162,12 @@ public abstract class AbstractDatasetSample : AbstractSample, IDisposable
     #endregion
 
 
-    public virtual int EmbeddingForColumn(string columnName, int defaultEmbeddingSize)
+    protected virtual int EmbeddingForColumn(string columnName, int defaultEmbeddingDim)
     {
-        return defaultEmbeddingSize;
+        return defaultEmbeddingDim;
     }
 
-    public virtual int CountOfDistinctCategoricalValues(string columnName)
+    protected virtual int CountOfDistinctCategoricalValues(string columnName)
     {
         var columnStats = DatasetEncoder[columnName];
         return columnStats.GetDistinctCategoricalValues().Count;
@@ -183,9 +183,9 @@ public abstract class AbstractDatasetSample : AbstractSample, IDisposable
     /// EmbeddingDims: the default embedding for each categorical feature
     /// IndexesInLastDimensionToUse: for each categorical feature, the associated index of this categorical feature in the input
     /// </summary>
-    /// <param name="defaultEmbeddingSize"></param>
+    /// <param name="defaultEmbeddingDim"></param>
     /// <returns></returns>
-    public (int[] vocabularySizes, int[] embeddingDims, int[] indexesInLastDimensionToUse) EmbeddingDescription(int defaultEmbeddingSize)
+    public (int[] vocabularySizes, int[] embeddingDims, int[] indexesInLastDimensionToUse) EmbeddingDescription(int defaultEmbeddingDim)
     {
         List<int> vocabularySizes = new();
         List<int> embeddingDims = new();
@@ -212,7 +212,7 @@ public abstract class AbstractDatasetSample : AbstractSample, IDisposable
                 continue;
             }
             indexesInLastDimensionToUse.Add(i);
-            embeddingDims.Add(EmbeddingForColumn(column, defaultEmbeddingSize));
+            embeddingDims.Add(EmbeddingForColumn(column, defaultEmbeddingDim));
             vocabularySizes.Add(1 + CountOfDistinctCategoricalValues(column));
         }
         return (vocabularySizes.ToArray(), embeddingDims.ToArray(), indexesInLastDimensionToUse.ToArray());

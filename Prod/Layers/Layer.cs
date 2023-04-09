@@ -114,26 +114,26 @@ namespace SharpNet.Layers
 
         #region parameters and gradients
         /// <summary>
-        /// the weight if any (used only for tests)
+        /// the weight if any
         /// </summary>
         public virtual Tensor Weights => null;
         /// <summary>
-        /// the weight gradient if any (used only for tests)
+        /// the weight gradient if any
         /// </summary>
         public virtual Tensor WeightGradients => null;
         /// <summary>
-        /// the bias if any (used only for tests)
+        /// the bias if any
         /// </summary>
         public virtual Tensor Bias => null;
         /// <summary>
-        /// the bias gradient if any (used only for tests)
+        /// the bias gradient if any
         /// </summary>
         public virtual Tensor BiasGradients => null;
         protected virtual Optimizer Optimizer => null;
 
         public int TotalParams => Parameters.Select(t => t.Item1.Count).Sum();
         public virtual int NonTrainableParams => 0;
-        public virtual List<Tuple<Tensor, string>> Parameters => new List<Tuple<Tensor, string>>();
+        public virtual List<Tuple<Tensor, string>> Parameters => new();
 
         public virtual void ReplaceParameters(List<Tensor> newParameters)
         {
@@ -240,9 +240,10 @@ namespace SharpNet.Layers
                 case nameof(InputLayer): return InputLayer.Deserialize(serialized, network);
                 case nameof(LayerNormalizationLayer): return LayerNormalizationLayer.Deserialize(serialized, network);
                 case nameof(LinearFunctionLayer): return LinearFunctionLayer.Deserialize(serialized, network);
-                case nameof(PoolingLayer): return PoolingLayer.Deserialize(serialized, network);
                 case nameof(MultiplyLayer): return MultiplyLayer.Deserialize(serialized, network);
                 case nameof(NonMaxSuppressionLayer): return NonMaxSuppressionLayer.Deserialize(serialized, network);
+                case nameof(PoolingLayer): return PoolingLayer.Deserialize(serialized, network);
+                case nameof(PositionalEncodingAttnIsAllYouNeedLayer): return PositionalEncodingAttnIsAllYouNeedLayer.Deserialize(serialized, network);
                 case nameof(RecurrentLayer): return RecurrentLayer.Deserialize(serialized, network);
                 case nameof(ReshapeLayer): return ReshapeLayer.Deserialize(serialized, network);
                 case nameof(ScaledDotProductAttentionLayer): return ScaledDotProductAttentionLayer.Deserialize(serialized, network);
@@ -462,22 +463,6 @@ namespace SharpNet.Layers
                 result.AddRange(Optimizer.EmbeddedTensors);
             }
             return result;
-        }
-        //https://docs.nvidia.com/deeplearning/sdk/cudnn-archived/cudnn_701/cudnn-user-guide/index.html#cudnnBatchNormMode_t
-        protected cudnnBatchNormMode_t LayerBatchNormalizationMode()
-        {
-            //if previous layer is a dense layer
-            if (PrevLayer != null && (PrevLayer.OutputShape(1).Length == 2 || PrevLayer.IsInputLayer))
-            {
-                //Normalization is performed per-activation. 
-                //This mode is intended to be used after non-convolutional network layers. 
-                //In this mode bnBias and bnScale tensor dimensions are (1, C, H, W)
-                return cudnnBatchNormMode_t.CUDNN_BATCHNORM_PER_ACTIVATION;
-            }
-            //Normalization is performed over N + spatial dimensions.
-            //This mode is intended for use after convolutional layers(where spatial invariance is desired).
-            //In this mode bnBias, bnScale tensor dimensions are (1, C, 1, 1)
-            return cudnnBatchNormMode_t.CUDNN_BATCHNORM_SPATIAL;
         }
 
         protected Random Rand => Network.Rand;

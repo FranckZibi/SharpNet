@@ -367,6 +367,13 @@ namespace SharpNet.Data
             return ReallyNeededMemoryInBytesForShape(tensorShape) <= CapacityInBytes;
         }
 
+        /// <summary>
+        /// Update this tensor with positional encoding using the formula in 'Attention is All You Need'
+        /// 'this' tensor of shape (batchSize, timeSteps, embeddingDim)
+        /// </summary>
+        /// <param name="n">The 'n' described in the paper</param>
+        public abstract void UpdateWithPositionalEncoding_AttnIsAllYouNeed(int n);
+        
         public abstract void ZeroMemory();
         /// <summary>
         /// this = alpha a*b + beta*this 
@@ -404,11 +411,16 @@ namespace SharpNet.Data
             Debug.Assert(a_3D.Shape[0] == b_3D.Shape[0]);
             Debug.Assert(a_3D.Shape[0] == c_3D.Shape[0]);
             int nbMatrices = a_3D.Shape[0];
+
+            var aShape = a_3D.Shape.Skip(1).ToArray();
+            var bShape = b_3D.Shape.Skip(1).ToArray();
+            var cShape = c_3D.Shape.Skip(1).ToArray();
+
             for (int i = 0; i < nbMatrices; ++i)
             {
-                var a = a_3D.GetSubTensor(i);
-                var b = b_3D.GetSubTensor(i);
-                var c = c_3D.GetSubTensor(i);
+                var a = a_3D.GetSubTensor(i, aShape);
+                var b = b_3D.GetSubTensor(i, bShape);
+                var c = c_3D.GetSubTensor(i, cShape);
                 c.Dot(a, transposeA, b, transposeB, alpha, beta);
             }
         }
@@ -740,10 +752,13 @@ namespace SharpNet.Data
         }
         public Tensor GetSubTensor(int startRowIndex)
         {
+            return GetSubTensor(startRowIndex, Shape.Skip(1).ToArray());
+        }
+        public Tensor GetSubTensor(int startRowIndex, int[] subTensorShape)
+        {
             Debug.Assert(Shape.Length >= 2);
             Debug.Assert(startRowIndex >= 0);
             Debug.Assert(startRowIndex < Shape[0]);
-            var subTensorShape = Shape.Skip(1).ToArray();
             return Slice(Idx(startRowIndex), subTensorShape);
         }
         public static List<Tensor> RowSlice(List<CpuTensor<float>> d, int startRowIndex, int nbRows)

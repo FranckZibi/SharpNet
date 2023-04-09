@@ -271,6 +271,14 @@ namespace SharpNet.Networks
             Layers.Add(linearFunctionLayer);
             return this;
         }
+
+        public Network PositionalEncodingAttnIsAllYouNeedLayer(int N, string layerName = "")
+        {
+            var linearFunctionLayer = new PositionalEncodingAttnIsAllYouNeedLayer(N, this, layerName);
+            Layers.Add(linearFunctionLayer);
+            return this;
+        }
+
         public Network Convolution_BatchNorm(int filtersCount, int kernelSize, int stride, ConvolutionLayer.PADDING_TYPE paddingType, double lambdaL2Regularization)
         {
             return Convolution(filtersCount, kernelSize, stride, paddingType, lambdaL2Regularization, false)

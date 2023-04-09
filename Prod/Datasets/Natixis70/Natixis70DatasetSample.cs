@@ -355,20 +355,20 @@ public class Natixis70DatasetSample : AbstractDatasetSample
     }
 
 
-    public int marketIdEmbeddingSize = 100;
-    public int marketIdhorizonIdEmbeddingSize = 100;
-    public int horizonIdEmbeddingSize = 10;
+    public readonly int marketIdEmbeddingDim = 100;
+    public readonly int marketIdhorizonIdEmbeddingDim = 100;
+    public readonly int horizonIdEmbeddingDim = 10;
 
 
-    public override int EmbeddingForColumn(string columnName, int defaultEmbeddingSize)
+    protected override int EmbeddingForColumn(string columnName, int defaultEmbeddingDim)
     {
         switch(columnName )
         {
-            case "marketId": return marketIdEmbeddingSize;
-            case "horizonId": return horizonIdEmbeddingSize;
-            case "marketIdhorizonId": return marketIdhorizonIdEmbeddingSize;
+            case "marketId": return marketIdEmbeddingDim;
+            case "horizonId": return horizonIdEmbeddingDim;
+            case "marketIdhorizonId": return marketIdhorizonIdEmbeddingDim;
         }
-        return defaultEmbeddingSize;
+        return defaultEmbeddingDim;
     }
 
 
