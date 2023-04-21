@@ -115,7 +115,6 @@ namespace SharpNet.Datasets
         public Objective_enum Objective { get; }
 
         public bool IsRegressionProblem => Objective == Objective_enum.Regression;
-        public bool IsClassificationProblem => Objective == Objective_enum.Classification;
 
         /// <summary>
         /// Load the element 'elementId' in the buffer 'buffer' at index 'indexInBuffer'
@@ -366,7 +365,7 @@ namespace SharpNet.Datasets
             model.Save(workingDirectory, modelName);
         }
 
-        public virtual DataFrame ExtractIdDataFrame(int rows)
+        protected virtual DataFrame ExtractIdDataFrame(int rows)
         {
             if (string.IsNullOrEmpty(IdColumn))
             {
@@ -507,7 +506,7 @@ namespace SharpNet.Datasets
             GC.SuppressFinalize(this);
         }
         // ReSharper disable once RedundantDefaultMemberInitializer
-        public bool Disposed { get; set; } = false;
+        public bool Disposed { get; protected set; } = false;
         protected virtual void Dispose(bool disposing)
         {
             if (Disposed)
@@ -537,6 +536,7 @@ namespace SharpNet.Datasets
                 Thread.Sleep(10);
                 if (thread.IsAlive)
                 {
+                    // ReSharper disable once InconsistentlySynchronizedField
                     Log.Info("fail to stop BackgroundThread in " + Name);
                 }
             }
@@ -546,13 +546,6 @@ namespace SharpNet.Datasets
             Dispose(false);
         }
         #endregion
-
-        public virtual int[] YMiniBatch_Shape(int miniBatchSize)
-        {
-            var yMiniBatchShape = (int[])Y.Shape.Clone();
-            yMiniBatchShape[0] = miniBatchSize;
-            return yMiniBatchShape;
-        }
 
         /// <summary>
         /// the length of the returned list is:
@@ -619,6 +612,7 @@ namespace SharpNet.Datasets
             var newNbPerformed = Interlocked.Increment(ref nbPerformed);
             if ((newNbPerformed % delta == 0) || (newNbPerformed == Count))
             {
+                // ReSharper disable once InconsistentlySynchronizedField
                 Log.Info("Done: " + (100 * newNbPerformed) / Count + "%");
             }
         }
@@ -745,7 +739,6 @@ namespace SharpNet.Datasets
                 var sb = new StringBuilder();
                 using var singleRow = new CpuTensor<float>(new[] { 1, ColumnNames.Length });
                 var singleRowAsSpan = singleRow.AsReadonlyFloatCpuSpan;
-                int idx = 0;
                 for (int row = 0; row < Count; ++row)
                 {
                     float yValue;
@@ -935,8 +928,6 @@ namespace SharpNet.Datasets
 
 
         private static readonly object Lock_to_csv = new();
-        private static readonly object Lock_to_libsvm = new();
-
         private static long ComputeMiniBatchHashId(int[] shuffledElementId, int firstIndexInShuffledElementId, int miniBatchSize)
         {
             long result = 1;

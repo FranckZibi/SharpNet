@@ -26,7 +26,7 @@ public class CatBoostSample : AbstractSample, IModelSample
     public void AddExtraMetricToComputeForTraining()
     {
     }
-    public (IScore trainLossIfAvailable, IScore validationLossIfAvailable, IScore trainMetricIfAvailable, IScore validationMetricIfAvailable) ExtractScores(IEnumerable<string> linesFromLog)
+    public (IScore trainLossIfAvailable, IScore validationLossIfAvailable, IScore trainRankingMetricIfAvailable, IScore validationRankingMetricIfAvailable) ExtractScores(IEnumerable<string> linesFromLog)
     {
         List<string> tokenAndMandatoryTokenAfterToken = new() { "learn:", null, "test:", null, "best:", null };
         var extractedScores = Utils.ExtractValuesFromOutputLog(linesFromLog, 0, tokenAndMandatoryTokenAfterToken.ToArray());
@@ -34,9 +34,9 @@ public class CatBoostSample : AbstractSample, IModelSample
         var validationValue = extractedScores[use_best_model ? 2 : 1];
         var trainLossIfAvailable = double.IsNaN(trainValue) ? null : new Score((float)trainValue, GetLoss());
         var validationLossIfAvailable = double.IsNaN(validationValue) ? null : new Score((float)validationValue, GetLoss());
-        IScore trainMetricIfAvailable = null;
-        IScore validationMetricIfAvailable = null;
-        return (trainLossIfAvailable, validationLossIfAvailable, trainMetricIfAvailable, validationMetricIfAvailable);
+        IScore trainRankingMetricIfAvailable = null;
+        IScore validationRankingMetricIfAvailable = null;
+        return (trainLossIfAvailable, validationLossIfAvailable, trainRankingMetricIfAvailable, validationRankingMetricIfAvailable);
     }
 
     #region Common parameters

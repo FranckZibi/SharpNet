@@ -95,11 +95,6 @@ namespace SharpNet.Layers
         public override void AddToOtherNetwork(Network otherNetwork) { AddToOtherNetwork(otherNetwork, Deserialize); }
         #endregion
 
-        public override int[] OutputShape(int batchSize)
-        {
-            return PrevLayer.OutputShape(batchSize);
-        }
-
         public static List<PredictionDescription> ExtractSelectedAfterNonMaxSuppression(CpuTensor<float> tensor, int elementId, int maxOutputSizePerClass, int maxOutputSize, double IOU_threshold, double score_Threshold)
         {
             var predictions = PredictionsAboveBoxConfidenceThreshold(tensor, elementId, score_Threshold);

@@ -10,6 +10,12 @@ namespace SharpNet.CPU
     public static unsafe class CpuTensorActivationFunctions
     {
         #region Softmax
+
+        public static void SoftmaxLastDimension<T>(CpuTensor<T> X, Tensor Y)
+        {
+            Softmax(X.Reshape(-1, X.Shape[^1]).AsFloatCpu, Y.Reshape(-1, Y.Shape[^1]));
+        }
+
         public static void Softmax<T>(CpuTensor<T> X, Tensor Y)
         {
             Debug.Assert(Tensor.AreCompatible(new List<Tensor> {X, Y}));
@@ -95,6 +101,10 @@ namespace SharpNet.CPU
             }
         }
 
+        public static void SoftmaxGradientLastDimension(Tensor y, Tensor dy, Tensor dx)
+        {
+            SoftmaxGradient(y.Reshape(-1, y.Shape[^1]), dy.Reshape(-1, dy.Shape[^1]), dx.Reshape(-1, dx.Shape[^1]));
+        }
 
         public static void SoftmaxGradient(Tensor y, Tensor dy, Tensor dx)
         {

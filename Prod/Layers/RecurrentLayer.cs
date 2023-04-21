@@ -114,10 +114,9 @@ namespace SharpNet.Layers
             _weightsAndBiases = GetFloatTensor(new[] { (int)(weightSpaceSize / 4) });
             _weightsAndBiasesGradients = GetFloatTensor(_weightsAndBiases.Shape);
             
-
             InitializeWeightAndBiasTensorList(_weightsAndBiases, false);
             InitializeWeightAndBiasTensorList(_weightsAndBiasesGradients, true);
-            _optimizer = GetOptimizer(_weightsAndBiases.Shape, null);
+            _optimizer = Sample.GetOptimizer(_weightsAndBiases.Shape, null, MemoryPool);
           
             // ReSharper disable once VirtualMemberCallInConstructor
             ResetParameters(false);

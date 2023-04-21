@@ -37,11 +37,7 @@ namespace SharpNet.CatBoost
         }
         #endregion
 
-        public override (string train_XDatasetPath_InModelFormat, string train_YDatasetPath_InModelFormat, string
-            train_XYDatasetPath_InModelFormat, string validation_XDatasetPath_InModelFormat, string
-            validation_YDatasetPath_InModelFormat, string validation_XYDatasetPath_InModelFormat, IScore
-            trainScoreIfAvailable, IScore validationScoreIfAvailable, IScore trainMetricIfAvailable, IScore
-            validationMetricIfAvailable)
+        public override (string train_XDatasetPath_InModelFormat, string train_YDatasetPath_InModelFormat, string train_XYDatasetPath_InModelFormat, string validation_XDatasetPath_InModelFormat, string validation_YDatasetPath_InModelFormat, string validation_XYDatasetPath_InModelFormat, IScore trainLossIfAvailable, IScore validationLossIfAvailable, IScore trainRankingMetricIfAvailable, IScore validationRankingMetricIfAvailable)
             Fit(DataSet trainDataset, DataSet validationDatasetIfAny)
         {
             var sw = Stopwatch.StartNew();
@@ -86,10 +82,10 @@ namespace SharpNet.CatBoost
             CatBoostSample.Save(tempModelSamplePath);
             LogForModel($"Training model '{ModelName}' with training dataset '{Path.GetFileNameWithoutExtension(trainDatasetPath_InModelFormat)}'");
             var linesFromLog = Utils.Launch(WorkingDirectory, ExePath, arguments, Log, true);
-            var (trainLossIfAvailable, validationLossIfAvailable, trainMetricIfAvailable, validationMetricIfAvailable) = CatBoostSample.ExtractScores(linesFromLog);
+            var (trainLossIfAvailable, validationLossIfAvailable, trainRankingMetricIfAvailable, validationRankingMetricIfAvailable) = CatBoostSample.ExtractScores(linesFromLog);
             LogForModel($"Model '{ModelName}' trained with dataset '{Path.GetFileNameWithoutExtension(trainDatasetPath_InModelFormat)}' in {sw.Elapsed.TotalSeconds}s (trainScore = {trainLossIfAvailable} / validationScore = {validationLossIfAvailable})");
             return (null, null, trainDatasetPath_InModelFormat, null, null, validationDatasetPathIfAny_InModelFormat,
-                trainLossIfAvailable, validationLossIfAvailable, trainMetricIfAvailable, validationMetricIfAvailable);
+                trainLossIfAvailable, validationLossIfAvailable, trainRankingMetricIfAvailable, validationRankingMetricIfAvailable);
         }
 
         public override (DataFrame,string) PredictWithPath(DataSet dataset, bool removeAllTemporaryFilesAtEnd)
@@ -156,10 +152,6 @@ namespace SharpNet.CatBoost
         public override string DeviceName()
         {
             return CatBoostSample.DeviceName();
-        }
-        public override int TotalParams()
-        {
-            return -1; //TODO
         }
         public override double GetLearningRate()
         {

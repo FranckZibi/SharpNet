@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using SharpNet.Data;
 using SharpNet.DataAugmentation;
 using SharpNet.Datasets;
 using SharpNet.GPU;
@@ -487,6 +488,37 @@ namespace SharpNet.Networks
             OptimizerType = Optimizer.OptimizationEnum.SGD;
             return this;
         }
+
+        public Optimizer GetOptimizer(int[] weightShape, int[] biasShape, TensorMemoryPool memoryPool)
+        {
+            switch (OptimizerType)
+            {
+                case Optimizer.OptimizationEnum.Adam:
+                    if (Math.Abs(AdamW_L2Regularization) > 1e-6)
+                    {
+                        throw new Exception("Invalid AdamW_L2Regularization (" + AdamW_L2Regularization + ") for Adam: should be 0");
+                    }
+                    return new Adam(memoryPool, Adam_beta1, Adam_beta2, Adam_epsilon, 0.0, weightShape, biasShape);
+                case Optimizer.OptimizationEnum.AdamW:
+                    if (Math.Abs(lambdaL2Regularization) > 1e-6)
+                    {
+                        throw new Exception("Can't use both AdamW and L2 Regularization");
+                    }
+                    if (AdamW_L2Regularization < 1e-6)
+                    {
+                        throw new Exception("Invalid AdamW_L2Regularization (" + AdamW_L2Regularization + ") for AdamW: should be > 0");
+                    }
+                    return new Adam(memoryPool, Adam_beta1, Adam_beta2, Adam_epsilon, AdamW_L2Regularization, weightShape, biasShape);
+                case Optimizer.OptimizationEnum.SGD:
+                    return new Sgd(memoryPool, SGD_momentum, SGD_usenesterov, weightShape, biasShape);
+                case Optimizer.OptimizationEnum.VanillaSGDOrtho:
+                    return new VanillaSgdOrtho(memoryPool, weightShape);
+                case Optimizer.OptimizationEnum.VanillaSGD:
+                default:
+                    return VanillaSgd.Instance;
+            }
+        }
+
 
         public enum CompatibilityModeEnum
         {

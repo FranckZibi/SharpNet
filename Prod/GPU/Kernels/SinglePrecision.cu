@@ -162,19 +162,19 @@
 	}
 
 
-	__global__ void ComputeAccuracy(int N, int categoryCount, float *countOk, const float* __restrict yExpectedOneHot, const float* __restrict yPredicted) 
+	__global__ void ComputeAccuracy(int N, int numClass, float *countOk, const float* __restrict yExpectedOneHot, const float* __restrict yPredicted) 
 	{
-		int i = blockIdx.x * blockDim.x + threadIdx.x;
-		if (i < N) {
-			if (categoryCount == 1)
+		int row = blockIdx.x * blockDim.x + threadIdx.x;
+		if (row < N) {
+			if (numClass == 1)
 			{
-				float error = fabsf(yExpectedOneHot[i] - yPredicted[i]);
-				countOk[i] = (error < 0.5f) ? 1.0f : 0.0f;
+				float error = fabsf(yExpectedOneHot[row] - yPredicted[row]);
+				countOk[row] = (error < 0.5f) ? 1.0f : 0.0f;
 				return;
 			}
 
-			int startIndex = i * categoryCount;
-			int endIndexExcluded = startIndex + categoryCount;
+			int startIndex = row * numClass;
+			int endIndexExcluded = startIndex + numClass;
 			int maxIndexPredicted = startIndex;
 			int maxIndexExpected = startIndex;
 			for (int j = startIndex+1; j < endIndexExcluded; ++j)
@@ -184,11 +184,40 @@
 				if (yExpectedOneHot[j] > yExpectedOneHot[maxIndexExpected])
 					maxIndexExpected = j;
 			}
-			countOk[i] = (maxIndexPredicted == maxIndexExpected) ? 1.0f : 0.0f;
+			countOk[row] = (maxIndexPredicted == maxIndexExpected) ? 1.0f : 0.0f;
 		}
 	}
 
+	__global__ void ComputeSparseAccuracy(int N, int numClass, float *countOk, const float* __restrict yExpectedSparse, const float* __restrict yPredicted) 
+	{
+		int row = blockIdx.x * blockDim.x + threadIdx.x;
+		if (row < N) {
+            int expectedClassIndex = (int)(yExpectedSparse[row]+0.1f);
+			int startIndex = row * numClass;
+			int predictedClassIndex = 0;
+			for (int classIndex = 1; classIndex < numClass; ++classIndex)
+			{
+				if (yPredicted[startIndex+classIndex] > yPredicted[startIndex+predictedClassIndex])
+					predictedClassIndex = classIndex;
+			}
+			countOk[row] = (predictedClassIndex == expectedClassIndex) ? 1.0f : 0.0f;
+		}
+	}
 
+	__global__ void ArgMax(int N, int cols, float* __restrict buffer, const float* __restrict yPredicted) 
+	{
+		int row = blockIdx.x * blockDim.x + threadIdx.x;
+		if (row < N) {
+			int startIndex = row * cols;
+			int colArgMax = 0;
+			for (int col = 1; col < cols; ++col)
+			{
+				if (yPredicted[startIndex+col] > yPredicted[startIndex+colArgMax])
+					colArgMax = col;
+			}
+			buffer[row] = colArgMax;
+		}
+	}
 
 	__device__  bool IsAccuratePredictionForCategoricalCrossentropyWithHierarchy(const float* __restrict expected, const float* __restrict predicted, int endIndexExcluded, int *pNexIndexToCheck, int subCategoriesCount)
 	{
@@ -654,6 +683,7 @@
 		}
 	}
 
+	
 	__global__ void CategoricalCrossentropyWithHierarchyLoss(int N, int nbCols, float* losses, const float* __restrict yExpected, const float* __restrict yPredicted)
 	{
 		int i = blockIdx.x * blockDim.x + threadIdx.x;
@@ -764,6 +794,7 @@
 			losses[i] = loss / lineSize;
 		}
 	}
+
 	
 	__global__ void MseGradient(int batchSize, int lineSize, float* mseGradient, const float* __restrict yExpected, const float* __restrict yPredicted)
 	{
@@ -776,6 +807,31 @@
 				float diff = yPredicted[j] - yExpected[j];
 				mseGradient[j] = (2 * diff) / lineSize;
 			}
+		}
+	}
+
+	__global__ void SparseCategoricalCrossentropyLoss(int N, int numClass, float *losses, const float* __restrict yExpectedSparseMatrix, const float* __restrict yPredicted)
+	{
+		int i = blockIdx.x * blockDim.x + threadIdx.x;
+		if (i < N) {
+            int yClass = (int)(yExpectedSparseMatrix[i]+0.1f);
+			float predicted = yPredicted[i * numClass + yClass];
+			losses[i] = -logf(predicted);
+		}
+	}
+
+	__global__ void SparseCategoricalCrossentropyGradient(int batchSize, int numClass, float* sparseCategoricalCrossentropyGradient, const float* __restrict yExpectedSparseMatrix, const float* __restrict yPredicted)
+	{
+		int i = blockIdx.x * blockDim.x + threadIdx.x;
+		if (i < batchSize) {
+			int startIndex = i * numClass;
+			int endIndexExcluded = startIndex + numClass;
+			for (int j = startIndex; j < endIndexExcluded; ++j)
+			{
+				sparseCategoricalCrossentropyGradient[j] = yPredicted[j];
+			}
+            int yClass = (int)(yExpectedSparseMatrix[i]+0.1f);
+            sparseCategoricalCrossentropyGradient[i * numClass + yClass] -= 1.0f;
 		}
 	}
 
@@ -1013,7 +1069,7 @@
 		float value = col % 2 == 0 
                             ? sinf(k  / powf(n, (2.0f * i) / embeddingDim)) 
                             : cosf(k / powf(n, (2.0f * i) / embeddingDim));
-		src[src_index] = value;
+		src[src_index] += value;
 	}
 
 	// transform a 'src' tensor of shape >= 3 [A,B,C,*] to a 'target' tensor of shape [A,C,B,*] 

@@ -579,11 +579,11 @@ namespace SharpNetTests.NonReg
         }
 
 
-        [TestCase(false, false, "[[0.33612340688705444, 0.335114449262619, 0.32876214385032654], [0.3238414525985718, 0.32561299204826355, 0.3505455255508423], [0.3504612445831299, 0.34713444113731384, 0.30240437388420105]]", "[[0.33489859104156494, 0.3228294253349304, 0.34227195382118225], [0.32507187128067017, 0.370861291885376, 0.30406683683395386], [0.34244945645332336, 0.274677574634552, 0.38287293910980225]]")]
-        [TestCase(true, false, "[[0.33612340688705444, 0.335114449262619, 0.32876214385032654], [0.3238414525985718, 0.32561299204826355, 0.3505455255508423], [0.3504612445831299, 0.34713444113731384, 0.30240437388420105]]", "[[0.33425164222717285, 0.32278168201446533, 0.3429667055606842], [0.32445767521858215, 0.3708210587501526, 0.30472126603126526], [0.34176409244537354, 0.2746350169181824, 0.3836009204387665]]")]
-        [TestCase(false, true, "[[0.3333800137042999, 0.33167850971221924, 0.33494147658348083], [0.3367977738380432, 0.3407307267189026, 0.3224715292453766], [0.32580336928367615, 0.32095104455947876, 0.3532455265522003]]", "[[0.3350170850753784, 0.31547319889068604, 0.34950965642929077], [0.32026976346969604, 0.4177072048187256, 0.26202306151390076], [0.3292045295238495, 0.2073516994714737, 0.463443785905838]]")]
-        [TestCase(true, true, "[[0.3333800137042999, 0.33167850971221924, 0.33494147658348083], [0.3367977738380432, 0.3407307267189026, 0.3224715292453766], [0.32580336928367615, 0.32095104455947876, 0.3532455265522003]]", "[[0.33550700545310974, 0.3179764747619629, 0.346516489982605], [0.32024163007736206, 0.42041441798210144, 0.2593439519405365], [0.3302727937698364, 0.20935170352458954, 0.4603755474090576]]"), NonParallelizable]
-        public void Test_MultiHeadAttention_GPU(bool use_bias, bool use_causal_mask, string expectedBeforeTraining, string expectedAfterTraining)
+        [TestCase(false, false, false, "[[0.33612340688705444, 0.335114449262619, 0.32876214385032654], [0.3238414525985718, 0.32561299204826355, 0.3505455255508423], [0.3504612445831299, 0.34713444113731384, 0.30240437388420105]]", "[[0.33489859104156494, 0.3228294253349304, 0.34227195382118225], [0.32507187128067017, 0.370861291885376, 0.30406683683395386], [0.34244945645332336, 0.274677574634552, 0.38287293910980225]]")]
+        [TestCase(true, true, false, "[[0.33612340688705444, 0.335114449262619, 0.32876214385032654], [0.3238414525985718, 0.32561299204826355, 0.3505455255508423], [0.3504612445831299, 0.34713444113731384, 0.30240437388420105]]", "[[0.33425164222717285, 0.32278168201446533, 0.3429667055606842], [0.32445767521858215, 0.3708210587501526, 0.30472126603126526], [0.34176409244537354, 0.2746350169181824, 0.3836009204387665]]")]
+        [TestCase(false, false, true, "[[0.3333800137042999, 0.33167850971221924, 0.33494147658348083], [0.3367977738380432, 0.3407307267189026, 0.3224715292453766], [0.32580336928367615, 0.32095104455947876, 0.3532455265522003]]", "[[0.3350170850753784, 0.31547319889068604, 0.34950965642929077], [0.32026976346969604, 0.4177072048187256, 0.26202306151390076], [0.3292045295238495, 0.2073516994714737, 0.463443785905838]]")]
+        [TestCase(true, true, true, "[[0.3333800137042999, 0.33167850971221924, 0.33494147658348083], [0.3367977738380432, 0.3407307267189026, 0.3224715292453766], [0.32580336928367615, 0.32095104455947876, 0.3532455265522003]]", "[[0.33550700545310974, 0.3179764747619629, 0.346516489982605], [0.32024163007736206, 0.42041441798210144, 0.2593439519405365], [0.3302727937698364, 0.20935170352458954, 0.4603755474090576]]"), NonParallelizable]
+        public void Test_MultiHeadAttention_GPU(bool use_bias_Q_V_K, bool use_bias_O, bool use_causal_mask, string expectedBeforeTraining, string expectedAfterTraining)
         {
             const int numEpochs = 10;
             const double learningRate = 0.01;
@@ -593,7 +593,7 @@ namespace SharpNetTests.NonReg
             const int value_dim = 5;
             const int embedding_dim = 15;
 
-            var X = numpy_array_for_tests(3, 7, 15);
+            var X = numpy_array_for_tests(3, 7, embedding_dim);
             var Y = y_numpy_array_for_tests(X.Shape[0], 3);
 
             var network = GetNetwork(EvaluationMetricEnum.CategoricalCrossentropy, new List<int> { 0 });
@@ -603,7 +603,7 @@ namespace SharpNetTests.NonReg
             var conv1D_Q = network.Conv1D(2, 1, 1, ConvolutionLayer.PADDING_TYPE.SAME, lambdaL2Regularization, true, lastLayerIndex, "conv1D_Q").Layers.Last();
             var conv1D_V = network.Conv1D(2, 1, 1, ConvolutionLayer.PADDING_TYPE.SAME, lambdaL2Regularization, true, lastLayerIndex, "conv1D_V").Layers.Last();
             var conv1D_K = network.Conv1D(2, 1, 1, ConvolutionLayer.PADDING_TYPE.SAME, lambdaL2Regularization, true, lastLayerIndex, "conv1D_K").Layers.Last();
-            network.MultiHeadAttention(num_heads, key_dim, value_dim, use_bias, embedding_dim, use_causal_mask, conv1D_Q.LayerIndex, conv1D_V.LayerIndex, conv1D_K.LayerIndex);
+            network.MultiHeadAttention(num_heads, key_dim, value_dim, use_bias_Q_V_K, use_bias_O, use_causal_mask, conv1D_Q.LayerIndex, conv1D_V.LayerIndex, conv1D_K.LayerIndex);
             network.Flatten()
                 .Dense(Y.Shape[1], lambdaL2Regularization, false)
                 .Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
@@ -1357,6 +1357,10 @@ namespace SharpNetTests.NonReg
             if (evaluationMetric is EvaluationMetricEnum.BinaryCrossentropy or EvaluationMetricEnum.CategoricalCrossentropy)
             {
                 evaluationMetrics.Add(EvaluationMetricEnum.Accuracy);
+            }
+            if (evaluationMetric is EvaluationMetricEnum.SparseCategoricalCrossentropy)
+            {
+                evaluationMetrics.Add(EvaluationMetricEnum.SparseAccuracy);
             }
             return TestNetwork.NewForTests(
                 new NetworkSample{ 

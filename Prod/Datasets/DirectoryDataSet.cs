@@ -27,7 +27,8 @@ namespace SharpNet.Datasets
         private readonly Random _rand = new Random(0);
         #endregion
 
-        public override CpuTensor<float> Y { get; }
+        public override CpuTensor<float> Y => Y_DirectoryDataSet;
+        public CpuTensor<float> Y_DirectoryDataSet { get; }
 
         public static DirectoryDataSet FromFiles(
             List<string> picturePaths,
@@ -95,12 +96,12 @@ namespace SharpNet.Datasets
             //We compute Y field
             if (expectedYIfAny != null)
             {
-                Y = expectedYIfAny;
+                Y_DirectoryDataSet = expectedYIfAny;
             }
             else
             {
                 Debug.Assert(categoryDescriptions != null);
-                Y = CpuTensor<float>.CreateOneHotTensor(ElementIdToCategoryIndex, Count, categoryDescriptions.Length);
+                Y_DirectoryDataSet = CpuTensor<float>.CreateOneHotTensor(ElementIdToCategoryIndex, Count, categoryDescriptions.Length);
             }
         }
         #endregion
@@ -135,7 +136,7 @@ namespace SharpNet.Datasets
 
             if (yBuffer != null)
             {
-                Y.CopyTo(Y.Idx(elementId), yBuffer, yBuffer.Idx(indexInBuffer), yBuffer.MultDim0);
+                Y_DirectoryDataSet.CopyTo(Y_DirectoryDataSet.Idx(elementId), yBuffer, yBuffer.Idx(indexInBuffer), yBuffer.MultDim0);
             }
         }
         public override bool CanBeSavedInCSV => false;

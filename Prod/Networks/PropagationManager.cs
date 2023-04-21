@@ -156,11 +156,11 @@ namespace SharpNet.Networks
        
         public void Backward([NotNull] Tensor yExpected, [NotNull] Tensor yPredicted, EvaluationMetricEnum evaluationMetric)
         {
-            Debug.Assert(yExpected.SameShape(yPredicted));
+            //Debug.Assert(yExpected.SameShape(yPredicted));
             var firstTrainableLayer = Layer.FirstTrainableLayer(_layers);
             var lastLayerIndex = _layers.Last().LayerIndex;
 
-            var dyPredicted = _memoryPool.GetFloatTensor(yExpected.Shape);
+            var dyPredicted = _memoryPool.GetFloatTensor(yPredicted.Shape);
 
             switch (evaluationMetric)
             {
@@ -178,6 +178,9 @@ namespace SharpNet.Networks
                     yPredicted.CopyTo(dyPredicted);
                     dyPredicted.AddTensor(-1, yExpected, 1);
                     break;
+                case EvaluationMetricEnum.SparseCategoricalCrossentropy:
+                    dyPredicted.SparseCategoricalCrossentropyGradient(yExpected, yPredicted);
+                    break;
                 case EvaluationMetricEnum.CategoricalCrossentropyWithHierarchy:
                     dyPredicted.CategoricalCrossentropyWithHierarchyGradient(yExpected, yPredicted);
                     break;
@@ -190,9 +193,6 @@ namespace SharpNet.Networks
                     break;
                 case EvaluationMetricEnum.Mae:
                     dyPredicted.MaeGradient(yExpected, yPredicted);
-                    break;
-                case EvaluationMetricEnum.CosineSimilarity504:
-                    dyPredicted.CosineSimilarityGradient(yExpected, yPredicted, Tensor.CosineSimilarity504_TimeSeries_Length);
                     break;
                 default:
                     throw new Exception("Invalid loss function " + evaluationMetric);

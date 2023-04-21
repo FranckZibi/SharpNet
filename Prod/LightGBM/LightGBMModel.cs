@@ -38,11 +38,7 @@ namespace SharpNet.LightGBM
         }
         #endregion
 
-        public override (string train_XDatasetPath_InModelFormat, string train_YDatasetPath_InModelFormat, string
-            train_XYDatasetPath_InModelFormat, string validation_XDatasetPath_InModelFormat, string
-            validation_YDatasetPath_InModelFormat, string validation_XYDatasetPath_InModelFormat, IScore
-            trainScoreIfAvailable, IScore validationScoreIfAvailable, IScore trainMetricIfAvailable, IScore
-            validationMetricIfAvailable)
+        public override (string train_XDatasetPath_InModelFormat, string train_YDatasetPath_InModelFormat, string train_XYDatasetPath_InModelFormat, string validation_XDatasetPath_InModelFormat, string validation_YDatasetPath_InModelFormat, string validation_XYDatasetPath_InModelFormat, IScore trainLossIfAvailable, IScore validationLossIfAvailable, IScore trainRankingMetricIfAvailable, IScore validationRankingMetricIfAvailable)
             Fit(DataSet trainDataset, DataSet validationDatasetIfAny)
         {
             var sw = Stopwatch.StartNew();
@@ -74,12 +70,12 @@ namespace SharpNet.LightGBM
             tmpLightGBMSample.Save(tmpLightGBMSamplePath);
             LogForModel($"Training model '{ModelName}' with training dataset '{Path.GetFileNameWithoutExtension(train_XYDatasetPath_InModelFormat)}" + (string.IsNullOrEmpty(validation_XYDatasetPath_InModelFormat) ? "" : $" and validation dataset {Path.GetFileNameWithoutExtension(validation_XYDatasetPath_InModelFormat)}'"));
             var linesFromLog = Utils.Launch(WorkingDirectory, ExePath, "config=" + tmpLightGBMSamplePath, Log, true);
-            var (trainLossIfAvailable, validationLossIfAvailable, trainMetricIfAvailable, validationMetricIfAvailable) = tmpLightGBMSample.ExtractScores(linesFromLog);
+            var (trainLossIfAvailable, validationLossIfAvailable, trainRankingMetricIfAvailable, validationRankingMetricIfAvailable) = tmpLightGBMSample.ExtractScores(linesFromLog);
 
             Utils.TryDelete(tmpLightGBMSamplePath);
 
-            LogForModel($"Model '{ModelName}' trained with dataset '{Path.GetFileNameWithoutExtension(train_XYDatasetPath_InModelFormat)}' in {sw.Elapsed.TotalSeconds}s (trainScore = {trainLossIfAvailable} / validationScore = {validationLossIfAvailable} / trainMetric = {trainMetricIfAvailable} / validationMetric = {validationMetricIfAvailable})");
-            return (null, null, train_XYDatasetPath_InModelFormat, null, null, validation_XYDatasetPath_InModelFormat, trainLossIfAvailable, validationLossIfAvailable, trainMetricIfAvailable, validationMetricIfAvailable);
+            LogForModel($"Model '{ModelName}' trained with dataset '{Path.GetFileNameWithoutExtension(train_XYDatasetPath_InModelFormat)}' in {sw.Elapsed.TotalSeconds}s (trainScore = {trainLossIfAvailable} / validationScore = {validationLossIfAvailable} / trainMetric = {trainRankingMetricIfAvailable} / validationMetric = {validationRankingMetricIfAvailable})");
+            return (null, null, train_XYDatasetPath_InModelFormat, null, null, validation_XYDatasetPath_InModelFormat, trainLossIfAvailable, validationLossIfAvailable, trainRankingMetricIfAvailable, validationRankingMetricIfAvailable);
         }
 
       
@@ -245,11 +241,6 @@ namespace SharpNet.LightGBM
         {
             return LightGbmSample.DeviceName();
         }
-        public override int TotalParams()
-        {
-            return -1; //TODO
-        }
-
         public override double GetLearningRate()
         {
             return LightGbmSample.learning_rate;

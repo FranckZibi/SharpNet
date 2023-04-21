@@ -85,7 +85,7 @@ namespace SharpNet.Layers
             _scaleGradients = GetFloatTensor(scaleAndBiasShape);
             _biasGradients = GetFloatTensor(scaleAndBiasShape);
 
-            _optimizer = GetOptimizer(_scale.Shape, _bias.Shape);
+            _optimizer = Sample.GetOptimizer(_scale.Shape, _bias.Shape, MemoryPool);
 
             //no need to reset optimizer weights: it has just been done above
             ResetParameters(false);

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -99,7 +100,6 @@ namespace SharpNet.Networks
             EpochData.Clear();
             MemoryPool.FreeFloatTensor(ref _buffer);
             MemoryPool.FreeFloatTensor(ref _yPredictedForEpoch);
-            MemoryPool.FreeFloatTensor(ref _yExpectedForEpoch);
             foreach (var t in all_x_miniBatch)
             {
                 MemoryPool.FreeFloatTensor(t);
@@ -140,9 +140,7 @@ namespace SharpNet.Networks
             return this;
         }
 
-
-
-    public Network Input(int channelCount, int h, int w, string layerName = "")
+        public Network Input(int channelCount, int h, int w, string layerName = "")
         {
             Layers.Add(new InputLayer(channelCount, h, w, this, layerName));
             return this;
@@ -252,13 +250,8 @@ namespace SharpNet.Networks
 
         public Network Dense(int units, double lambdaL2Regularization, bool flattenInputTensorOnLastDimension, string layerName = "")
         {
-            return Dense(units, lambdaL2Regularization, flattenInputTensorOnLastDimension, Sample.OptimizerType, layerName);
-        }
-
-        private Network Dense(int units, double lambdaL2Regularization, bool flattenInputTensorOnLastDimension, Optimizer.OptimizationEnum optimizerType, string layerName = "")
-        {
             Debug.Assert(Layers.Count >= 1);
-            var fullyConnectedLayer = new DenseLayer(units, lambdaL2Regularization, flattenInputTensorOnLastDimension, optimizerType, true, this, layerName);
+            var fullyConnectedLayer = new DenseLayer(units, lambdaL2Regularization, flattenInputTensorOnLastDimension, true, this, layerName);
             Layers.Add(fullyConnectedLayer);
             return this;
         }
@@ -380,6 +373,7 @@ namespace SharpNet.Networks
             return this;
         }
 
+        // ReSharper disable once UnusedMember.Global
         public Network ScaledDotProductAttention(bool use_scale, bool use_causal_mask = false, string layerName = "")
         {
             var previousLayerIndex = Layers.Count - 1;
@@ -395,12 +389,12 @@ namespace SharpNet.Networks
             return this;
         }
 
-        public Network MultiHeadAttention(int num_heads, int key_dim, int value_dim, bool use_bias, int embedding_dim,
+        public Network MultiHeadAttention(int num_heads, int key_dim, int value_dim, bool use_bias_K_V_K, bool use_bias_O,
             bool use_causal_mask, int queriesLayerIndex, int valuesLayerIndex, int keysLayerIndex,
             string layerName = "")
         {
             Debug.Assert(Layers.Count >= 1);
-            Layers.Add(new MultiHeadAttentionLayer(num_heads, key_dim, value_dim, use_bias, embedding_dim, use_causal_mask, queriesLayerIndex, valuesLayerIndex, keysLayerIndex, this, layerName));
+            Layers.Add(new MultiHeadAttentionLayer(num_heads, key_dim, value_dim, use_bias_K_V_K, use_bias_O, use_causal_mask, queriesLayerIndex, valuesLayerIndex, keysLayerIndex, this, layerName));
             return this;
         }
 
@@ -504,18 +498,18 @@ namespace SharpNet.Networks
             return this;
         }
 
-        public Network LayerNorm(int last_D_dimension = 1, double epsilon = LayerNormalizationLayer.epsilon_default_value, string layerName = "")
+        public Network LayerNorm(int last_D_dimension = 1, double epsilon = LayerNormalizationLayer.DEFAULT_EPSILON, string layerName = "", int lastLayerIndex = -1)
         {
             Debug.Assert(Layers.Count >= 1);
             Debug.Assert(last_D_dimension >= 1);
-            Layers.Add(new LayerNormalizationLayer(last_D_dimension, epsilon, true, this, layerName));
+            Layers.Add(new LayerNormalizationLayer(last_D_dimension, epsilon, true, this, layerName, lastLayerIndex));
             return this;
         }
 
-        public Network Flatten()
+        public Network Flatten(bool flattenInputTensorOnLastDimension = false)
         {
             Debug.Assert(Layers.Count >= 1);
-            var flattenLayer = new FlattenLayer(this);
+            var flattenLayer = new FlattenLayer(flattenInputTensorOnLastDimension, this);
             Layers.Add(flattenLayer);
             return this;
         }
@@ -565,7 +559,7 @@ namespace SharpNet.Networks
                 var blockLoss = yExpectedMiniBatch.ComputeEvaluationMetric(yPredictedMiniBatch, Sample.LossFunction, _buffer);
                 learningRateFinder.AddLossForLastBlockId(blockLoss);
             }
-            MiniBatchGradientDescentForSingleEpoch(trainingDataSet, miniBatchSizeForAllWorkers, learningRateFinder, CallBackAfterEachMiniBatch);
+            MiniBatchGradientDescentForSingleEpoch(trainingDataSet, miniBatchSizeForAllWorkers, learningRateFinder, CallBackAfterEachMiniBatch, returnPredictionsForFullDataset: false, computeMetricsForFullDataset: false);
             var fileName = Path.Combine(WorkingDirectory, ModelName + "_LearningRateFinder.csv");
             File.WriteAllText(fileName, learningRateFinder.AsCsv());
             LogInfo("Stats stored in: " + fileName);
@@ -591,11 +585,8 @@ namespace SharpNet.Networks
         /// Weights Update =       =       =       =       = [in,out] = [in]  =
         /// ===================================================================
         /// </summary>
-        public override (string train_XDatasetPath_InModelFormat, string train_YDatasetPath_InModelFormat, string
-            train_XYDatasetPath_InModelFormat, string validation_XDatasetPath_InModelFormat, string
-            validation_YDatasetPath_InModelFormat, string validation_XYDatasetPath_InModelFormat, IScore
-            trainScoreIfAvailable, IScore validationScoreIfAvailable, IScore trainMetricIfAvailable, IScore
-            validationMetricIfAvailable)
+        [SuppressMessage("ReSharper", "ExpressionIsAlwaysNull")]
+        public override (string train_XDatasetPath_InModelFormat, string train_YDatasetPath_InModelFormat, string train_XYDatasetPath_InModelFormat, string validation_XDatasetPath_InModelFormat, string validation_YDatasetPath_InModelFormat, string validation_XYDatasetPath_InModelFormat, IScore trainLossIfAvailable, IScore validationLossIfAvailable, IScore trainRankingMetricIfAvailable, IScore validationRankingMetricIfAvailable)
             Fit(DataSet trainingDataset, DataSet validationDatasetIfAny)
         {
             //FindBestLearningRate(trainingDataset, 1e-8, 10.0, Sample.BatchSize);
@@ -604,18 +595,16 @@ namespace SharpNet.Networks
             int numEpochs = Sample.NumEpochs;
             var learningRateComputer = Sample.GetLearningRateComputer();
 
+            IDictionary<EvaluationMetricEnum, double> trainingMetrics = null;
+            IDictionary<EvaluationMetricEnum, double> validationMetrics = null;
             try
             {
                 Debug.Assert(Sample.TypeSize == trainingDataset.TypeSize);
                 Debug.Assert(miniBatchSizeForAllWorkers >= 1);
                 _spInternalFit.Start();
                 StartTimer("Fit_Prepare", ForwardPropagationTrainingTime);
-
                 FreezeSelectedLayers();
-
-                LogDebug("Fit( " /*+ Tensor.ShapeToString(XMiniBatch_Shape(trainingDataSet.Count))*/ +" => " + Tensor.ShapeToString(trainingDataset.YMiniBatch_Shape(trainingDataset.Count))+" )");
                 LogInfo(ToString());
-
 
                 if (UseGPU)
                 {
@@ -638,7 +627,6 @@ namespace SharpNet.Networks
 
 
                 var lastAutoSaveTime = DateTime.Now; //last time we saved the network
-                IDictionary<EvaluationMetricEnum, double> validationMetrics = null;
                 for (;;)
                 {
                     int epoch = EpochData.Count + 1;
@@ -657,7 +645,7 @@ namespace SharpNet.Networks
 
                     #region Mini Batch gradient descent
                     var learningRateAtEpochStart = learningRateComputer.LearningRate(epoch, 0, lrMultiplicativeFactorFromReduceLrOnPlateau);
-                    var yPredicted = MiniBatchGradientDescentForSingleEpoch(trainingDataset, miniBatchSizeForAllWorkers, learningRateComputer, null);
+                    (_, trainingMetrics) = MiniBatchGradientDescentForSingleEpoch(trainingDataset, miniBatchSizeForAllWorkers, learningRateComputer, null, returnPredictionsForFullDataset:false, computeMetricsForFullDataset:true);
                     #endregion
 
                     //We display stats about the just finished epoch
@@ -667,7 +655,6 @@ namespace SharpNet.Networks
                     }
 
                     StartTimer("Fit_LossAndAccuracy", ForwardPropagationTrainingTime);
-                    var trainingMetrics = ComputeMetrics(_yExpectedForEpoch, yPredicted);
                     var lossAndAccuracyMsg = MetricsToString(trainingMetrics, "");
                     if (validationDatasetIfAny != null)
                     {
@@ -774,8 +761,38 @@ namespace SharpNet.Networks
                 LogError(e.ToString());
                 throw;
             }
+
+
             //!D TODO : try to return training & validation score if available
-            return (null, null, null, null, null, null, null, null, null, null);
+            IScore trainLossIfAvailable = null;
+            IScore validationLossIfAvailable = null;
+            IScore trainRankingMetricIfAvailable = null;
+            IScore validationRankingMetricIfAvailable = null;
+
+            var lossMetric = Sample.LossFunction;
+            var rankingMetric = Sample.Metrics.Last();
+            if (trainingMetrics != null && trainingMetrics.ContainsKey(lossMetric))
+            {
+                trainLossIfAvailable = new Score((float)trainingMetrics[lossMetric], lossMetric);
+            }
+            if (trainingMetrics != null && trainingMetrics.ContainsKey(rankingMetric))
+            {
+                trainRankingMetricIfAvailable = new Score((float)trainingMetrics[rankingMetric], rankingMetric);
+            }
+            if (validationMetrics != null && validationMetrics.ContainsKey(lossMetric))
+            {
+                validationLossIfAvailable = new Score((float)validationMetrics[lossMetric], lossMetric);
+            }
+            if (validationMetrics != null && validationMetrics.ContainsKey(rankingMetric))
+            {
+                validationRankingMetricIfAvailable = new Score((float)validationMetrics[rankingMetric], rankingMetric);
+            }
+
+            return (null, null, null, null, null, null,
+                trainLossIfAvailable,
+                validationLossIfAvailable,
+                trainRankingMetricIfAvailable,
+                validationRankingMetricIfAvailable);
         }
 
 
@@ -824,22 +841,8 @@ namespace SharpNet.Networks
         {
             //We perform a mini batch gradient descent in Testing mode:
             //  there will be no shuffling/data augmentation.
-            var yPredicted = MiniBatchGradientDescentForSingleEpoch(testDataSet, miniBatchSize);
-            return ComputeMetrics(testDataSet.Y, yPredicted);
-        }
-        private IDictionary<EvaluationMetricEnum, double> ComputeMetrics(Tensor yExpected, Tensor yPredicted)
-        {
-            _swComputeMetrics?.Start();
-            var result = new Dictionary<EvaluationMetricEnum, double>();
-            yExpected = ReformatToCorrectDevice_GPU_or_CPU(yExpected);
-            yPredicted = ReformatToCorrectDevice_GPU_or_CPU(yPredicted);
-            foreach (var metric in Sample.Metrics)
-            {
-                MemoryPool.GetFloatTensor(ref _buffer, yExpected.ComputeMetricBufferShape(metric));
-                result[metric] = yExpected.ComputeEvaluationMetric(yPredicted, metric, _buffer);
-            }
-            _swComputeMetrics?.Stop();
-            return result;
+            var (_,metrics) = MiniBatchGradientDescentForSingleEpoch(testDataSet, miniBatchSize, returnPredictionsForFullDataset:false, computeMetricsForFullDataset:true);
+            return metrics;
         }
         #endregion
 
@@ -886,7 +889,7 @@ namespace SharpNet.Networks
         {
             return GpuWrapper?.DeviceName();
         }
-        public override int TotalParams()
+        public int TotalParams()
         {
             return Layers.SelectMany(l => l.Parameters).Select(t => t.Item1.Count).Sum();
         }
@@ -895,12 +898,36 @@ namespace SharpNet.Networks
             throw new NotImplementedException();
         }
 
+        private int[] YExpected_MiniBatch_Shape(int miniBatchSize)
+        {
+            var YPredicted_MiniBatch_Shape = this.YPredicted_MiniBatch_Shape(miniBatchSize);
+            if (Sample.LossFunction == EvaluationMetricEnum.SparseCategoricalCrossentropy)
+            {
+                // the Y Predicted shape is of shape (a, embeddingDim)
+                // the Y Expected shape is of shape  (a,1)
+                if (YPredicted_MiniBatch_Shape.Length == 2)
+                {
+                    YPredicted_MiniBatch_Shape[1] = 1;
+                    return YPredicted_MiniBatch_Shape;
+                }
+                // the Y Predicted shape is of shape (a,b, ...,y,z, embeddingDim)
+                // the Y Expected shape is of shape  (a,b, ...,y,z)
+                return YPredicted_MiniBatch_Shape.Take(YPredicted_MiniBatch_Shape.Length - 1).ToArray();
+            }
+            return YPredicted_MiniBatch_Shape;
+        }
+        public int[] YPredicted_MiniBatch_Shape(int miniBatchSize)
+        {
+            return Layers.Last().OutputShape(miniBatchSize);
+        }
+
         public CpuTensor<float> Predict(DataSet dataset, int miniBatchSizeForAllWorkers)
         {
-            var yPredicted = MiniBatchGradientDescentForSingleEpoch(dataset, miniBatchSizeForAllWorkers);
+            var (yPredicted,_) = MiniBatchGradientDescentForSingleEpoch(dataset, miniBatchSizeForAllWorkers, returnPredictionsForFullDataset: true, computeMetricsForFullDataset: false);
             var yPredictedCpu = yPredicted.ToCpuFloat();
             return yPredictedCpu;
         }
+
         /// <summary>
         /// Perform a mini batch gradient descent for an entire epoch, each mini batch will have (at most) 'miniBatchSize' elements
         /// </summary>
@@ -918,8 +945,10 @@ namespace SharpNet.Networks
         /// <param name="CallBackAfterEachMiniBatch">Optional callback to be called at the end of each mini batch,
         /// parameters are: 'mini batch expected output' + 'mini batch observed output' + 'current block Id'
         /// If the callback returns true we should stop the computation</param>
+        /// <param name="computeMetricsForFullDataset"></param>
+        /// <param name="returnPredictionsForFullDataset"></param>
         /// <returns>observed output associated with the input 'x'</returns>
-        public Tensor MiniBatchGradientDescentForSingleEpoch(DataSet dataSet, int miniBatchSizeForAllWorkers, ILearningRateComputer learningRateComputerIfTraining = null, Action<Tensor, Tensor> CallBackAfterEachMiniBatch = null)
+        public (Tensor yPredictions, IDictionary<EvaluationMetricEnum, double> metrics) MiniBatchGradientDescentForSingleEpoch(DataSet dataSet, int miniBatchSizeForAllWorkers, ILearningRateComputer learningRateComputerIfTraining = null, Action<Tensor, Tensor> CallBackAfterEachMiniBatch = null, bool returnPredictionsForFullDataset = true, bool computeMetricsForFullDataset = false)
         {
             Debug.Assert(IsMaster);
             Debug.Assert(miniBatchSizeForAllWorkers >= 1);
@@ -929,6 +958,10 @@ namespace SharpNet.Networks
                 CompactParameters();
                 CompactGradients();
             }
+
+            EvaluationMetricAccumulator metricAccumulator = computeMetricsForFullDataset
+                ? new EvaluationMetricAccumulator(MemoryPool)
+                : null;
 
             //last time we display a progress on the screen for the current min batch descent
             var miniBatchGradientDescentStart = DateTime.Now;
@@ -952,9 +985,18 @@ namespace SharpNet.Networks
             //int multiplier = (dataSet.Count + miniBatchSizeForAllWorkers - 1) / miniBatchSizeForAllWorkers;
             //int dataSetCountWithExtraBufferAtEnd = miniBatchSizeForAllWorkers* multiplier;
             int dataSetCountWithExtraBufferAtEnd = dataSet.Count + miniBatchSizeForAllWorkers - 1;
-            var YShapeAsMultipleOfMiniBatchSize = dataSet.YMiniBatch_Shape(dataSetCountWithExtraBufferAtEnd);
-            MemoryPool.GetFloatTensor(ref _yPredictedForEpoch, YShapeAsMultipleOfMiniBatchSize);
-            MemoryPool.GetFloatTensor(ref _yExpectedForEpoch, YShapeAsMultipleOfMiniBatchSize);
+
+
+            if (returnPredictionsForFullDataset)
+            {
+                var YPredictedShapeAsMultipleOfMiniBatchSize = YPredicted_MiniBatch_Shape(dataSetCountWithExtraBufferAtEnd);
+                MemoryPool.GetFloatTensor(ref _yPredictedForEpoch, YPredictedShapeAsMultipleOfMiniBatchSize);
+            }
+            else
+            {
+                MemoryPool.FreeFloatTensor(ref _yPredictedForEpoch);
+                Debug.Assert(_yPredictedForEpoch == null);
+            }
 
             //we create the shuffled list of inputs 
             var shuffledElementId = Enumerable.Range(0, dataSetCountWithExtraBufferAtEnd).ToArray();
@@ -995,16 +1037,30 @@ namespace SharpNet.Networks
             {
                 all_x_miniBatch_cpu_allWorkers.Add(new CpuTensor<float>(xShape));
             }
-            var yExpected_miniBatch_cpu_allWorkers = new CpuTensor<float>(dataSet.YMiniBatch_Shape(miniBatchSizeForAllWorkers), null);
+            var yExpected_miniBatch_cpu_allWorkers = new CpuTensor<float>(YExpected_MiniBatch_Shape(miniBatchSizeForAllWorkers), null);
             var shuffledElementIdMemory = new Memory<int>(shuffledElementId);
+
+
+            Tensor yExpected_miniBatch_allWorkers = 
+                MemoryPool.GetFloatTensor(YExpected_MiniBatch_Shape(miniBatchSizeForAllWorkers));
+
+            Tensor yPredicted_miniBatch_allWorkers = _yPredictedForEpoch==null
+                ? MemoryPool.GetFloatTensor(YPredicted_MiniBatch_Shape(miniBatchSizeForAllWorkers))
+                : null;
+
             for (int firstIndexInShuffledElementId = 0; firstIndexInShuffledElementId < dataSet.Count; )
             {
+                if (_yPredictedForEpoch != null)
+                {
+                    yPredicted_miniBatch_allWorkers = _yPredictedForEpoch.RowSlice(firstIndexInShuffledElementId, miniBatchSizeForAllWorkers);
+                }
+                Debug.Assert(yPredicted_miniBatch_allWorkers != null);
+                
                 //LogInfo("Processing epoch " + epoch + " for elements [" + firstIndexInShuffledElementId + ":]");
 
                 //we initialize miniBatch input (xMiniBatch) and expected output (yExpectedMiniBatchCpu)
                 StartTimer("LoadInput", isTraining ? ForwardPropagationTrainingTime : ForwardPropagationInferenceTime);
                 bool withDataAugmentation = Sample.UseDataAugmentation && isTraining;
-
                 int actualNumberOfLoadedItems = dataSet.LoadMiniBatch(withDataAugmentation, isTraining, shuffledElementId, firstIndexInShuffledElementId, Sample, all_x_miniBatch_cpu_allWorkers, yExpected_miniBatch_cpu_allWorkers);
                 #if DEBUG
                 foreach (var t in all_x_miniBatch_cpu_allWorkers)
@@ -1016,24 +1072,21 @@ namespace SharpNet.Networks
                     }
                 }
                 #endif
-
-
                 StopTimer("LoadInput", isTraining ? ForwardPropagationTrainingTime : ForwardPropagationInferenceTime);
                 //we copy yExpected_miniBatch_cpu_allWorkers from CPU to appropriate target (CPU or GPU)
-                var yExpectedForMiniBatch_allWorkers = _yExpectedForEpoch.RowSlice(firstIndexInShuffledElementId, miniBatchSizeForAllWorkers);
-                yExpected_miniBatch_cpu_allWorkers.CopyTo(yExpectedForMiniBatch_allWorkers);
+                yExpected_miniBatch_cpu_allWorkers.CopyTo(yExpected_miniBatch_allWorkers);
 
                 //we launch the forward & backward computation on all slave networks
                 var usedSlaves = new List<Network>();
-                int firstIndexInShuffledElement_slave = firstIndexInShuffledElementId + miniBatchSizeForEachWorker;
-                foreach (var slave in _slaveNetworks)
+                for (var slaveIndex = 0; slaveIndex < _slaveNetworks.Count; slaveIndex++)
                 {
-                    var x_miniBatch_cpu_slave = Tensor.RowSlice(all_x_miniBatch_cpu_allWorkers, firstIndexInShuffledElement_slave - firstIndexInShuffledElementId, miniBatchSizeForEachWorker);
-                    var yExpected_miniBatch_cpu_slave = yExpected_miniBatch_cpu_allWorkers.RowSlice(firstIndexInShuffledElement_slave - firstIndexInShuffledElementId, miniBatchSizeForEachWorker);
-                    var yPredicted_miniBatch_slave = _yPredictedForEpoch.RowSlice(firstIndexInShuffledElement_slave, miniBatchSizeForEachWorker);
+                    var slave = _slaveNetworks[slaveIndex];
+                    var firstRowIndexForSlave = (1 + slaveIndex) * miniBatchSizeForEachWorker;
+                    List<Tensor> x_miniBatch_cpu_slave = Tensor.RowSlice(all_x_miniBatch_cpu_allWorkers, firstRowIndexForSlave, miniBatchSizeForEachWorker);
+                    var yExpected_miniBatch_cpu_slave = yExpected_miniBatch_cpu_allWorkers.RowSlice(firstRowIndexForSlave, miniBatchSizeForEachWorker);
+                    var yPredicted_miniBatch_slave = yPredicted_miniBatch_allWorkers.RowSlice( firstRowIndexForSlave, miniBatchSizeForEachWorker);
                     slave._slaveParamForMiniBatchGradientDescent = Tuple.Create(x_miniBatch_cpu_slave, yExpected_miniBatch_cpu_slave, yPredicted_miniBatch_slave, isTraining);
                     slave._slaveStatus = SLAVE_NETWORK_STATUS.PERFORM_FORWARD_AND_BACKWARD_PROPAGATION;
-                    firstIndexInShuffledElement_slave += miniBatchSizeForEachWorker;
                     usedSlaves.Add(slave);
                 }
 
@@ -1052,16 +1105,15 @@ namespace SharpNet.Networks
                     }
                     all_x_miniBatch_cpu_master[x].CopyTo(all_x_miniBatch[x]);
                 }
-
-                var yPredicted_miniBatch_master = _yPredictedForEpoch.RowSlice(firstIndexInShuffledElementId, miniBatchSizeForEachWorker);
-                var yExpected_miniBatch_master = _yExpectedForEpoch.RowSlice(firstIndexInShuffledElementId, miniBatchSizeForEachWorker);
-
+                var yPredicted_miniBatch_master = yPredicted_miniBatch_allWorkers.RowSlice(0, miniBatchSizeForEachWorker);
+                var yExpected_miniBatch_master = yExpected_miniBatch_allWorkers.RowSlice(0, miniBatchSizeForEachWorker);
                 PropagationManager.Forward(all_x_miniBatch, yPredicted_miniBatch_master, isTraining);
                 if (isTraining)
                 {
                     PropagationManager.Backward(yExpected_miniBatch_master, yPredicted_miniBatch_master, Sample.LossFunction);
                 }
 
+                // we ensure that all slaves have finished
                 if (_slaveNetworks.Any())
                 { 
                     //we wait for all slave to finish the forward & backward propagation pass
@@ -1070,6 +1122,7 @@ namespace SharpNet.Networks
                     StopTimer("WaitForSlave_Forward", isTraining ? ForwardPropagationTrainingTime : ForwardPropagationInferenceTime);
                 }
 
+                // we update the weights
                 if (isTraining)
                 {
                     foreach (var usedSlave in usedSlaves)
@@ -1084,6 +1137,7 @@ namespace SharpNet.Networks
                     PropagationManager.UpdateWeights(miniBatchSizeForAllWorkers, learningRate, maxLearningRate);
                 }
 
+                
                 if (!isTraining && dataSet is ITimeSeriesDataSet set)
                 {
                     StartTimer("SetBatchPredictions", ForwardPropagationInferenceTime);
@@ -1093,6 +1147,9 @@ namespace SharpNet.Networks
                     set.SetBatchPredictionsForInference(batchElementIds, batchPredictions);
                     StopTimer("SetBatchPredictions", ForwardPropagationInferenceTime);
                 }
+
+                //We update the Evaluation Metrics if needed
+                metricAccumulator?.UpdateMetrics(yExpected_miniBatch_allWorkers, yPredicted_miniBatch_allWorkers, Sample.Metrics);
 
                 CallBackAfterEachMiniBatch?.Invoke(yExpected_miniBatch_master, yPredicted_miniBatch_master);
 
@@ -1112,12 +1169,14 @@ namespace SharpNet.Networks
             all_x_miniBatch_cpu_allWorkers.ForEach(t => t.Dispose());
             all_x_miniBatch_cpu_allWorkers.Clear();
             yExpected_miniBatch_cpu_allWorkers.Dispose();
+            MemoryPool.FreeFloatTensor(ref yExpected_miniBatch_allWorkers);
+            if (_yPredictedForEpoch == null)
+            {
+                MemoryPool.FreeFloatTensor(ref yPredicted_miniBatch_allWorkers);
+            }
 
-            // ReSharper disable once PossibleNullReferenceException
-            var y_shape = dataSet.YMiniBatch_Shape(dataSet.Count);
-            _yPredictedForEpoch.ReshapeInPlace(y_shape);
-            _yExpectedForEpoch.ReshapeInPlace(y_shape);
-            return _yPredictedForEpoch;
+            _yPredictedForEpoch?.ReshapeInPlace(YPredicted_MiniBatch_Shape(dataSet.Count));
+            return (_yPredictedForEpoch, metricAccumulator?.Metrics());
         }
         public int LastLayerIndex => Layers.Last().LayerIndex;
         public int NbLayerOfType(Type layerType)
@@ -1266,7 +1325,7 @@ namespace SharpNet.Networks
         private Tensor Predict(List<Tensor> allX, bool isTraining)
         {
             var batchSize = allX[0].Shape[0];
-            var yPredicted = MemoryPool.GetFloatTensor(Layers.Last().OutputShape(batchSize));
+            var yPredicted = MemoryPool.GetFloatTensor(YPredicted_MiniBatch_Shape(batchSize));
             for (int i = 0; i < allX.Count; ++i)
             {
                 allX[i] = ReformatToCorrectDevice_GPU_or_CPU(allX[i]);

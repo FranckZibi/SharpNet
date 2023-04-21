@@ -18,6 +18,8 @@ namespace SharpNet.Datasets.CFM60;
 
 public class CFM60DataSetOld : DataSet, ITimeSeriesDataSet
 {
+    private readonly CpuTensor<float> _yCFM60DataSetOld;
+
     public Cfm60NetworkSampleOld SampleOld => _cfm60NetworkSampleOld;
     private readonly Cfm60NetworkSampleOld _cfm60NetworkSampleOld;
     private readonly CFM60DataSetOld _trainingDataSetOldIfAny;
@@ -129,7 +131,7 @@ public class CFM60DataSetOld : DataSet, ITimeSeriesDataSet
             }
         }
         Debug.Assert(nextIdxInY == yData.Length);
-        Y = new CpuTensor<float>(new[] { count, EntriesCountForEachElementId_Y }, yData);
+        _yCFM60DataSetOld = new CpuTensor<float>(new[] { count, EntriesCountForEachElementId_Y }, yData);
 
         //if we are in a training data set
         if (trainingDataSetOldIfAny == null)
@@ -361,8 +363,8 @@ public class CFM60DataSetOld : DataSet, ITimeSeriesDataSet
         Debug.Assert(xEncoder.Shape[1] == SampleOld.Encoder_TimeSteps);
         Debug.Assert(xEncoder.Shape[2] == SampleOld.Encoder_InputSize);
         Debug.Assert(yBuffer == null || all_xBuffer[0].Shape[0] == yBuffer.Shape[0]); //same batch size
-        Debug.Assert(yBuffer == null || yBuffer.SameShapeExceptFirstDimension(Y.Shape));
-        Debug.Assert(yBuffer == null || yBuffer.SameShapeExceptFirstDimension(Y.Shape));
+        Debug.Assert(yBuffer == null || yBuffer.SameShapeExceptFirstDimension(_yCFM60DataSetOld.Shape));
+        Debug.Assert(yBuffer == null || yBuffer.SameShapeExceptFirstDimension(_yCFM60DataSetOld.Shape));
 
         LoadAt(elementId, indexInBuffer, xEncoder, true);
         if (SampleOld.Use_Decoder)
@@ -374,7 +376,7 @@ public class CFM60DataSetOld : DataSet, ITimeSeriesDataSet
 
         if (yBuffer != null)
         {
-            Y.CopyTo(Y.Idx(elementId), yBuffer, yBuffer.Idx(indexInBuffer), yBuffer.MultDim0);
+            _yCFM60DataSetOld.CopyTo(_yCFM60DataSetOld.Idx(elementId), yBuffer, yBuffer.Idx(indexInBuffer), yBuffer.MultDim0);
         }
     }
 
@@ -524,17 +526,17 @@ public class CFM60DataSetOld : DataSet, ITimeSeriesDataSet
                && network.Sample.AlwaysUseFullTestDataSetForLossAndAccuracy
                && network.EpochData.Last().GetValidationLoss(network.Sample.LossFunction) < SampleOld.MaxLossToSaveTheNetwork;
     }
-    public override int Count => Y.Shape[0];
+    public override int Count => _yCFM60DataSetOld.Shape[0];
     public override int ElementIdToCategoryIndex(int elementId)
     {
         return -1;
     }
     public override double PercentageToUseForLossAndAccuracyFastEstimate => 0.0; //we do not compute any estimate
-    public override CpuTensor<float> Y { get; }
+    public override CpuTensor<float> Y => _yCFM60DataSetOld;
     public override string ToString()
     {
         var xShape = new[] { Count, SampleOld.Encoder_TimeSteps, SampleOld.Encoder_InputSize};
-        return Tensor.ShapeToString(xShape) + " => " + Tensor.ShapeToString(Y.Shape);
+        return Tensor.ShapeToString(xShape) + " => " + Tensor.ShapeToString(_yCFM60DataSetOld.Shape);
     }
     private static bool UseBackgroundThreadToLoadNextMiniBatch(CFM60DataSetOld trainingDataSetOldIfAny)
     {

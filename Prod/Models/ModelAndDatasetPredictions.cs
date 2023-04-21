@@ -120,12 +120,19 @@ public sealed class ModelAndDatasetPredictions : IDisposable
         using var trainingAndValidation = DatasetSample.SplitIntoTrainingAndValidation();
         var validationDataSet = trainingAndValidation.Test;
         DataSet trainDataset = trainingAndValidation.Training;
-        (DatasetSample.Train_XDatasetPath_InModelFormat, DatasetSample.Train_YDatasetPath_InModelFormat, DatasetSample.Train_XYDatasetPath_InModelFormat, 
-         DatasetSample.Validation_XDatasetPath_InModelFormat, DatasetSample.Validation_YDatasetPath_InModelFormat, DatasetSample.Validation_XYDatasetPath_InModelFormat,
-         var trainScoreIfAvailable, var validationScoreIfAvailable, var trainMetricIfAvailable, var validationMetricIfAvailable) 
+        (   DatasetSample.Train_XDatasetPath_InModelFormat,
+            DatasetSample.Train_YDatasetPath_InModelFormat, 
+            DatasetSample.Train_XYDatasetPath_InModelFormat, 
+            DatasetSample.Validation_XDatasetPath_InModelFormat, 
+            DatasetSample.Validation_YDatasetPath_InModelFormat, 
+            DatasetSample.Validation_XYDatasetPath_InModelFormat,
+            var trainLossIfAvailable, 
+            var validationLossIfAvailable, 
+            var trainRankingMetricIfAvailable, 
+            var validationRankingMetricIfAvailable) 
             = Model.Fit(trainDataset, validationDataSet);
-        var trainRankingScore = DatasetSample.ExtractRankingScoreFromModelMetricsIfAvailable(trainScoreIfAvailable, trainMetricIfAvailable);
-        var validationRankingScore = DatasetSample.ExtractRankingScoreFromModelMetricsIfAvailable(validationScoreIfAvailable, validationMetricIfAvailable);
+        var trainRankingScore = DatasetSample.ExtractRankingScoreFromModelMetricsIfAvailable(trainLossIfAvailable, trainRankingMetricIfAvailable);
+        var validationRankingScore = DatasetSample.ExtractRankingScoreFromModelMetricsIfAvailable(validationLossIfAvailable, validationRankingMetricIfAvailable);
         if (computeAndSavePredictions)
         {
             var start = Stopwatch.StartNew();
@@ -141,7 +148,12 @@ public sealed class ModelAndDatasetPredictions : IDisposable
             else
             {
                 var start = Stopwatch.StartNew();
-                validationRankingScore = Model.ComputePredictionsAndRankingScore(trainingAndValidation, DatasetSample, false).validationRankingScore_InTargetFormat;
+                var predictionsAndRankingScore = Model.ComputePredictionsAndRankingScore(trainingAndValidation, DatasetSample, false);
+                validationRankingScore = predictionsAndRankingScore.validationRankingScore_InTargetFormat;
+                if (validationRankingScore == null && predictionsAndRankingScore.trainRankingScore_InTargetFormat != null)
+                {
+                    validationRankingScore = predictionsAndRankingScore.trainRankingScore_InTargetFormat;
+                }
                 ISample.Log.Debug($"{nameof(Model.ComputePredictionsAndRankingScore)} took '{start.Elapsed.TotalSeconds}'s");
             }
         }
@@ -150,7 +162,7 @@ public sealed class ModelAndDatasetPredictions : IDisposable
             Save(Model.WorkingDirectory);
         }
 
-        ISample.Log.Debug($"Model {Model.ModelName} scores: trainScore = {trainScoreIfAvailable} / validationScore  = {validationScoreIfAvailable} / trainRankingScore = {trainRankingScore} / validationRankingScore = {validationRankingScore}");
+        ISample.Log.Debug($"Model {Model.ModelName} losses: trainLoss = {trainLossIfAvailable} / validationLoss = {validationLossIfAvailable} / trainRankingScore = {trainRankingScore} / validationRankingScore = {validationRankingScore}");
         return validationRankingScore;
     }
 

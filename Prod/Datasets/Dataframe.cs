@@ -57,8 +57,26 @@ public sealed class DataFrame
     #region public fields and properties
 
     public string[] Columns { get; }
-    //public string[] Columns => _columns.Select(c => c.Item1).ToArray();
+    
     public int[] Shape => new[] { Rows, _columns.Count };
+    
+    private int Rows
+    {
+        get
+        {
+            foreach (var t in EmbeddedTensors)
+            {
+                if (t != null)
+                {
+                    // if the tensor is of shape (a,b,c, ..., x, y, z), then:
+                    //  the number of rows is 'a*b*c*...*x*y'
+                    //  the number of cols will be 'z'
+                    return t.Count/t.Shape[^1];
+                }
+            }
+            return 0;
+        }
+    }
 
     public List<Tuple<string, int, int>> ColumnsDesc => _columns;
     #endregion
@@ -174,31 +192,39 @@ public sealed class DataFrame
         _originalDataFrameForColumnView = originalDataFrameForColumnView;
         _originalDataFrameForRowView = originalDataFrameForRowView;
     }
-    public static DataFrame New(CpuTensor<float> floatTensor, CpuTensor<string> stringTensor, CpuTensor<int> intTensor, IList<string> columnsNames)
+
+    private static string GetColumnName(int columnIndex, [CanBeNull] IList<string> columnsNames)
+    {
+        if (columnsNames != null && columnsNames.Count > columnIndex)
+        {
+            return columnsNames[columnIndex];
+        }
+        return columnIndex.ToString();
+    }
+    public static DataFrame New(CpuTensor<float> floatTensor, CpuTensor<string> stringTensor, CpuTensor<int> intTensor, [CanBeNull] IList<string> columnsNames)
     {
         List<Tuple<string, int, int>> columns = new();
         if (floatTensor != null)
         {
             for (var i = 0; i < floatTensor.Shape[1]; i++)
             {
-                columns.Add(Tuple.Create(columnsNames[columns.Count], FLOAT_TYPE_IDX, i));
+                columns.Add(Tuple.Create(GetColumnName(columns.Count, columnsNames), FLOAT_TYPE_IDX, i));
             }
         }
         if (stringTensor != null)
         {
             for (var i = 0; i < stringTensor.Shape[1]; i++)
             {
-                columns.Add(Tuple.Create(columnsNames[columns.Count], STRING_TYPE_IDX, i));
+                columns.Add(Tuple.Create(GetColumnName(columns.Count, columnsNames), STRING_TYPE_IDX, i));
             }
         }
         if (intTensor != null)
         {
             for (var i = 0; i < intTensor.Shape[1]; i++)
             {
-                columns.Add(Tuple.Create(columnsNames[columns.Count], INT_TYPE_IDX, i));
+                columns.Add(Tuple.Create(GetColumnName(columns.Count, columnsNames), INT_TYPE_IDX, i));
             }
         }
-        Debug.Assert(columns.Count == columnsNames.Count);
         return new DataFrame(columns, floatTensor, stringTensor, intTensor);
     }
     public static DataFrame New(float[] content, IList<string> columnsNames)
@@ -269,6 +295,11 @@ public sealed class DataFrame
     public CpuTensor<string> StringTensorEvenIfView => _stringTensor;
     public CpuTensor<int> IntTensorEvenIfView => _intTensor;
 
+
+
+    public CpuTensor<float> FloatTensor2D => FloatTensor.As2DTensor(true).AsFloatCpu;
+    public CpuTensor<string> StringTensor2D => StringTensor.As2DTensor(true).AsStringCpu;
+    public CpuTensor<int> IntTensor2D => IntTensor.As2DTensor(true).AsIntCpu;
 
     public CpuTensor<float> FloatTensor
     {
@@ -1165,9 +1196,9 @@ public sealed class DataFrame
         {
             var sb = buffer[row - row_in_first_index_of_buffer];
             sb.Clear();
-            var floatContent = FloatTensor == null ? null : FloatTensor.RowSpanSlice(row, 1);
-            var stringContent = StringTensor == null ? null : StringTensor.RowSpanSlice(row, 1);
-            var intContent = IntTensor == null ? null : IntTensor.RowSpanSlice(row, 1);
+            var floatContent = FloatTensor == null ? null : FloatTensor2D.RowSpanSlice(row, 1);
+            var stringContent = StringTensor == null ? null : StringTensor2D.RowSpanSlice(row, 1);
+            var intContent = IntTensor == null ? null : IntTensor2D.RowSpanSlice(row, 1);
 
             for (int col = 0; col < cols; col++)
             {
@@ -1385,26 +1416,7 @@ public sealed class DataFrame
             throw new Exception($"found invalid column names {string.Join(',', invalidColumns)}");
         }
     }
-    private int Rows
-    {
-        get
-        {
-            if (_stringTensor != null)
-            {
-                return _stringTensor.Shape[0];
-            }
-            if (_intTensor != null)
-            {
-                return _intTensor.Shape[0];
-            }
-            if (_floatTensor != null)
-            {
-                return _floatTensor.Shape[0];
-            }
-            return 0;
-        }
-
-    }
+  
     public DataFrame ReduceFloatDimension(int totalReviewsEmbeddingDim)
     {
         if (FloatTensor.Shape[1] < totalReviewsEmbeddingDim)
@@ -1505,7 +1517,6 @@ public sealed class DataFrame
         }
         var y_true_tensor = y_true_df.FloatCpuTensor();
         var y_pred_tensor = y_pred_df.FloatCpuTensor();
-        Debug.Assert(y_true_tensor.Shape.SequenceEqual(y_pred_tensor.Shape));
         using var buffer = new CpuTensor<float>(y_true_tensor.ComputeMetricBufferShape(metric));
         var evaluationMetric = y_true_tensor.ComputeEvaluationMetric(y_pred_tensor, metric, buffer);
         return new Score((float)evaluationMetric, metric);
@@ -1525,4 +1536,19 @@ public sealed class DataFrame
             }
         }
     }
+
+    public DataFrame FromSparseToOneHotEncoding(int numClass)
+    {
+        if (Shape.Length != 2 || Shape[1] != 1)
+        {
+            throw new ArgumentException($"{nameof(FromSparseToOneHotEncoding)} can not work for shape {Utils.ShapeToString(Shape)} : requires a sparse tensor as input");
+        }
+        if (!IsFloatDataFrame)
+        {
+            throw new ArgumentException($"{nameof(FromSparseToOneHotEncoding)} can not work for non float tensor");
+        }
+        var yFloat_OneHotEncoded = CpuTensor<float>.FromClassIndexToProba(FloatCpuTensor(), numClass);
+        return New(yFloat_OneHotEncoded);
+    }
+
 }

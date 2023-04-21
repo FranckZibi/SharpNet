@@ -1,5 +1,4 @@
-﻿using System.Diagnostics;
-using JetBrains.Annotations;
+﻿using JetBrains.Annotations;
 using SharpNet.Models;
 
 namespace SharpNet.HyperParameters;
@@ -29,9 +28,7 @@ public static class SampleUtils
         var model = modelAndDataset.Model;
         var validationRankingScore = modelAndDataset.Fit(false, true, false);
 
-        Debug.Assert(validationRankingScore != null);
-
-        if (validationRankingScore.IsBetterThan(bestScoreSoFar))
+        if (validationRankingScore!=null && validationRankingScore.IsBetterThan(bestScoreSoFar))
         {
             Model.Log.Info($"Model '{model.ModelName}' has new best score: {validationRankingScore} (was: {bestScoreSoFar})");
             bestScoreSoFar = validationRankingScore;

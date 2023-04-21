@@ -34,6 +34,9 @@ public class CFM84DatasetSample : AbstractDatasetSample
     public bool use_vol_r_dataset = false; //not used
     public int rr_count = 0;
     public bool use_ccat = false;
+    public bool use_dcat = false;
+    public bool use_ecat = false;
+    public bool use_fcat = false; //must be false
 
     public bool fillna_with_0 = false;
     #endregion
@@ -191,10 +194,11 @@ public class CFM84DatasetSample : AbstractDatasetSample
         DatasetEncoder.Fit(xtest);
 
         var xTrain_Encoded = DatasetEncoder.Transform(xTrain);
-        var yTrain_Encoded = DatasetEncoder.Transform(y_training_raw[TargetLabels]);
+        var yTrain_Encoded_Sparse = DatasetEncoder.Transform(y_training_raw[TargetLabels]);
+        var yTrain_Encoded_OneHot = yTrain_Encoded_Sparse.FromSparseToOneHotEncoding(NumClass);
         var xtest_Encoded = DatasetEncoder.Transform(xtest);
 
-        var fullTrainingAndValidation = new DataFrameDataSet(this, xTrain_Encoded, yTrain_Encoded, y_training_raw.StringColumnContent(IdColumn), false);
+        var fullTrainingAndValidation = new DataFrameDataSet(this, xTrain_Encoded, yTrain_Encoded_OneHot, y_training_raw.StringColumnContent(IdColumn), false);
         var testDataset = new DataFrameDataSet(this, xtest_Encoded, null, y_test_random_raw.StringColumnContent(IdColumn), false);
 
         //CacheDataset.TryAdd(key, Tuple.Create(fullTrainingAndValidation, testDataset, DatasetEncoder));
@@ -273,6 +277,9 @@ public class CFM84DatasetSample : AbstractDatasetSample
         if (!use_r_dataset) { toDrop.Add("r_dataset"); }
         if (!use_vol_r_dataset) { toDrop.Add("vol_r_dataset"); }
         if (!use_ccat) { toDrop.AddRange(xWithStats.Columns.Where(c=>c.StartsWith("ccat"))); }
+        if (!use_dcat) { toDrop.AddRange(xWithStats.Columns.Where(c=>c.StartsWith("dcat"))); }
+        if (!use_ecat) { toDrop.AddRange(xWithStats.Columns.Where(c=>c.StartsWith("ecat"))); }
+        if (!use_fcat) { toDrop.AddRange(xWithStats.Columns.Where(c=>c.StartsWith("fcat"))); }
 
         toDrop.AddRange(Enumerable.Range(rr_count, 10).Select(i => "rr"+i));
         xWithStats = xWithStats.DropIgnoreErrors(toDrop.ToArray()).Clone();

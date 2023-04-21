@@ -1064,6 +1064,107 @@ namespace SharpNetTests
             TestAll(new[] { mseGradient, expected, predicted }, tensors => tensors[0].MseGradient(tensors[1], tensors[2]));
         }
 
+        [Test]
+        public void TestComputeSparseAccuracy_2D()
+        {
+            foreach (var batchSize in new[] { 1, 32 })
+            foreach (var numClass in new[] { 1, 10 })
+            {
+                var yPredicted = TestCpuTensor.RandomFloatTensor(new[] { batchSize, numClass }, _rand, 0.0, 1.0);
+                var yExpectedSparse = RandomTensorWithIndexes(new[] { batchSize, 1 }, 0, numClass - 1);
+                var buffer = RandomTensor(new[] { yExpectedSparse.Count });
+                TestAllForReturnValue(new[] { yExpectedSparse, yPredicted, buffer }, tensors => tensors[0].ComputeSparseAccuracy(tensors[1], tensors[2]), new List<int> { 2 });
+            }
+        }
+
+        [Test]
+        public void TestComputeSparseAccuracy_3D()
+        {
+            foreach (var batchSize in new[] { 1, 32 })
+            foreach (var timeSteps in new[] { 1, 10 })
+            foreach (var numClass in new[] { 1, 10 })
+            {
+               var yPredicted = TestCpuTensor.RandomFloatTensor(new[] { batchSize, timeSteps, numClass }, _rand, 0.0, 1.0);
+                var yExpectedSparse = RandomTensorWithIndexes(new[] { batchSize, timeSteps }, 0, numClass - 1);
+                var buffer = RandomTensor(new[] { yExpectedSparse.Count });
+                TestAllForReturnValue(new[] { yExpectedSparse, yPredicted, buffer }, tensors => tensors[0].ComputeSparseAccuracy(tensors[1], tensors[2]), new List<int> { 2 });
+            }
+        }
+
+        [Test]
+        public void TestArgMax()
+        {
+            foreach (var shape in new[]
+                     {
+                         new[]{1, 10 },
+                         new[]{7, 5 },
+                         new[]{7, 5, 1 },
+                         new[]{7, 5, 3 },
+                         new[]{2, 5, 3,11 },
+                     })
+            {
+                var yPredicted = RandomTensor(shape);
+                var bufferShape = (int[])shape.Clone();
+                bufferShape[^1] = 1;
+                var buffer = RandomTensor(bufferShape);
+                TestAll(new[] { yPredicted, buffer }, tensors => tensors[0].ArgMax(tensors[1]));
+            }
+        }
+
+        [Test]
+        public void TestComputeSparseCategoricalCrossentropyLoss_2D()
+        {
+            foreach (var batchSize in new[] { 1, 32 })
+            foreach (var numClass in new[] { 1, 10 })
+            {
+                var yPredicted = TestCpuTensor.RandomFloatTensor(new[] { batchSize, numClass }, _rand, 0.0, 1.0);
+                var buffer = RandomTensor(new[] { batchSize });
+                var yExpectedSparse = RandomTensorWithIndexes(new[] { batchSize, 1 }, 0, numClass - 1);
+                TestAllForReturnValue(new[] { yExpectedSparse, yPredicted, buffer }, tensors => tensors[0].SparseCategoricalCrossentropyLoss(tensors[1], tensors[2]), new List<int> { 2 });
+            }
+        }
+
+
+        [Test]
+        public void TestComputeSparseCategoricalCrossentropyLoss_3D()
+        {
+            foreach (var batchSize in new[] { 1, 16 })
+            foreach (var timeSteps in new[] { 1, 10 })
+            foreach (var numClass in new[] { 1, 5 })
+            {
+                var yPredicted = TestCpuTensor.RandomFloatTensor(new[] { batchSize, timeSteps, numClass }, _rand, 0.0, 1.0);
+                var buffer = RandomTensor(new[] { batchSize* timeSteps });
+                var yExpectedSparse = RandomTensorWithIndexes(new[] { batchSize, timeSteps }, 0, numClass - 1);
+                TestAllForReturnValue(new[] { yExpectedSparse, yPredicted, buffer }, tensors => tensors[0].SparseCategoricalCrossentropyLoss(tensors[1], tensors[2]), new List<int> { 2 });
+            }
+        }
+
+
+        [Test]
+        public void TestSparseCategoricalCrossentropyGradient_2D()
+        {
+            foreach(var batchSize in new[]{1,32})
+            foreach(var numClass in new[]{1,10})
+            {
+                var predicted = RandomTensor(new []{batchSize,numClass});
+                var gradients = RandomTensor(predicted.Shape);
+                var expectedSparse = RandomTensorWithIndexes(new[] { batchSize, 1 }, 0, numClass-1);
+                TestAll(new[] { gradients, expectedSparse, predicted }, tensors => tensors[0].SparseCategoricalCrossentropyGradient(tensors[1], tensors[2]));
+            }
+        }
+        [Test]
+        public void TestSparseCategoricalCrossentropyGradient_3D()
+        {
+            foreach (var batchSize in new[] { 1, 16 })
+            foreach (var timeSteps in new[] { 1, 10})
+            foreach (var numClass in new[] { 1, 5})
+            {
+                var predicted = RandomTensor(new[] { batchSize, timeSteps, numClass });
+                var gradients = RandomTensor(predicted.Shape);
+                var expectedSparse = RandomTensorWithIndexes(new[] { batchSize, timeSteps }, 0, numClass - 1);
+                TestAll(new[] { gradients, expectedSparse, predicted }, tensors => tensors[0].SparseCategoricalCrossentropyGradient(tensors[1], tensors[2]));
+            }
+        }
 
         [TestCase(new[] { 10000, 1 })]
         [TestCase(new[] { 10000, 10 })]
@@ -1137,7 +1238,6 @@ namespace SharpNetTests
             TestAll(new[] { src, target }, tensors => tensors[0].SwitchSecondAndThirdDimension(tensors[1]));
         }
 
-
         [Test]
         public void Test_UpdateWithPositionalEncoding_AttnIsAllYouNeed()
         {
@@ -1165,26 +1265,28 @@ namespace SharpNetTests
                 }
             }
         }
-
+        
+      
+ 
         [TestCase(10)]
         [TestCase(1)]
-        public void TestComputeAccuracyOneHot(int categoryCount)
+        public void TestComputeAccuracyOneHot(int numClass)
         {
-            const int nbRows = 10000;
-            var yPredicted = RandomTensor(new[] { nbRows, categoryCount });
+            const int rows = 10000;
+            var yPredicted = RandomTensor(new[] { rows, numClass });
             var yExpectedOneHot = TestCpuTensor.RandomOneHotTensor(yPredicted.Shape, _rand);
-            var buffer = RandomTensor(new[] { nbRows});
+            var buffer = RandomTensor(new[] { rows});
             TestAllForReturnValue(new[] { yExpectedOneHot, yPredicted, buffer }, tensors => tensors[0].ComputeAccuracy(tensors[1], tensors[2]), new List<int> { 2 });
         }
 
         [TestCase(10)]
         [TestCase(1)]
-        public void TestComputeAccuracyTwoHot(int categoryCount)
+        public void TestComputeAccuracyTwoHot(int numClass)
         {
-            const int nbRows = 10000;
-            var yPredicted = RandomTensor(new[] { nbRows, categoryCount });
+            const int rows = 10000;
+            var yPredicted = RandomTensor(new[] { rows, numClass });
             var yExpectedOneHot = TestCpuTensor.RandomTwoHotTensor(yPredicted.Shape, _rand);
-            var buffer = RandomTensor(new[] { nbRows });
+            var buffer = RandomTensor(new[] { rows });
             TestAllForReturnValue(new[] { yExpectedOneHot, yPredicted, buffer }, tensors => tensors[0].ComputeAccuracy(tensors[1], tensors[2]), new List<int> { 2 });
         }
 
@@ -1202,6 +1304,22 @@ namespace SharpNetTests
 	    {
 	        return TestCpuTensor.RandomFloatTensor(shape, _rand, -1.5, +1.5);
 	    }
+
+        /// <summary>
+        /// return a tensor of shape 'shape' with random index value sin range [minIndex, maxIndex]
+        /// </summary>
+        /// <param name="shape"></param>
+        /// <param name="minIndex"></param>
+        /// <param name="maxIndex"></param>
+        /// <returns></returns>
+        private CpuTensor<float> RandomTensorWithIndexes(int[] shape, int minIndex, int maxIndex)
+        {
+            var contentExpectedSparse = new int[Utils.Product(shape)];
+            Utils.UniformDistribution(contentExpectedSparse, _rand, minIndex, maxIndex);
+            return new CpuTensor<float>(shape, contentExpectedSparse.Select(x => (float)x).ToArray());
+        }
+
+
         private static void AreEquals(CpuTensor<float> floatCpu, GPUTensor<float> floatGpu)
 	    {
 	        Assert.IsTrue(floatCpu.SameShape(floatGpu));

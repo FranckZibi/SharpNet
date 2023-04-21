@@ -151,14 +151,16 @@ namespace SharpNet.HPO
                     sample.SetTaskId(taskId);
                     var sw = Stopwatch.StartNew();
                     var score = objectiveFunction(sample);
-                    if (score != null && score.IsBetterThan(ScoreOfBestSampleFoundSoFar))
+                    if (score != null)
                     {
-                        Log.Info($"new best score {score} with sampleId {sampleId} (was {ScoreOfBestSampleFoundSoFar})" + Environment.NewLine + sampleDescription);
-                        BestSampleFoundSoFar = sample;
-                        ScoreOfBestSampleFoundSoFar = score;
+                        if (score.IsBetterThan(ScoreOfBestSampleFoundSoFar))
+                        {
+                            Log.Info($"new best score {score} with sampleId {sampleId} (was {ScoreOfBestSampleFoundSoFar})" + Environment.NewLine + sampleDescription);
+                            BestSampleFoundSoFar = sample;
+                            ScoreOfBestSampleFoundSoFar = score;
+                        }
+                        RegisterSampleScore(sample, sampleId, score, sw.Elapsed.TotalSeconds);
                     }
-                    double elapsedTimeInSeconds = sw.Elapsed.TotalSeconds;
-                    RegisterSampleScore(sample, sampleId, score, elapsedTimeInSeconds);
                     Log.Debug("ended new computation");
                     Log.Debug($"{Processed} processed samples");
                     //we display statistics only once every 10s

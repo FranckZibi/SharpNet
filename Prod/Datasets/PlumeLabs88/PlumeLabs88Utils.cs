@@ -346,7 +346,7 @@ public static class PlumeLabs88Utils
             //{ "lambdaL2Regularization", new[] { 0.0005, 0.001, 0.00005 } },
             { "lambdaL2Regularization", new[] { 0.1, 0.01 , 0.001, 0.0001 } },
             {"DefaultMobileBlocksDescriptionCount", new[]{3}},
-            {"LastActivationLayer", nameof(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU)},
+            {"lastActivationLayer", nameof(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU)},
 
             // Learning Rate
             { "InitialLearningRate", new []{0.01 , 0.1, 0.001}},

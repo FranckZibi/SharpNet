@@ -388,7 +388,7 @@ namespace SharpNet.Datasets
             File.WriteAllText(outputFile, sb.ToString());
         }
 
-        public DataSet ExtractDataSet(Func<CancelDatabaseEntry, bool> accept, ResizeStrategyEnum resizeStrategy)
+        public DirectoryDataSet ExtractDataSet(Func<CancelDatabaseEntry, bool> accept, ResizeStrategyEnum resizeStrategy)
         {
             var categoryNameToCount = new ConcurrentDictionary<string,int>();
             var elementIdToPaths = new List<List<string>>();

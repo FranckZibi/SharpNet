@@ -40,6 +40,15 @@ namespace SharpNet.TextPreprocessing
         /// </summary>
         private readonly bool _lowerCase;
 
+        /// <summary>
+        /// whether to remove accents
+        /// default: true
+        /// </summary>
+        private readonly bool _removeDiacritics;
+
+        private readonly bool _char_level;
+        private readonly bool _firstElementIsPaddingToken;
+
 
         private readonly HashSet<string> _stopWords = new()
         {
@@ -64,18 +73,30 @@ namespace SharpNet.TextPreprocessing
         private readonly char[] _filters;
         private readonly ConcurrentDictionary<string, int> _wordToWordCount =  new ConcurrentDictionary<string, int>();
         /// <summary>
-        /// index associated with each word, from the most common (index 1 or 2) to the least common (index _numWords-1)
-        /// if no out-of-vocabulary is used (_oovToken == null)
-        ///     index of padding token:                 0
-        ///     index of most common word:              1
-        ///     index of 2nd most common word:          2
-        ///     index of least common word:             _numWords-1
-        /// else
-        ///     index of padding token:                 0
-        ///     index of out-of-vocabulary token:       1
-        ///     index of most common word:              2
-        ///     index of 2nd most common word:          3
-        ///     index of least common word:             _numWords-1
+        /// index associated with each word, from the most common (index 0, 1 or 2) to the least common (index _numWords-1)
+        /// if _firstElementIsPaddingToken == true
+        ///     if no out-of-vocabulary is used (_oovToken == null)
+        ///         index of padding token:                 0
+        ///         index of most common word:              1
+        ///         index of 2nd most common word:          2
+        ///         index of least common word:             _numWords-1
+        ///     else
+        ///         index of padding token:                 0
+        ///         index of out-of-vocabulary token:       1
+        ///         index of most common word:              2
+        ///         index of 2nd most common word:          3
+        ///         index of least common word:             _numWords-1
+        /// else (_firstElementIsPaddingToken == false)
+        ///     if no out-of-vocabulary is used (_oovToken == null)
+        ///         index of most common word:              0
+        ///         index of 2nd most common word:          1
+        ///         index of least common word:             _numWords-1
+        ///     else
+        ///         index of out-of-vocabulary token:       0
+        ///         index of most common word:              1
+        ///         index of 2nd most common word:          2
+        ///         index of least common word:             _numWords-1
+        /// 
         /// </summary>
         private IDictionary<string, int> _wordToWordIndex =  new Dictionary<string, int>();
         #endregion
@@ -88,13 +109,19 @@ namespace SharpNet.TextPreprocessing
             string oovToken = null, 
             bool lowerCase = true, 
             string filters = "  !\"#$%&()*+,-—.…/:;<=>?@[\\]^_{|}~\t\n\r´`‘’'",
-            IStemmer stemmer = null)
+            IStemmer stemmer = null,
+            bool removeDiacritics = true,
+            bool char_level = false,
+            bool firstElementIsPaddingToken = true)
         {
             _numWords = numWords;
             _oovToken = oovToken;
             _lowerCase = lowerCase;
             _filters = filters.ToCharArray();
             _stemmer = stemmer;
+            _removeDiacritics = removeDiacritics;
+            _char_level = char_level;
+            _firstElementIsPaddingToken = firstElementIsPaddingToken;
         }
 
         public void FitOnTexts(IList<string> texts)
@@ -134,14 +161,19 @@ namespace SharpNet.TextPreprocessing
         // public for testing only
         public string[] ExtractWords(string text)
         {
-            //we remove accents
-            text = RemoveDiacritics(text);
+            if (_removeDiacritics)
+            {
+                //we remove accents
+                text = RemoveDiacritics(text);
+            }
 
             if (_lowerCase)
             {
                 text = text.ToLowerInvariant();
             }
-            var result = text.Split(_filters, StringSplitOptions.RemoveEmptyEntries);
+            string[] result = _char_level
+                ? text.ToCharArray() .Where(c=>!_filters.Contains(c)).Select(c => c.ToString()).ToArray()
+                : text.Split(_filters, StringSplitOptions.RemoveEmptyEntries);
             if (_stemmer != null)
             {
                 for (int i = 0; i < result.Length; i++)
@@ -263,7 +295,7 @@ namespace SharpNet.TextPreprocessing
             var result = new List<int>();
             foreach (var word in ExtractWords(text))
             {
-                if (wordToWordIndex.TryGetValue(word, out var wordIndex) && wordIndex <= _numWords)
+                if (wordToWordIndex.TryGetValue(word, out var wordIndex) && wordIndex < _numWords)
                 {
                     result.Add(wordIndex);
                 }
@@ -278,7 +310,14 @@ namespace SharpNet.TextPreprocessing
             return result;
         }
 
-        public string SequenceToText(IEnumerable<int> sequence) => string.Join(" ", SequenceToWords(sequence));
+        public string SequenceToText(IEnumerable<int> sequence)
+        {
+            if (_char_level)
+            {
+                return string.Join("", SequenceToWords(sequence));
+            }
+            return string.Join(" ", SequenceToWords(sequence));
+        }
 
         public List<string> SequenceToWords(IEnumerable<int> sequence)
         {
@@ -296,7 +335,7 @@ namespace SharpNet.TextPreprocessing
             {
                 if (_wordToWordIndex == null)
                 {
-                    int newWordIndex = 1;
+                    int newWordIndex = _firstElementIsPaddingToken?1:0;
                     _wordToWordIndex = new Dictionary<string, int>();
                     if (!string.IsNullOrEmpty(_oovToken))
                     {

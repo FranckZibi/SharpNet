@@ -39,10 +39,13 @@ public abstract class WrappedDataSet : DataSet
     public override bool CanBeSavedInCSV => _original.CanBeSavedInCSV;
     public override bool UseRowIndexAsId => _original.UseRowIndexAsId;
     public override string ElementIdToPathIfAny(int elementId) { return _original.ElementIdToPathIfAny(elementId); }
+    public override List<int[]> XMiniBatch_Shape(int[] shapeForFirstLayer) { return _original.XMiniBatch_Shape(shapeForFirstLayer); }
+
     public override List<TrainingAndTestDataset> KFoldSplit(int kfold, int countMustBeMultipleOf)
     {
         return _original.KFoldSplit(kfold, countMustBeMultipleOf);
     }
+
     public override CpuTensor<float> Y => _original.Y;
 
     #region Dispose pattern

@@ -96,7 +96,7 @@ namespace SharpNet.Layers
             _convolutionGradients = GetFloatTensor(_convolution.Shape);
             _convolutionBiasGradients = (_convolutionBias!=null)? GetFloatTensor(_convolutionBias.Shape) : null;
 
-            _optimizer = GetOptimizer(_convolution.Shape, _convolutionBias?.Shape);
+            _optimizer = Sample.GetOptimizer(_convolution.Shape, _convolutionBias?.Shape, MemoryPool);
 
             ResetParameters(false);
         }

@@ -133,7 +133,7 @@ public class LightGBMSample : AbstractSample, IModelSample
                 break;
         }
     }
-    public (IScore trainLossIfAvailable, IScore validationLossIfAvailable, IScore trainMetricIfAvailable, IScore validationMetricIfAvailable) ExtractScores(IEnumerable<string> linesFromLog)
+    public (IScore trainLossIfAvailable, IScore validationLossIfAvailable, IScore trainRankingMetricIfAvailable, IScore validationRankingMetricIfAvailable) ExtractScores(IEnumerable<string> linesFromLog)
     {
         List<string> tokenAndMandatoryTokenAfterToken = new() { "training", null, "valid_1", null };
         var allMetrics = (metric ?? "").Split(',');
@@ -150,20 +150,20 @@ public class LightGBMSample : AbstractSample, IModelSample
         var validationLossIfAvailable = double.IsNaN(validationLossValue) ? null : new Score((float)validationLossValue, GetLoss());
 
         var trainMetricValue = (extractedScoresFromLogs.Length >= 3) ? extractedScoresFromLogs[2] : double.NaN;
-        Score trainMetricIfAvailable = null;
+        Score trainRankingMetricIfAvailable = null;
         if (IsClassification && !double.IsNaN(trainMetricValue))
         {
             var trainErrorValue = (float)trainMetricValue;
-            trainMetricIfAvailable = new Score(1 - trainErrorValue, EvaluationMetricEnum.Accuracy);
+            trainRankingMetricIfAvailable = new Score(1 - trainErrorValue, EvaluationMetricEnum.Accuracy);
         }
         var validationMetricValue = (extractedScoresFromLogs.Length >= 4) ? extractedScoresFromLogs[3] : double.NaN;
-        Score validationMetricIfAvailable = null;
+        Score validationRankingMetricIfAvailable = null;
         if (IsClassification && !double.IsNaN(validationMetricValue))
         {
             var validationErrorValue = (float)validationMetricValue;
-            validationMetricIfAvailable = new Score(1 - validationErrorValue, EvaluationMetricEnum.Accuracy);
+            validationRankingMetricIfAvailable = new Score(1 - validationErrorValue, EvaluationMetricEnum.Accuracy);
         }
-        return (trainLossIfAvailable, validationLossIfAvailable, trainMetricIfAvailable, validationMetricIfAvailable);
+        return (trainLossIfAvailable, validationLossIfAvailable, trainRankingMetricIfAvailable, validationRankingMetricIfAvailable);
     }
 
     #region Core Parameters

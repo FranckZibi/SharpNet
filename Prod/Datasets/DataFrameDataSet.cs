@@ -4,7 +4,6 @@ using System.Diagnostics;
 using System.Linq;
 using JetBrains.Annotations;
 using SharpNet.CPU;
-using SharpNet.Data;
 using SharpNet.Datasets.CFM60;
 
 namespace SharpNet.Datasets;
@@ -16,9 +15,11 @@ public class DataFrameDataSet : DataSet, IGetDatasetSample
     #region private fields
     private readonly int[] _elementIdToCategoryIndex;
     private CpuTensor<float> _x => XDataFrame.FloatCpuTensor();
+
+    private CpuTensor<float> yDataFrameDataSet => YDataFrame_InModelFormat?.FloatCpuTensor();
     #endregion
 
-    
+
     public DataFrameDataSet(
         AbstractDatasetSample datasetSample,
         [NotNull] DataFrame x_df,
@@ -51,12 +52,6 @@ public class DataFrameDataSet : DataSet, IGetDatasetSample
                 : y_df.FloatCpuTensor().ArgMax().ReadonlyContent.Select(f => Utils.NearestInt(f)).ToArray();
         }
 
-        if (IsClassificationProblem && y_df != null && y_df.Shape[1] == 1 && DatasetSample.NumClass>=2)
-        {
-            var yFloat = CpuTensor<float>.FromClassIndexToProba(y_df.FloatCpuTensor(), DatasetSample.NumClass);
-            y_df = DataFrame.New(yFloat);
-        }
-
         XDataFrame = x_df;
         YDataFrame_InModelFormat = y_df;
     }
@@ -73,16 +68,11 @@ public class DataFrameDataSet : DataSet, IGetDatasetSample
         //only the first dimension (batch size) can be different
         Debug.Assert(_x.SameShapeExceptFirstDimension(xBuffer));
         _x.CopyTo(_x.Idx(elementId), xBuffer, xBuffer.Idx(indexInBuffer), xBuffer.MultDim0);
-        if (yBuffer != null && Y != null)
+        if (yBuffer != null && yDataFrameDataSet != null)
         {
-            Debug.Assert(Y.SameShapeExceptFirstDimension(yBuffer));
-            Y.CopyTo(Y.Idx(elementId), yBuffer, yBuffer.Idx(indexInBuffer), yBuffer.MultDim0);
+            Debug.Assert(yDataFrameDataSet.SameShapeExceptFirstDimension(yBuffer));
+            yDataFrameDataSet.CopyTo(yDataFrameDataSet.Idx(elementId), yBuffer, yBuffer.Idx(indexInBuffer), yBuffer.MultDim0);
         }
-    }
-
-    public override int[] YMiniBatch_Shape(int miniBatchSize)
-    {
-        return new[] { miniBatchSize, DatasetSample.NumClass };
     }
 
 
@@ -105,7 +95,7 @@ public class DataFrameDataSet : DataSet, IGetDatasetSample
 
     public DataFrame XDataFrame { get; }
     public DataFrame YDataFrame_InModelFormat { get; }
-    public override CpuTensor<float> Y => YDataFrame_InModelFormat?.FloatCpuTensor();
+    public override CpuTensor<float> Y => yDataFrameDataSet;
     public override string ToString()
     {
         return XDataFrame + " => " + YDataFrame_InModelFormat;

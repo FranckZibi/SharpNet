@@ -10,6 +10,9 @@ namespace SharpNet.Layers;
 /// </summary>
 public class PositionalEncodingAttnIsAllYouNeedLayer : Layer
 {
+
+    public const int DEFAULT_N_POSITIONAL_ENCODING = 10000;
+    
     private readonly int N;
 
     public PositionalEncodingAttnIsAllYouNeedLayer(int n, Network network, string layerName = "") : base(network, layerName)

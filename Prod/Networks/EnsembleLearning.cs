@@ -16,7 +16,8 @@ namespace SharpNet.Networks
 
         public Tuple<CpuTensor<float>, double> Predict(DataSet testDataSet, int miniBatchSize)
         {
-            var yCpuPredictedAllNetworks = new CpuTensor<float>(testDataSet.Y.Shape);
+            var testDataSet_YIfAny = testDataSet.Y;
+            var yCpuPredictedAllNetworks = new CpuTensor<float>(testDataSet_YIfAny.Shape);
             var buffer = new CpuTensor<float>(new []{ testDataSet.Count});
             var lossFunction = EvaluationMetricEnum.CategoricalCrossentropy;
             foreach (var modelFilePath in _modelFilesPath)
@@ -27,19 +28,19 @@ namespace SharpNet.Networks
                 using var network = Network.LoadTrainedNetworkModel(workingDirectory, modelName);
                 Console.WriteLine("File loaded");
                 Console.WriteLine("Computing accuracy for single network...");
-                    
-                var yPredictedSingleNetwork = network.MiniBatchGradientDescentForSingleEpoch(testDataSet, miniBatchSize);
+
+                (var yPredictedSingleNetwork, _) = network.MiniBatchGradientDescentForSingleEpoch(testDataSet, miniBatchSize, returnPredictionsForFullDataset: true, computeMetricsForFullDataset: false);
                 var yCpuPredictedSingleNetwork = yPredictedSingleNetwork.ToCpuFloat();
                 lossFunction = network.Sample.LossFunction;
                 var accuracy = (lossFunction == EvaluationMetricEnum.AccuracyCategoricalCrossentropyWithHierarchy)
-                    ?testDataSet.Y.ComputeAccuracyCategoricalCrossentropyWithHierarchy(yCpuPredictedSingleNetwork, buffer)
-                    :testDataSet.Y.ComputeAccuracy(yCpuPredictedSingleNetwork, buffer);
+                    ?testDataSet_YIfAny.ComputeAccuracyCategoricalCrossentropyWithHierarchy(yCpuPredictedSingleNetwork, buffer)
+                    :testDataSet_YIfAny.ComputeAccuracy(yCpuPredictedSingleNetwork, buffer);
                 Console.WriteLine("Single Network Accuracy=" + accuracy);
                 yCpuPredictedAllNetworks.Update_Adding_Alpha_X(1f/ _modelFilesPath.Length, yCpuPredictedSingleNetwork);
             }
             var accuracyEnsembleNetwork = (lossFunction == EvaluationMetricEnum.AccuracyCategoricalCrossentropyWithHierarchy)
-                ?testDataSet.Y.ComputeAccuracyCategoricalCrossentropyWithHierarchy(yCpuPredictedAllNetworks, buffer)
-                :testDataSet.Y.ComputeAccuracy(yCpuPredictedAllNetworks, buffer);
+                ?testDataSet_YIfAny.ComputeAccuracyCategoricalCrossentropyWithHierarchy(yCpuPredictedAllNetworks, buffer)
+                :testDataSet_YIfAny.ComputeAccuracy(yCpuPredictedAllNetworks, buffer);
 
             Console.WriteLine("Ensemble Network Accuracy=" + accuracyEnsembleNetwork);
             return Tuple.Create(yCpuPredictedAllNetworks, accuracyEnsembleNetwork);

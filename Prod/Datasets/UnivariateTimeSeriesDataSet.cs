@@ -9,6 +9,7 @@ namespace SharpNet.Datasets
     {
         #region private fields
         private readonly Memory<float> _univariateTimeSeries;
+        private readonly CpuTensor<float> _yUnivariateTimeSeriesDataSet;
         private readonly int _timeSteps;
         private readonly int _stride;
         #endregion
@@ -38,8 +39,8 @@ namespace SharpNet.Datasets
             }
 
             //We build 'Y' field
-            Y = new CpuTensor<float>(new []{ totalCount, 1});
-            var yAsSpan = Y.AsFloatCpuSpan;
+            _yUnivariateTimeSeriesDataSet = new CpuTensor<float>(new []{ totalCount, 1});
+            var yAsSpan = _yUnivariateTimeSeriesDataSet.AsFloatCpuSpan;
             var timeSeriesAsSpan = _univariateTimeSeries.Span;
             for (int elementId = 0; elementId < totalCount; ++elementId)
             {
@@ -63,7 +64,7 @@ namespace SharpNet.Datasets
             Debug.Assert(indexInBuffer >= 0 && indexInBuffer < xBuffer.Shape[0]);
             Debug.Assert(xBuffer.SameShapeExceptFirstDimension(X_Shape));
             Debug.Assert(xBuffer.Shape[0] == yBuffer.Shape[0]); //same batch size
-            Debug.Assert(yBuffer == null || yBuffer.SameShapeExceptFirstDimension(Y.Shape));
+            Debug.Assert(yBuffer == null || yBuffer.SameShapeExceptFirstDimension(_yUnivariateTimeSeriesDataSet.Shape));
 
             var xSrc = _univariateTimeSeries.Span.Slice(elementId*_stride, xBuffer.MultDim0);
             var xDest = xBuffer.AsFloatCpuSpan.Slice(indexInBuffer * xBuffer.MultDim0, xBuffer.MultDim0);
@@ -71,7 +72,7 @@ namespace SharpNet.Datasets
             xSrc.CopyTo(xDest);
             if (yBuffer != null)
             {
-                Y.CopyTo(Y.Idx(elementId), yBuffer, yBuffer.Idx(indexInBuffer), yBuffer.MultDim0);
+                _yUnivariateTimeSeriesDataSet.CopyTo(_yUnivariateTimeSeriesDataSet.Idx(elementId), yBuffer, yBuffer.Idx(indexInBuffer), yBuffer.MultDim0);
             }
         }
 
@@ -100,10 +101,10 @@ namespace SharpNet.Datasets
 
         private int[] X_Shape => new []{Count, _timeSteps, 1};
 
-        public override CpuTensor<float> Y { get; }
+        public override CpuTensor<float> Y => _yUnivariateTimeSeriesDataSet;
         public override string ToString()
         {
-            return X_Shape + " => " + Y;
+            return X_Shape + " => " + _yUnivariateTimeSeriesDataSet;
         }
     }
 }

@@ -12,6 +12,7 @@ namespace SharpNet.Datasets
     {
         #region private fields
         [NotNull] private readonly int[] _elementIdToCategoryIndex;
+        [NotNull] private readonly CpuTensor<float> _ySplittedFileDataSet;
         [NotNull] private readonly List<string> Files;
         [NotNull] private readonly int[] FirstElementIdInFile;
         [NotNull] private readonly int[] LastElementIdInFile;
@@ -58,7 +59,7 @@ namespace SharpNet.Datasets
             }
 
             //TODO : initialize Y tensor
-            Y = new CpuTensor<float>(new[] { Count, categoryDescriptions.Length });
+            _ySplittedFileDataSet = new CpuTensor<float>(new[] { Count, categoryDescriptions.Length });
         }
         public override void LoadAt(int elementId, int indexInBuffer, CpuTensor<float> xBuffer,
             CpuTensor<float> yBuffer, bool withDataAugmentation, bool isTraining)
@@ -92,10 +93,10 @@ namespace SharpNet.Datasets
             //we initialize 'yBuffer'
             var categoryIndex = CategoryByteToCategoryIndex(xByte[0]);
             _elementIdToCategoryIndex[elementId] = categoryIndex;
-            for (int cat = 0; cat < Y.Shape[1]; ++cat)
+            for (int cat = 0; cat < _ySplittedFileDataSet.Shape[1]; ++cat)
             {
                 yBuffer?.Set(indexInBuffer, cat, (cat == categoryIndex) ? 1f : 0f);
-                Y.Set(elementId, cat, (cat == categoryIndex) ? 1f : 0f);
+                _ySplittedFileDataSet.Set(elementId, cat, (cat == categoryIndex) ? 1f : 0f);
             }
         }
         public override int ElementIdToCategoryIndex(int elementId)
@@ -105,10 +106,10 @@ namespace SharpNet.Datasets
             return res;
         }
         public override int Count { get; }
-        public override CpuTensor<float> Y { get; }
+        public override CpuTensor<float> Y => _ySplittedFileDataSet;
         public override string ToString()
         {
-            return "X => " + Y;
+            return "X => " + _ySplittedFileDataSet;
         }
         public static List<string> AllBinFilesInDirectory(string directory, params string[] filesPrefix)
         {

@@ -9,13 +9,7 @@ public class PlumeLabs88DirectoryDataSet : DataSet
 {
     private readonly PlumeLabs88DatasetSample _datasetSample;
     private readonly bool _isTrainingDataset;
-   
-    public override int[] YMiniBatch_Shape(int miniBatchSize)
-    {
-        return new[] { miniBatchSize, _datasetSample.NumClass };
-    }
-
-
+    private readonly CpuTensor<float> _yPlumeLabs88DirectoryDataSet;
 
     public PlumeLabs88DirectoryDataSet(PlumeLabs88DatasetSample datasetSample,  bool isTrainingDataset)
         : base(PlumeLabs88Utils.NAME, datasetSample.GetObjective(), datasetSample.GetInputShapeOfSingleElement()[0], null, ResizeStrategyEnum.None, Array.Empty<string>(), datasetSample.CategoricalFeatures, datasetSample.IdColumn, datasetSample.RowInTargetFormatPredictionToID(isTrainingDataset), isTrainingDataset, ',')
@@ -26,11 +20,11 @@ public class PlumeLabs88DirectoryDataSet : DataSet
         if (_isTrainingDataset)
         {
             var targetColumnContent = PlumeLabs88Utils.Load_YTrainPath().FloatColumnContent("TARGET");
-            Y = CpuTensor<float>.New(targetColumnContent.Select(datasetSample.NormalizeTarget).ToArray(), _datasetSample.NumClass);
+            _yPlumeLabs88DirectoryDataSet = CpuTensor<float>.New(targetColumnContent.Select(datasetSample.NormalizeTarget).ToArray(), _datasetSample.NumClass);
         }
         else
         {
-            Y = null;
+            _yPlumeLabs88DirectoryDataSet = null;
         }
     }
 
@@ -40,9 +34,9 @@ public class PlumeLabs88DirectoryDataSet : DataSet
         var xBufferSpan = xBuffer.RowSpanSlice(indexInBuffer, 1);
         Debug.Assert(xBufferSpan.Length == _datasetSample.FeatureByElement());
         _datasetSample.LoadElementIdIntoSpan(elementId, xBufferSpan, _isTrainingDataset);
-        if (yBuffer != null && Y != null)
+        if (yBuffer != null && _yPlumeLabs88DirectoryDataSet != null)
         {
-            Y.RowSpanSlice(elementId, 1).CopyTo(yBuffer.RowSpanSlice(indexInBuffer, 1));
+            _yPlumeLabs88DirectoryDataSet.RowSpanSlice(elementId, 1).CopyTo(yBuffer.RowSpanSlice(indexInBuffer, 1));
         }
     }
 
@@ -55,5 +49,5 @@ public class PlumeLabs88DirectoryDataSet : DataSet
     public override bool CanBeSavedInCSV => false;
     public override bool UseRowIndexAsId => true;
 
-    public override CpuTensor<float> Y { get; }
+    public override CpuTensor<float> Y => _yPlumeLabs88DirectoryDataSet;
 }

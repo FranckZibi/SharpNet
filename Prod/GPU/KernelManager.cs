@@ -39,6 +39,7 @@ namespace SharpNet.GPU
                 {
                     "ApplyZeroPaddingForRowId",
                     "ComputeAccuracy",
+                    "ComputeSparseAccuracy",
                     "BinaryCrossentropyLoss",
                     "CategoricalCrossentropyLoss",
                     "CategoricalCrossentropyWithHierarchyLoss",
@@ -89,6 +90,9 @@ namespace SharpNet.GPU
                     "TransposeSecondAndThirdDimension_V2",
                     "TransposeSecondAndThirdDimension_V3",
                     "UpdateWithPositionalEncoding_AttnIsAllYouNeed",
+                    "SparseCategoricalCrossentropyLoss",
+                    "SparseCategoricalCrossentropyGradient",
+                    "ArgMax",
                 },
                 "SharpNet.GPU.Kernels.SinglePrecision.cu",
                 out var errorMsg);

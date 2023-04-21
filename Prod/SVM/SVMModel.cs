@@ -43,11 +43,7 @@ namespace SharpNet.Svm
         }
         #endregion
 
-        public override (string train_XDatasetPath_InModelFormat, string train_YDatasetPath_InModelFormat, string
-            train_XYDatasetPath_InModelFormat, string validation_XDatasetPath_InModelFormat, string
-            validation_YDatasetPath_InModelFormat, string validation_XYDatasetPath_InModelFormat, IScore
-            trainScoreIfAvailable, IScore validationScoreIfAvailable, IScore trainMetricIfAvailable, IScore
-            validationMetricIfAvailable)
+        public override (string train_XDatasetPath_InModelFormat, string train_YDatasetPath_InModelFormat, string train_XYDatasetPath_InModelFormat, string validation_XDatasetPath_InModelFormat, string validation_YDatasetPath_InModelFormat, string validation_XYDatasetPath_InModelFormat, IScore trainLossIfAvailable, IScore validationLossIfAvailable, IScore trainRankingMetricIfAvailable, IScore validationRankingMetricIfAvailable)
             Fit(DataSet trainDataset, DataSet validationDatasetIfAny)
         {
             var sw = Stopwatch.StartNew();
@@ -78,10 +74,10 @@ namespace SharpNet.Svm
 
             LogForModel($"Training model '{ModelName}' with training dataset '{Path.GetFileNameWithoutExtension(train_XYDatasetPath_InModelFormat)}'");
             Utils.Launch(WorkingDirectory, TrainExePath, parameters, Log, true);
-            (IScore trainLossIfAvailable, IScore validationLossIfAvailable, IScore trainMetricIfAvailable, IScore validationMetricIfAvailable) = (null,null,null,null);
+            (IScore trainLossIfAvailable, IScore validationLossIfAvailable, IScore trainRankingMetricIfAvailable, IScore validationRankingMetricIfAvailable) = (null,null,null,null);
 
-            LogForModel($"Model '{ModelName}' trained with dataset '{Path.GetFileNameWithoutExtension(train_XYDatasetPath_InModelFormat)}' in {sw.Elapsed.TotalSeconds}s (trainScore = {trainLossIfAvailable} / validationScore = {validationLossIfAvailable} / trainMetric = {trainMetricIfAvailable} / validationMetric = {validationMetricIfAvailable})");
-            return (null, null, train_XYDatasetPath_InModelFormat, null, null, null, trainLossIfAvailable, validationLossIfAvailable, trainMetricIfAvailable, validationMetricIfAvailable);
+            LogForModel($"Model '{ModelName}' trained with dataset '{Path.GetFileNameWithoutExtension(train_XYDatasetPath_InModelFormat)}' in {sw.Elapsed.TotalSeconds}s (trainScore = {trainLossIfAvailable} / validationScore = {validationLossIfAvailable} / trainMetric = {trainRankingMetricIfAvailable} / validationMetric = {validationRankingMetricIfAvailable})");
+            return (null, null, train_XYDatasetPath_InModelFormat, null, null, null, trainLossIfAvailable, validationLossIfAvailable, trainRankingMetricIfAvailable, validationRankingMetricIfAvailable);
         }
 
         public override (DataFrame, string) PredictWithPath(DataSet dataset, bool removeAllTemporaryFilesAtEnd)

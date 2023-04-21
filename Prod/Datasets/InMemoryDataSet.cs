@@ -11,32 +11,9 @@ public class InMemoryDataSet : DataSet
     #region private fields
     private readonly int[] _elementIdToCategoryIndex;
     private readonly CpuTensor<float> _x;
+    private readonly CpuTensor<float> _yInMemoryDataSet;
     #endregion
-
-    //public static InMemoryDataSet MergeVertically(InMemoryDataSet top, InMemoryDataSet bottom)
-    //{
-    //    if (top == null)
-    //    {
-    //        return bottom;
-    //    }
-    //    if (bottom == null)
-    //    {
-    //        return top;
-    //    }
-    //    return new InMemoryDataSet(
-    //        CpuTensor<float>.MergeVertically(top._x, bottom._x),
-    //        CpuTensor<float>.MergeVertically(top.Y, bottom.Y),
-    //        top.Name,
-    //        top.Objective,
-    //        top.MeanAndVolatilityForEachChannel,
-    //        top.ColumnNames,
-    //        top.CategoricalFeatures,
-    //        top.IdColumns,
-    //        top.TargetLabels,
-    //        top.UseBackgroundThreadToLoadNextMiniBatch,
-    //        top.Separator);
-    //}
-
+    
     public InMemoryDataSet([NotNull] CpuTensor<float> x,
         [CanBeNull] CpuTensor<float> y,
         string name = "",
@@ -64,7 +41,7 @@ public class InMemoryDataSet : DataSet
         //Debug.Assert(x.Shape[1] == columnNames.Length);
 
         _x = x;
-        Y = y;
+        _yInMemoryDataSet = y;
 
         if (IsRegressionProblem || y == null)
         {
@@ -97,8 +74,8 @@ public class InMemoryDataSet : DataSet
         _x.CopyTo(_x.Idx(elementId), xBuffer, xBuffer.Idx(indexInBuffer), xBuffer.MultDim0);
         if (yBuffer != null)
         {
-            Debug.Assert(Y.SameShapeExceptFirstDimension(yBuffer));
-            Y.CopyTo(Y.Idx(elementId), yBuffer, yBuffer.Idx(indexInBuffer), yBuffer.MultDim0);
+            Debug.Assert(_yInMemoryDataSet.SameShapeExceptFirstDimension(yBuffer));
+            _yInMemoryDataSet.CopyTo(_yInMemoryDataSet.Idx(elementId), yBuffer, yBuffer.Idx(indexInBuffer), yBuffer.MultDim0);
         }
     }
 
@@ -112,10 +89,10 @@ public class InMemoryDataSet : DataSet
         }
         return _elementIdToCategoryIndex[elementId];
     }
-        
-    public override CpuTensor<float> Y { get; }
+
+    public override CpuTensor<float> Y => _yInMemoryDataSet;
     public override string ToString()
     {
-        return _x + " => " + Y;
+        return _x + " => " + _yInMemoryDataSet;
     }
 }

@@ -34,7 +34,20 @@ namespace SharpNet
     /// </summary>
     public enum EvaluationMetricEnum
     {
-        Accuracy,   // works only for metric (to rank submission), do not work as a loss function, higher s better
+
+        /// <summary>
+        /// y true : a matrix of shape (batch_size, numClass) with, for each row the 'true' proba of each class
+        /// y_predicted: a matrix of shape (batch_size, numClass) with, for each row the predicted proba of each class
+        /// works only for metric (to rank submission), do not work as a loss function, higher s better
+        /// </summary>
+        Accuracy,
+
+        /// <summary>
+        /// y true : a sparse matrix of shape (batch_size, 1) with the index of the 'true' class
+        /// y_predicted: a matrix of shape (batch_size, numClass) with, for each row the predicted proba of each class
+        /// works only for metric (to rank submission), do not work as a loss function, higher s better
+        /// </summary>
+        SparseAccuracy,
 
         AccuracyCategoricalCrossentropyWithHierarchy,   // works only for metric (to rank submission), do not work as a loss function, higher s better
 
@@ -103,8 +116,6 @@ namespace SharpNet
          * */
         Rmse, // ok for loss, lower is better
 
-        CosineSimilarity504, // ok for loss, higher is better
-
         F1Micro, // ok for loss, higher is better
 
         PearsonCorrelation, // works only for metric (to rank submission), do not work as a loss function, higher s better
@@ -112,7 +123,17 @@ namespace SharpNet
 
         //Mean Squared Log Error, see: https://scikit-learn.org/stable/modules/model_evaluation.html#mean-squared-log-error
         //loss = (log(1+predicted) - log(1+expected)) ^ 2
-        MeanSquaredLogError // ok for loss, lower is better
+        MeanSquaredLogError, // ok for loss, lower is better
+
+        /// <summary>
+        /// To be used with softmax activation layer.
+        /// For the prediction:
+        ///     In a single row, each value will be in [0,1] range, and the sum of all values wil be equal to 1.0 (= 100%)
+        /// For the y_true:
+        ///     In a single row, each value will be a scalar integer in the range [0, number_of_categories-1]
+        /// Do not support multi labels (each element can belong to exactly 1 category)
+        /// </summary>
+        SparseCategoricalCrossentropy, // ok for loss, lower is better
     }
 
 
@@ -152,19 +173,34 @@ namespace SharpNet
             AllPermutationsHelper(data, 0, result);
             return result;
         }
+
+        public static string ToString(EvaluationMetricEnum evaluationMetric)
+        {
+            switch (evaluationMetric)
+            {
+                case EvaluationMetricEnum.SparseAccuracy:
+                    return ToString(EvaluationMetricEnum.Accuracy);
+                case EvaluationMetricEnum.SparseCategoricalCrossentropy:
+                    return ToString(EvaluationMetricEnum.CategoricalCrossentropy);
+                default:
+                    return evaluationMetric.ToString();
+            }
+        }
+
         public static bool HigherScoreIsBetter(EvaluationMetricEnum evaluationMetric)
         {
             switch (evaluationMetric)
             {
                 case EvaluationMetricEnum.Accuracy:
+                case EvaluationMetricEnum.SparseAccuracy:
                 case EvaluationMetricEnum.AccuracyCategoricalCrossentropyWithHierarchy:
-                case EvaluationMetricEnum.CosineSimilarity504:
                 case EvaluationMetricEnum.F1Micro:
                 case EvaluationMetricEnum.PearsonCorrelation:
                 case EvaluationMetricEnum.SpearmanCorrelation:
                     return true; // higher is better
                 case EvaluationMetricEnum.BinaryCrossentropy:
                 case EvaluationMetricEnum.CategoricalCrossentropy:
+                case EvaluationMetricEnum.SparseCategoricalCrossentropy:
                 case EvaluationMetricEnum.CategoricalCrossentropyWithHierarchy:
                 case EvaluationMetricEnum.Huber:
                 case EvaluationMetricEnum.Mae:
@@ -332,6 +368,13 @@ namespace SharpNet
             for (int j = 0; j < toRandomize.Length; ++j)
             {
                 toRandomize[j] = (float)NextDoubleNormalDistribution(rand, mean, stdDev);
+            }
+        }
+        public static void UniformDistribution(Span<int> toRandomize, Random rand, int minValue, int maxValue)
+        {
+            for (int j = 0; j < toRandomize.Length; ++j)
+            {
+                toRandomize[j] = rand.Next(minValue, maxValue+1);
             }
         }
         /// <summary>
@@ -672,15 +715,14 @@ namespace SharpNet
             value = default;
             return false;
         }
-        //public static T GetOrDefault<T>(this IDictionary<string, object> serialized, string key, T defaultValue)
-        //{
-        //    if (serialized.TryGetValue(key, out var resAsObject))
-        //    {
-        //        return (T)resAsObject;
-        //    }
-
-        //    return defaultValue;
-        //}
+        public static T GetOrDefault<T>(this IDictionary<string, object> serialized, string key, T defaultValue)
+        {
+            if (serialized.TryGetValue(key, out var resAsObject))
+            {
+                return (T)resAsObject;
+            }
+            return defaultValue;
+        }
 
         // ReSharper disable once UnusedMember.Global
         public static T TryGet<T>(this IDictionary<string, object> serialized, string key)

@@ -62,19 +62,35 @@ namespace SharpNet.Layers
         /// </summary>
         public int Units { get; }
         /// <summary>
+        /// input shape :
+        ///     (batchSize, a, b, ... y, z)
         /// if true
         ///     we'll flatten the input tensor x keeping the last dimension intact:     (a,b,c,d) => (a*b*c*, d)
         ///     the weight matrix will be of shape (d, units)
+        ///     the output shape will be: (batchSize, a, b, ... y, units)
         /// else
         ///     we'll assume that a Flatten Layer was just before the current 'this' Layer
-        ///     we'll flatten the input tensor 'x' keeping the fist dimension intact:   (a,b,c,d) => (a, b*c*d)
+        ///     we'll flatten the input tensor 'x' keeping the fist dimension intact:   (batchSize, a,b,c,d) => (batchSize, a, b*c*d)
         ///     the weight matrix will be of shape (b*c*d, units)
+        ///     the output shape will be: (batchSize, units)
         /// </summary>
         private readonly bool _flattenInputTensorOnLastDimension;
         #endregion
 
+        /*
+        if (_flattenInputTensorOnLastDimension)
+        {
+            var outputShape = (int[])PrevLayer.OutputShape(batchSize).Clone();
+            outputShape[^1] = Units;
+            return outputShape;
+        }
+        return new[] { batchSize, Units
+        };
+        */
+
+
         #region constructor
-        public DenseLayer(int units, double lambdaL2Regularization, bool flattenInputTensorOnLastDimension, Optimizer.OptimizationEnum optimizerType, bool trainable, Network network, string layerName) : base(network, layerName)
+        public DenseLayer(int units, double lambdaL2Regularization, bool flattenInputTensorOnLastDimension, bool trainable, Network network, string layerName) : base(network, layerName)
         {
             _flattenInputTensorOnLastDimension = flattenInputTensorOnLastDimension;
             Units = units;
@@ -89,14 +105,10 @@ namespace SharpNet.Layers
             _weightGradients = GetFloatTensor(_weights.Shape);
             _biasGradients = (_bias != null) ? GetFloatTensor(_bias.Shape) : null;
 
-            _optimizer = GetOptimizer(optimizerType, _weights.Shape, _bias?.Shape);
+            _optimizer = Sample.GetOptimizer(_weights.Shape, _bias?.Shape, MemoryPool);
             ResetParameters(false);
         }
 
-        private DenseLayer(int units, double lambdaL2Regularization, bool flattenInputTensorOnLastDimension, bool trainable, Network network, string layerName) 
-            : this(units, lambdaL2Regularization, flattenInputTensorOnLastDimension, network.Sample.OptimizerType, trainable, network, layerName)
-        {
-        }
 
         #endregion
 
@@ -120,8 +132,8 @@ namespace SharpNet.Layers
         }
         public static void DenseForwardPropagation(/* Out */ Tensor y, /* In */ Tensor x, /* In */ Tensor weights, /* In */ Tensor biasIfAny, bool flattenInputTensorOnLastDimension)
         {
-            var xAs2DMatrix = As2DMatrixForDotProduct(x, flattenInputTensorOnLastDimension);
-            var yAs2DMatrix = As2DMatrixForDotProduct(y, flattenInputTensorOnLastDimension);
+            var xAs2DMatrix = x.As2DTensor(flattenInputTensorOnLastDimension);
+            var yAs2DMatrix = y.As2DTensor(flattenInputTensorOnLastDimension);
             //We compute y = x*Weights+B
             yAs2DMatrix.Dot(xAs2DMatrix, weights);
             biasIfAny?.BroadcastAddVectorToOutput(yAs2DMatrix);
@@ -137,8 +149,8 @@ namespace SharpNet.Layers
 
         public static void DenseBackwardPropagation(/* Out */ Tensor dx, /* Out */ Tensor weightGradients, /* Out */ Tensor biasGradients, /* In */ Tensor x, /* In */ Tensor dy, /* In */ Tensor weights, NetworkSample sample, double LambdaL2Regularization, bool prevLayerIsInputLayer, bool flattenInputTensorOnLastDimension)
         {
-            var xAs2DMatrix = As2DMatrixForDotProduct(x, flattenInputTensorOnLastDimension);
-            var dyAs2DMatrix = As2DMatrixForDotProduct(dy, flattenInputTensorOnLastDimension);
+            var xAs2DMatrix = x.As2DTensor(flattenInputTensorOnLastDimension);
+            var dyAs2DMatrix = dy.As2DTensor(flattenInputTensorOnLastDimension);
 
             Debug.Assert(xAs2DMatrix.Shape.Length == 2);
             Debug.Assert(dyAs2DMatrix.Shape.Length == 2);
@@ -175,39 +187,6 @@ namespace SharpNet.Layers
 
             // we compute dx = dy * Weights.T
             dx.Dot(dyAs2DMatrix, false, weights, true, 1, 0);
-        }
-
-        /// <summary>
-        /// When x is tensor with >=3 dimension         (ex:  (a, b, c, d))
-        ///     if _flattenInputTensorOnLastDimension == true
-        ///             we'll change its shape to a 2D Matrix       (ex:  (a*b*c, d) )
-        ///             so that the last dimension of the matrix (ex: d) is preserved
-        ///     else (_flattenInputTensorOnLastDimension == false)
-        ///             we'll change its shape to a 2D Matrix       (ex:  (a, b*c*d) )
-        ///             so that the first dimension of the matrix (ex: a) is preserved
-        /// </summary>
-        /// <param name="x"></param>
-        /// <param name="flattenInputTensorOnLastDimension"></param>
-        /// <returns>A 2D Matrix</returns>
-        public static Tensor As2DMatrixForDotProduct(Tensor x, bool flattenInputTensorOnLastDimension)
-        {
-            if (x.Shape.Length <= 2)
-            {
-                return x;
-            }
-            var xTargetShape = new int[2];
-            if (flattenInputTensorOnLastDimension)
-            {
-                xTargetShape[0] = x.Count / x.Shape.Last();
-                xTargetShape[1] = x.Shape.Last();
-            }
-            else
-            {
-                xTargetShape[0] = x.Shape[0];
-                xTargetShape[1] = x.Count / x.Shape[0];
-            }
-
-            return x.Reshape(xTargetShape);
         }
 
         public override bool OutputNeededForBackwardPropagation => false;

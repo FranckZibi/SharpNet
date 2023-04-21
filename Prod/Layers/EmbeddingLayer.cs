@@ -122,7 +122,7 @@ public sealed class EmbeddingLayer : Layer
         _weights = GetFloatTensor(new[] { 1, weightColumns });
         _weightGradients = GetFloatTensor(_weights.Shape);
 
-        _optimizer = GetOptimizer(_weights.Shape, null);
+        _optimizer = Sample.GetOptimizer(_weights.Shape, null, MemoryPool);
         ResetParameters(false);
     }
     #endregion

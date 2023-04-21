@@ -7,8 +7,22 @@ namespace SharpNet.Layers;
 
 public class FlattenLayer : Layer
 {
-    public FlattenLayer(Network network, string layerName = "") : base(network, layerName)
+    private readonly bool _flattenInputTensorOnLastDimension;
+
+    /// <summary>
+    /// convert the input tensor to a 2D Tensor
+    /// if input shape is:
+    ///     (batchSize, a,b, ...., y,z)
+    /// output shape will be:
+    ///     (batchSize, a*b*y*z)                    if flattenInputTensorOnLastDimension == false
+    ///     (batchSize*a*b*y, z)                    if flattenInputTensorOnLastDimension == true
+    /// </summary>
+    /// <param name="flattenInputTensorOnLastDimension"></param>
+    /// <param name="network"></param>
+    /// <param name="layerName"></param>
+    public FlattenLayer(bool flattenInputTensorOnLastDimension, Network network, string layerName = "") : base(network, layerName)
     {
+        _flattenInputTensorOnLastDimension = flattenInputTensorOnLastDimension;
     }
 
     #region forward and backward propagation
@@ -34,12 +48,26 @@ public class FlattenLayer : Layer
     #endregion
 
     #region serialization
+    public override string Serialize()
+    {
+        return RootSerializer()
+            .Add(nameof(_flattenInputTensorOnLastDimension), _flattenInputTensorOnLastDimension)
+            .ToString();
+    }
     public static FlattenLayer Deserialize(IDictionary<string, object> serialized, Network network)
     {
-        return new FlattenLayer(network, (string)serialized[nameof(LayerName)]);
+        var flattenInputTensorOnLastDimension = serialized.GetOrDefault(nameof(_flattenInputTensorOnLastDimension), false);
+        return new FlattenLayer(flattenInputTensorOnLastDimension, network);
     }
     public override void AddToOtherNetwork(Network otherNetwork) { AddToOtherNetwork(otherNetwork, Deserialize); }
     #endregion
 
-    public override int[] OutputShape(int batchSize) {return new []{batchSize, PrevLayer.n_x};}
+    public override int[] OutputShape(int batchSize)
+    {
+        var inputShape = PrevLayer.OutputShape(batchSize);
+        var count = Utils.Product(inputShape);
+        return _flattenInputTensorOnLastDimension 
+            ? new[] { count / inputShape[^1], inputShape[^1] } 
+            : new[] { inputShape[0], count / inputShape[0] };
+    }
 }

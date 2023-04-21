@@ -10,7 +10,7 @@ using SharpNet.Layers;
 
 namespace SharpNet.Data
 {
-    [DebuggerDisplay("{ToString(true)}")]
+    //[DebuggerDisplay("{ToString(true)}")]
     public abstract unsafe class Tensor : IDisposable
     {
         #region fields
@@ -189,6 +189,8 @@ namespace SharpNet.Data
         public int Dimension => Shape.Length;
         protected ulong ReallyNeededMemoryInBytesForShape(int[] shape) { return (ulong)Utils.Product(shape) * (ulong)TypeSize; }
         public CpuTensor<float> AsFloatCpu => AsCpu<float>();
+        public CpuTensor<string> AsStringCpu => AsCpu<string>();
+        public CpuTensor<int> AsIntCpu => AsCpu<int>();
         public Span<float> AsFloatCpuSpan => AsFloatCpu.SpanContent;
         public float*  AsFloatPointer => (float*)AsFloatCpu.Pointer;
 
@@ -294,6 +296,10 @@ namespace SharpNet.Data
 
         public static string ShapeToString(int[] shape)
         {
+            if (shape==null)
+            {
+                return "(null)";
+            }
             return "(" + string.Join(", ", shape) + ")";
         }
         public GPUTensor<T> AsGPU<T>()
@@ -951,17 +957,18 @@ namespace SharpNet.Data
 
         public int[] ComputeMetricBufferShape(EvaluationMetricEnum metricEnum)
         {
-            if (metricEnum == EvaluationMetricEnum.CosineSimilarity504)
+            if (IsSparseMetric(metricEnum))
             {
-                return new[] { CosineSimilarity504_TimeSeries_Length };
-                
+                return new[] { Count };
             }
             return new[] { Shape[0] };
         }
 
-
-        public const int CosineSimilarity504_TimeSeries_Length = 504;
-
+        public static bool IsSparseMetric(EvaluationMetricEnum metricEnum)
+        {
+            return metricEnum == EvaluationMetricEnum.SparseCategoricalCrossentropy
+                   || metricEnum == EvaluationMetricEnum.SparseAccuracy;
+        }
 
         /// <summary>
         /// this = yExpected in one-hot encoding (in each row there are exactly one '1' , all other values being 0)
@@ -970,6 +977,70 @@ namespace SharpNet.Data
         /// <param name="buffer"></param>
         /// <returns></returns>
         public abstract double ComputeAccuracy([NotNull] Tensor yPredicted, [NotNull] Tensor buffer);
+
+        /// <summary>
+        /// if yPredicted is a 3D Tensors:
+        ///     we'll assume the following shapes for all tensors:
+        ///             yExpectedSparse:            (batchSize, timeSteps)
+        ///             yPredicted:                 (batchSize, timeSteps, numClass)
+        ///             yPredictedGradientIfAny:    (batchSize, timeSteps, numClass)
+        ///    and we'll reshape them to:
+        ///             yExpectedSparse:            (batchSize*timeSteps, 1)
+        ///             yPredicted:                 (batchSize*timeSteps, numClass)
+        ///             yPredictedGradientIfAny:    (batchSize*timeSteps, numClass)
+        ///    and return those new shapes
+        /// else (if yPredicted is a 2D Tensors):
+        ///     we'll assume all inputs tensors are 2D tensors with following shapes:
+        ///             yExpectedSparse:            (batchSize*timeSteps, 1)
+        ///             yPredicted:                 (batchSize*timeSteps, numClass)
+        ///             yPredictedGradientIfAny:    (batchSize*timeSteps, numClass)
+        ///    and will do nothing (we'll return the exact same tensors received as input)
+        /// </summary>
+        /// <param name="yExpectedSparse"></param>
+        /// <param name="yPredicted"></param>
+        /// <param name="yPredictedGradientIfAny"></param>
+        /// <returns></returns>
+        protected static (Tensor, Tensor, Tensor) ReformatTo2DTensorsSparse(Tensor yExpectedSparse, Tensor yPredicted, Tensor yPredictedGradientIfAny = null)
+        {
+            if (yPredicted.Shape.Length == 3)
+            {
+                //yExpectedSparse shape:    (batchSize, timeSteps)
+                //yPredicted shape:         (batchSize, timeSteps, numClass)
+                yExpectedSparse = yExpectedSparse.Reshape(-1, 1);
+                yPredicted = yPredicted.Reshape(-1, yPredicted.Shape[^1]);
+                yPredictedGradientIfAny = yPredictedGradientIfAny?.Reshape(yPredicted.Shape);
+                //yExpectedSparse shape:    (batchSize*timeSteps, 1)
+                //yPredicted shape:         (batchSize*timeSteps, numClass)
+            }
+            Debug.Assert(AreCompatible(new List<Tensor> { yExpectedSparse, yPredicted }));
+            Debug.Assert(yExpectedSparse.Shape.Length == 2);
+            Debug.Assert(yExpectedSparse.Shape[1] == 1);
+            Debug.Assert(yPredicted.Shape.Length == 2);
+            Debug.Assert(yExpectedSparse.Shape[0] == yPredicted.Shape[0]);
+            return (yExpectedSparse, yPredicted, yPredictedGradientIfAny);
+        }
+
+        /// <summary>
+        /// this = yExpected in a Sparse Matrix (in each row there is the index of the associated class)
+        ///        the shape is (batch_size, 1)
+        /// </summary>
+        /// <param name="yPredicted">
+        /// what has been predicted by the NN (in each row the biggest value is the NN favorite)
+        /// shape is (batch_size, numClass) </param>
+        /// <param name="buffer">a vector of shape (batch_size) </param>
+        /// <returns></returns>
+        public abstract double ComputeSparseAccuracy([NotNull] Tensor yPredicted, [NotNull] Tensor buffer);
+
+        /// <summary>
+        /// this = yExpected in a Sparse Matrix (in each row there is the index of the associated class)
+        ///        the shape is (batch_size, 1)
+        /// </summary>
+        /// <param name="yPredicted">
+        /// what has been predicted by the NN (in each row the biggest value is the NN favorite)
+        /// shape is (batch_size, numClass) </param>
+        /// <param name="buffer">a vector of shape (batch_size) </param>
+        /// <returns></returns>
+        public abstract double SparseCategoricalCrossentropyLoss([NotNull] Tensor yPredicted, [NotNull] Tensor buffer);
 
         public abstract double ComputeAccuracyCategoricalCrossentropyWithHierarchy([NotNull] Tensor yPredicted, [NotNull] Tensor buffer);
 
@@ -982,7 +1053,6 @@ namespace SharpNet.Data
         /// <param name="yPredicted">the observed values for the prediction</param>
         /// <param name="huberDelta"></param>
         public abstract void HuberLoss(Tensor yExpected, Tensor yPredicted, float huberDelta);
-
 
         /// <summary>
         /// Compute the Mean Squared Error of log loss (MseOfLog loss) and stores it in the 'this' tensor
@@ -1042,7 +1112,25 @@ namespace SharpNet.Data
         /// <param name="yExpected">the expected values for the prediction</param>
         /// <param name="yPredicted">the observed values for the prediction</param>
         public abstract void MseGradient(Tensor yExpected, Tensor yPredicted);
-                
+
+
+        /// <summary>
+        /// Compute the output gradient when are using Sparse Categorical Crossentropy loss
+        /// and stores it in the 'this' tensor
+        /// </summary>
+        /// <param name="yExpectedSparse">the expected values for the prediction with shape:
+        ///     (batchSize, 1)              (when yPredicted is a 2D Tensor)
+        /// or
+        ///     (batchSize, timeSteps)      (when yPredicted is a 3D Tensor)
+        /// each element is the index of the expected class</param>
+        /// <param name="yPredicted">the observed values for the prediction with shape:
+        ///     (bachSize, numClass)
+        /// or
+        ///     (batchSize, timeSteps, numClass)
+        /// </param>
+        public abstract void SparseCategoricalCrossentropyGradient(Tensor yExpectedSparse, Tensor yPredicted);
+        
+
         /// <summary>
         /// Compute the output gradient when are using Mean Absolute Error loss
         /// and stores it in the 'this' tensor
@@ -1191,6 +1279,15 @@ namespace SharpNet.Data
             return result;
         }
 
+        /// <summary>
+        /// this: a tensor of shape (a,b,...,y,z,numClass)
+        /// buffer: a tensor of shape (a,b,...,y,z,1)
+        /// for each row of the input tensor, find the index of the max element of the row
+        /// and store it in the buffer tensor
+        /// </summary>
+        /// <param name="buffer">a tensor of shape (a,b,...,y,z,1) </param>
+        public abstract void ArgMax(Tensor buffer);
+
         public static int[] ToPooling4D(int[] shape3D)
         {
             Debug.Assert(shape3D.Length == 3);
@@ -1200,5 +1297,29 @@ namespace SharpNet.Data
         {
             return new CpuTensor<float>(new []{1}, new[] {f});
         }
+
+
+        /// <summary>
+        /// When 'this' is a tensor with >=3 dimension         (ex:  (a, b, c, d))
+        ///     if flattenInputTensorOnLastDimension == true
+        ///             we'll change its shape to a 2D Matrix       (ex:  (a*b*c, d) )
+        ///             so that the last dimension of the matrix (ex: d) is preserved
+        ///     else (flattenInputTensorOnLastDimension == false)
+        ///             we'll change its shape to a 2D Matrix       (ex:  (a, b*c*d) )
+        ///             so that the first dimension of the matrix (ex: a) is preserved
+        /// </summary>
+        /// <param name="flattenInputTensorOnLastDimension"></param>
+        /// <returns>A 2D Matrix</returns>
+        public Tensor As2DTensor(bool flattenInputTensorOnLastDimension)
+        {
+            if (Shape.Length == 2)
+            {
+                return this;
+            }
+            return flattenInputTensorOnLastDimension 
+                ? Reshape(-1, Shape[^1]) 
+                : Reshape(Shape[0], -1);
+        }
+
     }
 }

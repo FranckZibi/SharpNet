@@ -272,46 +272,45 @@ namespace SharpNet.GPU
             var zero = &zeroFloat;
             var one = &oneFloat;
 
-            cudnnStatus_t res;
-            if (activationType == cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX)
+            switch (activationType)
             {
-                res = CudnnWrapper.cudnnSoftmaxForward(CudnnHandle, cudnnSoftmaxAlgorithm_t.CUDNN_SOFTMAX_ACCURATE, cudnnSoftmaxMode_t.CUDNN_SOFTMAX_MODE_INSTANCE, one, xDesc, x, zero, yDesc, y);
+                case cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX:
+                    var resSoftMax = CudnnWrapper.cudnnSoftmaxForward(CudnnHandle, cudnnSoftmaxAlgorithm_t.CUDNN_SOFTMAX_ACCURATE, cudnnSoftmaxMode_t.CUDNN_SOFTMAX_MODE_INSTANCE, one, xDesc, x, zero, yDesc, y);
+                    CheckStatus(resSoftMax);
+                    break;
+                case cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX_LAST_DIMENSION:
+                    Reshape(-1, x.Shape[^1]).ActivationForward(cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX, null, y.Reshape(-1, y.Shape[^1]));
+                    return;
+                case cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX_WITH_HIERARCHY:
+                    Debug.Assert(activationParameter.UseGPU);
+                    x.CopyTo(y);
+                    _wrapper.RunKernel("ComputeSoftmaxWithHierarchy", y.Shape[0], new object[] { y.MultDim0, activationParameter, y});
+                    break;
+                case cudnnActivationMode_t.CUDNN_ACTIVATION_LN:
+                    Debug.Assert(activationParameter.UseGPU);
+                    _wrapper.RunKernel("ComputeLn", x.Count, new object[] { x, y });
+                    break;
+                case cudnnActivationMode_t.CUDNN_ACTIVATION_LEAKY_RELU:
+                    Debug.Assert(activationParameter.UseGPU);
+                    var activationDes = ActivationDesc(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU);
+                    var resLeakyRelu = CudnnWrapper.cudnnActivationForward(CudnnHandle, activationDes, one, xDesc, x, zero, yDesc, y);
+                    CheckStatus(resLeakyRelu);
+                    var alphaActivation = activationParameter.ContentAsFloatArray()[0];
+                    y.AddTensor(alphaActivation, x, 1- alphaActivation);
+                    break;
+                case cudnnActivationMode_t.CUDNN_ACTIVATION_SWISH:
+                    // y = x * sigmoid(x) 
+                    ActivationForward(cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID, activationParameter, y);
+                    y.Update_Multiply_By_x(this);
+                    break;
+                default:
+                    var activationDescriptor = ActivationDesc(activationType);
+                    var res = CudnnWrapper.cudnnActivationForward(CudnnHandle, activationDescriptor, one, xDesc, x, zero, yDesc, y);
+                    CheckStatus(res);
+                    break;
             }
-            else if (activationType == cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX_WITH_HIERARCHY)
-            {
-                Debug.Assert(activationParameter.UseGPU);
-                x.CopyTo(y);
-                _wrapper.RunKernel("ComputeSoftmaxWithHierarchy", y.Shape[0], new object[] { y.MultDim0, activationParameter, y});
-                res = cudnnStatus_t.CUDNN_STATUS_SUCCESS;
-            }
-            else if (activationType == cudnnActivationMode_t.CUDNN_ACTIVATION_LN)
-            {
-                Debug.Assert(activationParameter.UseGPU);
-                _wrapper.RunKernel("ComputeLn", x.Count, new object[] { x, y });
-                res = cudnnStatus_t.CUDNN_STATUS_SUCCESS;
-            }
-            else if (activationType == cudnnActivationMode_t.CUDNN_ACTIVATION_LEAKY_RELU)
-            {
-                Debug.Assert(activationParameter.UseGPU);
-                var activationDes = ActivationDesc(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU);
-                res = CudnnWrapper.cudnnActivationForward(CudnnHandle, activationDes, one, xDesc, x, zero, yDesc, y);
-                var alphaActivation = activationParameter.ContentAsFloatArray()[0];
-                y.AddTensor(alphaActivation, x, 1- alphaActivation);
-            }
-            else if (activationType == cudnnActivationMode_t.CUDNN_ACTIVATION_SWISH)
-            {
-                // y = x * sigmoid(x) 
-                ActivationForward(cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID, activationParameter, y);
-                y.Update_Multiply_By_x(this);
-                res = cudnnStatus_t.CUDNN_STATUS_SUCCESS;
-            }
-            else
-            {
-                var activationDescriptor = ActivationDesc(activationType);
-                res = CudnnWrapper.cudnnActivationForward(CudnnHandle, activationDescriptor, one, xDesc, x, zero, yDesc, y);
-            }
-            CheckStatus(res);
         }
+
         public override void ActivationBackward(cudnnActivationMode_t activationType, Tensor activationParameter, Tensor dy, Tensor x, Tensor y)
         {
             var dx = this;
@@ -326,41 +325,39 @@ namespace SharpNet.GPU
             var zero = &zeroFloat;
             var one = &oneFloat;
 
-            cudnnStatus_t res;
-            if (activationType == cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX)
+            switch (activationType)
             {
-                res = CudnnWrapper.cudnnSoftmaxBackward(CudnnHandle, cudnnSoftmaxAlgorithm_t.CUDNN_SOFTMAX_ACCURATE, cudnnSoftmaxMode_t.CUDNN_SOFTMAX_MODE_INSTANCE, one, yDesc, y, dyDesc, dy, zero, dxDesc, dx);
+                case cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX:
+                    var resSoftMax = CudnnWrapper.cudnnSoftmaxBackward(CudnnHandle, cudnnSoftmaxAlgorithm_t.CUDNN_SOFTMAX_ACCURATE, cudnnSoftmaxMode_t.CUDNN_SOFTMAX_MODE_INSTANCE, one, yDesc, y, dyDesc, dy, zero, dxDesc, dx);
+                    CheckStatus(resSoftMax);
+                    return;
+                case cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX_LAST_DIMENSION:
+                    Reshape(-1, Shape[^1]).ActivationBackward(cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX, null, dy.Reshape(-1, dy.Shape[^1]), x?.Reshape(-1, x.Shape[^1]), y.Reshape(-1, y.Shape[^1]));
+                    return;
+                case cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX_WITH_HIERARCHY:
+                    Debug.Assert(activationParameter.UseGPU);
+                    Debug.Assert(dx.MultDim0 == activationParameter.Count);
+                    _wrapper.RunKernel("ComputeSoftmaxGradientWitHierarchy", dx.Count, new object[] { dx.MultDim0, activationParameter, y, dy, dx});
+                    return;
+                case cudnnActivationMode_t.CUDNN_ACTIVATION_LEAKY_RELU:
+                    var activationDescLeakyRelu = ActivationDesc(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU);
+                    var resLeakyRelu = CudnnWrapper.cudnnActivationBackward(CudnnHandle, activationDescLeakyRelu, one, yDesc, y, dyDesc, dy, xDesc, x, zero, dxDesc, dx);
+                    CheckStatus(resLeakyRelu);
+                    var alphaActivation = activationParameter.ContentAsFloatArray()[0];
+                    dx.AddTensor(alphaActivation, dy, 1 - alphaActivation);
+                    return;
+                case cudnnActivationMode_t.CUDNN_ACTIVATION_SWISH:
+                    _wrapper.RunKernel("SwishGradient", dx.Count, new object[] { y, dy, x, dx });
+                    return;
+                case cudnnActivationMode_t.CUDNN_ACTIVATION_LN:
+                    _wrapper.RunKernel("LnGradient", dx.Count, new object[] { dy, x, dx });
+                    return;
+                default:
+                    var activationDesc = ActivationDesc(activationType);
+                    var res = CudnnWrapper.cudnnActivationBackward(CudnnHandle, activationDesc, one, yDesc, y, dyDesc, dy, xDesc, x, zero, dxDesc, dx);
+                    CheckStatus(res);
+                    return;
             }
-            else if (activationType == cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX_WITH_HIERARCHY)
-            {
-                Debug.Assert(activationParameter.UseGPU);
-                Debug.Assert(dx.MultDim0 == activationParameter.Count);
-                _wrapper.RunKernel("ComputeSoftmaxGradientWitHierarchy", dx.Count, new object[] { dx.MultDim0, activationParameter, y, dy, dx});
-                res = cudnnStatus_t.CUDNN_STATUS_SUCCESS;
-            }
-            else if (activationType == cudnnActivationMode_t.CUDNN_ACTIVATION_LEAKY_RELU)
-            {
-                var activationDesc = ActivationDesc(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU);
-                res = CudnnWrapper.cudnnActivationBackward(CudnnHandle, activationDesc, one, yDesc, y, dyDesc, dy, xDesc, x, zero, dxDesc, dx);
-                var alphaActivation = activationParameter.ContentAsFloatArray()[0];
-                dx.AddTensor(alphaActivation, dy, 1 - alphaActivation);
-            }
-            else if (activationType == cudnnActivationMode_t.CUDNN_ACTIVATION_SWISH)
-            {
-                _wrapper.RunKernel("SwishGradient", dx.Count, new object[] { y, dy, x, dx });
-                res = cudnnStatus_t.CUDNN_STATUS_SUCCESS;
-            }
-            else if (activationType == cudnnActivationMode_t.CUDNN_ACTIVATION_LN)
-            {
-                _wrapper.RunKernel("LnGradient", dx.Count, new object[] { dy, x, dx });
-                res = cudnnStatus_t.CUDNN_STATUS_SUCCESS;
-            }
-            else
-            {
-                var activationDesc = ActivationDesc(activationType);
-                res = CudnnWrapper.cudnnActivationBackward(CudnnHandle, activationDesc, one, yDesc, y, dyDesc, dy, xDesc, x, zero, dxDesc, dx);
-            }
-            CheckStatus(res);
         }
         public override void Pooling(Tensor y, cudnnPoolingMode_t poolingMode, int poolingHeight, int poolingWidth, int verticalStride, int horizontalStride)
         {
@@ -733,6 +730,27 @@ namespace SharpNet.GPU
             return cloned;
         }
 
+        public override void ArgMax(Tensor buffer)
+        {
+            var input = this;
+            if (input.Shape.Length >= 3)
+            {
+                var input2D = input.Reshape(-1, input.Shape[^1]);
+                var buffer2D = buffer.Reshape(-1, 1);
+                input2D.ArgMax(buffer2D);
+                return;
+            }
+            // input shape: (rows, numClass)
+            // buffer shape: (rows, 1)
+            Debug.Assert(input.Shape.Length == 2);
+            Debug.Assert(buffer.Shape.Length == 2);
+            Debug.Assert(buffer.Shape[1] == 1);
+            Debug.Assert(input.Shape[0] == buffer.Shape[0]);
+            int rows = input.Shape[0];
+            int numClass = input.Shape[1];
+            _wrapper.RunKernel("ArgMax", rows, new object[] { numClass, buffer, this });
+        }
+
         #region Compute of Loss and Metrics
 
         /// <summary>
@@ -746,24 +764,23 @@ namespace SharpNet.GPU
         {
             var yExpected = this;
             Debug.Assert(AreCompatible(new List<Tensor> { yExpected, yPredicted }));
-            Debug.Assert(yPredicted.SameShape(yExpected));
-            Debug.Assert(yExpected.Dimension >= 2);
-            int nbRows = yExpected.Shape[0];
-            var categoryCount = yExpected.MultDim0;
+            Debug.Assert(yPredicted.Dimension >= 2);
+            int batchSize = yPredicted.Shape[0];
+            var numClass = yPredicted.MultDim0;
 
             switch (evaluationMetric)
             {
                 case EvaluationMetricEnum.Accuracy:
-                    return ComputeAccuracy(yPredicted, buffer);
+                    return yExpected.ComputeAccuracy(yPredicted, buffer);
+                case EvaluationMetricEnum.SparseAccuracy:
+                    return yExpected.ComputeSparseAccuracy(yPredicted, buffer);
+                case EvaluationMetricEnum.SparseCategoricalCrossentropy:
+                    return yExpected.SparseCategoricalCrossentropyLoss(yPredicted, buffer);
                 case EvaluationMetricEnum.AccuracyCategoricalCrossentropyWithHierarchy:
-                    return ComputeAccuracyCategoricalCrossentropyWithHierarchy(yPredicted, buffer);
+                    return yExpected.ComputeAccuracyCategoricalCrossentropyWithHierarchy(yPredicted, buffer);
                 case EvaluationMetricEnum.Huber:
                     const float huberDelta = 1.0f;
-                    _wrapper.RunKernel("HuberLoss", nbRows, new object[] { categoryCount, huberDelta, buffer, yExpected, yPredicted });
-                    return buffer.ContentAsFloatArray().Average();
-                case EvaluationMetricEnum.CosineSimilarity504:
-                    Debug.Assert(yPredicted.Count % CosineSimilarity504_TimeSeries_Length == 0);
-                    buffer.CosineSimilarityLoss(yExpected, yPredicted, CosineSimilarity504_TimeSeries_Length);
+                    _wrapper.RunKernel("HuberLoss", batchSize, new object[] { numClass, huberDelta, buffer, yExpected, yPredicted });
                     return buffer.ContentAsFloatArray().Average();
                 case EvaluationMetricEnum.F1Micro:
                     return buffer.F1PrecisionRecallMicro(yExpected, yPredicted).f1;
@@ -774,10 +791,9 @@ namespace SharpNet.GPU
                     throw new NotImplementedException($"{evaluationMetric} can not be used on GPU (only available on CPU)");
                 default:
                     var kernelName = evaluationMetric + "Loss";
-                    _wrapper.RunKernel(kernelName, nbRows, new object[] { categoryCount, buffer, yExpected, yPredicted });
+                    _wrapper.RunKernel(kernelName, batchSize, new object[] { numClass, buffer, yExpected, yPredicted });
                     return buffer.ContentAsFloatArray().Average();
             }
-
         }
 
         /// <summary>
@@ -797,6 +813,32 @@ namespace SharpNet.GPU
             int nbRows = yExpected.Shape[0];
             var nbCols = yExpected.Shape[1];
             _wrapper.RunKernel("ComputeAccuracy", nbRows, new object[] { nbCols, buffer, yExpected, yPredicted });
+            return buffer.ContentAsFloatArray().Average();
+        }
+
+        public override double ComputeSparseAccuracy(Tensor yPredicted, Tensor buffer)
+        {
+            (var yExpectedSparse, yPredicted, _) = ReformatTo2DTensorsSparse(this, yPredicted);
+            //yExpectedSparse shape:    (batchSize*timeSteps, 1)
+            //yPredicted shape:         (batchSize*timeSteps, numClass)
+            Debug.Assert(buffer.Shape.Length == 1);
+            Debug.Assert(yExpectedSparse.Count == buffer.Shape[0]);
+            int rows = yPredicted.Shape[0];
+            var numClass = yPredicted.Shape[^1];
+            _wrapper.RunKernel("ComputeSparseAccuracy", rows, new object[] { numClass, buffer, yExpectedSparse, yPredicted });
+            return buffer.ContentAsFloatArray().Average();
+        }
+
+        public override double SparseCategoricalCrossentropyLoss(Tensor yPredicted, Tensor buffer)
+        {
+            (var yExpectedSparse, yPredicted, _) = ReformatTo2DTensorsSparse(this, yPredicted);
+            //yExpectedSparse shape:    (batchSize*timeSteps, 1)
+            //yPredicted shape:         (batchSize*timeSteps, numClass)
+            Debug.Assert(buffer.Shape.Length == 1);
+            Debug.Assert(yExpectedSparse.Count == buffer.Shape[0]);
+            int rows = yPredicted.Shape[0];
+            var numClass = yPredicted.Shape[^1];
+            _wrapper.RunKernel("SparseCategoricalCrossentropyLoss", rows, new object[] { numClass, buffer, yExpectedSparse, yPredicted });
             return buffer.ContentAsFloatArray().Average();
         }
 
@@ -877,6 +919,16 @@ namespace SharpNet.GPU
             var mseGradient = this;
             int batchSize = yExpected.Shape[0];
             _wrapper.RunKernel("MseGradient", batchSize, new object[] { yExpected.MultDim0, mseGradient, yExpected, yPredicted });
+        }
+
+        public override void SparseCategoricalCrossentropyGradient(Tensor yExpectedSparse, Tensor yPredicted)
+        {
+            (yExpectedSparse, yPredicted, var sparseCategoricalCrossentropyGradient) = ReformatTo2DTensorsSparse(yExpectedSparse, yPredicted, this);
+            //yExpectedSparse shape:    (batchSize*timeSteps, 1)
+            //yPredicted shape:         (batchSize*timeSteps, numClass)
+            int rows = yPredicted.Shape[0];
+            int numClass = yPredicted.Shape[^1];
+            _wrapper.RunKernel("SparseCategoricalCrossentropyGradient", rows, new object[] { numClass, sparseCategoricalCrossentropyGradient, yExpectedSparse, yPredicted});
         }
 
         public override void MseOfLogGradient(Tensor yExpected, Tensor yPredicted, float epsilon)

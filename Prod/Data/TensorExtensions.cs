@@ -101,38 +101,7 @@ namespace SharpNet.Data
             return sb.ToString();
         }
 
-        /// <summary>
-        /// for each row of the input tensor, find the index of the max element of the row
-        /// and store it in the output tensor
-        /// </summary>
-        /// <param name="input">a tensor of shape (rows, columns) </param>
-        /// <returns>a tensor of shape (rows, 1), each row contains the index of the max element of the row 'row' in 'input'</returns>
-        public static CpuTensor<float> ArgMax(this CpuTensor<float> input)
-        {
-            Debug.Assert(input.Shape.Length == 2);
-            var inputContent = input.ReadonlyContent;
-            int rows = input.Shape[0];
-            int columns = input.Shape[1];
-            var argMaxContent = new float[rows];
-            for (int row = 0; row < rows; row++)
-            {
-                int startIdx = row * columns;
-                int colMax = 0;
-                for (int col = 1; col < columns; col++)
-                {
-                    if (inputContent[startIdx + col] > inputContent[startIdx + colMax])
-                    {
-                        colMax = col;
-                    }
-                }
-                argMaxContent[row] = colMax;
-            }
-            return new CpuTensor<float>(new[] { rows, 1 }, argMaxContent);
-        }
-
-
-
-
+     
         public static string ToNumpy(this Tensor t, int maxLength = 2000)
         {
             var sb = new StringBuilder();

@@ -25,13 +25,15 @@ public interface IGetDatasetSample
 
 public class TimeSeriesDataset : DataSet, ITimeSeriesDataSet, IGetDatasetSample
 {
+    private readonly CpuTensor<float> _yTimeSeriesDataset;
+
     public EncoderDecoder_NetworkSample EncoderDecoder_NetworkSample { get; }
 
     // CFM60EntryID = CFM60Entry.ID: the unique ID of a CFM60Entry
     // elementId : id of an element in the dataSet (in range [0, dataSet.Count[ )
     private readonly Dictionary<string, float> _idToPrediction = new ();
 
-    public override CpuTensor<float> Y { get; }
+    public override CpuTensor<float> Y => _yTimeSeriesDataset;
 
     public DatasetSampleForTimeSeries DatasetSampleForTimeSeries { get; }
 
@@ -39,7 +41,7 @@ public class TimeSeriesDataset : DataSet, ITimeSeriesDataSet, IGetDatasetSample
 
     public override bool CanBeSavedInCSV => false;
 
-    public override DataFrame ExtractIdDataFrame(int rows)
+    protected override DataFrame ExtractIdDataFrame(int rows)
     {
         var ids = Enumerable.Range(0, _elementIdToLastAssociateEntry.Count).Select(i => _elementIdToLastAssociateEntry[i].UniqueId).ToArray();
         return DataFrame.New(ids, new List<string>{IdColumn});
@@ -58,7 +60,7 @@ public class TimeSeriesDataset : DataSet, ITimeSeriesDataSet, IGetDatasetSample
     int EntriesCountForEachElementId_Y => EncoderDecoder_NetworkSample.Use_Decoder ? EncoderDecoder_NetworkSample.Decoder_TimeSteps : 1;
     public int Total_TimeSteps => EncoderDecoder_NetworkSample.Total_TimeSteps;
 
-    public override int Count => Y.Shape[0];
+    public override int Count => _yTimeSeriesDataset.Shape[0];
     public override int ElementIdToCategoryIndex(int elementId)
     {
         return -1;
@@ -82,7 +84,7 @@ public class TimeSeriesDataset : DataSet, ITimeSeriesDataSet, IGetDatasetSample
         {
             var inputShapeDecoder = new[]
             {
-                shapeForFirstLayer[0],
+                shapeForFirstLayer[0], // batch size
                 EncoderDecoder_NetworkSample.Decoder_TimeSteps,
                 DatasetSampleForTimeSeries.GetInputSize(false)
             };
@@ -253,7 +255,7 @@ public class TimeSeriesDataset : DataSet, ITimeSeriesDataSet, IGetDatasetSample
             }
         }
         Debug.Assert(nextIdxInY == yData.Length);
-        Y = new CpuTensor<float>(new[] { count, EntriesCountForEachElementId_Y }, yData);
+        _yTimeSeriesDataset = new CpuTensor<float>(new[] { count, EntriesCountForEachElementId_Y }, yData);
 
         //if we are in a training data set
         if (trainingDataSetOldIfAny == null)
@@ -348,8 +350,8 @@ public class TimeSeriesDataset : DataSet, ITimeSeriesDataSet, IGetDatasetSample
         Debug.Assert(xEncoder.Shape[1] == EncoderDecoder_NetworkSample.Encoder_TimeSteps);
         Debug.Assert(xEncoder.Shape[2] == DatasetSampleForTimeSeries.GetInputSize(true));
         Debug.Assert(yBuffer == null || all_xBuffer[0].Shape[0] == yBuffer.Shape[0]); //same batch size
-        Debug.Assert(yBuffer == null || yBuffer.SameShapeExceptFirstDimension(Y.Shape));
-        Debug.Assert(yBuffer == null || yBuffer.SameShapeExceptFirstDimension(Y.Shape));
+        Debug.Assert(yBuffer == null || yBuffer.SameShapeExceptFirstDimension(_yTimeSeriesDataset.Shape));
+        Debug.Assert(yBuffer == null || yBuffer.SameShapeExceptFirstDimension(_yTimeSeriesDataset.Shape));
 
         LoadAt(elementId, indexInBuffer, xEncoder, true);
         if (EncoderDecoder_NetworkSample.Use_Decoder)
@@ -361,7 +363,7 @@ public class TimeSeriesDataset : DataSet, ITimeSeriesDataSet, IGetDatasetSample
 
         if (yBuffer != null)
         {
-            Y.CopyTo(Y.Idx(elementId), yBuffer, yBuffer.Idx(indexInBuffer), yBuffer.MultDim0);
+            _yTimeSeriesDataset.CopyTo(_yTimeSeriesDataset.Idx(elementId), yBuffer, yBuffer.Idx(indexInBuffer), yBuffer.MultDim0);
         }
     }
     public override void LoadAt(int elementId, int indexInBuffer, CpuTensor<float> xBuffer, CpuTensor<float> yBuffer,

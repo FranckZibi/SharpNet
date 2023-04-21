@@ -58,9 +58,9 @@ public sealed class LayerNormalizationLayer : Layer
     [NotNull] private readonly Optimizer _optimizer;
     #endregion
 
-    public const double epsilon_default_value = 0.001;
+    public const float DEFAULT_EPSILON = 0.001f;
 
-    public LayerNormalizationLayer(int last_D_dimension, double epsilon, bool trainable, Network network, string layerName) : base(network, layerName)
+    public LayerNormalizationLayer(int last_D_dimension, double epsilon, bool trainable, Network network, string layerName, int prevLayerIndex) : base(network, prevLayerIndex == -1 ? new[]{network.LastLayerIndex}:new[]{ prevLayerIndex }, layerName)
     {
         _last_D_dimension = last_D_dimension;
         _epsilon = epsilon;
@@ -76,7 +76,7 @@ public sealed class LayerNormalizationLayer : Layer
         _gammasGradients = GetFloatTensor(scaleAndBiasShape);
         _betasGradients = GetFloatTensor(scaleAndBiasShape);
 
-        _optimizer = GetOptimizer(_gammas.Shape, _betas.Shape);
+        _optimizer = Sample.GetOptimizer(_gammas.Shape, _betas.Shape, MemoryPool);
 
         //no need to reset optimizer weights: it has just been done above
         ResetParameters(false);
@@ -222,12 +222,14 @@ public sealed class LayerNormalizationLayer : Layer
     }
     public static LayerNormalizationLayer Deserialize(IDictionary<string, object> serialized, Network network)
     {
+        int prevLayerIndex = ((int[])serialized[nameof(PreviousLayerIndexes)])[0];
         return new LayerNormalizationLayer(
             (int)serialized[nameof(_last_D_dimension)],
             (double)serialized[nameof(_epsilon)],
             (bool)serialized[nameof(Trainable)],
             network,
-            (string)serialized[nameof(LayerName)]);
+            (string)serialized[nameof(LayerName)],
+            prevLayerIndex);
     }
     public override void AddToOtherNetwork(Network otherNetwork) { AddToOtherNetwork(otherNetwork, Deserialize); }
     #endregion

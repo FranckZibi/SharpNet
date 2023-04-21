@@ -5,7 +5,6 @@ using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using SharpNet.CPU;
-using SharpNet.Data;
 using SharpNet.GPU;
 using SharpNet.HyperParameters;
 using SharpNet.Models;
@@ -15,8 +14,12 @@ namespace SharpNet.Datasets;
 [SuppressMessage("ReSharper", "EmptyGeneralCatchClause")]
 public abstract class AbstractDatasetSample : AbstractSample, IDisposable
 {
-    protected readonly List<IDisposable> toDispose = new();
+    private readonly List<IDisposable> _toDispose = new();
 
+    public void AddToDispose(IDisposable disposable)
+    {
+        _toDispose.Add(disposable);
+    }
 
     #region Hyper-Parameters
     //For numerical features:
@@ -217,7 +220,7 @@ public abstract class AbstractDatasetSample : AbstractSample, IDisposable
         }
         return (vocabularySizes.ToArray(), embeddingDims.ToArray(), indexesInLastDimensionToUse.ToArray());
     }
-    public EvaluationMetricEnum DefaultLossFunction
+    public virtual EvaluationMetricEnum DefaultLossFunction
     {
         get
         {
@@ -347,6 +350,9 @@ public abstract class AbstractDatasetSample : AbstractSample, IDisposable
             throw new NotImplementedException(errorMsg);
         }
     }
+
+
+    private bool IsRegressionProblem => GetObjective() == Objective_enum.Regression;
 
     public abstract Objective_enum GetObjective();
     public IScore ComputeRankingEvaluationMetric(DataFrame y_true_InTargetFormat, DataFrame y_pred_InTargetFormat)
@@ -541,8 +547,8 @@ public abstract class AbstractDatasetSample : AbstractSample, IDisposable
     protected bool disposed = false;
     protected virtual void Dispose(bool disposing)
     {
-        toDispose.ForEach(d=>d?.Dispose());
-        toDispose.Clear();
+        _toDispose.ForEach(d=>d?.Dispose());
+        _toDispose.Clear();
 
         if (disposed)
         {

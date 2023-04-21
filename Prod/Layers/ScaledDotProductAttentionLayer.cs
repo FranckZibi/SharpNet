@@ -78,8 +78,7 @@ public class ScaledDotProductAttentionLayer : Layer
         //Computing the weights by a softmax operation
         //weights = softmax(scores)
         memoryPool.GetFloatTensor(ref _weights_buffer, scores_buffer.Shape);       // (batch_size, query_time_steps, value_time_steps)
-        var weights2DShape = new[] { batch_size * query_time_steps, value_time_steps };
-        scores_buffer.Reshape(weights2DShape).ActivationForward(cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX, null, _weights_buffer.Reshape(weights2DShape));
+        scores_buffer.ActivationForward(cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX_LAST_DIMENSION, null, _weights_buffer);
 
         //Computing the attention by a weighted sum of the value vectors
         //y = matmul(weights, V)
@@ -113,10 +112,7 @@ public class ScaledDotProductAttentionLayer : Layer
     {
         Debug.Assert(weights_buffer != null);
         //dy:          (batch_size, value_timeSteps, value_embedding_dim)
-        var batch_size = dV.Shape[0];
-        var value_time_steps = dV.Shape[1];
         var embedding_dim = dV.Shape[2];
-        var query_time_steps = dQ.Shape[1];
 
         dV.BatchMatrixMultiplication(weights_buffer, true, dy, false, 1.0f, 0.0f);
 
@@ -124,8 +120,7 @@ public class ScaledDotProductAttentionLayer : Layer
         var weights_gradients_buffer = memoryPool.GetFloatTensor(weights_buffer.Shape);       // (batch_size, query_time_steps, value_time_steps)
         weights_gradients_buffer.BatchMatrixMultiplication(dy, false, V, true, scaling, 0.0f);
         var scores_gradients_buffer = memoryPool.GetFloatTensor(weights_buffer.Shape);       // (batch_size, query_time_steps, value_time_steps)
-        var weights2DShape = new[] { batch_size * query_time_steps, value_time_steps };
-        scores_gradients_buffer.Reshape(weights2DShape).ActivationBackward(cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX, null, weights_gradients_buffer.Reshape(weights2DShape) /* dy*/, null /*x*/, weights_buffer.Reshape(weights2DShape) /*y*/);
+        scores_gradients_buffer.ActivationBackward(cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX_LAST_DIMENSION, null, weights_gradients_buffer /* dy*/, null /*x*/, weights_buffer /*y*/);
 
 
         dQ.BatchMatrixMultiplication(scores_gradients_buffer, false, K, false, 1, 0.0f);

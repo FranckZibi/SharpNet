@@ -38,14 +38,6 @@ public class KFoldModel : Model
         }
     }
 
-    //Model = new KFoldModel(kfoldSample, embeddedModel.WorkingDirectory, embeddedModel.ModelName + KFoldModel.SuffixKfoldModel);
-
-
-    public IModelSample EmbeddedModelSample(int embeddedModelIndex)
-    {
-        return EmbeddedModel(embeddedModelIndex).ModelSample;
-    }
-
     public Model EmbeddedModel(int embeddedModelIndex)
     {
         return _embeddedModels[embeddedModelIndex];
@@ -122,11 +114,7 @@ public class KFoldModel : Model
     //    }
     //}
 
-    public override (string train_XDatasetPath_InModelFormat, string train_YDatasetPath_InModelFormat, string
-        train_XYDatasetPath_InModelFormat, string validation_XDatasetPath_InModelFormat, string
-        validation_YDatasetPath_InModelFormat, string validation_XYDatasetPath_InModelFormat, IScore
-        trainScoreIfAvailable, IScore validationScoreIfAvailable, IScore trainMetricIfAvailable, IScore
-        validationMetricIfAvailable)
+    public override (string train_XDatasetPath_InModelFormat, string train_YDatasetPath_InModelFormat, string train_XYDatasetPath_InModelFormat, string validation_XDatasetPath_InModelFormat, string validation_YDatasetPath_InModelFormat, string validation_XYDatasetPath_InModelFormat, IScore trainLossIfAvailable, IScore validationLossIfAvailable, IScore trainRankingMetricIfAvailable, IScore validationRankingMetricIfAvailable)
         Fit(DataSet trainDataset, DataSet nullValidationDataset)
     {
         if (nullValidationDataset != null)
@@ -140,51 +128,51 @@ public class KFoldModel : Model
         var foldedTrainAndValidationDataset = trainDataset.KFoldSplit(n_splits, KFoldSample.CountMustBeMultipleOf);
         var train_XYDatasetPath_InTargetFormat = trainDataset.to_csv_in_directory(DatasetPath, true, includeIdColumns, overwriteIfExists);
 
-        List<IScore> allFoldTrainScoreIfAvailable = new();
-        List<IScore> allFoldValidationScoreIfAvailable = new();
-        List<IScore> allFoldTrainMetricIfAvailable = new();
-        List<IScore> allFoldValidationMetricIfAvailable = new();
+        List<IScore> allFoldTraiLossIfAvailable = new();
+        List<IScore> allFoldValidationLossIfAvailable = new();
+        List<IScore> allFoldTrainRankingMetricIfAvailable = new();
+        List<IScore> allFoldValidationRankingMetricIfAvailable = new();
 
         for (int fold = 0; fold < n_splits; ++fold)
         {
             var embeddedModel = _embeddedModels[fold];
             LogDebug($"Training embedded model '{embeddedModel.ModelName}' on fold[{fold}/{n_splits}]");
             var trainAndValidation = foldedTrainAndValidationDataset[fold];
-            var (_, _, _, _, _, _, foldTrainScoreIfAvailable, foldValidationScoreIfAvailable, foldTrainMetricIfAvailable, foldValidationMetricIfAvailable) = embeddedModel.Fit(trainAndValidation.Training, trainAndValidation.Test);
-            if (foldTrainScoreIfAvailable != null)
+            var (_, _, _, _, _, _, foldTrainLossIfAvailable, foldValidationLossIfAvailable, foldTrainRankingMetricIfAvailable, foldValidationRankingMetricIfAvailable) = embeddedModel.Fit(trainAndValidation.Training, trainAndValidation.Test);
+            if (foldTrainLossIfAvailable != null)
             {
-                allFoldTrainScoreIfAvailable.Add(foldTrainScoreIfAvailable);
+                allFoldTraiLossIfAvailable.Add(foldTrainLossIfAvailable);
             }
 
-            if (foldTrainMetricIfAvailable != null)
+            if (foldTrainRankingMetricIfAvailable != null)
             {
-                allFoldTrainMetricIfAvailable.Add(foldTrainMetricIfAvailable);
+                allFoldTrainRankingMetricIfAvailable.Add(foldTrainRankingMetricIfAvailable);
             }
-            if (foldValidationMetricIfAvailable != null)
+            if (foldValidationRankingMetricIfAvailable != null)
             {
-                allFoldValidationMetricIfAvailable.Add(foldValidationMetricIfAvailable);
+                allFoldValidationRankingMetricIfAvailable.Add(foldValidationRankingMetricIfAvailable);
             }
 
             // we retrieve (or recompute if required) the validation score 
-            if (foldValidationScoreIfAvailable != null) //the validation score is already available
+            if (foldValidationLossIfAvailable != null) //the validation score is already available
             {
                 //LogDebug($"No need to recompute Validation Loss for fold[{fold}/{n_splits}] : it is already available");
-                allFoldValidationScoreIfAvailable.Add(foldValidationScoreIfAvailable);
+                allFoldValidationLossIfAvailable.Add(foldValidationLossIfAvailable);
             }
             else
             {
                 LogDebug($"Computing Validation Loss for fold[{fold}/{n_splits}]");
                 var validationDataset = trainAndValidation.Test;
                 var fold_y_pred = embeddedModel.Predict(validationDataset, false);
-                foldValidationScoreIfAvailable = embeddedModel.ComputeLoss(validationDataset.Y_InModelFormat().FloatCpuTensor(), fold_y_pred.FloatCpuTensor());
+                foldValidationLossIfAvailable = embeddedModel.ComputeLoss(validationDataset.Y_InModelFormat().FloatCpuTensor(), fold_y_pred.FloatCpuTensor());
             }
-            LogDebug($"Validation Loss for fold[{fold}/{n_splits}] : {foldValidationScoreIfAvailable}");
+            LogDebug($"Validation Loss for fold[{fold}/{n_splits}] : {foldValidationLossIfAvailable}");
         }
-        var trainScoreIfAvailable = IScore.Average(allFoldTrainScoreIfAvailable);
-        var validationScoreIfAvailable = IScore.Average(allFoldValidationScoreIfAvailable);
-        var trainMetricIfAvailable = IScore.Average(allFoldTrainMetricIfAvailable);
-        var validationMetricIfAvailable = IScore.Average(allFoldValidationMetricIfAvailable);
-        return (null, null, train_XYDatasetPath_InTargetFormat, null, null, train_XYDatasetPath_InTargetFormat, trainScoreIfAvailable, validationScoreIfAvailable, trainMetricIfAvailable, validationMetricIfAvailable);
+        var trainLossIfAvailable = IScore.Average(allFoldTraiLossIfAvailable);
+        var validationLossIfAvailable = IScore.Average(allFoldValidationLossIfAvailable);
+        var trainRankingMetricIfAvailable = IScore.Average(allFoldTrainRankingMetricIfAvailable);
+        var validationRankingMetricIfAvailable = IScore.Average(allFoldValidationRankingMetricIfAvailable);
+        return (null, null, train_XYDatasetPath_InTargetFormat, null, null, train_XYDatasetPath_InTargetFormat, trainLossIfAvailable, validationLossIfAvailable, trainRankingMetricIfAvailable, validationRankingMetricIfAvailable);
     }
 
     public override (DataFrame trainPredictions_InTargetFormat, IScore trainRankingScore_InTargetFormat,
@@ -325,11 +313,6 @@ public class KFoldModel : Model
     {
         return _embeddedModels[0].GetLearningRate();
     }
-    public override int TotalParams()
-    {
-        return -1; //TODO
-    }
-
     private KFoldSample KFoldSample => (KFoldSample)ModelSample;
     //TODO add tests
     public static List<Tuple<int, int>> KFoldIntervals(int n_splits, int count, int countMustBeMultipleOf)

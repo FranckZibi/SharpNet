@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
-using System.Globalization;
 using System.IO;
 using System.Linq;
 using log4net;
@@ -15,10 +14,6 @@ namespace SharpNet.Models;
 [SuppressMessage("ReSharper", "EmptyGeneralCatchClause")]
 public abstract class Model: IDisposable
 {
-    #region private & protected fields
-    private static readonly object LockUpdateFileObject = new();
-    #endregion
-
     #region public fields & properties
     public static readonly ILog Log = LogManager.GetLogger(typeof(Model));
     public string WorkingDirectory { get; }
@@ -79,41 +74,9 @@ public abstract class Model: IDisposable
         {
             return null;
         }
-        Debug.Assert(y_true.SameShape(y_pred));
         var lossMetric = ModelSample.GetLoss();
         using var buffer = new CpuTensor<float>(y_true.ComputeMetricBufferShape(lossMetric));
         return new Score( (float)y_true.ComputeEvaluationMetric(y_pred, lossMetric, buffer), lossMetric);
-    }
-    public void AddResumeToCsv(double trainingTimeInSeconds, IScore trainScore, IScore validationScore, string csvPath)
-    {
-        var line = "";
-        try
-        {
-            int numEpochs = GetNumEpochs();
-            //We save the results of the net
-            line = DateTime.Now.ToString("F", CultureInfo.InvariantCulture) + ";"
-                + ModelName.Replace(';', '_') + ";"
-                + DeviceName() + ";"
-                + TotalParams() + ";" //should be: datasetSample.X_Shape(1)[1];
-                + numEpochs + ";"
-                + "-1" + ";"
-                + GetLearningRate() + ";"
-                + trainingTimeInSeconds + ";"
-                + (trainingTimeInSeconds / numEpochs) + ";"
-                + IScore.ToString(trainScore) + ";"
-                + "NaN" + ";"
-                + IScore.ToString(validationScore) + ";"
-                + "NaN" + ";"
-                + Environment.NewLine;
-            lock (LockUpdateFileObject)
-            {
-                File.AppendAllText(csvPath, line);
-            }
-        }
-        catch (Exception e)
-        {
-            Log.Error("fail to add line in file:" + Environment.NewLine + line + Environment.NewLine + e);
-        }
     }
 
     private static bool LoggingForModelShouldBeDebug(string modelName)
@@ -123,7 +86,7 @@ public abstract class Model: IDisposable
     }
 
 
-    protected virtual void LogForModel(string msg)
+    protected void LogForModel(string msg)
     {
         if (LoggingForModelShouldBeDebug(ModelName))
         {
@@ -137,14 +100,14 @@ public abstract class Model: IDisposable
 
     public static string MetricsToString(IDictionary<EvaluationMetricEnum, double> metrics, string prefix)
     {
-        return string.Join(" - ", metrics.OrderBy(x => x.Key).Select(e => prefix + e.Key + ": " + Math.Round(e.Value, 4))).ToLowerInvariant();
+        return string.Join(" - ", metrics.OrderBy(x => x.Key).Select(e => prefix + Utils.ToString(e.Key) + ": " + Math.Round(e.Value, 4))).ToLowerInvariant();
     }
     public static string TrainingAndValidationMetricsToString(IDictionary<EvaluationMetricEnum, double> trainingMetrics, IDictionary<EvaluationMetricEnum, double> validationMetrics)
     {
         return MetricsToString(trainingMetrics, "") + " - " + MetricsToString(validationMetrics, "val_");
     }
 
-    public static DataFrame LoadProbaFile(string predictionResultPath, bool hasHeader, bool hasIndex, char ?separator, DataSet dataset)
+    protected static DataFrame LoadProbaFile(string predictionResultPath, bool hasHeader, bool hasIndex, char ?separator, DataSet dataset)
     {
         var sw = Stopwatch.StartNew();
         Func<string, string[]> split = separator.HasValue ? (s => s.Split(s, separator.Value)) : s=>s.Split();
@@ -184,8 +147,8 @@ public abstract class Model: IDisposable
     }
 
 
-    public virtual string DatasetPath => GetRootPath("Dataset");
-    public virtual string TempPath => GetRootPath("Temp");
+    public string DatasetPath => GetRootPath("Dataset");
+    protected string TempPath => GetRootPath("Temp");
 
     private string GetRootPath(string subDirectory)
     {
@@ -200,11 +163,7 @@ public abstract class Model: IDisposable
         return Path.Combine(WorkingDirectory, subDirectory);
     }
 
-    public abstract (string train_XDatasetPath_InModelFormat, string train_YDatasetPath_InModelFormat, string
-        train_XYDatasetPath_InModelFormat, string validation_XDatasetPath_InModelFormat, string
-        validation_YDatasetPath_InModelFormat, string validation_XYDatasetPath_InModelFormat, IScore
-        trainScoreIfAvailable, IScore validationScoreIfAvailable, IScore trainMetricIfAvailable, IScore
-        validationMetricIfAvailable)
+    public abstract (string train_XDatasetPath_InModelFormat, string train_YDatasetPath_InModelFormat, string train_XYDatasetPath_InModelFormat, string validation_XDatasetPath_InModelFormat, string validation_YDatasetPath_InModelFormat, string validation_XYDatasetPath_InModelFormat, IScore trainLossIfAvailable, IScore validationLossIfAvailable, IScore trainRankingMetricIfAvailable, IScore validationRankingMetricIfAvailable)
         Fit(DataSet trainDataset, DataSet validationDatasetIfAny);
 
     /// <summary>
@@ -222,25 +181,15 @@ public abstract class Model: IDisposable
     ///     else
     ///         an empty string
     /// </returns>
-    public virtual DataFrame Predict(DataSet dataset, bool removeAllTemporaryFilesAtEnd)
+    public DataFrame Predict(DataSet dataset, bool removeAllTemporaryFilesAtEnd)
     {
         return PredictWithPath(dataset, removeAllTemporaryFilesAtEnd).predictions;
     }
-
-
-    public IScore ComputeLoss(DataSet dataset, bool removeAllTemporaryFilesAtEnd)
-    {
-        var y_pred = Predict(dataset, removeAllTemporaryFilesAtEnd);
-        var y_true = dataset.Y;
-        return ComputeLoss(y_true, y_pred.FloatTensor);
-    }
-
 
     public abstract (DataFrame predictions, string datasetPath) PredictWithPath(DataSet dataset, bool removeAllTemporaryFilesAtEnd);
     
     public abstract void Save(string workingDirectory, string modelName);
     public virtual string DeviceName() => "";
-    public virtual int TotalParams() => -1;
     public virtual int GetNumEpochs() => -1;
     public virtual double GetLearningRate() => double.NaN;
 

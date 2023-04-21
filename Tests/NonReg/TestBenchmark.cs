@@ -95,11 +95,11 @@ namespace SharpNetTests.NonReg
             p.BatchSize = miniBatchSize;
             var database = new CancelDatabase();
             //TODO Test with selection of only matching size input in the training set
-            using var dataset = database.ExtractDataSet(e => CancelDatabase.IsValidNonEmptyCancel(e.Cancel), ResizeStrategyEnum.BiggestCropInOriginalImageToKeepSameProportion);
+            using DirectoryDataSet dataset = database.ExtractDataSet(e => CancelDatabase.IsValidNonEmptyCancel(e.Cancel), ResizeStrategyEnum.BiggestCropInOriginalImageToKeepSameProportion);
             
             //dataAugmentationConfig.DataAugmentationType = ImageDataGenerator.DataAugmentationEnum.AUTO_AUGMENT_CIFAR10;
             var xMiniBatchShape = new []{miniBatchSize, 3, targetHeight, targetWidth};
-            var yMiniBatchShape = dataset.YMiniBatch_Shape(miniBatchSize);
+            var yMiniBatchShape = new[] { miniBatchSize, dataset.Y_DirectoryDataSet.Shape[1] };
             var rand = new Random(0);
             var shuffledElementId = Enumerable.Range(0, dataset.Count).ToArray();
             Utils.Shuffle(shuffledElementId, rand);
@@ -185,7 +185,6 @@ namespace SharpNetTests.NonReg
 
         //    var xMiniBatchShape = new[] { miniBatchSize, 3, dataset.Sample.Encoder_TimeSteps, p.CFM60HyperParameters.Encoder_InputSize };
 
-        //    var yMiniBatchShape = dataset.YMiniBatch_Shape(miniBatchSize);
         //    var rand = new Random(0);
         //    var shuffledElementId = Enumerable.Range(0, dataset.Count).ToArray();
         //    Utils.Shuffle(shuffledElementId, rand);

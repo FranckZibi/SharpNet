@@ -28,7 +28,6 @@ namespace SharpNet.Networks
         ///     (all computation is performed on the master network)
         /// </summary>
         private readonly List<Network> _slaveNetworks = new List<Network>();
-        private Tensor _yExpectedForEpoch;
         private Tensor _yPredictedForEpoch;
         #endregion
 
@@ -242,7 +241,6 @@ namespace SharpNet.Networks
         private void MiniBatchGradientDescentForSlave(List<Tensor> all_x_miniBatch_cpu_slave, Tensor yExpected_miniBatch_cpu_slave, Tensor yPredicted_miniBatch_master, bool isTraining)
         {
             Debug.Assert(_yPredictedForEpoch == null);
-            Debug.Assert(_yExpectedForEpoch == null);
             Debug.Assert(yExpected_miniBatch_cpu_slave.SameShape(yPredicted_miniBatch_master));
             Debug.Assert(all_x_miniBatch_cpu_slave[0].Shape[0] == yExpected_miniBatch_cpu_slave.Shape[0]);
             Debug.Assert(!all_x_miniBatch_cpu_slave[0].UseGPU);

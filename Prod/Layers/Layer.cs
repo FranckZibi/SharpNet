@@ -240,6 +240,7 @@ namespace SharpNet.Layers
                 case nameof(InputLayer): return InputLayer.Deserialize(serialized, network);
                 case nameof(LayerNormalizationLayer): return LayerNormalizationLayer.Deserialize(serialized, network);
                 case nameof(LinearFunctionLayer): return LinearFunctionLayer.Deserialize(serialized, network);
+                case nameof(MultiHeadAttentionLayer): return MultiHeadAttentionLayer.Deserialize(serialized, network);
                 case nameof(MultiplyLayer): return MultiplyLayer.Deserialize(serialized, network);
                 case nameof(NonMaxSuppressionLayer): return NonMaxSuppressionLayer.Deserialize(serialized, network);
                 case nameof(PoolingLayer): return PoolingLayer.Deserialize(serialized, network);
@@ -309,14 +310,13 @@ namespace SharpNet.Layers
         /// <returns></returns>
         public virtual int[] OutputShape(int batchSize)
         {
-            if (LazyOutputShape != null)
+            if (LazyOutputShape == null)
             {
-                var result = (int[])LazyOutputShape.Clone();
-                result[0] = batchSize;
-                return result;
+                LazyOutputShape = PrevLayer.OutputShape(batchSize);
             }
-            LazyOutputShape = PrevLayer.OutputShape(batchSize);
-            return (int[])LazyOutputShape.Clone();
+            var result = (int[])LazyOutputShape.Clone();
+            result[0] = batchSize;
+            return result;
         }
         public virtual void Dispose()
         {
@@ -471,40 +471,7 @@ namespace SharpNet.Layers
         protected NetworkSample Sample => Network.Sample;
 
 
-        protected Optimizer GetOptimizer(int[] weightShape, int[] biasShape)
-        {
-            return GetOptimizer(Sample.OptimizerType, weightShape, biasShape);
-        }
-        protected Optimizer GetOptimizer(Optimizer.OptimizationEnum optimizerType, int[] weightShape, int[] biasShape)
-        {
-            switch (optimizerType)
-            {
-                case Optimizer.OptimizationEnum.Adam:
-                    if (Math.Abs(Sample.AdamW_L2Regularization) > 1e-6)
-                    {
-                        throw new Exception("Invalid AdamW_L2Regularization (" + Sample.AdamW_L2Regularization+") for Adam: should be 0");
-                    }
-                    return new Adam(MemoryPool, Sample.Adam_beta1, Sample.Adam_beta2, Sample.Adam_epsilon, 0.0, weightShape, biasShape);
-                case Optimizer.OptimizationEnum.AdamW:
-                    if (Math.Abs(Sample.lambdaL2Regularization) > 1e-6)
-                    {
-                        throw new Exception("Can't use both AdamW and L2 Regularization");
-                    }
-                    if (Sample.AdamW_L2Regularization < 1e-6)
-                    {
-                        throw new Exception("Invalid AdamW_L2Regularization (" + Sample.AdamW_L2Regularization + ") for AdamW: should be > 0");
-                    }
-                    return new Adam(MemoryPool, Sample.Adam_beta1, Sample.Adam_beta2, Sample.Adam_epsilon, Sample.AdamW_L2Regularization, weightShape, biasShape);
-                case Optimizer.OptimizationEnum.SGD: 
-                    return new Sgd(MemoryPool, Sample.SGD_momentum, Sample.SGD_usenesterov, weightShape, biasShape);
-                case Optimizer.OptimizationEnum.VanillaSGDOrtho: 
-                    return new VanillaSgdOrtho(MemoryPool, weightShape);
-                case Optimizer.OptimizationEnum.VanillaSGD:
-                default: 
-                    return VanillaSgd.Instance;
-            }
-        }
-
+        
         /// <summary>
         /// true if the layer has associated weights (or bias) to train
         /// </summary>

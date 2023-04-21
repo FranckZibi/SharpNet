@@ -66,6 +66,6 @@ public class Score : IScore
 
     public override string ToString()
     {
-        return $"{Value.ToString(CultureInfo.InvariantCulture)} ({Metric})";
+        return $"{Value.ToString(CultureInfo.InvariantCulture)} ({Utils.ToString(Metric)})";
     }
 }

@@ -8,17 +8,24 @@ public sealed class MappedDataSet : WrappedDataSet
 {
     private readonly DataSet _original;
     private readonly IReadOnlyList<int> _elementIdToOriginalElementId;
+    private readonly CpuTensor<float> yMappedDataSet;
         
     public MappedDataSet(DataSet original, IReadOnlyList<int> elementIdToOriginalElementId) : base(original, false)
     {
         _original = original;
-        this._elementIdToOriginalElementId = new List<int>(elementIdToOriginalElementId);
+        _elementIdToOriginalElementId = new List<int>(elementIdToOriginalElementId);
 
         //We compute Y 
-        Y = new CpuTensor<float>(original.YMiniBatch_Shape(elementIdToOriginalElementId.Count));
-        for (int elementId = 0; elementId < elementIdToOriginalElementId.Count; ++elementId)
+        var originalYIfAny = original.Y;
+        if (originalYIfAny != null)
         {
-            original.Y.CopyTo(original.Y.Idx(elementIdToOriginalElementId[elementId]), Y, Y.Idx(elementId), original.Y.MultDim0);
+            var mapped_Y_shape = (int[])originalYIfAny.Shape.Clone();
+            mapped_Y_shape[0] = elementIdToOriginalElementId.Count; // mapped batch size
+            yMappedDataSet = new CpuTensor<float>(mapped_Y_shape);
+            for (int elementId = 0; elementId < elementIdToOriginalElementId.Count; ++elementId)
+            {
+                originalYIfAny.CopyTo(originalYIfAny.Idx(elementIdToOriginalElementId[elementId]), yMappedDataSet, yMappedDataSet.Idx(elementId), originalYIfAny.MultDim0);
+            }
         }
     }
 
@@ -64,7 +71,7 @@ public sealed class MappedDataSet : WrappedDataSet
 
 
 
-    public override CpuTensor<float> Y { get; }
+    public override CpuTensor<float> Y => yMappedDataSet;
 
     #region Dispose pattern
     protected override void Dispose(bool disposing)
