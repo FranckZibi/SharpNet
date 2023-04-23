@@ -573,10 +573,9 @@ namespace SharpNet.GPU
             int B = Shape[1];
             int C = Shape[2];
             int D = Count / (A*B*C);
-            //TODO: there are 3 distinct CUDA implementation , select the fastest one
-            //_wrapper.RunKernel("TransposeSecondAndThirdDimension_V1", A*B*C*D, new object[] { B, C, D, this, target });
-            //_wrapper.RunKernel("TransposeSecondAndThirdDimension_V2", A*B*C, new object[] { B, C, D, this, target });
-            _wrapper.RunKernel("TransposeSecondAndThirdDimension_V3", A*B, new object[] { B, C, D, this, target });
+            _wrapper.RunKernel("TransposeSecondAndThirdDimension_V1", A*B*C*D, new object[] { B, C, D, this, target });     //23.0s : 5% faster than TransposeSecondAndThirdDimension_V2 & TransposeSecondAndThirdDimension_V3 
+            //_wrapper.RunKernel("TransposeSecondAndThirdDimension_V2", A*B*C, new object[] { B, C, D, this, target });     //24.6s
+            //_wrapper.RunKernel("TransposeSecondAndThirdDimension_V3", A*B, new object[] { B, C, D, this, target });    //24.5s
         }
 
         public override void Compute_BiasGradient_from_dy(Tensor biasGradient)
@@ -1006,6 +1005,40 @@ namespace SharpNet.GPU
                 W.Update_Adding_Alpha_X(1, velocity);
             }
         }
+
+        public override void BatchMatrixMultiplication(Tensor a_3D, bool transposeA, Tensor b_3D, bool transposeB, float alpha, float beta)
+        {
+            var c_3D = this;
+            a_3D.AssertIsNotDisposed();
+            b_3D.AssertIsNotDisposed();
+            c_3D.AssertIsNotDisposed();
+            Debug.Assert(a_3D.Shape.Length == 3);
+            Debug.Assert(b_3D.Shape.Length == 3);
+            Debug.Assert(c_3D.Shape.Length == 3);
+            Debug.Assert(a_3D.Shape[0] == b_3D.Shape[0]);
+            Debug.Assert(a_3D.Shape[0] == c_3D.Shape[0]);
+            Debug.Assert(AreCompatible(new List<Tensor> { c_3D, a_3D, b_3D }));
+            var batchCount = a_3D.Shape[0];
+            var aH = a_3D.Shape[1];
+            var aW = a_3D.MultDim1;
+            var aStride = a_3D.MultDim0;
+            var bH = b_3D.Shape[1];
+            var bW = b_3D.MultDim1;
+            var bStride = b_3D.MultDim0;
+            var cStride = c_3D.MultDim0;
+            var transLeft = transposeB ? cublasOperation_t.CUBLAS_OP_T : cublasOperation_t.CUBLAS_OP_N;
+            var transRight = transposeA ? cublasOperation_t.CUBLAS_OP_T : cublasOperation_t.CUBLAS_OP_N;
+            int N = transposeB ? bH : bW; //number of rows of the matrix op(Left) (= number of rows of matrix C)
+            int M = transposeA ? aW : aH; //number of columns of the matrix op(Right) (= number of columns of the matrix C)
+            int K = transposeB ? bW : bH; //number of columns of the matrix op(Left) (= number of rows of the matrix op(B))
+            int ldb = bW; //number of rows of the matrix B (because order = ColumnMajor)
+            int lda = aW; //number of rows of the matrix A (because order = ColumnMajor)
+            int ldc = N; //number of rows of the matrix C (because order = ColumnMajor)
+            //Cuda is column major : we have to compute B*A instead of A*B
+            var res = CublasWrapper.cublasSgemmStridedBatched(CublasHandle, transLeft, transRight, N, M, K, ref alpha, b_3D, ldb, bStride, a_3D, lda, aStride, ref beta, this, ldc, cStride, batchCount);
+            GPUWrapper.CheckStatus(res);
+        }
+        
         public override void Dot(Tensor a, bool transposeA, Tensor b, bool transposeB, float alpha, float beta)
         {
             AssertIsNotDisposed();

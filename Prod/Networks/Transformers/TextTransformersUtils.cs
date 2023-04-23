@@ -25,7 +25,7 @@ public static class TextTransformersUtils
     //public static string XTrainPath => Path.Combine(DataDirectory, "input_gpt_dev.txt");
     public static string XTrainPath => Path.Combine(DataDirectory, "victor_hugo_v1.txt");
 
-    public static string GenerateText(Network nn, int textLength, double accepterError)
+    public static string GenerateText(Network nn, int textLength, double maxAllowedError)
     {
         var outputShape = nn.YPredicted_MiniBatch_Shape(1);
         var max_length = outputShape[1];
@@ -36,7 +36,7 @@ public static class TextTransformersUtils
         var xInputSingleRow = new CpuTensor<float>(new[] { 1, max_length});
         var xInputSingleRowSpan = xInputSingleRow.SpanContent;
 
-        var fulltext = datasetSample.GetFullText();
+        var fulltext = datasetSample.GetText(-1);
         var r = new System.Random();
         int randomStartIdx = r.Next(fulltext.Length/2 - max_length-1);
 
@@ -61,7 +61,7 @@ public static class TextTransformersUtils
 
             var prediction = nn.Predict(xInputSingleRow, false);
             var proba = prediction.As2DTensor(true).RowSlice(max_length-1, 1).ContentAsFloatArray();
-            var indexNextToken = GetIndexPrediction(proba, r, accepterError);
+            var indexNextToken = GetIndexPrediction(proba, r, maxAllowedError);
             newSequence[nextIndexToGenerate] = indexNextToken;
             ++nextIndexToGenerate;
         }
@@ -70,7 +70,7 @@ public static class TextTransformersUtils
     }
 
 
-    public static int GetIndexPrediction(float[] proba, Random r, double accepterError)
+    public static int GetIndexPrediction(float[] proba, Random r, double maxAllowedError)
     {
         List<Tuple<float, int>> probaWithIndex = new List<Tuple<float, int>>();
         for (int i = 0; i < proba.Length; i++)
@@ -81,7 +81,7 @@ public static class TextTransformersUtils
         int selectionChoice = 1;
         for (int i = 1; i < probaWithIndex.Count; i++)
         {
-            if (probaWithIndex[i].Item1 > (1.0*probaWithIndex[0].Item1- accepterError))
+            if (probaWithIndex[i].Item1 > (1.0*probaWithIndex[0].Item1- maxAllowedError))
             {
                 ++selectionChoice;
             }
@@ -101,17 +101,18 @@ public static class TextTransformersUtils
 
         //CharLevelTransformerInference();
         //Retrain();
-        //LaunchNeuralNetworkHPO();
+        //LaunchNeuralNetworkHPO(1);
+        SpeedTest();
     }
 
     public static void CharLevelTransformerInference()
     {
         var nn = Network.LoadTrainedNetworkModel(WorkingDirectory, "340065842F");
-        foreach (var accepterError in new[] { 0.1, 0.11, 0.12, 0.13, 0.14, 0.15, 0.16 })
+        foreach (var maxAllowedError in new[] { 0.1, 0.11, 0.12, 0.13, 0.14, 0.15, 0.16 })
         {
             Log.Info($"---------------------------");
-            Log.Info($"accepterError={accepterError}");
-            var textGenerated = GenerateText(nn, 2000, accepterError);
+            Log.Info($"maxAllowedError={maxAllowedError}");
+            var textGenerated = GenerateText(nn, 2000, maxAllowedError);
             Log.Info(textGenerated);
         }
         return;
@@ -119,11 +120,18 @@ public static class TextTransformersUtils
 
     public static void Retrain()
     {
-
-        ChallengeTools.Retrain(WorkingDirectory, "1E68E0FFA0", null, 0.9, retrainOnFullDataset:false, useAllAvailableCores:true);
+        ChallengeTools.Retrain(WorkingDirectory, "1E68E0FFA0", null, 0.9, retrainOnFullDataset: false, useAllAvailableCores: true);
     }
 
-    public static void LaunchNeuralNetworkHPO(int maxAllowedSecondsForAllComputation = 0)
+    public static void SpeedTest()
+    {
+        var speedTestWorkingDirectory = Path.Join(WorkingDirectory, "SpeedTest");
+        Utils.ConfigureGlobalLog4netProperties(speedTestWorkingDirectory, "log");
+        Utils.ConfigureThreadLog4netProperties(speedTestWorkingDirectory, "log");
+        ChallengeTools.Retrain(speedTestWorkingDirectory, "v0", null, 0.9, retrainOnFullDataset: false, useAllAvailableCores: false, computeAndSavePredictions: false, computeValidationRankingScore: false, saveTrainedModel: false);
+    }
+
+    public static void LaunchNeuralNetworkHPO(int numEpochs, int maxAllowedSecondsForAllComputation = 0)
     {
         var searchSpace = new Dictionary<string, object>
         {
@@ -134,7 +142,12 @@ public static class TextTransformersUtils
             {"LossFunction", "SparseCategoricalCrossentropy"},
             {"CompatibilityMode", "TensorFlow"},
 
-            {"max_length", new[]{32 } },
+
+            //related to Dataset
+            
+            //{"MaxCharacterLengthForTraining", 1000 },
+
+            {"max_length", new[]{256 } },
             {"embedding_dim", new[]{384} },
 
             //{"max_length", 256},
@@ -175,7 +188,7 @@ public static class TextTransformersUtils
             
             { "BatchSize", new[]{64 } },
 
-            { "NumEpochs", 5 },
+            { "NumEpochs", numEpochs },
             
 
         };

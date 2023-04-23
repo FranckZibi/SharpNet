@@ -23,6 +23,13 @@ public class CharLevelTransformersDatasetSample : AbstractDatasetSample
     public int vocab_size = 65;
     public int max_length = 32; // == timeSteps
 
+    /// <summary>
+    /// the maximum size fo the text that will be used for training the network
+    /// -1 means the full text (default value)
+    /// other values are used to speed up the training process (usually for testing purpose)
+    /// </summary>
+    public int MaxCharacterLengthForTraining = -1;
+
     #endregion
 
     static CharLevelTransformersDatasetSample()
@@ -47,8 +54,12 @@ public class CharLevelTransformersDatasetSample : AbstractDatasetSample
         return tokenizer;
     }
 
-    public string GetFullText()
+    public string GetText(int maxCharacters = -1)
     {
+        if (maxCharacters != -1 && maxCharacters < _fullText.Length)
+        {
+            return _fullText.Substring(0, maxCharacters);
+        }
         return _fullText;
     }
 
@@ -88,7 +99,7 @@ public class CharLevelTransformersDatasetSample : AbstractDatasetSample
         var result = new CharLevelDataset(
             this,
             "CharLevel",
-            _fullText,
+            GetText(MaxCharacterLengthForTraining),
             GetTokenizer(),
             true);
         AddToDispose(result);

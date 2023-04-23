@@ -15,6 +15,7 @@ using SharpNet.HPO;
 using SharpNet.HyperParameters;
 using SharpNet.MathTools;
 using SharpNet.Networks;
+// ReSharper disable UnusedMember.Global
 
 namespace SharpNet.Datasets.PlumeLabs88;
 
@@ -86,7 +87,7 @@ public static class PlumeLabs88Utils
         Console.WriteLine($"maxValue={maxValue}, minValue={minValue}, isTraining={isTraining}");
     }
 
-    static float Normalize(float f, float mult, float mean)
+    public static float Normalize(float f, float mult, float mean)
     {
         return mult * (MathF.Log(1 + f) - mean);
     }
@@ -164,11 +165,9 @@ public static class PlumeLabs88Utils
     }
 
 
-    //?D public static int MaxId(bool isTrain) { return isTrain ? 99999 : 18148; }
     public const int RawMaxIdTraining = 99999;
     public const int RawMaxIdTest = 18148;
-    public static int RawMaxId(bool isTrain) { return isTrain ? RawMaxIdTraining : RawMaxIdTest; }
-    //public static int RawMaxId(bool isTrain) { return isTrain ? 19999: 18148; }
+    private static int RawMaxId(bool isTrain) { return isTrain ? RawMaxIdTraining : RawMaxIdTest; }
     
     public static void Run()
     {
@@ -207,9 +206,9 @@ public static class PlumeLabs88Utils
     }
 
 
-    public const int ROWS_BY_FILE = 1000;
+    private const int ROWS_BY_FILE = 1000;
 
-    private static void ComputeStats()
+    public static void ComputeStats()
     {
         var accTotal = new DoubleAccumulator();
         var logAccTotal = new DoubleAccumulator();

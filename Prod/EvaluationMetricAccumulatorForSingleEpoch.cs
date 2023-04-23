@@ -6,21 +6,30 @@ using SharpNet.MathTools;
 
 namespace SharpNet;
 
-public class EvaluationMetricAccumulator
+public class EvaluationMetricAccumulatorForSingleEpoch
 {
     private readonly TensorMemoryPool _memoryPool;
+    private readonly int _count;
+    private readonly List<EvaluationMetricEnum> _metrics;
 
     private readonly Dictionary<EvaluationMetricEnum, DoubleAccumulator> _currentAccumulatedMetrics = new();
 
-
-    public EvaluationMetricAccumulator(TensorMemoryPool MemoryPool)
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="MemoryPool"></param>
+    /// <param name="count">number of elements (rows) in the dataset</param>
+    /// <param name="metrics"></param>
+    public EvaluationMetricAccumulatorForSingleEpoch(TensorMemoryPool MemoryPool, int count, List<EvaluationMetricEnum> metrics)
     {
         _memoryPool = MemoryPool;
+        _count = count;
+        _metrics = metrics;
     }
 
-    public void UpdateMetrics([NotNull] Tensor yExpected, [NotNull] Tensor yPredicted, List<EvaluationMetricEnum> metrics)
+    public void UpdateMetrics([NotNull] Tensor yExpected, [NotNull] Tensor yPredicted)
     {
-        foreach (var metric in metrics)
+        foreach (var metric in _metrics)
         {
             var buffer= _memoryPool.GetFloatTensor(yExpected.ComputeMetricBufferShape(metric));
             UpdateMetric(yExpected, yPredicted, metric, buffer);

@@ -363,6 +363,33 @@ namespace SharpNetTests
         }
 
         [Test]
+        public void TestBatchMatrixMultiplication()
+        {
+            const int batchSize = 3;
+            const int maxLength = 12;
+            const int dim = 7;
+            
+            var weights_gradients_buffer = RandomTensor(new[] { batchSize, maxLength, maxLength });
+            var V = RandomTensor(new[] { batchSize, maxLength, dim });
+            var dy = RandomTensor(V.Shape);
+            const float scaling = 0.25f;
+            //weights_gradients_buffer.BatchMatrixMultiplication(dy, false, V, true, scaling, 0.0f);
+            TestAll(new[] { weights_gradients_buffer, dy, V}, tensors => tensors[0].BatchMatrixMultiplication(tensors[1], false, tensors[2], true, scaling, 0));
+
+            var dQ = RandomTensor(V.Shape);
+            var scores_gradients_buffer = RandomTensor(weights_gradients_buffer.Shape);
+            var K = RandomTensor(V.Shape);
+            //dQ.BatchMatrixMultiplication(scores_gradients_buffer, false, K, false, 1, 0.0f);
+            TestAll(new[] { dQ, scores_gradients_buffer, K }, tensors => tensors[0].BatchMatrixMultiplication(tensors[1], false, tensors[2], false, 1, 0));
+
+            var dK = RandomTensor(V.Shape);
+            var Q = RandomTensor(V.Shape);
+            //dK.BatchMatrixMultiplication(scores_gradients_buffer, true, Q, false, 1, 0.0f);
+            TestAll(new[] { dK, scores_gradients_buffer, Q }, tensors => tensors[0].BatchMatrixMultiplication(tensors[1], true, tensors[2], false, 1, 0));
+        }
+
+
+        [Test]
         public void TestUpSampling()
         {
             const int rowFactor = 3;
@@ -1301,9 +1328,13 @@ namespace SharpNetTests
 
 
         private CpuTensor<float> RandomTensor(int[] shape)
-	    {
-	        return TestCpuTensor.RandomFloatTensor(shape, _rand, -1.5, +1.5);
-	    }
+        {
+            return TestCpuTensor.RandomFloatTensor(shape, _rand, -1.5, +1.5);
+        }
+        private GPUTensor<float> RandomGPUTensor(int[] shape)
+        {
+            return CloneToGPU(RandomTensor(shape), GpuWrapper);
+        }
 
         /// <summary>
         /// return a tensor of shape 'shape' with random index value sin range [minIndex, maxIndex]

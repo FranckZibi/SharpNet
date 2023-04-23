@@ -959,8 +959,8 @@ namespace SharpNet.Networks
                 CompactGradients();
             }
 
-            EvaluationMetricAccumulator metricAccumulator = computeMetricsForFullDataset
-                ? new EvaluationMetricAccumulator(MemoryPool)
+            var metricAccumulatorForSingleEpoch = computeMetricsForFullDataset
+                ? new EvaluationMetricAccumulatorForSingleEpoch(MemoryPool, dataSet.Count, Sample.Metrics)
                 : null;
 
             //last time we display a progress on the screen for the current min batch descent
@@ -1040,11 +1040,10 @@ namespace SharpNet.Networks
             var yExpected_miniBatch_cpu_allWorkers = new CpuTensor<float>(YExpected_MiniBatch_Shape(miniBatchSizeForAllWorkers), null);
             var shuffledElementIdMemory = new Memory<int>(shuffledElementId);
 
-
-            Tensor yExpected_miniBatch_allWorkers = 
+            var yExpected_miniBatch_allWorkers = 
                 MemoryPool.GetFloatTensor(YExpected_MiniBatch_Shape(miniBatchSizeForAllWorkers));
 
-            Tensor yPredicted_miniBatch_allWorkers = _yPredictedForEpoch==null
+            var yPredicted_miniBatch_allWorkers = _yPredictedForEpoch==null
                 ? MemoryPool.GetFloatTensor(YPredicted_MiniBatch_Shape(miniBatchSizeForAllWorkers))
                 : null;
 
@@ -1149,7 +1148,7 @@ namespace SharpNet.Networks
                 }
 
                 //We update the Evaluation Metrics if needed
-                metricAccumulator?.UpdateMetrics(yExpected_miniBatch_allWorkers, yPredicted_miniBatch_allWorkers, Sample.Metrics);
+                metricAccumulatorForSingleEpoch?.UpdateMetrics(yExpected_miniBatch_allWorkers, yPredicted_miniBatch_allWorkers);
 
                 CallBackAfterEachMiniBatch?.Invoke(yExpected_miniBatch_master, yPredicted_miniBatch_master);
 
@@ -1176,7 +1175,7 @@ namespace SharpNet.Networks
             }
 
             _yPredictedForEpoch?.ReshapeInPlace(YPredicted_MiniBatch_Shape(dataSet.Count));
-            return (_yPredictedForEpoch, metricAccumulator?.Metrics());
+            return (_yPredictedForEpoch, metricAccumulatorForSingleEpoch?.Metrics());
         }
         public int LastLayerIndex => Layers.Last().LayerIndex;
         public int NbLayerOfType(Type layerType)

@@ -21,32 +21,32 @@ public class TransformerNetworkSample : NetworkSample
     public int embedding_dim = -1; // == d_model
     public cudnnActivationMode_t lastActivationLayer = cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX_LAST_DIMENSION;
     public int N_PositionalEncoding = PositionalEncodingAttnIsAllYouNeedLayer.DEFAULT_N_POSITIONAL_ENCODING;
+
+    public bool layer_norm_before_ffd = true;              //should be true
+    public bool layer_norm_after_ffd = false;              //should be false
     public bool layer_norm_before_last_dense = true; // must be true
 
     //encoders Hyper-Parameters
     public int encoder_num_transformer_blocks = -1;
     public int encoder_num_heads = -1; //must be a divider of 'embedding_dim'
-    public bool encoder_mha_use_bias_Q_V_K = true;
+    public bool encoder_mha_use_bias_Q_V_K = false;         
     public bool encoder_mha_use_bias_O = true;
-    public float encoder_mha_dropout = 0.0f;
+    public float encoder_mha_dropout = 0.2f;
     public int encoder_feed_forward_dim = -1;
-    public float encoder_feed_forward_dropout = 0.0f;
+    public float encoder_feed_forward_dropout = 0.2f;
     public bool encoder_use_causal_mask = false;
     public bool encoder_add_layer_norm_before_mha = true;   //should be true
     public bool encoder_add_layer_norm_after_mha = false;   //should be false
-
-    public bool layer_norm_before_ffd  = true;              //should be true
-    public bool layer_norm_after_ffd  = false;              //should be false
 
 
     //decoders Hyper-Parameters
     public int decoder_num_transformer_blocks = -1;
     public int decoder_num_heads = -1; //must be a divider of 'embedding_dim'
-    public bool decoder_mha_use_bias_Q_V_K = true;
+    public bool decoder_mha_use_bias_Q_V_K = false;
     public bool decoder_mha_use_bias_O = true;
-    public float decoder_mha_dropout = 0.0f;
+    public float decoder_mha_dropout = 0.2f;
     public int decoder_feed_forward_dim = -1;
-    public float decoder_feed_forward_dropout = 0.0f;
+    public float decoder_feed_forward_dropout = 0.2f;
     public bool decoder_add_layer_norm_before_mha = true;
     public bool decoder_add_layer_norm_after_mha = false;
 

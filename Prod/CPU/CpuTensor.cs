@@ -2835,6 +2835,29 @@ namespace SharpNet.CPU
             //var tmpTranspose = new double[b.Count];
             //Utils.DotCSharp(a.Content, a.Height, a.Width, b.Content, b.Height, b.Width, tmpTranspose, y.Content);
         }
+        
+        public override void BatchMatrixMultiplication(Tensor a_3D, bool transposeA, Tensor b_3D, bool transposeB, float alpha, float beta)
+        {
+            var c_3D = this;
+            Debug.Assert(a_3D.Shape.Length == 3);
+            Debug.Assert(b_3D.Shape.Length == 3);
+            Debug.Assert(c_3D.Shape.Length == 3);
+            Debug.Assert(a_3D.Shape[0] == b_3D.Shape[0]);
+            Debug.Assert(a_3D.Shape[0] == c_3D.Shape[0]);
+            int nbMatrices = a_3D.Shape[0];
+
+            var aShape = a_3D.Shape.Skip(1).ToArray();
+            var bShape = b_3D.Shape.Skip(1).ToArray();
+            var cShape = c_3D.Shape.Skip(1).ToArray();
+
+            for (int i = 0; i < nbMatrices; ++i)
+            {
+                var a = a_3D.GetSubTensor(i, aShape);
+                var b = b_3D.GetSubTensor(i, bShape);
+                var c = c_3D.GetSubTensor(i, cShape);
+                c.Dot(a, transposeA, b, transposeB, alpha, beta);
+            }
+        }
 
         public override void SetToZeroAllElementsBelowMainDiagonal()
         {
