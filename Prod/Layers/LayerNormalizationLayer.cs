@@ -58,7 +58,7 @@ public sealed class LayerNormalizationLayer : Layer
     [NotNull] private readonly Optimizer _optimizer;
     #endregion
 
-    public const float DEFAULT_EPSILON = 0.001f;
+    public const float DEFAULT_EPSILON = 1e-5f;
 
     public LayerNormalizationLayer(int last_D_dimension, double epsilon, bool trainable, Network network, string layerName, int prevLayerIndex) : base(network, prevLayerIndex == -1 ? new[]{network.LastLayerIndex}:new[]{ prevLayerIndex }, layerName)
     {
@@ -155,14 +155,6 @@ public sealed class LayerNormalizationLayer : Layer
         }
     }
 
-    public override void ReplaceParameters(List<Tensor> newParameters)
-    {
-        Debug.Assert(newParameters.Count == 2);
-        FreeFloatTensor(ref _gammas);
-        _gammas = newParameters[0];
-        FreeFloatTensor(ref _betas);
-        _betas = newParameters[1];
-    }
     public override void ResetParameters(bool resetAlsoOptimizerWeights = true)
     {
         //trainable params
@@ -172,6 +164,16 @@ public sealed class LayerNormalizationLayer : Layer
         {
             _optimizer.ZeroMemory();
         }
+    }
+
+    #region Multi GPU Support
+    public override void ReplaceParameters(List<Tensor> newParameters)
+    {
+        Debug.Assert(newParameters.Count == 2);
+        FreeFloatTensor(ref _gammas);
+        _gammas = newParameters[0];
+        FreeFloatTensor(ref _betas);
+        _betas = newParameters[1];
     }
     public override void ReplaceGradients(List<Tensor> newGradients)
     {
@@ -188,6 +190,8 @@ public sealed class LayerNormalizationLayer : Layer
             Debug.Assert(newGradients.Count == 1);
         }
     }
+    #endregion
+
     public override void LoadParameters(IDictionary<string, Tensor> h5FileDataset, NetworkSample.CompatibilityModeEnum originFramework)
     {
         foreach (var layerParameters in Parameters)

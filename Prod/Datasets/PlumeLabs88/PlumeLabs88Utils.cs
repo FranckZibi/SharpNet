@@ -164,6 +164,7 @@ public static class PlumeLabs88Utils
     }
 
 
+    //?D public static int MaxId(bool isTrain) { return isTrain ? 99999 : 18148; }
     public const int RawMaxIdTraining = 99999;
     public const int RawMaxIdTest = 18148;
     public static int RawMaxId(bool isTrain) { return isTrain ? RawMaxIdTraining : RawMaxIdTest; }
@@ -188,7 +189,7 @@ public static class PlumeLabs88Utils
         //ChallengeTools.Retrain(@"C:\Projects\Challenges\PlumeLabs88\dump", "9B9DFA97F2_KFOLD_FULL", null, 0.8, false);
 
         //ComputeStats();
-        //Launch_HPO(1);
+        //Launch_HPO(10);
         //TransformPandasZipFiles(true);
         //MakeLazyPredictions(true);
         //MeasureTimeToLoadAllRawData(true);
@@ -322,41 +323,41 @@ public static class PlumeLabs88Utils
         Utils.ConfigureThreadLog4netProperties(WorkingDirectory, "log");
         var searchSpace = new Dictionary<string, object>
         {
-            //related to Dataset 
             //{"KFold", 2},
             //{"PercentageInTraining", 0.9}, //will be automatically set to 1 if KFold is enabled
             {"PercentageInTraining", 0.9}, //will be automatically set to 1 if KFold is enabled
-
             { "BatchSize", new[] {100} },
             { "NumEpochs", new[] { numEpochs } },
             {"LossFunction", "Mse"},
-            { "NormalizeFeatureMean", new[] {0f, 0.5f, -0.5f, -1f} },
-            { "NormalizeFeatureMult", new[] { 1f, 0.5f, 0.25f, 2f} },
-            { "NormalizeTargetMean", new[] {0f, 0.5f, -0.5f, -1f} },
-            //{ "NormalizeTargetMult", new[] { 1f, 0.5f, 0.25f, 2f} },
-
             { "RandomizeOrder", true},
+
+            //related to Dataset 
+            { "NormalizeFeatureMean", new[] {/*0f,*/ 0.5f} },
+            //{ "NormalizeFeatureMult", new[] { 1f, 0.8f, 1.2f} },
+            //{ "NormalizeTargetMean", new[] {0f, 0.5f} },
+            //{ "NormalizeTargetMult", new[] { 1f, 0.5f, 0.25f, 2f} },
+            { "TargetHeightAndWidth", new[] {64} },
             
             // Optimizer 
-            { "OptimizerType", new[] { "AdamW", "SGD" } },
+            { "OptimizerType", new[] { "AdamW", } },
             //{ "OptimizerType", new[] { "SGD"} },
-            { "AdamW_L2Regularization", new[] { 1e-5, 1e-4, 1e-3, 1e-2, 1e-1 } },
+            { "AdamW_L2Regularization", new[] { 1e-5 /*, 1e-4, 1e-3, 1e-2, 1e-1*/ } }, //0.00001
 
-            //{ "SGD_usenesterov", new[] { true, false } },
+            { "SGD_usenesterov", new[] { true, false } },
             //{ "lambdaL2Regularization", new[] { 0.0005, 0.001, 0.00005 } },
-            { "lambdaL2Regularization", new[] { 0.1, 0.01 , 0.001, 0.0001 } },
-            {"DefaultMobileBlocksDescriptionCount", new[]{3}},
+            { "lambdaL2Regularization", new[] {0.001, 0.0005, 0.0001, 0.00005 } }, // 0.0001 or 0.001
+            //{"DefaultMobileBlocksDescriptionCount", new[]{5}},
             {"lastActivationLayer", nameof(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU)},
 
             // Learning Rate
-            { "InitialLearningRate", new []{0.01 , 0.1, 0.001}},
+            { "InitialLearningRate", new []{0.001, 0.01}}, //SGD: 0.01 //AdamW: 0.01 or 0.001
             // Learning Rate Scheduler
             //{ "LearningRateSchedulerType", new[] { "OneCycle" } },
-            //{ "LearningRateSchedulerType", "CyclicCosineAnnealing" },
+            { "LearningRateSchedulerType", "CyclicCosineAnnealing" },
         };
 
-        var hpo = new BayesianSearchHPO(searchSpace, () => ModelAndDatasetPredictionsSample.New(DefaultEfficientNetNetworkSample(), new PlumeLabs88DatasetSample()), WorkingDirectory);
         //var hpo = new GridSearchHPO(searchSpace, () => ModelAndDatasetPredictionsSample.New(DefaultEfficientNetNetworkSample(), new PlumeLabs88DatasetSample()), WorkingDirectory);
+        var hpo = new BayesianSearchHPO(searchSpace, () => ModelAndDatasetPredictionsSample.New(DefaultEfficientNetNetworkSample(), new PlumeLabs88DatasetSample()), WorkingDirectory);
         IScore bestScoreSoFar = null;
         const bool retrainOnFullDatasetIfBetterModelFound = false;
         hpo.Process(t => SampleUtils.TrainWithHyperParameters((ModelAndDatasetPredictionsSample)t, WorkingDirectory, retrainOnFullDatasetIfBetterModelFound, ref bestScoreSoFar), maxAllowedSecondsForAllComputation);

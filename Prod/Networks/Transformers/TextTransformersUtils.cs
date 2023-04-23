@@ -25,11 +25,8 @@ public static class TextTransformersUtils
     //public static string XTrainPath => Path.Combine(DataDirectory, "input_gpt_dev.txt");
     public static string XTrainPath => Path.Combine(DataDirectory, "victor_hugo_v1.txt");
 
-
-    public static void LoadModel()
+    public static string GenerateText(Network nn, int textLength, double accepterError)
     {
-
-        var nn = Network.LoadTrainedNetworkModel(WorkingDirectory, "0604A7130A");
         var outputShape = nn.YPredicted_MiniBatch_Shape(1);
         var max_length = outputShape[1];
         var vocab_size = outputShape[2];
@@ -45,7 +42,7 @@ public static class TextTransformersUtils
 
         List<int> tmpSequence = tokenizer.TextsToSequences(new[] { fulltext.Substring(randomStartIdx, 10*max_length) })[0].Take(max_length).ToList();
 
-        int[] newSequence = new int[2000];
+        int[] newSequence = new int[max_length+textLength];
         for (int j = 0; j < max_length; j++)
         {
             newSequence[j] = tmpSequence[j];
@@ -64,16 +61,16 @@ public static class TextTransformersUtils
 
             var prediction = nn.Predict(xInputSingleRow, false);
             var proba = prediction.As2DTensor(true).RowSlice(max_length-1, 1).ContentAsFloatArray();
-            var indexNextToken = GetIndexPrediction(proba, r);
+            var indexNextToken = GetIndexPrediction(proba, r, accepterError);
             newSequence[nextIndexToGenerate] = indexNextToken;
             ++nextIndexToGenerate;
         }
-        var generateText  =tokenizer.SequenceToText(newSequence);
-        Console.WriteLine(generateText);
+        var generateText  =tokenizer.SequenceToText(newSequence.Skip(max_length));
+        return generateText;
     }
 
 
-    public static int GetIndexPrediction(float[] proba, Random r)
+    public static int GetIndexPrediction(float[] proba, Random r, double accepterError)
     {
         List<Tuple<float, int>> probaWithIndex = new List<Tuple<float, int>>();
         for (int i = 0; i < proba.Length; i++)
@@ -84,7 +81,7 @@ public static class TextTransformersUtils
         int selectionChoice = 1;
         for (int i = 1; i < probaWithIndex.Count; i++)
         {
-            if (probaWithIndex[i].Item1 > (1.0*probaWithIndex[0].Item1-0.15))
+            if (probaWithIndex[i].Item1 > (1.0*probaWithIndex[0].Item1- accepterError))
             {
                 ++selectionChoice;
             }
@@ -96,11 +93,37 @@ public static class TextTransformersUtils
 
         return probaWithIndex[r.Next(selectionChoice)].Item2;
     }
-    
 
+    public static void Run()
+    {
+        Utils.ConfigureGlobalLog4netProperties(WorkingDirectory, "log");
+        Utils.ConfigureThreadLog4netProperties(WorkingDirectory, "log");
 
+        //CharLevelTransformerInference();
+        //Retrain();
+        //LaunchNeuralNetworkHPO();
+    }
 
-    public static void LaunchNeuralNetworkHPO(int numEpochs = 10, int maxAllowedSecondsForAllComputation = 0)
+    public static void CharLevelTransformerInference()
+    {
+        var nn = Network.LoadTrainedNetworkModel(WorkingDirectory, "340065842F");
+        foreach (var accepterError in new[] { 0.1, 0.11, 0.12, 0.13, 0.14, 0.15, 0.16 })
+        {
+            Log.Info($"---------------------------");
+            Log.Info($"accepterError={accepterError}");
+            var textGenerated = GenerateText(nn, 2000, accepterError);
+            Log.Info(textGenerated);
+        }
+        return;
+    }
+
+    public static void Retrain()
+    {
+
+        ChallengeTools.Retrain(WorkingDirectory, "1E68E0FFA0", null, 0.9, retrainOnFullDataset:false, useAllAvailableCores:true);
+    }
+
+    public static void LaunchNeuralNetworkHPO(int maxAllowedSecondsForAllComputation = 0)
     {
         var searchSpace = new Dictionary<string, object>
         {
@@ -111,29 +134,26 @@ public static class TextTransformersUtils
             {"LossFunction", "SparseCategoricalCrossentropy"},
             {"CompatibilityMode", "TensorFlow"},
 
-            {"max_length", 32},
-            {"embedding_dim", 64},
+            {"max_length", new[]{32 } },
+            {"embedding_dim", new[]{384} },
 
             //{"max_length", 256},
             //{"embedding_dim", 384},
+            //{"max_length", 256},
+            //{"embedding_dim", 64},
 
-            {"layer_norm_epsilon", 1e-5},
+            //{"layer_norm_epsilon", new[]{1e-5, 1e-6 } },
             
-            {"layer_norm_before_last_dense", true},
-            {"encoder_add_layer_norm_before_mha", true},
-            {"encoder_add_layer_norm_after_mha", false},
-            {"layer_norm_before_ffd", true},
-            {"layer_norm_after_ffd", false},
             
-            {"encoder_num_transformer_blocks", 4},
-            {"encoder_num_heads", 4},
+            {"encoder_num_transformer_blocks", new[]{4 /*,6*/ } },
+            {"encoder_num_heads", new[]{1,4,8} },
             
             {"encoder_mha_use_bias_Q_V_K", false},
-            {"encoder_mha_use_bias_O", true},
+            {"encoder_mha_use_bias_O", new[]{true,false } },
             
-            {"encoder_mha_dropout", 0.2f},
+            {"encoder_mha_dropout", new[]{0.2f,0f ,0.1f} },
             {"encoder_feed_forward_dim", 4*64},
-            {"encoder_feed_forward_dropout", 0.2f},
+            {"encoder_feed_forward_dropout", new[]{0.2f,0f,0.1f }},
             
             {"encoder_use_causal_mask", true},
             
@@ -146,20 +166,22 @@ public static class TextTransformersUtils
             //{ "AdamW_L2Regularization", 0.01},
 
             // Learning Rate
-            { "InitialLearningRate", new[]{ 0.01 } },
+            { "InitialLearningRate", new[]{ 0.01 /*,0.05,0.001*/ } },
             // Learning Rate Scheduler
             //{ "LearningRateSchedulerType", new[] { "CyclicCosineAnnealing", "OneCycle", "Linear" } },
             { "LearningRateSchedulerType", "CyclicCosineAnnealing"},
             //{ "LearningRateSchedulerType", "Constant"},
-            
-            { "BatchSize", 64 },
 
-            { "NumEpochs", numEpochs },
+            
+            { "BatchSize", new[]{64 } },
+
+            { "NumEpochs", 5 },
             
 
         };
 
-        var hpo = new BayesianSearchHPO(searchSpace, () => ModelAndDatasetPredictionsSample.New(new TransformerNetworkSample(), new CharLevelTransformersDatasetSample()), WorkingDirectory);
+        //?D var hpo = new BayesianSearchHPO(searchSpace, () => ModelAndDatasetPredictionsSample.New(new TransformerNetworkSample(), new CharLevelTransformersDatasetSample()), WorkingDirectory);
+        var hpo = new RandomSearchHPO(searchSpace, () => ModelAndDatasetPredictionsSample.New(new TransformerNetworkSample(), new CharLevelTransformersDatasetSample()), WorkingDirectory);
         IScore bestScoreSoFar = null;
         hpo.Process(t => SampleUtils.TrainWithHyperParameters((ModelAndDatasetPredictionsSample)t, WorkingDirectory, false, ref bestScoreSoFar), maxAllowedSecondsForAllComputation);
     }

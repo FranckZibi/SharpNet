@@ -161,7 +161,7 @@ public static class ChallengeTools
     /// <summary>
     /// retrain some models 
     /// </summary>
-    public static void Retrain(string workingDirectory, string modelName, int? n_splits = 3, double?percentageInTraining = null, bool retrainOnFullDataset = true)
+    public static void Retrain(string workingDirectory, string modelName, int? n_splits = 3, double?percentageInTraining = null, bool retrainOnFullDataset = true, bool useAllAvailableCores = true)
     {
         Utils.ConfigureGlobalLog4netProperties(workingDirectory, $"{nameof(Retrain)}");
         Utils.ConfigureThreadLog4netProperties(workingDirectory, $"{nameof(Retrain)}");
@@ -180,27 +180,13 @@ public static class ChallengeTools
             throw new ArgumentException($"When specified, {nameof(percentageInTraining)} must be between 0 and 1");
         }
 
-        //const string workingDirectory = @"C:\Projects\Challenges\CFM84\dump";
-        //const string workingDirectory = @"C:\Projects\Challenges\QRT97";
-        //Utils.ConfigureGlobalLog4netProperties(workingDirectory, $"{nameof(Retrain)}");
-        //Utils.ConfigureThreadLog4netProperties(workingDirectory, $"{nameof(Retrain)}");
-        //foreach (var modelName in new[]
-        //         {
-        //             "D526515F85"
-        //             //"6C5DF90DD8",
-        //             //"16D9F95A1D",
-
-        //         })
-        //{
-
-
         var sw = Stopwatch.StartNew();
         ISample.Log.Info($"Retraining model '{modelName}' with {nameof(n_splits)}={n_splits}, {nameof(percentageInTraining)}={percentageInTraining} and {nameof(retrainOnFullDataset)}={retrainOnFullDataset}");
 
         if (n_splits.HasValue)
         {
             var swKfold = Stopwatch.StartNew();
-            using var mKFold = ModelAndDatasetPredictions.LoadWithKFold(workingDirectory, modelName, n_splits.Value, true);
+            using var mKFold = ModelAndDatasetPredictions.LoadWithKFold(workingDirectory, modelName, n_splits.Value, useAllAvailableCores);
             ISample.Log.Info($"Training Model '{mKFold.Model.ModelName}' (= Model '{modelName}' with KFold={n_splits})");
             mKFold.Fit(true, true, true);
             mKFold.Save(workingDirectory);
@@ -209,7 +195,7 @@ public static class ChallengeTools
         if (percentageInTraining.HasValue)
         {
             var swPercentageInTraining = Stopwatch.StartNew();
-            using var modelAndDataset = ModelAndDatasetPredictions.LoadWithNewPercentageInTrainingNoKFold(percentageInTraining.Value, workingDirectory, modelName, true);
+            using var modelAndDataset = ModelAndDatasetPredictions.LoadWithNewPercentageInTrainingNoKFold(percentageInTraining.Value, workingDirectory, modelName, useAllAvailableCores);
             Model.Log.Info($"Training Model '{modelAndDataset.Model.ModelName}' (= Model '{modelName}' with {Math.Round(100* percentageInTraining.Value,1)}% in training no KFold)");
             modelAndDataset.Fit(true, true, true);
             ISample.Log.Info($"Model '{modelAndDataset.Model.ModelName}' trained in {swPercentageInTraining.Elapsed.TotalSeconds}");
@@ -217,7 +203,7 @@ public static class ChallengeTools
         if (retrainOnFullDataset)
         {
             var swRetrainOnFullDataset = Stopwatch.StartNew();
-            using var modelAndDatasetOnFullDataset = ModelAndDatasetPredictions.LoadWithNewPercentageInTrainingNoKFold(1.0, workingDirectory, modelName, true); ;
+            using var modelAndDatasetOnFullDataset = ModelAndDatasetPredictions.LoadWithNewPercentageInTrainingNoKFold(1.0, workingDirectory, modelName, useAllAvailableCores);
             Model.Log.Info($"Training Model '{modelAndDatasetOnFullDataset.Model.ModelName}' (= Model '{modelName}' on full Dataset no KFold)");
             modelAndDatasetOnFullDataset.Fit(true, true, true);
             ISample.Log.Info($"Model '{modelAndDatasetOnFullDataset.Model.ModelName}' trained in {swRetrainOnFullDataset.Elapsed.TotalSeconds}");

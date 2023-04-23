@@ -160,7 +160,7 @@ public sealed class DataFrame
         {
             throw new ArgumentException($"invalid row {newRows} value, must be greater than {a.Shape[0]}");
         }
-        var newTensor = new CpuTensor<T>(new [] { newRows , a.Shape[1]});
+        var newTensor = new CpuTensor<T>(new [] { newRows , a.Shape[^1]});
         a.CopyTo(newTensor.RowSlice(0, a.Shape[0]));
         return newTensor;
     }
@@ -206,21 +206,21 @@ public sealed class DataFrame
         List<Tuple<string, int, int>> columns = new();
         if (floatTensor != null)
         {
-            for (var i = 0; i < floatTensor.Shape[1]; i++)
+            for (var i = 0; i < floatTensor.Shape[^1]; i++)
             {
                 columns.Add(Tuple.Create(GetColumnName(columns.Count, columnsNames), FLOAT_TYPE_IDX, i));
             }
         }
         if (stringTensor != null)
         {
-            for (var i = 0; i < stringTensor.Shape[1]; i++)
+            for (var i = 0; i < stringTensor.Shape[^1]; i++)
             {
                 columns.Add(Tuple.Create(GetColumnName(columns.Count, columnsNames), STRING_TYPE_IDX, i));
             }
         }
         if (intTensor != null)
         {
-            for (var i = 0; i < intTensor.Shape[1]; i++)
+            for (var i = 0; i < intTensor.Shape[^1]; i++)
             {
                 columns.Add(Tuple.Create(GetColumnName(columns.Count, columnsNames), INT_TYPE_IDX, i));
             }
@@ -246,7 +246,7 @@ public sealed class DataFrame
     }
     public static DataFrame New(CpuTensor<float> tensor)
     {
-        var columnsNames = Enumerable.Range(0, tensor.Shape[1]).Select(i => i.ToString()).ToArray();
+        var columnsNames = Enumerable.Range(0, tensor.Shape[^1]).Select(i => i.ToString()).ToArray();
         return New(tensor, columnsNames);
     }
 
@@ -344,9 +344,9 @@ public sealed class DataFrame
         int newRows= toKeep.Count(t => t);
         int nextIdxNewRow = 0;
         int rows = Shape[0];
-        var newFloatTensor = (FloatTensor == null) ? null : new CpuTensor<float>(new[] { newRows, FloatTensor.Shape[1] });
-        var newStringTensor = (StringTensor == null) ? null : new CpuTensor<string>(new[] { newRows, StringTensor.Shape[1] });
-        var newIntTensor = (IntTensor == null) ? null : new CpuTensor<int>(new[] { newRows, IntTensor.Shape[1] });
+        var newFloatTensor = (FloatTensor == null) ? null : new CpuTensor<float>(new[] { newRows, FloatTensor.Shape[^1] });
+        var newStringTensor = (StringTensor == null) ? null : new CpuTensor<string>(new[] { newRows, StringTensor.Shape[^1] });
+        var newIntTensor = (IntTensor == null) ? null : new CpuTensor<int>(new[] { newRows, IntTensor.Shape[^1] });
         for (int row = 0; row < rows; ++row)
         {
             if (toKeep[row])
@@ -540,7 +540,7 @@ public sealed class DataFrame
         }
         left = left.CloneIfNeeded();
         right = right.CloneIfNeeded();
-        var leftRows = left.EmbeddedTensors.Select(t => t?.Shape[1]??0).ToArray();
+        var leftRows = left.EmbeddedTensors.Select(t => t?.Shape[^1]??0).ToArray();
         var newColumns = left._columns.ToList();
         foreach (var c in right._columns)
         {
@@ -769,7 +769,7 @@ public sealed class DataFrame
             for (var i = 1; i < newColumnsNewIndex.Count; i++)
             {
                 var c = newColumnsOldIndex[i];
-                var idx = c.Item3 + row * embeddedTensors[c.Item2].Shape[1];
+                var idx = c.Item3 + row * embeddedTensors[c.Item2].Shape[^1];
                 switch (c.Item2)
                 {
                     case FLOAT_TYPE_IDX: sumArray[dataIdx++] += floatContent[idx]; break;
@@ -894,7 +894,7 @@ public sealed class DataFrame
             List<Tuple<int, float>> columnContent = new();
             for (int row = 0; row < Shape[0]; ++row)
             {
-                columnContent.Add(Tuple.Create(row, floatSpan[colDesc.Item3 + row * FloatTensor.Shape[1]]));
+                columnContent.Add(Tuple.Create(row, floatSpan[colDesc.Item3 + row * FloatTensor.Shape[^1]]));
             }
             orderedRows = columnContent.OrderBy(t => t.Item2).Select(t => t.Item1).ToArray();
         }
@@ -904,7 +904,7 @@ public sealed class DataFrame
             List<Tuple<int, int>> columnContent = new();
             for (int row = 0; row < Shape[0]; ++row)
             {
-                columnContent.Add(Tuple.Create(row, intSpan[colDesc.Item3 + row * IntTensor.Shape[1]]));
+                columnContent.Add(Tuple.Create(row, intSpan[colDesc.Item3 + row * IntTensor.Shape[^1]]));
             }
             orderedRows = columnContent.OrderBy(t => t.Item2).Select(t => t.Item1).ToArray();
         }
@@ -914,7 +914,7 @@ public sealed class DataFrame
             List<Tuple<int, string>> columnContent = new();
             for (int row = 0; row < Shape[0]; ++row)
             {
-                columnContent.Add(Tuple.Create(row, stringSpan[colDesc.Item3 + row * StringTensor.Shape[1]]));
+                columnContent.Add(Tuple.Create(row, stringSpan[colDesc.Item3 + row * StringTensor.Shape[^1]]));
             }
             orderedRows = columnContent.OrderBy(t => t.Item2).Select(t => t.Item1).ToArray();
         }
@@ -1419,13 +1419,13 @@ public sealed class DataFrame
   
     public DataFrame ReduceFloatDimension(int totalReviewsEmbeddingDim)
     {
-        if (FloatTensor.Shape[1] < totalReviewsEmbeddingDim)
+        if (FloatTensor.Shape[^1] < totalReviewsEmbeddingDim)
         {
             throw new ArgumentException($"can't reduce dimension to {totalReviewsEmbeddingDim}, dimension is already {totalReviewsEmbeddingDim}");
         }
 
         var rows = FloatTensor.Shape[0];
-        var oldCols = FloatTensor.Shape[1];
+        var oldCols = FloatTensor.Shape[^1];
         var newCols = totalReviewsEmbeddingDim;
         var newContent = new float[rows * newCols];
 
@@ -1473,7 +1473,7 @@ public sealed class DataFrame
         var string_df = read_string_csv(path, hasHeader, false);
         var tensor = string_df.StringTensor;
         int rows = tensor.Shape[0];
-        int cols = tensor.Shape[1];
+        int cols = tensor.Shape[^1];
 
         void ProcessRow(int row)
         {

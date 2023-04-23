@@ -35,12 +35,12 @@ public class MultiHeadAttentionLayer : Layer
 
     #region Private fields
     #region trainable parameters
-    [NotNull] private readonly Tensor _weights;
-    [CanBeNull] private readonly Tensor _bias;
+    [NotNull] private Tensor _weights;
+    [CanBeNull] private Tensor _bias;
     #endregion
     #region gradients
-    [NotNull] private readonly Tensor _weightGradients;
-    [CanBeNull] private readonly Tensor _biasGradients;
+    [NotNull] private Tensor _weightGradients;
+    [CanBeNull] private Tensor _biasGradients;
     #endregion
     #endregion
 
@@ -168,6 +168,7 @@ public class MultiHeadAttentionLayer : Layer
             _w_O_optimizer.UpdateWeights(learningRate, maxLearningRate, batchSize, w_O, w_O_Gradients, w_O_bias, w_O_bias_Gradients);
         }
     }
+
 
     #region forward and backward propagation
 
@@ -339,6 +340,40 @@ public class MultiHeadAttentionLayer : Layer
         return new MultiHeadAttentionLayer(num_heads, key_dim, value_dim, use_bias_Q_V_K, use_bias_O, use_causal_mask, previousLayerIndexes[0], previousLayerIndexes[1], previousLayerIndexes[2], network, (string)serialized[nameof(LayerName)]);
     }
     public override void AddToOtherNetwork(Network otherNetwork) { AddToOtherNetwork(otherNetwork, Deserialize); }
+    #endregion
+
+
+    #region Multi GPU Support
+    public override void ReplaceParameters(List<Tensor> newParameters)
+    {
+        FreeFloatTensor(ref _weights);
+        _weights = newParameters[0];
+        if (_bias != null)
+        {
+            Debug.Assert(newParameters.Count == 2);
+            FreeFloatTensor(ref _bias);
+            _bias = newParameters[1];
+        }
+        else
+        {
+            Debug.Assert(newParameters.Count == 1);
+        }
+    }
+    public override void ReplaceGradients(List<Tensor> newGradients)
+    {
+        FreeFloatTensor(ref _weightGradients);
+        _weightGradients = newGradients[0];
+        if (_biasGradients != null)
+        {
+            Debug.Assert(newGradients.Count == 2);
+            FreeFloatTensor(ref _biasGradients);
+            _biasGradients = newGradients[1];
+        }
+        else
+        {
+            Debug.Assert(newGradients.Count == 1);
+        }
+    }
     #endregion
 
     private string WeightDatasetPath => DatasetNameToDatasetPath("kernel:0");

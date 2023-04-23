@@ -241,7 +241,7 @@ namespace SharpNet.Networks
         private void MiniBatchGradientDescentForSlave(List<Tensor> all_x_miniBatch_cpu_slave, Tensor yExpected_miniBatch_cpu_slave, Tensor yPredicted_miniBatch_master, bool isTraining)
         {
             Debug.Assert(_yPredictedForEpoch == null);
-            Debug.Assert(yExpected_miniBatch_cpu_slave.SameShape(yPredicted_miniBatch_master));
+            //Debug.Assert(yExpected_miniBatch_cpu_slave.SameShape(yPredicted_miniBatch_master));
             Debug.Assert(all_x_miniBatch_cpu_slave[0].Shape[0] == yExpected_miniBatch_cpu_slave.Shape[0]);
             Debug.Assert(!all_x_miniBatch_cpu_slave[0].UseGPU);
             Debug.Assert(!yExpected_miniBatch_cpu_slave.UseGPU);
@@ -274,7 +274,7 @@ namespace SharpNet.Networks
 
             MemoryPool.GetFloatTensor(ref _yExpected_miniBatch_slave, yExpected_miniBatch_cpu_slave.Shape);
             yExpected_miniBatch_cpu_slave.CopyTo(_yExpected_miniBatch_slave);
-            MemoryPool.GetFloatTensor(ref _yPredicted_miniBatch_slave, _yExpected_miniBatch_slave.Shape);
+            MemoryPool.GetFloatTensor(ref _yPredicted_miniBatch_slave, yPredicted_miniBatch_master.Shape);
             PropagationManager.Forward(all_x_miniBatch, _yPredicted_miniBatch_slave, isTraining);
             if (isTraining)
             {

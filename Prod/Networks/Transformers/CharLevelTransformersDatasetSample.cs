@@ -24,7 +24,6 @@ public class CharLevelTransformersDatasetSample : AbstractDatasetSample
     public int max_length = 32; // == timeSteps
 
     #endregion
-    const string oov_tok = "<OOV>";
 
     static CharLevelTransformersDatasetSample()
     {
@@ -35,7 +34,8 @@ public class CharLevelTransformersDatasetSample : AbstractDatasetSample
 
     public CharLevelTransformersDatasetSample() : base(new HashSet<string>())
     {
-        _fullText = File.ReadAllText(TextTransformersUtils.XTrainPath).Substring(0, 200_000); //!D;
+        //_fullText = File.ReadAllText(TextTransformersUtils.XTrainPath).Substring(0, 3_000); //!D;
+        _fullText = File.ReadAllText(TextTransformersUtils.XTrainPath);
     }
 
 

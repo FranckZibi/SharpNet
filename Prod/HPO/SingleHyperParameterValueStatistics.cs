@@ -10,6 +10,10 @@ namespace SharpNet.HPO
 
         public void RegisterScore(IScore score, double elapsedTimeInSeconds)
         {
+            if (float.IsNaN(score.Value) || float.IsInfinity(score.Value))
+            {
+                return;
+            }
             //the cost is something we want to minimize
             var costToDecrease = score.HigherIsBetter ? -score.Value : score.Value;
             CostToDecrease.Add(costToDecrease);
