@@ -603,15 +603,15 @@ namespace SharpNet.CPU
         }
 
 
-        public override void StandardizeInPlace(Tensor mean, Tensor variance, int axis, float epsilon)
+        public override void StandardizeInPlace(Tensor row_mean, Tensor row_variance, int axis, float epsilon)
         {
             var x = this;
-            Debug.Assert(AreCompatible(new List<Tensor> { this, mean, variance}));
-            Debug.Assert(mean.SameShape(variance));
+            Debug.Assert(AreCompatible(new List<Tensor> { this, row_mean, row_variance}));
+            Debug.Assert(row_mean.SameShape(row_variance));
             if (axis == 1)
             {
                 //we'll standardize each row
-                int rows = mean.Count;
+                int rows = row_mean.Count;
                 if (x.Count % rows != 0)
                 {
                     throw new ArgumentException("The number of elements in the tensor must be a multiple of the number of rows");
@@ -620,19 +620,52 @@ namespace SharpNet.CPU
                 void ProcessRow(int row)
                 {
                     var xSpan = x.AsFloatCpuSpan;
-                    var row_mean = mean.AsFloatCpuSpan[row];
-                    var row_variance = variance.AsFloatCpuSpan[row];
+                    var row_mean_value = row_mean.AsFloatCpuSpan[row];
+                    var row_variance_value = row_variance.AsFloatCpuSpan[row];
                     int startIndex = row * cols;
                     int endIndex = startIndex + cols - 1;
                     for (int i = startIndex; i <= endIndex; ++i)
                     {
-                        xSpan[i] = (xSpan[i] - row_mean) / MathF.Sqrt(row_variance + epsilon);
+                        xSpan[i] = (xSpan[i] - row_mean_value) / MathF.Sqrt(row_variance_value + epsilon);
                     }
                 }
                 Parallel.For(0, rows, ProcessRow);
                 return;
             }
             throw new NotSupportedException("Only axis=1 is supported");
+        }
+
+        public override void StandardizeRowsInPlaceBroadcastGammasBetas(Tensor row_mean, Tensor row_variance, float epsilon, Tensor col_gammas, Tensor col_betas)
+        {
+            var x = this;
+            Debug.Assert(AreCompatible(new List<Tensor> { this, row_mean, row_variance }));
+            Debug.Assert(row_mean.SameShape(row_variance));
+            //we'll standardize each row
+            int rows = row_mean.Count;
+            if (x.Count % rows != 0)
+            {
+                throw new ArgumentException("The number of elements in the tensor must be a multiple of the number of rows");
+            }
+            int cols = x.Count / rows;
+            void ProcessRow(int row)
+            {
+                var xSpan = x.AsFloatCpuSpan;
+                var row_mean_value = row_mean.AsFloatCpuSpan[row];
+                var row_variance_value = row_variance.AsFloatCpuSpan[row];
+                var col_gammas_span = col_gammas.AsReadonlyFloatCpuSpan;
+                var col_betas_span = col_betas.AsReadonlyFloatCpuSpan;
+
+                int startIndex = row * cols;
+                int endIndex = startIndex + cols - 1;
+                int col = 0;
+                for (int i = startIndex; i <= endIndex; ++i)
+                {
+                    xSpan[i] = (xSpan[i] - row_mean_value) / MathF.Sqrt(row_variance_value + epsilon);
+                    xSpan[i] = col_gammas_span[col]* xSpan[i] + col_betas_span[col];
+                    ++col;
+                }
+            }
+            Parallel.For(0, rows, ProcessRow);
         }
 
         public override void numpy_sum(Tensor sum_result, int axis)
@@ -683,12 +716,12 @@ namespace SharpNet.CPU
         }
         
 
-        public override void Compute_Row_Mean_Variance(Tensor mean, Tensor variance, bool unbiasedVariance)
+        public override void Compute_Row_Mean_Variance(Tensor row_mean, Tensor row_variance, bool unbiasedVariance)
         {
             var x = this;
-            Debug.Assert(AreCompatible(new List<Tensor> { this, mean, variance}));
-            Debug.Assert(mean.SameShape(variance));
-            int rows = mean.Count;
+            Debug.Assert(AreCompatible(new List<Tensor> { this, row_mean, row_variance}));
+            Debug.Assert(row_mean.SameShape(row_variance));
+            int rows = row_mean.Count;
             if (x.Count % rows != 0)
             {
                 throw new ArgumentException("x.Count % rows != 0");
@@ -708,23 +741,23 @@ namespace SharpNet.CPU
                     sum += xValue;
                     sumSquare += xValue * xValue;
                 }
-                var row_mean = (sum / cols);
+                var row_mean_value = (sum / cols);
                 var divider = unbiasedVariance ? (cols - 1) : cols;
-                var row_variance = Math.Abs(sumSquare - cols * row_mean * row_mean) / divider;
-                mean.AsFloatCpuSpan[rowId] = (float)row_mean;
-                variance.AsFloatCpuSpan[rowId] = (float)row_variance;
+                var row_variance_value = Math.Abs(sumSquare - cols * row_mean_value * row_mean_value) / divider;
+                row_mean.AsFloatCpuSpan[rowId] = (float)row_mean_value;
+                row_variance.AsFloatCpuSpan[rowId] = (float)row_variance_value;
             }
             Parallel.For(0, rows, ProcessBlock);
         }
 
-        public override void LayerNormalizationBackward(Tensor dy, Tensor dx, Tensor gammas, Tensor mean, Tensor variance, float epsilon)
+        public override void LayerNormalizationBackward(Tensor dy, Tensor dx, Tensor col_gammas, Tensor row_mean, Tensor row_variance, float epsilon, Tensor dmean, Tensor dvariance)
         {
             var x = this;
-            Debug.Assert(AreCompatible(new List<Tensor> { x, dy, dx, gammas, mean, variance}));
+            Debug.Assert(AreCompatible(new List<Tensor> { x, dy, dx, col_gammas, row_mean, row_variance}));
             Debug.Assert(x.SameShape(dy, dx));
-            Debug.Assert(mean.SameShape(variance));
-            int rows = mean.Count;
-            int cols= gammas.Count;
+            Debug.Assert(row_mean.SameShape(row_variance));
+            int rows = row_mean.Count;
+            int cols= col_gammas.Count;
             if (x.Count != rows * cols)
             {
                 throw new ArgumentException("x.Count != rows * cols");
@@ -732,9 +765,9 @@ namespace SharpNet.CPU
 
             void ComputeDxForRow(int row)
             {
-                var gammaSpan = gammas.AsFloatCpuSpan;
-                var mean_row = mean.AsFloatCpuSpan[row];
-                var variance_row = variance.AsFloatCpuSpan[row];
+                var gammaSpan = col_gammas.AsFloatCpuSpan;
+                var mean_row = row_mean.AsFloatCpuSpan[row];
+                var variance_row = row_variance.AsFloatCpuSpan[row];
                 var volatility_row = MathF.Sqrt(variance_row + epsilon);
                 var x_row = x.AsFloatCpu.SpanSlice(row * cols, cols);
                 var dy_row = dy.AsFloatCpu.SpanSlice(row * cols, cols);
@@ -1331,65 +1364,6 @@ namespace SharpNet.CPU
                     var idx = y.Idx(n, colIndex);
                     yContent[idx] += valueToAddToColumn;
                 }
-            }
-        }
-
-
-        public override void BroadcastColByCol(Tensor row_multiplier, float mult_to_row_multiplier, Tensor row_adder, float mult_to_row_adder, float constant_to_add)
-        {
-            var x = this;
-            Debug.Assert(AreCompatible(new List<Tensor> { x, row_multiplier, row_adder }));
-            var rows = (row_multiplier ?? row_adder).Count;
-            if (x.Count % rows != 0)
-            {
-                throw new ArgumentException("The number of rows in the multiplier or adder must be a divisor of the number of columns in the matrix");
-            }
-            var cols = x.Count / rows;
-            var rowMultiplierSpan = (row_multiplier == null) ? null : row_multiplier.AsReadonlyFloatCpuSpan;
-            var rowAdderSpan = (row_adder == null) ? null : row_adder.AsReadonlyFloatCpuSpan;
-            var xContent = x.AsFloatCpuSpan;
-            int xIndex = 0;
-            for (int row = 0; row < rows; ++row)
-            {
-                var multiplier = (rowMultiplierSpan == null) ? 1.0f : rowMultiplierSpan[row];
-                multiplier *= mult_to_row_multiplier;
-                var adder = (rowAdderSpan == null) ? 0.0f : rowAdderSpan[row];
-                adder = mult_to_row_adder*adder+constant_to_add;
-                for (int col = 0; col < cols; ++col)
-                {
-                    var xValue = xContent[xIndex];
-                    xValue = multiplier * xValue + adder;
-                    xContent[xIndex] = xValue;
-                    ++xIndex;
-                }
-            }
-        }
-
-        public override void BroadcastRowByRow(Tensor col_multiplier, float mult_to_col_multiplier, Tensor col_adder, float mult_to_col_adder, float constant_to_add)
-        {
-            var x = this;
-            Debug.Assert(AreCompatible(new List<Tensor> { x, col_multiplier, col_adder }));
-            var cols= (col_multiplier ?? col_adder).Count;
-            if (x.Count % cols != 0)
-            {
-                throw new ArgumentException("The number of cols in the multiplier or adder must be a divisor of the number of elements in the matrix");
-            }
-            var rows= x.Count / cols;
-            var colMultiplierSpan = (col_multiplier == null) ? null : col_multiplier.AsReadonlyFloatCpuSpan;
-            var colAdderSpan = (col_adder == null) ? null : col_adder.AsReadonlyFloatCpuSpan;
-            var xContent = x.AsFloatCpuSpan;
-            int xIndex = 0;
-            for (int row = 0; row < rows; ++row)
-            for (int col = 0; col < cols; ++col)
-            {
-                var multiplier = (colMultiplierSpan == null) ? 1.0f : colMultiplierSpan[col];
-                multiplier *= mult_to_col_multiplier;
-                var adder = (colAdderSpan == null) ? 0.0f : colAdderSpan[col];
-                adder = mult_to_col_adder * adder + constant_to_add;
-                var xValue = xContent[xIndex];
-                xValue = multiplier * xValue + adder;
-                xContent[xIndex] = xValue;
-                ++xIndex;
             }
         }
 

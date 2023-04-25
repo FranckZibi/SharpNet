@@ -156,10 +156,10 @@ namespace SharpNet.GPU
         public cusolverDnHandle_t CusolverDnHandle => _cusolverDnHandle;
 
 
-        public void RunKernel(string kernelName, int count, object[] parameterLists)
+        public void RunKernel(string kernelName, int count, object[] parameterLists, int mandatoryThreadsPerBlock = -1)
         {
             CheckThreadId();
-            _kernelManager.RunKernel(kernelName, count, parameterLists);
+            _kernelManager.RunKernel(kernelName, count, parameterLists, mandatoryThreadsPerBlock);
         }
         public cudnnActivationDescriptor_t ActivationDesc(cudnnActivationMode_t activationFunctionType)
         {

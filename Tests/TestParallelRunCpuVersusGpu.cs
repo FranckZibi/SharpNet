@@ -117,47 +117,35 @@ namespace SharpNetTests
                 var x = RandomTensor(xShape);
                 foreach (var rows in new[] { BatchSize, BatchSize * FiltersCount, BatchSize * FiltersCount * Height })
                 {
-                    var mean = RandomTensor(new[] { rows, 1 });
-                    var variance = RandomTensor(mean.Shape);
-                    x.Compute_Row_Mean_Variance(mean, variance, unbiasedVariance);
-                    TestAll(new[] { x, mean, variance }, tensors => tensors[0].StandardizeInPlace(tensors[1], tensors[2], 1, epsilon));
+                    var row_mean = RandomTensor(new[] { rows, 1 });
+                    var row_variance = RandomTensor(row_mean.Shape);
+                    x.Compute_Row_Mean_Variance(row_mean, row_variance, unbiasedVariance);
+                    TestAll(new[] { x, row_mean, row_variance }, tensors => tensors[0].StandardizeInPlace(tensors[1], tensors[2], 1, epsilon));
                 }
             }
         }
 
 
         [Test]
-        public void Test_BroadcastRowByRow()
+        public void TestStandardizeRowsInPlaceBroadcastGammasBetas()
         {
-            foreach (float mult_to_col_multiplier in new[] { 0.0f, 1f, -0.5f })
-            foreach (float mult_to_col_adder in new[] { 0.0f, 1f, -0.5f })
-            foreach (float constant_to_add in new[] { 0.0f, 1f, -0.5f })
-            {
-                var xShape = new[] { BatchSize, FiltersCount, Height, Width };
-                var x = RandomTensor(xShape);
-                foreach (var cols in new[] { Width, Width * Height, Width * Height * FiltersCount })
-                {
-                    var col_multiplier = RandomTensor(new[] { 1, cols });
-                    var col_adder = RandomTensor(col_multiplier.Shape);
-                    TestAll(new[] { x, col_multiplier, col_adder }, tensors => tensors[0].BroadcastRowByRow(tensors[1], mult_to_col_multiplier, tensors[2], mult_to_col_adder, constant_to_add));
-                }
-            }
-        }
-
-        [Test]
-        public void Test_BroadcastColByCol()
-        {
-            foreach (float mult_to_row_multiplier in new[] { 0.0f, 1f, -0.5f })
-            foreach (float mult_to_row_adder in new[] { 0.0f, 1f, -0.5f })
-            foreach (float constant_to_add in new[] { 0.0f, 1f, -0.5f })
+            foreach (var unbiasedVariance in new[] { true, false })
+            foreach (var epsilon in new[] { 0.1f, 0.001f, 1e-8f })
             {
                 var xShape = new[] { BatchSize, FiltersCount, Height, Width };
                 var x = RandomTensor(xShape);
                 foreach (var rows in new[] { BatchSize, BatchSize * FiltersCount, BatchSize * FiltersCount * Height })
                 {
-                    var row_multiplier = RandomTensor(new[] { rows, 1 });
-                    var row_adder = RandomTensor(row_multiplier.Shape);
-                    TestAll(new[] { x, row_multiplier, row_adder }, tensors => tensors[0].BroadcastColByCol(tensors[1], mult_to_row_multiplier, tensors[2], mult_to_row_adder, constant_to_add));
+                    var cols = x.Count / rows;
+
+                    var row_mean = RandomTensor(new[] { rows, 1 });
+                    var row_variance = RandomTensor(row_mean.Shape);
+
+                    var col_gammas = RandomTensor(new[] { 1, cols});
+                    var col_betas = RandomTensor(col_gammas.Shape);
+
+                    x.Compute_Row_Mean_Variance(row_mean, row_variance, unbiasedVariance);
+                    TestAll(new[] { x, row_mean, row_variance, col_gammas, col_betas}, tensors => tensors[0].StandardizeRowsInPlaceBroadcastGammasBetas(tensors[1], tensors[2], epsilon, tensors[3], tensors[4]));
                 }
             }
         }
@@ -340,8 +328,12 @@ namespace SharpNetTests
                     var gammas = RandomTensor(new[] { 1, cols });
                     var mean = RandomTensor(new[] { rows, 1 });
                     var variance = RandomTensor(mean.Shape);
+
+                    var dmean = RandomTensor(mean.Shape);
+                    var dvariance = RandomTensor(mean.Shape);
+
                     x.Compute_Row_Mean_Variance(mean, variance, unbiasedVariance);
-                    TestAll(new[] { x, dy, dx, gammas, mean, variance }, tensors => tensors[0].LayerNormalizationBackward(tensors[1], tensors[2], tensors[3], tensors[4], tensors[5], epsilon));
+                    TestAll(new[] { x, dy, dx, gammas, mean, variance, dmean, dvariance }, tensors => tensors[0].LayerNormalizationBackward(tensors[1], tensors[2], tensors[3], tensors[4], tensors[5], epsilon, tensors[6], tensors[7]), tensorIdsToIgnore: new List<int> { 6, 7 });
                 }
             }
         }
@@ -751,6 +743,7 @@ namespace SharpNetTests
         [TestCase(cudnnActivationMode_t.CUDNN_ACTIVATION_ELU, 0)]
         [TestCase(cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID, 0)]
         [TestCase(cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX, 0)]
+        [TestCase(cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX_LAST_DIMENSION, 0)]
         [TestCase(cudnnActivationMode_t.CUDNN_ACTIVATION_SWISH, 0)]
         [TestCase(cudnnActivationMode_t.CUDNN_ACTIVATION_LN, 0)]
 	    public void TestActivationForward(cudnnActivationMode_t activationMode, double alphaActivation)

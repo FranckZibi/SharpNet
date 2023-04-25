@@ -44,8 +44,6 @@ public sealed class LayerNormalizationLayer : Layer
     #region buffers
     [NotNull] private Tensor _mean_buffer;
     [NotNull] private Tensor _variance_buffer;
-    [NotNull] private Tensor _varianceGradients_buffer;
-    [NotNull] private Tensor _meanGradients_buffer;
     #endregion
 
     #region gradients
@@ -101,21 +99,17 @@ public sealed class LayerNormalizationLayer : Layer
         }
         int reshape_rows = allX[0].Count / reshape_cols;
 
-
         // we compute the mean / variance 
         GetFloatTensor(ref _mean_buffer, new[] { 1, reshape_rows });
         GetFloatTensor(ref _variance_buffer, _mean_buffer.Shape);
         x.Compute_Row_Mean_Variance(_mean_buffer, _variance_buffer, false);
-
         x.LayerNormalization(y, _gammas, _betas, _mean_buffer, _variance_buffer, (float)_epsilon);
     }
+
     public override void BackwardPropagation(List<Tensor> allX, Tensor y_NotUsed, Tensor dy, List<Tensor> allDx)
     {
         var dx = allDx[0];
         var x = allX[0];
-
-        GetFloatTensor(ref _meanGradients_buffer, _mean_buffer.Shape);
-        GetFloatTensor(ref _varianceGradients_buffer, _mean_buffer.Shape);
 
         //we compute '_betasGradients'
         //_betasGradients = 	np.sum(dy, axis = 0)
@@ -130,8 +124,13 @@ public sealed class LayerNormalizationLayer : Layer
         hat_x.Update_Multiply_By_x(dy);
         hat_x.numpy_sum(_gammasGradients, 0);
 
+        var dmean_row = GetFloatTensor(_mean_buffer.Shape);
+        var dvariance_row = GetFloatTensor(_mean_buffer.Shape);
         //we compute 'dx'
-        x.LayerNormalizationBackward(dy, dx, _gammas, _mean_buffer, _variance_buffer, (float)_epsilon);
+        x.LayerNormalizationBackward(dy, dx, _gammas, _mean_buffer, _variance_buffer, (float)_epsilon, dmean_row, dvariance_row);
+
+        FreeFloatTensor(dmean_row);
+        FreeFloatTensor(dvariance_row);
     }
     public override bool OutputNeededForBackwardPropagation => false;
     #endregion
@@ -248,7 +247,7 @@ public sealed class LayerNormalizationLayer : Layer
     protected override List<Tensor> EmbeddedTensors(bool includeOptimizeTensors)
     {
         var result = base.EmbeddedTensors(includeOptimizeTensors);
-        result.AddRange(new[] { _mean_buffer, _meanGradients_buffer, _variance_buffer, _varianceGradients_buffer});
+        result.AddRange(new[] { _mean_buffer, _variance_buffer});
         result.RemoveAll(t => t == null);
         return result;
     }

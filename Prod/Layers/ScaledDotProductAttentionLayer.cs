@@ -117,18 +117,17 @@ public class ScaledDotProductAttentionLayer : Layer
         dV.BatchMatrixMultiplication(weights_buffer, true, dy, false, 1.0f, 0.0f);
 
         float scaling = (use_scale) ? (1.0f / MathF.Sqrt(embedding_dim)) : 1.0f;
-        var weights_gradients_buffer = memoryPool.GetFloatTensor(weights_buffer.Shape);       // (batch_size, query_time_steps, value_time_steps)
-        weights_gradients_buffer.BatchMatrixMultiplication(dy, false, V, true, scaling, 0.0f);
-        var scores_gradients_buffer = memoryPool.GetFloatTensor(weights_buffer.Shape);       // (batch_size, query_time_steps, value_time_steps)
-        scores_gradients_buffer.ActivationBackward(cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX_LAST_DIMENSION, null, weights_gradients_buffer /* dy*/, null /*x*/, weights_buffer /*y*/);
 
+        var scores_gradients_buffer = memoryPool.GetFloatTensor(weights_buffer.Shape);       // (batch_size, query_time_steps, value_time_steps)
+        //1st step: we store in 'scores_gradients_buffer' the weights_gradients_buffer
+        scores_gradients_buffer.BatchMatrixMultiplication(dy, false, V, true, scaling, 0.0f);
+        //2nd step: we store in 'scores_gradients_buffer' the proba distribution (scores)
+        scores_gradients_buffer.ActivationBackward(cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX_LAST_DIMENSION, null, scores_gradients_buffer /* dy*/, null /*x*/, weights_buffer /*y*/);
 
         dQ.BatchMatrixMultiplication(scores_gradients_buffer, false, K, false, 1, 0.0f);
         dK.BatchMatrixMultiplication(scores_gradients_buffer, true, Q, false, 1, 0.0f);
 
-        memoryPool.FreeFloatTensor(weights_gradients_buffer);
         memoryPool.FreeFloatTensor(scores_gradients_buffer);
-
         memoryPool.FreeFloatTensor(ref weights_buffer);
     }
 

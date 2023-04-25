@@ -80,11 +80,10 @@ namespace SharpNet.GPU
                     "Set1InMainDiagonal",
                     "Compute_Row_Mean_Variance",
                     "StandardizeInPlaceByRow",
-                    "BroadcastColByCol",
-                    "BroadcastRowByRow",
                     "numpy_sum_RowByRow",
                     "numpy_sum_ColByCol",
-                    "LayerNormalizationBackward",
+                    "LayerNormalizationBackward_dmean_dvariance",
+                    "LayerNormalizationBackward_dx",
                     "SetAllElementsAboveMainDiagonal",
                     "TransposeSecondAndThirdDimension_V1",
                     "TransposeSecondAndThirdDimension_V2",
@@ -93,6 +92,7 @@ namespace SharpNet.GPU
                     "SparseCategoricalCrossentropyLoss",
                     "SparseCategoricalCrossentropyGradient",
                     "ArgMax",
+                    "StandardizeRowsInPlaceBroadcastGammasBetas",
                 },
                 "SharpNet.GPU.Kernels.SinglePrecision.cu",
                 out var errorMsg);
@@ -101,11 +101,12 @@ namespace SharpNet.GPU
                 throw new Exception(errorMsg);
             }
         }
-        public void RunKernel(string kernelName, int count, object[] parameterLists)
+
+        public void RunKernel(string kernelName, int count, object[] parameterLists, int mandatoryThreadsPerBlock=-1)
         {
             var kernel = _kernels[kernelName];
 
-            var blocksPerGrid_ThreadsPerBlock = Compute_BlocksPerGrid_ThreadsPerBlock(count, _gpu.MaxThreadsPerBlock, _gpu.MultiProcessorCount, _gpu.WarpSize);
+            var blocksPerGrid_ThreadsPerBlock = Compute_BlocksPerGrid_ThreadsPerBlock(count, _gpu.MaxThreadsPerBlock, _gpu.MultiProcessorCount, _gpu.WarpSize, mandatoryThreadsPerBlock);
             kernel.BlocksPerGrid = blocksPerGrid_ThreadsPerBlock.Item1;
             kernel.ThreadsPerBlock = blocksPerGrid_ThreadsPerBlock.Item2;
 
@@ -150,7 +151,7 @@ namespace SharpNet.GPU
         }
 
         //return a Tuple<BlocksPerGrid, ThreadsPerBlock>
-        public static Tuple<uint, uint> Compute_BlocksPerGrid_ThreadsPerBlock(int count, int maxThreadsPerBlock, int multiProcessorCount, int warpSize)
+        public static Tuple<uint, uint> Compute_BlocksPerGrid_ThreadsPerBlock(int count, int maxThreadsPerBlock, int multiProcessorCount, int warpSize, int mandatoryThreadsPerBlock=-1)
         {
             count = Math.Max(1, count);
             if (count <= warpSize)
@@ -164,7 +165,15 @@ namespace SharpNet.GPU
                 int threadsPerBlockAfterRoundingUp = Utils.FirstMultipleOfAtomicValueAboveOrEqualToMinimum(threadsPerBlockBeforeRoundingUp, warpSize);
                 return Tuple.Create((uint)multiProcessorCount, (uint)threadsPerBlockAfterRoundingUp);
             }
-            var threadsPerBlock = maxThreadsPerBlock;
+
+            if (mandatoryThreadsPerBlock != -1 && mandatoryThreadsPerBlock % warpSize != 0)
+            {
+                throw new ArgumentException($"mandatoryThreadsPerBlock ({mandatoryThreadsPerBlock}) must be a multiple of warpSize ({warpSize})");
+            }
+
+            var threadsPerBlock = (mandatoryThreadsPerBlock!=-1)
+                ? mandatoryThreadsPerBlock
+                : maxThreadsPerBlock;
             var blocksPerGrid = (count + threadsPerBlock - 1) / threadsPerBlock;
             return Tuple.Create((uint)blocksPerGrid, (uint)threadsPerBlock);
         }
