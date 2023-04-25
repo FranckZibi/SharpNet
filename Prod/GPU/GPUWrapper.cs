@@ -10,7 +10,7 @@ using log4net;
 
 namespace SharpNet.GPU
 {
-    public enum CUDA_Versions { CUDA_10_1, CUDA_10_2, CUDA_11_0, CUDA_11_4 };
+    public enum CUDA_Versions { CUDA_10_1, CUDA_10_2, CUDA_11_0, CUDA_11_4, CUDA_12_0, CUDA_12_1 };
 
     [DebuggerDisplay("{"+nameof(DeviceName)+"()}")]
     public unsafe class GPUWrapper : IDisposable
@@ -694,6 +694,11 @@ namespace SharpNet.GPU
             {
                 if (cudaVersion.Minor == 0) { return CUDA_Versions.CUDA_11_0; }
                 if (cudaVersion.Minor == 4) { return CUDA_Versions.CUDA_11_4; }
+            }
+            else if (cudaVersion.Major == 12)
+            {
+                if (cudaVersion.Minor == 0) { return CUDA_Versions.CUDA_12_0; }
+                if (cudaVersion.Minor == 1) { return CUDA_Versions.CUDA_12_1; }
             }
             throw new Exception("cuda " + cudaVersion + " is not supported");
         }

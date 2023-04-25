@@ -86,6 +86,7 @@ __pycache__/
 .ipynb_checkpoints/
 
 
+Tests/TensorFlow/*
 ImageScanSplitter/Install/Dump/*
 SharpNet/Tests/Data/*
 

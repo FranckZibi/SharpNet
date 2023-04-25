@@ -70,6 +70,9 @@ namespace SharpNet.GPU
                 case CUDA_Versions.CUDA_11_0:
                 case CUDA_Versions.CUDA_11_4:
                     return CudartWrapper_cudart64_110.cudaGetDevice(out device);
+                case CUDA_Versions.CUDA_12_0:
+                case CUDA_Versions.CUDA_12_1:
+                    return CudartWrapper_cudart64_12.cudaGetDevice(out device);
                 default:
                     throw new ArgumentException("invalid cuda version " + _cudaVersion);
             }
@@ -85,6 +88,9 @@ namespace SharpNet.GPU
                 case CUDA_Versions.CUDA_11_0:
                 case CUDA_Versions.CUDA_11_4:
                     return CudartWrapper_cudart64_110.cudaSetDevice(device);
+                case CUDA_Versions.CUDA_12_0:
+                case CUDA_Versions.CUDA_12_1:
+                    return CudartWrapper_cudart64_12.cudaSetDevice(device);
                 default:
                     throw new ArgumentException("invalid cuda version " + _cudaVersion);
             }
@@ -100,6 +106,9 @@ namespace SharpNet.GPU
                 case CUDA_Versions.CUDA_11_0:
                 case CUDA_Versions.CUDA_11_4:
                     return CudartWrapper_cudart64_110.cudaDeviceReset();
+                case CUDA_Versions.CUDA_12_0:
+                case CUDA_Versions.CUDA_12_1:
+                    return CudartWrapper_cudart64_12.cudaDeviceReset();
                 default:
                     throw new ArgumentException("invalid cuda version " + _cudaVersion);
             }
@@ -115,6 +124,9 @@ namespace SharpNet.GPU
                 case CUDA_Versions.CUDA_11_0:
                 case CUDA_Versions.CUDA_11_4:
                     return CudartWrapper_cudart64_110.cudaMemcpyPeerAsync(dst, dstDevice, src, srcDevice, count, stream);
+                case CUDA_Versions.CUDA_12_0:
+                case CUDA_Versions.CUDA_12_1:
+                    return CudartWrapper_cudart64_12.cudaMemcpyPeerAsync(dst, dstDevice, src, srcDevice, count, stream);
                 default:
                     throw new ArgumentException("invalid cuda version " + _cudaVersion);
             }
@@ -130,6 +142,9 @@ namespace SharpNet.GPU
                 case CUDA_Versions.CUDA_11_0:
                 case CUDA_Versions.CUDA_11_4:
                     return CudartWrapper_cudart64_110.cudaMemcpyPeer(dst, dstDevice, src, srcDevice, count);
+                case CUDA_Versions.CUDA_12_0:
+                case CUDA_Versions.CUDA_12_1:
+                    return CudartWrapper_cudart64_12.cudaMemcpyPeer(dst, dstDevice, src, srcDevice, count);
                 default:
                     throw new ArgumentException("invalid cuda version " + _cudaVersion);
             }
@@ -193,4 +208,20 @@ namespace SharpNet.GPU
         [DllImport(DLL_NAME)]
         public static extern cudaError_t cudaMemcpyPeer(IntPtr dst, int dstDevice, IntPtr src, int srcDevice, size_t count);
     }
+
+    public static class CudartWrapper_cudart64_12
+    {
+        private const string DLL_NAME = "cudart64_12";
+        [DllImport(DLL_NAME)]
+        public static extern cudaError_t cudaGetDevice(out int device);
+        [DllImport(DLL_NAME)]
+        public static extern cudaError_t cudaSetDevice(int device);
+        [DllImport(DLL_NAME)]
+        public static extern cudaError_t cudaDeviceReset();
+        [DllImport(DLL_NAME)]
+        public static extern cudaError_t cudaMemcpyPeerAsync(IntPtr dst, int dstDevice, IntPtr src, int srcDevice, size_t count, IntPtr stream);
+        [DllImport(DLL_NAME)]
+        public static extern cudaError_t cudaMemcpyPeer(IntPtr dst, int dstDevice, IntPtr src, int srcDevice, size_t count);
+    }
+
 }

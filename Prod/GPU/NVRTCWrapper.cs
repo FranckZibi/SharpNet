@@ -43,6 +43,9 @@ namespace SharpNet.GPU
                     return NVRTCWrapper_nvrtc64_110_0.nvrtcCreateProgram(out programHandle, src, name, numHeaders, headers, includeNames);
                 case CUDA_Versions.CUDA_11_4:
                     return NVRTCWrapper_nvrtc64_112_0.nvrtcCreateProgram(out programHandle, src, name, numHeaders, headers, includeNames);
+                case CUDA_Versions.CUDA_12_0:
+                case CUDA_Versions.CUDA_12_1:
+                    return NVRTCWrapper_nvrtc64_120_0.nvrtcCreateProgram(out programHandle, src, name, numHeaders, headers, includeNames);
                 default:
                     throw new ArgumentException("invalid cuda version "+_cudaVersion);
             }
@@ -59,6 +62,9 @@ namespace SharpNet.GPU
                     return NVRTCWrapper_nvrtc64_110_0.nvrtcCompileProgram(programHandle, numOptions, options);
                 case CUDA_Versions.CUDA_11_4:
                     return NVRTCWrapper_nvrtc64_112_0.nvrtcCompileProgram(programHandle, numOptions, options);
+                case CUDA_Versions.CUDA_12_0:
+                case CUDA_Versions.CUDA_12_1:
+                    return NVRTCWrapper_nvrtc64_120_0.nvrtcCompileProgram(programHandle, numOptions, options);
                 default:
                     throw new ArgumentException("invalid cuda version " + _cudaVersion);
             }
@@ -75,6 +81,9 @@ namespace SharpNet.GPU
                     return NVRTCWrapper_nvrtc64_110_0.nvrtcGetPTXSize(programHandle, out ptxSizeRet);
                 case CUDA_Versions.CUDA_11_4:
                     return NVRTCWrapper_nvrtc64_112_0.nvrtcGetPTXSize(programHandle, out ptxSizeRet);
+                case CUDA_Versions.CUDA_12_0:
+                case CUDA_Versions.CUDA_12_1:
+                    return NVRTCWrapper_nvrtc64_120_0.nvrtcGetPTXSize(programHandle, out ptxSizeRet);
                 default:
                     throw new ArgumentException("invalid cuda version " + _cudaVersion);
             }
@@ -91,6 +100,9 @@ namespace SharpNet.GPU
                     return NVRTCWrapper_nvrtc64_110_0.nvrtcDestroyProgram(ref programHandle);
                 case CUDA_Versions.CUDA_11_4:
                     return NVRTCWrapper_nvrtc64_112_0.nvrtcDestroyProgram(ref programHandle);
+                case CUDA_Versions.CUDA_12_0:
+                case CUDA_Versions.CUDA_12_1:
+                    return NVRTCWrapper_nvrtc64_120_0.nvrtcDestroyProgram(ref programHandle);
                 default:
                     throw new ArgumentException("invalid cuda version " + _cudaVersion);
             }
@@ -107,6 +119,9 @@ namespace SharpNet.GPU
                     return NVRTCWrapper_nvrtc64_110_0.nvrtcGetPTX(programHandle, ptx);
                 case CUDA_Versions.CUDA_11_4:
                     return NVRTCWrapper_nvrtc64_112_0.nvrtcGetPTX(programHandle, ptx);
+                case CUDA_Versions.CUDA_12_0:
+                case CUDA_Versions.CUDA_12_1:
+                    return NVRTCWrapper_nvrtc64_120_0.nvrtcGetPTX(programHandle, ptx);
                 default:
                     throw new ArgumentException("invalid cuda version " + _cudaVersion);
             }
@@ -123,6 +138,9 @@ namespace SharpNet.GPU
                     return NVRTCWrapper_nvrtc64_110_0.nvrtcGetProgramLogSize(prog, out logSizeRet);
                 case CUDA_Versions.CUDA_11_4:
                     return NVRTCWrapper_nvrtc64_112_0.nvrtcGetProgramLogSize(prog, out logSizeRet);
+                case CUDA_Versions.CUDA_12_0:
+                case CUDA_Versions.CUDA_12_1:
+                    return NVRTCWrapper_nvrtc64_120_0.nvrtcGetProgramLogSize(prog, out logSizeRet);
                 default:
                     throw new ArgumentException("invalid cuda version " + _cudaVersion);
             }
@@ -139,6 +157,9 @@ namespace SharpNet.GPU
                     return NVRTCWrapper_nvrtc64_110_0.nvrtcGetProgramLog(programHandle, log);
                 case CUDA_Versions.CUDA_11_4:
                     return NVRTCWrapper_nvrtc64_112_0.nvrtcGetProgramLog(programHandle, log);
+                case CUDA_Versions.CUDA_12_0:
+                case CUDA_Versions.CUDA_12_1:
+                    return NVRTCWrapper_nvrtc64_120_0.nvrtcGetProgramLog(programHandle, log);
                 default:
                     throw new ArgumentException("invalid cuda version " + _cudaVersion);
             }
@@ -236,4 +257,23 @@ namespace SharpNet.GPU
         [DllImport(DLL_NAME)]
         public static extern nvrtcResult nvrtcGetProgramLog(IntPtr programHandle, byte[] log);
     }
+    public static class NVRTCWrapper_nvrtc64_120_0
+    {
+        private const string DLL_NAME = "nvrtc64_120_0";
+        [DllImport(DLL_NAME)]
+        public static extern nvrtcResult nvrtcCreateProgram(out IntPtr programHandle, [MarshalAs(UnmanagedType.LPStr)] string src, [MarshalAs(UnmanagedType.LPStr)] string name, int numHeaders, IntPtr[] headers, IntPtr[] includeNames);
+        [DllImport(DLL_NAME)]
+        public static extern nvrtcResult nvrtcCompileProgram(IntPtr programHandle, int numOptions, IntPtr[] options);
+        [DllImport(DLL_NAME)]
+        public static extern nvrtcResult nvrtcGetPTXSize(IntPtr programHandle, out size_t ptxSizeRet);
+        [DllImport(DLL_NAME)]
+        public static extern nvrtcResult nvrtcDestroyProgram(ref IntPtr programHandle);
+        [DllImport(DLL_NAME)]
+        public static extern nvrtcResult nvrtcGetPTX(IntPtr programHandle, byte[] ptx);
+        [DllImport(DLL_NAME)]
+        public static extern nvrtcResult nvrtcGetProgramLogSize(IntPtr prog, out size_t logSizeRet);
+        [DllImport(DLL_NAME)]
+        public static extern nvrtcResult nvrtcGetProgramLog(IntPtr programHandle, byte[] log);
+    }
+
 }
