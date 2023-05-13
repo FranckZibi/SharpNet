@@ -50,7 +50,7 @@ public class EvaluationMetricAccumulatorForSingleEpoch
                 {
                     _currentAccumulatedMetrics[metric] = new DoubleAccumulator();
                 }
-                var metricValue = yExpected.ComputeEvaluationMetric(yPredicted, metric, buffer);
+                var metricValue = buffer.ComputeEvaluationMetric(yExpected, yPredicted, metric);
                 _currentAccumulatedMetrics[metric].Add(metricValue, yExpected.Shape[0]);
                 break;
         }

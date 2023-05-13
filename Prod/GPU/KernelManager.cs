@@ -40,19 +40,19 @@ namespace SharpNet.GPU
                     "ApplyZeroPaddingForRowId",
                     "ComputeAccuracy",
                     "ComputeSparseAccuracy",
-                    "BinaryCrossentropyLoss",
-                    "CategoricalCrossentropyLoss",
-                    "CategoricalCrossentropyWithHierarchyLoss",
-                    "HuberLoss",
-                    "CosineSimilarityLoss",
+                    "BinaryCrossentropyLossBuffer",
+                    "CategoricalCrossentropyLossBuffer",
+                    "CategoricalCrossentropyWithHierarchyLossBuffer",
+                    "HuberLossBuffer",
+                    "CosineSimilarityLossBuffer",
                     "CosineSimilarityGradient",
                     "HuberGradient",
-                    "MseLoss",
+                    "MseLossBuffer",
                     "MseGradient",
-                    "MseOfLogLoss",
+                    "MseOfLogLossBuffer",
                     "MseOfLogGradient",
-                    "MeanSquaredLogErrorLoss",
-                    "MaeLoss",
+                    "MeanSquaredLogErrorLossBuffer",
+                    "MaeLossBuffer",
                     "MaeGradient",
                     "ComputeSingleAccuracyForCategoricalCrossentropyWithHierarchy",
                     "CategoricalCrossentropyWithHierarchyGradient",
@@ -89,7 +89,7 @@ namespace SharpNet.GPU
                     "TransposeSecondAndThirdDimension_V2",
                     "TransposeSecondAndThirdDimension_V3",
                     "UpdateWithPositionalEncoding_AttnIsAllYouNeed",
-                    "SparseCategoricalCrossentropyLoss",
+                    "SparseCategoricalCrossentropyLossBuffer",
                     "SparseCategoricalCrossentropyGradient",
                     "ArgMax",
                     "StandardizeRowsInPlaceBroadcastGammasBetas",
@@ -105,11 +105,7 @@ namespace SharpNet.GPU
         public void RunKernel(string kernelName, int count, object[] parameterLists, int mandatoryThreadsPerBlock=-1)
         {
             var kernel = _kernels[kernelName];
-
-            var blocksPerGrid_ThreadsPerBlock = Compute_BlocksPerGrid_ThreadsPerBlock(count, _gpu.MaxThreadsPerBlock, _gpu.MultiProcessorCount, _gpu.WarpSize, mandatoryThreadsPerBlock);
-            kernel.BlocksPerGrid = blocksPerGrid_ThreadsPerBlock.Item1;
-            kernel.ThreadsPerBlock = blocksPerGrid_ThreadsPerBlock.Item2;
-
+            (kernel.BlocksPerGrid, kernel.ThreadsPerBlock) = Compute_BlocksPerGrid_ThreadsPerBlock(count, _gpu.MaxThreadsPerBlock, _gpu.MultiProcessorCount, _gpu.WarpSize, mandatoryThreadsPerBlock);
             for (var i = 0; i < parameterLists.Length; i++)
             {
                 var e = parameterLists[i];
@@ -151,19 +147,19 @@ namespace SharpNet.GPU
         }
 
         //return a Tuple<BlocksPerGrid, ThreadsPerBlock>
-        public static Tuple<uint, uint> Compute_BlocksPerGrid_ThreadsPerBlock(int count, int maxThreadsPerBlock, int multiProcessorCount, int warpSize, int mandatoryThreadsPerBlock=-1)
+        public static (uint BlocksPerGrid, uint ThreadsPerBlock) Compute_BlocksPerGrid_ThreadsPerBlock(int count, int maxThreadsPerBlock, int multiProcessorCount, int warpSize, int mandatoryThreadsPerBlock=-1)
         {
             count = Math.Max(1, count);
             if (count <= warpSize)
             {
-                return Tuple.Create(1u, (uint)count);
+                return (1u, (uint)count);
             }
             if (count < maxThreadsPerBlock * multiProcessorCount)
             {
                 int threadsPerBlockBeforeRoundingUp = (count + multiProcessorCount - 1) / multiProcessorCount;
                 //we want 'ThreadsPerBlock' be a multiple of 'warpSize'
                 int threadsPerBlockAfterRoundingUp = Utils.FirstMultipleOfAtomicValueAboveOrEqualToMinimum(threadsPerBlockBeforeRoundingUp, warpSize);
-                return Tuple.Create((uint)multiProcessorCount, (uint)threadsPerBlockAfterRoundingUp);
+                return ((uint)multiProcessorCount, (uint)threadsPerBlockAfterRoundingUp);
             }
 
             if (mandatoryThreadsPerBlock != -1 && mandatoryThreadsPerBlock % warpSize != 0)
@@ -175,7 +171,7 @@ namespace SharpNet.GPU
                 ? mandatoryThreadsPerBlock
                 : maxThreadsPerBlock;
             var blocksPerGrid = (count + threadsPerBlock - 1) / threadsPerBlock;
-            return Tuple.Create((uint)blocksPerGrid, (uint)threadsPerBlock);
+            return ((uint)blocksPerGrid, (uint)threadsPerBlock);
         }
 
         #region Dispose pattern

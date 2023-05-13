@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
 using System.Runtime.InteropServices;
 using JetBrains.Annotations;
 using SharpNet.CPU;
@@ -756,58 +755,20 @@ namespace SharpNet.GPU
 
         #region Compute of Loss and Metrics
 
-        /// <summary>
-        /// this = yExpectedOneHot
-        /// </summary>
-        /// <param name="yPredicted"></param>
-        /// <param name="evaluationMetric"></param>
-        /// <param name="buffer"></param>
-        /// <returns></returns>
-        public override double ComputeEvaluationMetric([NotNull] Tensor yPredicted, EvaluationMetricEnum evaluationMetric, [NotNull] Tensor buffer)
+        private void CallCudaForLossBuffer(Tensor yExpected, Tensor yPredicted, EvaluationMetricEnum evaluationMetric)
         {
-            var yExpected = this;
-            Debug.Assert(AreCompatible(new List<Tensor> { yExpected, yPredicted }));
+            var buffer = this;
+            Debug.Assert(AreCompatible(new List<Tensor> { buffer, yExpected, yPredicted }));
             Debug.Assert(yPredicted.Dimension >= 2);
             int batchSize = yPredicted.Shape[0];
             var numClass = yPredicted.MultDim0;
-
-            switch (evaluationMetric)
-            {
-                case EvaluationMetricEnum.Accuracy:
-                    return yExpected.ComputeAccuracy(yPredicted, buffer);
-                case EvaluationMetricEnum.SparseAccuracy:
-                    return yExpected.ComputeSparseAccuracy(yPredicted, buffer);
-                case EvaluationMetricEnum.SparseCategoricalCrossentropy:
-                    return yExpected.SparseCategoricalCrossentropyLoss(yPredicted, buffer);
-                case EvaluationMetricEnum.AccuracyCategoricalCrossentropyWithHierarchy:
-                    return yExpected.ComputeAccuracyCategoricalCrossentropyWithHierarchy(yPredicted, buffer);
-                case EvaluationMetricEnum.Huber:
-                    const float huberDelta = 1.0f;
-                    _wrapper.RunKernel("HuberLoss", batchSize, new object[] { numClass, huberDelta, buffer, yExpected, yPredicted });
-                    return buffer.ContentAsFloatArray().Average();
-                case EvaluationMetricEnum.F1Micro:
-                    return buffer.F1PrecisionRecallMicro(yExpected, yPredicted).f1;
-                case EvaluationMetricEnum.Rmse:
-                    return Math.Sqrt(ComputeEvaluationMetric(yPredicted, EvaluationMetricEnum.Mse, buffer));
-                case EvaluationMetricEnum.PearsonCorrelation:
-                case EvaluationMetricEnum.SpearmanCorrelation:
-                    throw new NotImplementedException($"{evaluationMetric} can not be used on GPU (only available on CPU)");
-                default:
-                    var kernelName = evaluationMetric + "Loss";
-                    _wrapper.RunKernel(kernelName, batchSize, new object[] { numClass, buffer, yExpected, yPredicted });
-                    return buffer.ContentAsFloatArray().Average();
-            }
+            var kernelName = evaluationMetric + "LossBuffer";
+            _wrapper.RunKernel(kernelName, batchSize, new object[] { numClass, buffer, yExpected, yPredicted });
         }
 
-        /// <summary>
-        /// this = yExpectedOneHot
-        /// </summary>
-        /// <param name="yPredicted"></param>
-        /// <param name="buffer"></param>
-        /// <returns></returns>
-        public override double ComputeAccuracy([NotNull] Tensor yPredicted, [NotNull] Tensor buffer)
+        public override void ComputeAccuracyBuffer([NotNull] Tensor yExpected, [NotNull] Tensor yPredicted)
         {
-            var yExpected = this;
+            var buffer = this;
             Debug.Assert(AreCompatible(new List<Tensor> {yExpected, yPredicted}));
             Debug.Assert(buffer.Shape.Length == 1);
             Debug.Assert(buffer.Shape[0] == yPredicted.Shape[0]);
@@ -816,39 +777,74 @@ namespace SharpNet.GPU
             int nbRows = yExpected.Shape[0];
             var nbCols = yExpected.Shape[1];
             _wrapper.RunKernel("ComputeAccuracy", nbRows, new object[] { nbCols, buffer, yExpected, yPredicted });
-            return buffer.ContentAsFloatArray().Average();
         }
 
-        public override double ComputeSparseAccuracy(Tensor yPredicted, Tensor buffer)
+        public override double ComputePearsonCorrelation(Tensor y_pred)
         {
-            (var yExpectedSparse, yPredicted, _) = ReformatTo2DTensorsSparse(this, yPredicted);
+            throw new NotImplementedException($"{nameof(EvaluationMetricEnum.PearsonCorrelation)} can not be used on GPU (only available on CPU)");
+        }
+
+        public override double ComputeSpearmanCorrelation(Tensor y_pred)
+        {
+            throw new NotImplementedException($"{nameof(EvaluationMetricEnum.SpearmanCorrelation)} can not be used on GPU (only available on CPU)");
+        }
+
+        public override void ComputeSparseAccuracyBuffer(Tensor yExpectedSparse, Tensor yPredicted)
+        {
+            var buffer = this;
+            (yExpectedSparse, yPredicted, _) = ReformatTo2DTensorsSparse(yExpectedSparse, yPredicted);
             //yExpectedSparse shape:    (batchSize*timeSteps, 1)
             //yPredicted shape:         (batchSize*timeSteps, numClass)
             Debug.Assert(buffer.Shape.Length == 1);
             Debug.Assert(yExpectedSparse.Count == buffer.Shape[0]);
             int rows = yPredicted.Shape[0];
-            var numClass = yPredicted.Shape[^1];
+            var numClass = yPredicted.Shape[1];
             _wrapper.RunKernel("ComputeSparseAccuracy", rows, new object[] { numClass, buffer, yExpectedSparse, yPredicted });
-            return buffer.ContentAsFloatArray().Average();
         }
 
-        public override double SparseCategoricalCrossentropyLoss(Tensor yPredicted, Tensor buffer)
-        {
-            (var yExpectedSparse, yPredicted, _) = ReformatTo2DTensorsSparse(this, yPredicted);
-            //yExpectedSparse shape:    (batchSize*timeSteps, 1)
-            //yPredicted shape:         (batchSize*timeSteps, numClass)
-            Debug.Assert(buffer.Shape.Length == 1);
-            Debug.Assert(yExpectedSparse.Count == buffer.Shape[0]);
-            int rows = yPredicted.Shape[0];
-            var numClass = yPredicted.Shape[^1];
-            _wrapper.RunKernel("SparseCategoricalCrossentropyLoss", rows, new object[] { numClass, buffer, yExpectedSparse, yPredicted });
-            return buffer.ContentAsFloatArray().Average();
-        }
+      
+    public override void SparseCategoricalCrossentropyLossBuffer(Tensor yExpectedSparse, Tensor yPredicted)
+    {
+        var buffer = this;
+        (yExpectedSparse, yPredicted, _) = ReformatTo2DTensorsSparse(yExpectedSparse, yPredicted);
+        //yExpectedSparse shape:    (batchSize*timeSteps, 1)
+        //yPredicted shape:         (batchSize*timeSteps, numClass)
+        Debug.Assert(buffer.Shape.Length == 1);
+        Debug.Assert(yExpectedSparse.Count == buffer.Shape[0]);
+        CallCudaForLossBuffer(yExpectedSparse, yPredicted, EvaluationMetricEnum.SparseCategoricalCrossentropy);
+    }
 
-        public override double ComputeAccuracyCategoricalCrossentropyWithHierarchy([NotNull] Tensor yPredicted, [NotNull] Tensor buffer)
+    public override void CategoricalCrossentropyLossBuffer(Tensor yExpectedOneHot, Tensor yPredicted)
+    {
+        CallCudaForLossBuffer(yExpectedOneHot, yPredicted, EvaluationMetricEnum.CategoricalCrossentropy);
+    }
+    public override void MaeLossBuffer(Tensor yExpected, Tensor yPredicted)
+    {
+        CallCudaForLossBuffer(yExpected, yPredicted, EvaluationMetricEnum.Mae);
+    }
+    public override void MseLossBuffer(Tensor yExpected, Tensor yPredicted)
+    {
+        CallCudaForLossBuffer(yExpected, yPredicted, EvaluationMetricEnum.Mse);
+    }
+    public override void MeanSquaredLogErrorLossBuffer(Tensor yExpected, Tensor yPredicted)
+    {
+        CallCudaForLossBuffer(yExpected, yPredicted, EvaluationMetricEnum.MeanSquaredLogError);
+    }
+
+    public override void CategoricalCrossentropyWithHierarchyLossBuffer(Tensor yExpected, Tensor yPredicted)
+    {
+        CallCudaForLossBuffer(yExpected, yPredicted, EvaluationMetricEnum.CategoricalCrossentropyWithHierarchy);
+    }
+
+    public override void BinaryCrossentropyLossBuffer(Tensor yExpected, Tensor yPredicted)
+    {
+        CallCudaForLossBuffer(yExpected, yPredicted, EvaluationMetricEnum.BinaryCrossentropy);
+    }
+
+    public override void ComputeAccuracyCategoricalCrossentropyWithHierarchyBuffer([NotNull] Tensor yExpected, [NotNull] Tensor yPredicted)
         {
-            var yExpected = this;
-            Debug.Assert(AreCompatible(new List<Tensor> { yExpected, yPredicted }));
+            var buffer = this;
+            Debug.Assert(AreCompatible(new List<Tensor> { buffer, yExpected, yPredicted }));
             Debug.Assert(buffer.Shape.Length == 1);
             Debug.Assert(buffer.Shape[0] == yPredicted.Shape[0]);
             Debug.Assert(yExpected.SameShape(yPredicted));
@@ -856,15 +852,14 @@ namespace SharpNet.GPU
             int nbRows = yExpected.Shape[0];
             var nbCols = yExpected.Shape[1];
             _wrapper.RunKernel("ComputeSingleAccuracyForCategoricalCrossentropyWithHierarchy", nbRows, new object[] { nbCols, buffer, yExpected, yPredicted });
-            return buffer.ContentAsFloatArray().Average();
         }
-        public override void MseOfLogLoss(Tensor yExpected, Tensor yPredicted, float epsilon)
+        public override void MseOfLogLossBuffer(Tensor yExpected, Tensor yPredicted, float epsilon)
         {
-            var mseLoss = this;
+            var buffer = this;
             int batchSize = yExpected.Shape[0];
-            Debug.Assert(mseLoss.SameShape(new[] { batchSize }));
+            Debug.Assert(buffer.SameShape(new[] { batchSize }));
             Debug.Assert(yExpected.SameShape(yPredicted));
-            _wrapper.RunKernel("MseOfLogLoss", batchSize, new object[] { yExpected.MultDim0, mseLoss, yExpected, yPredicted, epsilon });
+            _wrapper.RunKernel("MseOfLogLossBuffer", batchSize, new object[] { yExpected.MultDim0, buffer, yExpected, yPredicted, epsilon });
         }
 
         //!D To write properly for GPU
@@ -873,21 +868,21 @@ namespace SharpNet.GPU
             return ToCpuFloat().F1PrecisionRecallMicro(yExpected.ToCpuFloat(), yPredicted.ToCpuFloat());
         }
 
-        public override void CosineSimilarityLoss(Tensor yExpected, Tensor yPredicted, int timeSeriesLength)
+        public override void CosineSimilarityLossBuffer(Tensor yExpected, Tensor yPredicted, int timeSeriesLength)
         {
             var cosineSimilarityLoss = this;
             Debug.Assert(cosineSimilarityLoss.SameShape(new[] { timeSeriesLength }));
             Debug.Assert(yExpected.SameShape(yPredicted));
-            _wrapper.RunKernel("CosineSimilarityLoss", timeSeriesLength, new object[] { yExpected.Count, cosineSimilarityLoss, yExpected, yPredicted });
+            _wrapper.RunKernel("CosineSimilarityLossBuffer", timeSeriesLength, new object[] { yExpected.Count, cosineSimilarityLoss, yExpected, yPredicted });
         }
 
-        public override void HuberLoss(Tensor yExpected, Tensor yPredicted, float huberDelta)
+        public override void HuberLossBuffer(Tensor yExpected, Tensor yPredicted, float huberDelta)
         {
             var huberLoss = this;
             int batchSize = yExpected.Shape[0];
             Debug.Assert(huberLoss.SameShape(new[] { batchSize }));
             Debug.Assert(yExpected.SameShape(yPredicted));
-            _wrapper.RunKernel("HuberLoss", batchSize, new object[] { yExpected.MultDim0, huberDelta, huberLoss, yExpected, yPredicted });
+            _wrapper.RunKernel("HuberLossBuffer", batchSize, new object[] { yExpected.MultDim0, huberDelta, huberLoss, yExpected, yPredicted });
         }
 
         #endregion

@@ -27,7 +27,9 @@ public class CFM84DatasetSample : AbstractDatasetSample
     public bool use_vol_r_day_equity;
     public bool use_r_day_market;
     public bool use_vol_r_day_market;
-    public bool use_market_correl_r_day_equity;
+    public bool use_feature_101 = false;
+
+public bool use_market_correl_r_day_equity;
     public bool use_r_dataset_equity;
     public bool use_vol_r_dataset_equity;
     public bool use_r_dataset = false; //not used
@@ -37,6 +39,7 @@ public class CFM84DatasetSample : AbstractDatasetSample
     public bool use_dcat = false;
     public bool use_ecat = false;
     public bool use_fcat = false; //must be false
+    public bool use_wd = false;
 
     public bool fillna_with_0 = false;
     #endregion
@@ -67,7 +70,7 @@ public class CFM84DatasetSample : AbstractDatasetSample
     }
 
 
-    public override string[] CategoricalFeatures { get; } = {  "equity", "reod" };
+    public override string[] CategoricalFeatures { get; } = {  "equity", "reod", "wd" };
     public override string IdColumn => "ID";
     public override string[] TargetLabels { get; } = { "reod" };
     public override Objective_enum GetObjective()
@@ -271,6 +274,7 @@ public class CFM84DatasetSample : AbstractDatasetSample
         if (!use_vol_r_day_equity) { toDrop.Add("vol_r_day_equity"); }
         if (!use_r_day_market) { toDrop.Add("r_day_market"); }
         if (!use_vol_r_day_market) { toDrop.Add("vol_r_day_market"); }
+        if (!use_feature_101) { toDrop.Add("feature_101"); }
         if (!use_market_correl_r_day_equity) { toDrop.Add("market_correl_r_day_equity"); }
         if (!use_r_dataset_equity) { toDrop.Add("r_dataset_equity"); }
         if (!use_vol_r_dataset_equity) { toDrop.Add("vol_r_dataset_equity"); }
@@ -280,6 +284,7 @@ public class CFM84DatasetSample : AbstractDatasetSample
         if (!use_dcat) { toDrop.AddRange(xWithStats.Columns.Where(c=>c.StartsWith("dcat"))); }
         if (!use_ecat) { toDrop.AddRange(xWithStats.Columns.Where(c=>c.StartsWith("ecat"))); }
         if (!use_fcat) { toDrop.AddRange(xWithStats.Columns.Where(c=>c.StartsWith("fcat"))); }
+        if (!use_wd) { toDrop.AddRange(xWithStats.Columns.Where(c=>c.StartsWith("wd"))); }
 
         toDrop.AddRange(Enumerable.Range(rr_count, 10).Select(i => "rr"+i));
         xWithStats = xWithStats.DropIgnoreErrors(toDrop.ToArray()).Clone();

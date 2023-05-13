@@ -48,9 +48,9 @@ namespace SharpNetTests.GPU
         [TestCase(524288+1, 2048, 1024*1024*1024+1, 2048, 20, 32)]
         public void Compute_BlocksPerGrid_ThreadsPerBlockTest(int expectedBlocksPerGrid, int expectedThreadsPerBlock, int count, int maxThreadsPerBlock, int multiProcessorCount, int warpSize)
         {
-            var observedBlocksPerGridThreadsPerBlock = KernelManager.Compute_BlocksPerGrid_ThreadsPerBlock(count, maxThreadsPerBlock, multiProcessorCount, warpSize);
-            Assert.AreEqual(expectedBlocksPerGrid, observedBlocksPerGridThreadsPerBlock.Item1);
-            Assert.AreEqual(expectedThreadsPerBlock, observedBlocksPerGridThreadsPerBlock.Item2);
+            var (BlocksPerGrid, ThreadsPerBlock) = KernelManager.Compute_BlocksPerGrid_ThreadsPerBlock(count, maxThreadsPerBlock, multiProcessorCount, warpSize);
+            Assert.AreEqual(expectedBlocksPerGrid, BlocksPerGrid);
+            Assert.AreEqual(expectedThreadsPerBlock, ThreadsPerBlock);
         }
 
         [Test, Explicit]

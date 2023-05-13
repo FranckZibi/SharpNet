@@ -193,7 +193,7 @@ public static class TextTransformersUtils
 
         };
 
-        //?D var hpo = new BayesianSearchHPO(searchSpace, () => ModelAndDatasetPredictionsSample.New(new TransformerNetworkSample(), new CharLevelTransformersDatasetSample()), WorkingDirectory);
+        //var hpo = new BayesianSearchHPO(searchSpace, () => ModelAndDatasetPredictionsSample.New(new TransformerNetworkSample(), new CharLevelTransformersDatasetSample()), WorkingDirectory);
         var hpo = new RandomSearchHPO(searchSpace, () => ModelAndDatasetPredictionsSample.New(new TransformerNetworkSample(), new CharLevelTransformersDatasetSample()), WorkingDirectory);
         IScore bestScoreSoFar = null;
         hpo.Process(t => SampleUtils.TrainWithHyperParameters((ModelAndDatasetPredictionsSample)t, WorkingDirectory, false, ref bestScoreSoFar), maxAllowedSecondsForAllComputation);

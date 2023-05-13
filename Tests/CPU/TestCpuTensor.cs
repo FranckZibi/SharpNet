@@ -404,7 +404,7 @@ namespace SharpNetTests.CPU
             var y_pred = CpuTensor<float>.New(y_pred_array, 1);
             const EvaluationMetricEnum metric = EvaluationMetricEnum.SpearmanCorrelation;
             var buffer = new CpuTensor<float>(y_pred.ComputeMetricBufferShape(metric));
-            var observedLoss = y_true.ComputeEvaluationMetric(y_pred,  metric, buffer);
+            var observedLoss = buffer.ComputeEvaluationMetric(y_true, y_pred,  metric);
             Assert.AreEqual(expected_value, observedLoss, 1e-6);
         }
 
@@ -415,7 +415,7 @@ namespace SharpNetTests.CPU
             var y_pred = CpuTensor<float>.New(y_pred_array, 1);
             const EvaluationMetricEnum metric = EvaluationMetricEnum.MeanSquaredLogError;
             var buffer = new CpuTensor<float>(y_pred.ComputeMetricBufferShape(metric));
-            var observedLoss = y_true.ComputeEvaluationMetric(y_pred, metric, buffer);
+            var observedLoss = buffer.ComputeEvaluationMetric(y_true, y_pred, metric);
             Assert.AreEqual(expected_value, observedLoss, 1e-6);
         }
 
@@ -427,7 +427,7 @@ namespace SharpNetTests.CPU
             var y_pred = CpuTensor<float>.New(y_pred_array, 1);
             const EvaluationMetricEnum metric = EvaluationMetricEnum.PearsonCorrelation;
             var buffer = new CpuTensor<float>(y_pred.ComputeMetricBufferShape(metric));
-            var observedLoss = y_true.ComputeEvaluationMetric(y_pred, metric, buffer);
+            var observedLoss = buffer.ComputeEvaluationMetric(y_true, y_pred, metric);
             Assert.AreEqual(expected_value, observedLoss, 1e-6);
         }
 
@@ -437,7 +437,7 @@ namespace SharpNetTests.CPU
             var expected = GetExpectedCategoricalCrossentropyWithHierarchy();
             var predicted = GetPredictedCategoricalCrossentropyWithHierarchy();
             var buffer = new CpuTensor<float>(new[]{expected.Shape[0]});
-            var observedLoss = expected.ComputeEvaluationMetric(predicted, EvaluationMetricEnum.CategoricalCrossentropyWithHierarchy, buffer);
+            var observedLoss = buffer.ComputeEvaluationMetric(expected, predicted, EvaluationMetricEnum.CategoricalCrossentropyWithHierarchy);
             var expectedLossBuffer = new []
             {
                 //no clue
@@ -464,7 +464,7 @@ namespace SharpNetTests.CPU
             var expected = GetExpectedCategoricalCrossentropyWithHierarchy();
             var predicted = GetPredictedCategoricalCrossentropyWithHierarchy();
             var buffer = new CpuTensor<float>(new[] { expected.Shape[0] });
-            var acc = expected.ComputeAccuracyCategoricalCrossentropyWithHierarchy(predicted, buffer);
+            var acc = buffer.ComputeAccuracyCategoricalCrossentropyWithHierarchy(expected, predicted);
             Assert.IsTrue(Utils.SameContent(new []{1f,1,0,0,0,0}, buffer.ContentAsFloatArray(), 1e-6));
             Assert.AreEqual(2.0/6, acc, 1e-6);
         }
@@ -647,7 +647,7 @@ namespace SharpNetTests.CPU
             const int timeSeriesLength = 2;
             Debug.Assert(yPredicted.Count% timeSeriesLength == 0);
             var observedLoss = new CpuTensor<float>(new []{ timeSeriesLength });
-            observedLoss.CosineSimilarityLoss(yExpected, yPredicted, timeSeriesLength);
+            observedLoss.CosineSimilarityLossBuffer(yExpected, yPredicted, timeSeriesLength);
             Assert.IsTrue(TensorExtensions.SameFloatContent(expectedLoss, observedLoss, 1e-6));
         }
 

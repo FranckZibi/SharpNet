@@ -33,15 +33,15 @@ namespace SharpNet.Networks
                 var yCpuPredictedSingleNetwork = yPredictedSingleNetwork.ToCpuFloat();
                 lossFunction = network.Sample.LossFunction;
                 var accuracy = (lossFunction == EvaluationMetricEnum.AccuracyCategoricalCrossentropyWithHierarchy)
-                    ?testDataSet_YIfAny.ComputeAccuracyCategoricalCrossentropyWithHierarchy(yCpuPredictedSingleNetwork, buffer)
-                    :testDataSet_YIfAny.ComputeAccuracy(yCpuPredictedSingleNetwork, buffer);
+                    ? buffer.ComputeAccuracyCategoricalCrossentropyWithHierarchy(testDataSet_YIfAny, yCpuPredictedSingleNetwork)
+                    : buffer.ComputeAccuracy(testDataSet_YIfAny, yCpuPredictedSingleNetwork);
                 Console.WriteLine("Single Network Accuracy=" + accuracy);
                 yCpuPredictedAllNetworks.Update_Adding_Alpha_X(1f/ _modelFilesPath.Length, yCpuPredictedSingleNetwork);
             }
             var accuracyEnsembleNetwork = (lossFunction == EvaluationMetricEnum.AccuracyCategoricalCrossentropyWithHierarchy)
-                ?testDataSet_YIfAny.ComputeAccuracyCategoricalCrossentropyWithHierarchy(yCpuPredictedAllNetworks, buffer)
-                :testDataSet_YIfAny.ComputeAccuracy(yCpuPredictedAllNetworks, buffer);
-
+                ? buffer.ComputeAccuracyCategoricalCrossentropyWithHierarchy(testDataSet_YIfAny, yCpuPredictedAllNetworks)
+                : buffer.ComputeAccuracy(testDataSet_YIfAny, yCpuPredictedAllNetworks);
+            
             Console.WriteLine("Ensemble Network Accuracy=" + accuracyEnsembleNetwork);
             return Tuple.Create(yCpuPredictedAllNetworks, accuracyEnsembleNetwork);
         }

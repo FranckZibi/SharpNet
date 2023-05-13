@@ -184,14 +184,14 @@
 	}
 
 
-	__global__ void ComputeAccuracy(int N, int numClass, float *countOk, const float* __restrict yExpectedOneHot, const float* __restrict yPredicted) 
+	__global__ void ComputeAccuracy(int N, int numClass, float *buffer, const float* __restrict yExpectedOneHot, const float* __restrict yPredicted) 
 	{
 		int row = blockIdx.x * blockDim.x + threadIdx.x;
 		if (row < N) {
 			if (numClass == 1)
 			{
 				float error = fabsf(yExpectedOneHot[row] - yPredicted[row]);
-				countOk[row] = (error < 0.5f) ? 1.0f : 0.0f;
+				buffer[row] = (error < 0.5f) ? 1.0f : 0.0f;
 				return;
 			}
 
@@ -206,7 +206,7 @@
 				if (yExpectedOneHot[j] > yExpectedOneHot[maxIndexExpected])
 					maxIndexExpected = j;
 			}
-			countOk[row] = (maxIndexPredicted == maxIndexExpected) ? 1.0f : 0.0f;
+			buffer[row] = (maxIndexPredicted == maxIndexExpected) ? 1.0f : 0.0f;
 		}
 	}
 
@@ -668,7 +668,7 @@
 		}
 	}
 
-	__global__ void BinaryCrossentropyLoss(int N, int categoryCount, float* losses, const float* __restrict yExpectedOneHot, const float* __restrict yPredicted)
+	__global__ void BinaryCrossentropyLossBuffer(int N, int categoryCount, float* lossBuffer, const float* __restrict yExpectedOneHot, const float* __restrict yPredicted)
 	{
 		int i = blockIdx.x * blockDim.x + threadIdx.x;
 		if (i < N) {
@@ -683,17 +683,17 @@
 				if ((predicted > 0.0f) && (predicted < 1.0f))
 					loss -= (expected * logf(predicted) + (1.0f - expected) * logf(1.0f - predicted)) / categoryCount;
 			}
-			losses[i] = loss;
+			lossBuffer[i] = loss;
 		}
 	}
 
-	__global__ void CategoricalCrossentropyLoss(int N, int categoryCount, float *losses, const float* __restrict yExpectedOneHot, const float* __restrict yPredicted)
+	__global__ void CategoricalCrossentropyLossBuffer(int N, int nummClass, float *lossBuffer, const float* __restrict yExpectedOneHot, const float* __restrict yPredicted)
 	{
 		int i = blockIdx.x * blockDim.x + threadIdx.x;
 		if (i < N) {
 			float loss = 0.0f;
-			int startIndex = i * categoryCount;
-			int endIndexExcluded = startIndex + categoryCount;
+			int startIndex = i * nummClass;
+			int endIndexExcluded = startIndex + nummClass;
 			for (int j = startIndex; j < endIndexExcluded; ++j)
 			{
 				float predicted = yPredicted[j];
@@ -701,12 +701,12 @@
 				if (predicted > 0)
 					loss -= expected * logf(predicted);
 			}
-			losses[i] = loss;
+			lossBuffer[i] = loss;
 		}
 	}
 
 	
-	__global__ void CategoricalCrossentropyWithHierarchyLoss(int N, int nbCols, float* losses, const float* __restrict yExpected, const float* __restrict yPredicted)
+	__global__ void CategoricalCrossentropyWithHierarchyLossBuffer(int N, int nbCols, float* lossBuffer, const float* __restrict yExpected, const float* __restrict yPredicted)
 	{
 		int i = blockIdx.x * blockDim.x + threadIdx.x;
 		if (i < N) {
@@ -736,7 +736,7 @@
 					}
 				}
 			}
-			losses[i] = -loss;
+			lossBuffer[i] = -loss;
 		}
 	}
 
@@ -768,7 +768,7 @@
 		}
 	}
 
-	__global__ void HuberLoss(int batchSize, int lineSize, float huberDelta, float* losses, const float* __restrict yExpected, const float* __restrict yPredicted)
+	__global__ void HuberLossBuffer(int batchSize, int lineSize, float huberDelta, float* lossBuffer, const float* __restrict yExpected, const float* __restrict yPredicted)
 	{
 		int i = blockIdx.x * blockDim.x + threadIdx.x;
 		if (i < batchSize) {
@@ -783,7 +783,7 @@
 				else
 					loss += huberDelta * fabs(diff) - 0.5f * huberDelta * huberDelta;
 			}
-			losses[i] = loss;
+			lossBuffer[i] = loss;
 		}
 	}
 
@@ -801,7 +801,7 @@
 		}
 	}
 
-	__global__ void MseLoss(int batchSize, int lineSize, float* losses, const float* __restrict yExpected, const float* __restrict yPredicted)
+	__global__ void MseLossBuffer(int batchSize, int lineSize, float* lossBuffer, const float* __restrict yExpected, const float* __restrict yPredicted)
 	{
 		int i = blockIdx.x * blockDim.x + threadIdx.x;
 		if (i < batchSize) {
@@ -813,7 +813,7 @@
 				float diff = yExpected[j] - yPredicted[j];
 				loss += diff * diff;
 			}
-			losses[i] = loss / lineSize;
+			lossBuffer[i] = loss / lineSize;
 		}
 	}
 
@@ -832,13 +832,13 @@
 		}
 	}
 
-	__global__ void SparseCategoricalCrossentropyLoss(int N, int numClass, float *losses, const float* __restrict yExpectedSparseMatrix, const float* __restrict yPredicted)
+	__global__ void SparseCategoricalCrossentropyLossBuffer(int N, int numClass, float *lossBuffer, const float* __restrict yExpectedSparseMatrix, const float* __restrict yPredicted)
 	{
 		int i = blockIdx.x * blockDim.x + threadIdx.x;
 		if (i < N) {
             int yClass = (int)(yExpectedSparseMatrix[i]+0.1f);
 			float predicted = yPredicted[i * numClass + yClass];
-			losses[i] = -logf(predicted);
+			lossBuffer[i] = -logf(predicted);
 		}
 	}
 
@@ -857,7 +857,7 @@
 		}
 	}
 
-	__global__ void CosineSimilarityLoss(int timeSeriesLength, int yExpectedLength, float* losses, const float* __restrict yExpected, const float* __restrict yPredicted)
+	__global__ void CosineSimilarityLossBuffer(int timeSeriesLength, int yExpectedLength, float* lossBuffer, const float* __restrict yExpected, const float* __restrict yPredicted)
 	{
 		int day = blockIdx.x * blockDim.x + threadIdx.x;
 		if (day < timeSeriesLength) {
@@ -874,7 +874,7 @@
             }
             float l2_norm_expected = sqrtf(expectedSquares);
             float l2_norm_predicted = sqrtf(predictedSquares);
-            losses[day] = top / (l2_norm_expected * l2_norm_predicted);
+            lossBuffer[day] = top / (l2_norm_expected * l2_norm_predicted);
 		}
 	}
 
@@ -904,7 +904,7 @@
 		}
 	}
 
-	__global__ void MeanSquaredLogErrorLoss(int batchSize, int lineSize, float* losses, const float* __restrict yExpected, const float* __restrict yPredicted)
+	__global__ void MeanSquaredLogErrorLossBuffer(int batchSize, int lineSize, float* lossBuffer, const float* __restrict yExpected, const float* __restrict yPredicted)
 	{
 		int i = blockIdx.x * blockDim.x + threadIdx.x;
 		if (i < batchSize) {
@@ -916,11 +916,11 @@
 				float diff = logf(1+yPredicted[j]) - logf(1+yExpected[j]);
 				loss += diff * diff;
 			}
-			losses[i] = loss / lineSize;
+			lossBuffer[i] = loss / lineSize;
 		}
 	}
 
-	__global__ void MseOfLogLoss(int batchSize, int lineSize, float* losses, const float* __restrict yExpected, const float* __restrict yPredicted, float epsilon)
+	__global__ void MseOfLogLossBuffer(int batchSize, int lineSize, float* lossBuffer, const float* __restrict yExpected, const float* __restrict yPredicted, float epsilon)
 	{
 		int i = blockIdx.x * blockDim.x + threadIdx.x;
 		if (i < batchSize) {
@@ -933,7 +933,7 @@
 				float diff = logf(adjustedPredicted) - logf(yExpected[j]);
 				loss += diff * diff;
 			}
-			losses[i] = loss / lineSize;
+			lossBuffer[i] = loss / lineSize;
 		}
 	}
 
@@ -954,7 +954,7 @@
 	}
 
 
-	__global__ void MaeLoss(int batchSize, int lineSize, float* losses, const float* __restrict yExpected, const float* __restrict yPredicted)
+	__global__ void MaeLossBuffer(int batchSize, int lineSize, float* lossBuffer, const float* __restrict yExpected, const float* __restrict yPredicted)
 	{
 		int i = blockIdx.x * blockDim.x + threadIdx.x;
 		if (i < batchSize) {
@@ -966,7 +966,7 @@
 				float diff = yExpected[j] - yPredicted[j];
 				loss += fabsf(diff);
 			}
-			losses[i] = loss / lineSize;
+			lossBuffer[i] = loss / lineSize;
 		}
 	}
 

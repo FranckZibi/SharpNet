@@ -1518,7 +1518,7 @@ public sealed class DataFrame
         var y_true_tensor = y_true_df.FloatCpuTensor();
         var y_pred_tensor = y_pred_df.FloatCpuTensor();
         using var buffer = new CpuTensor<float>(y_true_tensor.ComputeMetricBufferShape(metric));
-        var evaluationMetric = y_true_tensor.ComputeEvaluationMetric(y_pred_tensor, metric, buffer);
+        var evaluationMetric = buffer.ComputeEvaluationMetric(y_true_tensor, y_pred_tensor, metric);
         return new Score((float)evaluationMetric, metric);
     }
     public void fillna_inplace(float newFloatValue)

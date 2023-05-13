@@ -556,7 +556,7 @@ namespace SharpNet.Networks
             void CallBackAfterEachMiniBatch(Tensor yExpectedMiniBatch, Tensor yPredictedMiniBatch)
             {
                 MemoryPool.GetFloatTensor(ref _buffer, new[] { yExpectedMiniBatch.Shape[0] });
-                var blockLoss = yExpectedMiniBatch.ComputeEvaluationMetric(yPredictedMiniBatch, Sample.LossFunction, _buffer);
+                var blockLoss = _buffer.ComputeEvaluationMetric(yExpectedMiniBatch, yPredictedMiniBatch, Sample.LossFunction);
                 learningRateFinder.AddLossForLastBlockId(blockLoss);
             }
             MiniBatchGradientDescentForSingleEpoch(trainingDataSet, miniBatchSizeForAllWorkers, learningRateFinder, CallBackAfterEachMiniBatch, returnPredictionsForFullDataset: false, computeMetricsForFullDataset: false);
@@ -682,11 +682,11 @@ namespace SharpNet.Networks
                     double nbStepsByEpoch = ((double)trainingDataset.Count) / miniBatchSizeForAllWorkers;
                     var msByStep = (1000 * secondsForEpoch) / nbStepsByEpoch;
                     LogInfo("Epoch " + epoch + "/" + numEpochs + " - " + Math.Round(secondsForEpoch, 0) + "s " + Math.Round(msByStep, 0) + "ms/step - lr: "+Math.Round(learningRateAtEpochStart, 8)+" - "+lossAndAccuracyMsg+" - "+ ModelName);
-                    LogDebug(MemoryInfo());
+                    LogInfo(MemoryInfo());
                     //if it is the last epoch, we'll save Layer KPI
                     if (epoch == numEpochs)
                     {
-                        LogDebug(LayersKpi());
+                        LogInfo(LayersKpi());
                     }
 
                     #region we save stats about the just finished epoch
@@ -901,6 +901,11 @@ namespace SharpNet.Networks
         private int[] YExpected_MiniBatch_Shape(int miniBatchSize)
         {
             var YPredicted_MiniBatch_Shape = this.YPredicted_MiniBatch_Shape(miniBatchSize);
+            if (Utils.Product(YPredicted_MiniBatch_Shape) <= 0)
+            {
+                throw new ArgumentException($"invalid {nameof(YPredicted_MiniBatch_Shape)} shape: {Utils.ShapeToString(YPredicted_MiniBatch_Shape)}");
+            }
+
             if (Sample.LossFunction == EvaluationMetricEnum.SparseCategoricalCrossentropy)
             {
                 // the Y Predicted shape is of shape (a, embeddingDim)

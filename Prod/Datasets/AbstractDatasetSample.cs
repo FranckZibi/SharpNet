@@ -129,13 +129,19 @@ public abstract class AbstractDatasetSample : AbstractSample, IDisposable
             }
 
             var fullTrainingAndValidation = FullTrainingAndValidation();
-            var full = fullTrainingAndValidation as DataFrameDataSet;
-            if (full == null)
+            if (fullTrainingAndValidation is DataFrameDataSet full)
+            {
+                _cacheInputShape_CHW = full.XDataFrame.Shape.Skip(1).ToArray();
+                _cacheColumns = full.ColumnNames.ToArray();
+            }
+            else if (fullTrainingAndValidation is InMemoryDataSet inMemoryDataSet)
+            {
+                _cacheInputShape_CHW = inMemoryDataSet.X.Shape.Skip(1).ToArray();
+            }
+            else
             {
                 throw new ArgumentException($"can't compute shape for dataset type {fullTrainingAndValidation.GetType()}");
             }
-            _cacheInputShape_CHW = full.XDataFrame.Shape.Skip(1).ToArray();
-            _cacheColumns = full.ColumnNames.ToArray();
         }
         return _cacheInputShape_CHW;
     }

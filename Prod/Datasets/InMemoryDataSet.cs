@@ -90,6 +90,7 @@ public class InMemoryDataSet : DataSet
         return _elementIdToCategoryIndex[elementId];
     }
 
+    public CpuTensor<float> X => _x;
     public override CpuTensor<float> Y => _yInMemoryDataSet;
     public override string ToString()
     {

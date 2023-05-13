@@ -7,6 +7,7 @@ using JetBrains.Annotations;
 using SharpNet.CPU;
 using SharpNet.GPU;
 using SharpNet.Layers;
+using SharpNet.Networks;
 
 namespace SharpNet.Data
 {
@@ -921,14 +922,288 @@ namespace SharpNet.Data
         #region Compute of Loss and Metrics
 
         /// <summary>
-        /// this = expected (true) values
+        /// this = a temporary buffer
+        /// this method is only called for display / logging testing
         /// </summary>
+        /// <param name="yExpected">expected (true) values</param>
         /// <param name="yPredicted">what has been predicted by the ML</param>
         /// <param name="evaluationMetric"></param>
-        /// <param name="buffer">a temporary buffer</param>
         /// <returns></returns>
-        public abstract double ComputeEvaluationMetric(Tensor yPredicted, EvaluationMetricEnum evaluationMetric, Tensor buffer);
+        public double ComputeEvaluationMetric(Tensor yExpected, Tensor yPredicted, EvaluationMetricEnum evaluationMetric)
+        {
+            var buffer = this;
+            switch (evaluationMetric)
+            {
+                case EvaluationMetricEnum.PearsonCorrelation:
+                    return yExpected.ComputePearsonCorrelation(yPredicted);
+                case EvaluationMetricEnum.SpearmanCorrelation:
+                    return yExpected.ComputeSpearmanCorrelation(yPredicted);
+                case EvaluationMetricEnum.F1Micro:
+                    return buffer.F1PrecisionRecallMicro(yExpected, yPredicted).f1;
+                default:
+                    ComputeBufferForEvaluationMetric(yExpected, yPredicted, evaluationMetric);
+                    return BufferToEvaluationMetric(evaluationMetric, Count);
+            }
+        }
 
+        #region BinaryCrossentropy & CategoricalCrossentropy &  SparseCategoricalCrossentropy
+        public abstract void BinaryCrossentropyLossBuffer([NotNull] Tensor yExpected, [NotNull] Tensor yPredicted);
+        public double BinaryCrossentropyLoss(Tensor yExpected, Tensor yPredicted)
+        {
+            ComputeBufferForEvaluationMetric(yExpected, yPredicted, EvaluationMetricEnum.BinaryCrossentropy);
+            return BufferToEvaluationMetric(EvaluationMetricEnum.BinaryCrossentropy, Count);
+        }
+        /// <summary>
+        /// this = a buffer a vector of shape (batch_size)
+        /// </summary>
+        /// <param name="yExpectedOneHot"> yExpected one hot encoded
+        /// in each row there is the list of all associated class)
+        /// shape is (batch_size, numClass)</param>
+        /// <param name="yPredicted">
+        /// what has been predicted by the NN (in each row the biggest value is the NN favorite)
+        /// shape is (batch_size, numClass) </param>
+        /// <returns></returns>
+        public abstract void CategoricalCrossentropyLossBuffer([NotNull] Tensor yExpectedOneHot, [NotNull] Tensor yPredicted);
+        public double CategoricalCrossentropyLoss([NotNull] Tensor yExpectedOneHot, [NotNull] Tensor yPredicted)
+        {
+            ComputeBufferForEvaluationMetric(yExpectedOneHot, yPredicted, EvaluationMetricEnum.CategoricalCrossentropy);
+            return BufferToEvaluationMetric(EvaluationMetricEnum.CategoricalCrossentropy, Count);
+        }
+        public abstract void CategoricalCrossentropyWithHierarchyLossBuffer([NotNull] Tensor yExpected, [NotNull] Tensor yPredicted);
+        public double CategoricalCrossentropyWithHierarchyLoss(Tensor yExpected, Tensor yPredicted)
+        {
+            ComputeBufferForEvaluationMetric(yExpected, yPredicted, EvaluationMetricEnum.CategoricalCrossentropyWithHierarchy);
+            return BufferToEvaluationMetric(EvaluationMetricEnum.CategoricalCrossentropyWithHierarchy, Count);
+        }
+        /// <summary>
+        /// this = a buffer a vector of shape (batch_size)
+        /// </summary>
+        /// <param name="yExpectedSparse"> yExpected in a Sparse Matrix (in each row there is the index of the associated class)
+        ///        the shape is (batch_size, 1)</param>
+        /// <param name="yPredicted">
+        /// what has been predicted by the NN (in each row the biggest value is the NN favorite)
+        /// shape is (batch_size, numClass) </param>
+        /// <returns></returns>
+        public abstract void SparseCategoricalCrossentropyLossBuffer([NotNull] Tensor yExpectedSparse, [NotNull] Tensor yPredicted);
+        public double SparseCategoricalCrossentropyLoss([NotNull] Tensor yExpectedSparse, [NotNull] Tensor yPredicted)
+        {
+            ComputeBufferForEvaluationMetric(yExpectedSparse, yPredicted, EvaluationMetricEnum.SparseCategoricalCrossentropy);
+            return BufferToEvaluationMetric(EvaluationMetricEnum.SparseCategoricalCrossentropy, Count);
+        }
+        #endregion
+
+        #region Accuracy & SparceAccuracy & AccuracyCategoricalCrossentropyWithHierarchy
+        /// <summary>
+        /// this = a vector of shape (batch_size)
+        /// </summary>
+        /// <param name="yExpected">
+        /// yExpected in a Sparse Matrix (in each row there is the index of the associated class)
+        ///        the shape is (batch_size, 1) </param>
+        /// <param name="yPredicted">
+        /// what has been predicted by the NN (in each row the biggest value is the NN favorite)
+        /// shape is (batch_size, numClass) </param>
+        /// <returns></returns>
+        public abstract void ComputeSparseAccuracyBuffer([NotNull] Tensor yExpected, [NotNull] Tensor yPredicted);
+        public double ComputeSparseAccuracy(Tensor yExpectedSparse, Tensor yPredicted)
+        {
+            ComputeBufferForEvaluationMetric(yExpectedSparse, yPredicted, EvaluationMetricEnum.SparseAccuracy);
+            return BufferToEvaluationMetric(EvaluationMetricEnum.SparseAccuracy, Count);
+        }
+        public abstract void ComputeAccuracyCategoricalCrossentropyWithHierarchyBuffer([NotNull] Tensor yExpected, [NotNull] Tensor yPredicted);
+        public double ComputeAccuracyCategoricalCrossentropyWithHierarchy(Tensor yExpected, Tensor yPredicted)
+        {
+            ComputeBufferForEvaluationMetric(yExpected, yPredicted, EvaluationMetricEnum.AccuracyCategoricalCrossentropyWithHierarchy);
+            return BufferToEvaluationMetric(EvaluationMetricEnum.AccuracyCategoricalCrossentropyWithHierarchy, Count);
+        }
+        /// <summary>
+        /// this = buffer 
+        /// </summary>
+        /// <param name="yExpected">yExpected in one-hot encoding (in each row there are exactly one '1' , all other values being 0)</param>
+        /// <param name="yPredicted">what has been predicted by the NN (in each row the biggest value is the NN favorite)</param>
+        /// <returns></returns>
+        public abstract void ComputeAccuracyBuffer([NotNull] Tensor yExpected, [NotNull] Tensor yPredicted);
+        public double ComputeAccuracy([NotNull] Tensor yExpected, [NotNull] Tensor yPredicted)
+        {
+            ComputeBufferForEvaluationMetric(yExpected, yPredicted, EvaluationMetricEnum.Accuracy);
+            return BufferToEvaluationMetric(EvaluationMetricEnum.Accuracy, Count);
+        }
+        private static bool IsSparseMetric(EvaluationMetricEnum metricEnum)
+        {
+            return metricEnum == EvaluationMetricEnum.SparseCategoricalCrossentropy
+                   || metricEnum == EvaluationMetricEnum.SparseAccuracy;
+        }
+        #endregion
+
+        #region Huber
+        /// <summary>
+        /// this = buffer
+        /// Compute the Huber loss (see https://en.wikipedia.org/wiki/Huber_loss)
+        /// and stores it in the 'this' tensor
+        /// </summary>
+        /// <param name="yExpected">the expected values for the prediction</param>
+        /// <param name="yPredicted">the observed values for the prediction</param>
+        /// <param name="huberDelta"></param>
+        public abstract void HuberLossBuffer(Tensor yExpected, Tensor yPredicted, float huberDelta);
+        // ReSharper disable once UnusedParameter.Global
+        public double HuberLoss(Tensor yExpected, Tensor yPredicted, float huberDelta)
+        {
+            ComputeBufferForEvaluationMetric(yExpected, yPredicted, EvaluationMetricEnum.Huber);
+            return BufferToEvaluationMetric(EvaluationMetricEnum.Huber, Count);
+        }
+        #endregion
+        
+        #region Mae
+        public double MaeLoss(Tensor yExpected, Tensor yPredicted)
+        {
+            ComputeBufferForEvaluationMetric(yExpected, yPredicted, EvaluationMetricEnum.Mae);
+            return BufferToEvaluationMetric(EvaluationMetricEnum.Mae, Count);
+        }
+        /// <summary>
+        /// Mean Absolute Error
+        /// </summary>
+        /// <param name="yExpected"></param>
+        /// <param name="yPredicted"></param>
+        public abstract void MaeLossBuffer([NotNull] Tensor yExpected, [NotNull] Tensor yPredicted);
+        #endregion
+
+        #region Mse / Rmse
+        public double MseLoss(Tensor yExpected, Tensor yPredicted)
+        {
+            ComputeBufferForEvaluationMetric(yExpected, yPredicted, EvaluationMetricEnum.Mse);
+            return BufferToEvaluationMetric(EvaluationMetricEnum.Mse, Count);
+        }
+        public double RmseLoss(Tensor yExpected, Tensor yPredicted)
+        {
+            ComputeBufferForEvaluationMetric(yExpected, yPredicted, EvaluationMetricEnum.Mse);
+            return BufferToEvaluationMetric(EvaluationMetricEnum.Rmse, Count);
+        }
+        /// <summary>
+        /// MSE
+        /// </summary>
+        /// <param name="yExpected"></param>
+        /// <param name="yPredicted"></param>
+        public abstract void MseLossBuffer([NotNull] Tensor yExpected, [NotNull] Tensor yPredicted);
+
+        #endregion
+
+        #region MseOfLogLoss
+        /// <summary>
+        /// this = buffer
+        /// Compute the Mean Squared Error of log loss (MseOfLog loss) and stores it in the 'this' tensor
+        /// This loss is defined by:
+        ///     loss  = ( log( max(predicted,epsilon) ) - log(expected) ) ^2
+        /// </summary>
+        /// <param name="yExpected">the expected values for the prediction</param>
+        /// <param name="yPredicted">the observed values for the prediction</param>
+        /// <param name="epsilon">minimum allowed value for a prediction</param>
+        public abstract void MseOfLogLossBuffer(Tensor yExpected, Tensor yPredicted, float epsilon);
+
+        public double MseOfLogLoss(Tensor yExpected, Tensor yPredicted, float epsilon)
+        {
+            ComputeBufferForEvaluationMetric(yExpected, yPredicted, EvaluationMetricEnum.MseOfLog);
+            return BufferToEvaluationMetric(EvaluationMetricEnum.MseOfLog, Count);
+        }
+        #endregion
+
+        #region MeanSquaredLogError
+        public abstract void MeanSquaredLogErrorLossBuffer([NotNull] Tensor yExpected, [NotNull] Tensor yPredicted);
+        public double MeanSquaredLogErrorLoss(Tensor yExpected, Tensor yPredicted)
+        {
+            ComputeBufferForEvaluationMetric(yExpected, yPredicted, EvaluationMetricEnum.MeanSquaredLogError);
+            return BufferToEvaluationMetric(EvaluationMetricEnum.MeanSquaredLogError, Count);
+        }
+        #endregion
+
+        #region F1 score
+        public abstract (float f1, float precision, float recall) F1PrecisionRecallMicro(Tensor yExpected, Tensor yPredicted);
+        #endregion
+
+        #region Cosine Similarity
+        /// <summary>
+        /// Compute the Cosine Similarity Loss (see https://en.wikipedia.org/wiki/Cosine_similarity)
+        /// and stores it in the 'this' tensor
+        /// </summary>
+        /// <param name="yExpected">the expected values for the prediction</param>
+        /// <param name="yPredicted">the observed values for the prediction</param>
+        /// <param name="timeSeriesLength"></param>
+        public abstract void CosineSimilarityLossBuffer(Tensor yExpected, Tensor yPredicted, int timeSeriesLength);
+        #endregion
+
+        #region Pearson & Spearman Correlation
+        public abstract double ComputePearsonCorrelation([NotNull] Tensor y_pred);
+        public abstract double ComputeSpearmanCorrelation([NotNull] Tensor y_pred);
+        #endregion
+
+        // ReSharper disable once UnusedParameter.Global
+        public double BufferToEvaluationMetric(EvaluationMetricEnum evaluationMetric, int elementCountInBuffer)
+        {
+            var buffer = this;
+            if (evaluationMetric == EvaluationMetricEnum.Rmse)
+            {
+                return Math.Sqrt(buffer.BufferToEvaluationMetric(EvaluationMetricEnum.Mse, elementCountInBuffer));
+            }
+            return buffer.ContentAsFloatArray().Sum() / elementCountInBuffer;
+        }
+
+        public void ComputeBufferForEvaluationMetric(Tensor yExpected, Tensor yPredicted, EvaluationMetricEnum evaluationMetric)
+        {
+            var buffer = this;
+            switch (evaluationMetric)
+            {
+                case EvaluationMetricEnum.Accuracy:
+                    buffer.ComputeAccuracyBuffer(yExpected, yPredicted);
+                    return;
+                case EvaluationMetricEnum.SparseAccuracy:
+                    buffer.ComputeSparseAccuracyBuffer(yExpected, yPredicted);
+                    return;
+                case EvaluationMetricEnum.SparseCategoricalCrossentropy:
+                    buffer.SparseCategoricalCrossentropyLossBuffer(yExpected, yPredicted);
+                    return;
+                case EvaluationMetricEnum.PearsonCorrelation:
+                    throw new NotImplementedException();
+                //!D return yExpected.ComputePearsonCorrelation(yPredicted);
+                case EvaluationMetricEnum.SpearmanCorrelation:
+                    throw new NotImplementedException();
+                //!D return yExpected.ComputeSpearmanCorrelation(yPredicted);
+                case EvaluationMetricEnum.AccuracyCategoricalCrossentropyWithHierarchy:
+                    buffer.ComputeAccuracyCategoricalCrossentropyWithHierarchyBuffer(yExpected, yPredicted);
+                    return;
+                case EvaluationMetricEnum.BinaryCrossentropy:
+                    buffer.BinaryCrossentropyLossBuffer(yExpected, yPredicted);
+                    return;
+                case EvaluationMetricEnum.CategoricalCrossentropy:
+                    buffer.CategoricalCrossentropyLossBuffer(yExpected, yPredicted);
+                    return;
+                case EvaluationMetricEnum.CategoricalCrossentropyWithHierarchy:
+                    buffer.CategoricalCrossentropyWithHierarchyLossBuffer(yExpected, yPredicted);
+                    return;
+                case EvaluationMetricEnum.Huber:
+                    const float huberDelta = 1.0f;
+                    buffer.HuberLossBuffer(yExpected, yPredicted, huberDelta);
+                    return;
+                case EvaluationMetricEnum.F1Micro:
+                    throw new NotImplementedException();
+                //!D return buffer.F1PrecisionRecallMicro(yExpected, yPredicted).f1;
+                case EvaluationMetricEnum.Mse:
+                    buffer.MseLossBuffer(yExpected, yPredicted);
+                    return;
+                case EvaluationMetricEnum.Rmse:
+                    //RMSE and MSE are using the same buffer
+                    buffer.MseLossBuffer(yExpected, yPredicted);
+                    return;
+                case EvaluationMetricEnum.Mae:
+                    buffer.MaeLossBuffer(yExpected, yPredicted);
+                    return;
+                case EvaluationMetricEnum.MseOfLog:
+                    buffer.MseOfLogLossBuffer(yExpected, yPredicted, NetworkSample.Default_MseOfLog_Loss);
+                    return;
+                case EvaluationMetricEnum.MeanSquaredLogError:
+                    buffer.MeanSquaredLogErrorLossBuffer(yExpected, yPredicted);
+                    return;
+                default:
+                    throw new NotImplementedException("don't know how to calculate cost for " + evaluationMetric);
+            }
+        }
 
         public int[] ComputeMetricBufferShape(EvaluationMetricEnum metricEnum)
         {
@@ -938,20 +1213,6 @@ namespace SharpNet.Data
             }
             return new[] { Shape[0] };
         }
-
-        public static bool IsSparseMetric(EvaluationMetricEnum metricEnum)
-        {
-            return metricEnum == EvaluationMetricEnum.SparseCategoricalCrossentropy
-                   || metricEnum == EvaluationMetricEnum.SparseAccuracy;
-        }
-
-        /// <summary>
-        /// this = yExpected in one-hot encoding (in each row there are exactly one '1' , all other values being 0)
-        /// </summary>
-        /// <param name="yPredicted">what has been predicted by the NN (in each row the biggest value is the NN favorite)</param>
-        /// <param name="buffer"></param>
-        /// <returns></returns>
-        public abstract double ComputeAccuracy([NotNull] Tensor yPredicted, [NotNull] Tensor buffer);
 
         /// <summary>
         /// if yPredicted is a 3D Tensors:
@@ -995,62 +1256,10 @@ namespace SharpNet.Data
             return (yExpectedSparse, yPredicted, yPredictedGradientIfAny);
         }
 
-        /// <summary>
-        /// this = yExpected in a Sparse Matrix (in each row there is the index of the associated class)
-        ///        the shape is (batch_size, 1)
-        /// </summary>
-        /// <param name="yPredicted">
-        /// what has been predicted by the NN (in each row the biggest value is the NN favorite)
-        /// shape is (batch_size, numClass) </param>
-        /// <param name="buffer">a vector of shape (batch_size) </param>
-        /// <returns></returns>
-        public abstract double ComputeSparseAccuracy([NotNull] Tensor yPredicted, [NotNull] Tensor buffer);
-
-        /// <summary>
-        /// this = yExpected in a Sparse Matrix (in each row there is the index of the associated class)
-        ///        the shape is (batch_size, 1)
-        /// </summary>
-        /// <param name="yPredicted">
-        /// what has been predicted by the NN (in each row the biggest value is the NN favorite)
-        /// shape is (batch_size, numClass) </param>
-        /// <param name="buffer">a vector of shape (batch_size) </param>
-        /// <returns></returns>
-        public abstract double SparseCategoricalCrossentropyLoss([NotNull] Tensor yPredicted, [NotNull] Tensor buffer);
-
-        public abstract double ComputeAccuracyCategoricalCrossentropyWithHierarchy([NotNull] Tensor yPredicted, [NotNull] Tensor buffer);
-
-
-        /// <summary>
-        /// Compute the Huber loss (see https://en.wikipedia.org/wiki/Huber_loss)
-        /// and stores it in the 'this' tensor
-        /// </summary>
-        /// <param name="yExpected">the expected values for the prediction</param>
-        /// <param name="yPredicted">the observed values for the prediction</param>
-        /// <param name="huberDelta"></param>
-        public abstract void HuberLoss(Tensor yExpected, Tensor yPredicted, float huberDelta);
-
-        /// <summary>
-        /// Compute the Mean Squared Error of log loss (MseOfLog loss) and stores it in the 'this' tensor
-        /// This loss is defined by:
-        ///     loss  = ( log( max(predicted,epsilon) ) - log(expected) ) ^2
-        /// </summary>
-        /// <param name="yExpected">the expected values for the prediction</param>
-        /// <param name="yPredicted">the observed values for the prediction</param>
-        /// <param name="epsilon">minimum allowed value for a prediction</param>
-        public abstract void MseOfLogLoss(Tensor yExpected, Tensor yPredicted, float epsilon);
-
-        public abstract (float f1, float precision, float recall) F1PrecisionRecallMicro(Tensor yExpected, Tensor yPredicted);
-
-        /// <summary>
-        /// Compute the Cosine Similarity Loss (see https://en.wikipedia.org/wiki/Cosine_similarity)
-        /// and stores it in the 'this' tensor
-        /// </summary>
-        /// <param name="yExpected">the expected values for the prediction</param>
-        /// <param name="yPredicted">the observed values for the prediction</param>
-        /// <param name="timeSeriesLength"></param>
-        public abstract void CosineSimilarityLoss(Tensor yExpected, Tensor yPredicted, int timeSeriesLength);
 
         #endregion
+
+
 
 
         #region Compute of Gradients (for backward propagation)
