@@ -4,7 +4,6 @@ using System.Diagnostics;
 using System.Linq;
 using JetBrains.Annotations;
 using SharpNet.CPU;
-using SharpNet.Datasets.CFM60;
 
 namespace SharpNet.Datasets;
 
@@ -24,8 +23,7 @@ public class DataFrameDataSet : DataSet, IGetDatasetSample
         AbstractDatasetSample datasetSample,
         [NotNull] DataFrame x_df,
         [CanBeNull] DataFrame y_df,
-        [CanBeNull] string[] y_IDs,
-        bool useBackgroundThreadToLoadNextMiniBatch = false)
+        [CanBeNull] string[] y_IDs)
         : base(datasetSample.Name,
             datasetSample.GetObjective(),
             x_df.Shape[1],
@@ -35,7 +33,6 @@ public class DataFrameDataSet : DataSet, IGetDatasetSample
             Utils.Intersect(x_df.Columns, datasetSample.CategoricalFeatures).ToArray(),
             datasetSample.IdColumn,
             y_IDs,
-            useBackgroundThreadToLoadNextMiniBatch,
             datasetSample.GetSeparator())
     {
         DatasetSample = datasetSample;

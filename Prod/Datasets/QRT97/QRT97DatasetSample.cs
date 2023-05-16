@@ -217,8 +217,8 @@ public class QRT97DatasetSample : AbstractDatasetSample
         var yTrain_Encoded = DatasetEncoder.Transform(y_training_raw[TargetLabels]);
         var xtest_Encoded = DatasetEncoder.Transform(xtest);
 
-        var fullTrainingAndValidation = new DataFrameDataSet(this, xTrain_Encoded, yTrain_Encoded, y_training_raw.StringColumnContent(IdColumn), false);
-        var testDataset = new DataFrameDataSet(this, xtest_Encoded, null, y_test_random_raw.StringColumnContent(IdColumn), false);
+        var fullTrainingAndValidation = new DataFrameDataSet(this, xTrain_Encoded, yTrain_Encoded, y_training_raw.StringColumnContent(IdColumn));
+        var testDataset = new DataFrameDataSet(this, xtest_Encoded, null, y_test_random_raw.StringColumnContent(IdColumn));
 
         Log.Debug($"{nameof(LoadAndEncodeDataset_If_Needed)} for key {key} took {sw.Elapsed.Seconds} s");
         return (fullTrainingAndValidation, testDataset);

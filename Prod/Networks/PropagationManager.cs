@@ -85,6 +85,7 @@ namespace SharpNet.Networks
                     // But all elements in the same batch must have exactly the same shape
                     ((InputLayer)layer).SetInputHeightAndWidth(X.Shape.Length >= 3 ? X.Shape[2] : -1, X.Shape.Length >= 4 ? X.Shape[3] : -1);
                     _all_allocated_Y.Add(X);
+                    yBuffer = X;
                 }
                 else
                 {

@@ -7,21 +7,7 @@ using SharpNet.CPU;
 using SharpNet.Data;
 using SharpNet.Networks;
 
-namespace SharpNet.Datasets.CFM60;
-
-
-public interface TimeSeriesSinglePoint
-{
-    string UniqueId { get; }
-    string TimeSeriesFamily { get; }
-    float TimeSeriesTimeStamp { get; }
-    float ExpectedTarget { get; } //y
-}
-
-public interface IGetDatasetSample
-{
-    AbstractDatasetSample GetDatasetSample();
-}
+namespace SharpNet.Datasets;
 
 public class TimeSeriesDataset : DataSet, ITimeSeriesDataSet, IGetDatasetSample
 {
@@ -93,13 +79,10 @@ public class TimeSeriesDataset : DataSet, ITimeSeriesDataSet, IGetDatasetSample
         return result;
     }
 
-    public override ITrainingAndTestDataset IntSplitIntoTrainingAndValidation(int countInTrainingSet)
+    public override ITrainingAndTestDataset IntSplitIntoTrainingAndValidation(int countInTrainingSet, bool shuffleDatasetBeforeSplit, bool stratifiedDatasetForSplit)
     {
-        return SplitIntoTrainingAndValidation(((float)countInTrainingSet) / Entries.Length);
-    }
-    public override ITrainingAndTestDataset SplitIntoTrainingAndValidation(double percentageInTrainingSet)
-    {
-        float dayThreshold = DayThreshold(Entries, percentageInTrainingSet);
+        Debug.Assert(shuffleDatasetBeforeSplit == false);
+        float dayThreshold = DayThreshold(Entries, countInTrainingSet);
         var training = new TimeSeriesDataset(
             Name,
             Entries.Where(e => e.TimeSeriesTimeStamp <= dayThreshold).ToArray(),
@@ -119,11 +102,10 @@ public class TimeSeriesDataset : DataSet, ITimeSeriesDataSet, IGetDatasetSample
         throw new NotImplementedException();
     }
 
-    public static float DayThreshold(IList<TimeSeriesSinglePoint> entries, double percentageInTrainingSet)
+    public static float DayThreshold(IList<TimeSeriesSinglePoint> entries, int countInTrainingSet)
     {
         var sortedDays = entries.Select(e => e.TimeSeriesTimeStamp).OrderBy(x => x).ToArray();
-        var countInTraining = (int)(percentageInTrainingSet * entries.Count);
-        var dayThreshold = sortedDays[countInTraining];
+        var dayThreshold = sortedDays[countInTrainingSet];
         return dayThreshold;
     }
 
@@ -183,7 +165,6 @@ public class TimeSeriesDataset : DataSet, ITimeSeriesDataSet, IGetDatasetSample
             datasetSample.CategoricalFeatures,
             datasetSample.IdColumn,
             null, //TODO
-            UseBackgroundThreadToLoadNextMiniBatchV2(trainingDataSetOldIfAny),
             ',')
     {
         EncoderDecoder_NetworkSample = networkSample;
@@ -289,17 +270,6 @@ public class TimeSeriesDataset : DataSet, ITimeSeriesDataSet, IGetDatasetSample
                 }
             }
         }
-
-    }
-    private static bool UseBackgroundThreadToLoadNextMiniBatchV2(TimeSeriesDataset trainingDataSetOldIfAny)
-    {
-        if (trainingDataSetOldIfAny != null)
-        {
-            //for Validation/Test DataSet, we should not use a background thread for loading next mini batch data
-            return false;
-        }
-        //for Training DataSet, we should use background thread for loading next mini batch
-        return true;
     }
 
 

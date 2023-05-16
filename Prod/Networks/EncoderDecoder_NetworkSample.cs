@@ -164,9 +164,9 @@ public class EncoderDecoder_NetworkSample: NetworkSample
 
     public override bool MustUseGPU => EncoderDecoder_NetworkSample_UseGPU;
 
-    public override void BuildLayers(Network network, AbstractDatasetSample datasetSample)
+    public override void BuildLayers(Network nn, AbstractDatasetSample datasetSample)
     {
-        network.Input_and_Embedding_if_required(datasetSample, Pid_EmbeddingDim, lambdaL2Regularization, ClipValueForGradients);
+        nn.Input_and_Embedding_if_required(datasetSample, Pid_EmbeddingDim, lambdaL2Regularization, ClipValueForGradients);
         //network.Input(Encoder_TimeSteps, Encoder_InputSize, -1);
         //if (Pid_EmbeddingDim >= 1)
         //{
@@ -175,77 +175,77 @@ public class EncoderDecoder_NetworkSample: NetworkSample
 
         if (InputNormalizationType == InputNormalizationEnum.BATCH_NORM_LAYER || InputNormalizationType == InputNormalizationEnum.DEDUCE_MEAN_AND_BATCH_NORM_LAYER)
         {
-            network.SwitchSecondAndThirdDimension(true);
-            network.BatchNorm(0.99, 1e-5);
-            network.SwitchSecondAndThirdDimension(false);
+            nn.SwitchSecondAndThirdDimension(true);
+            nn.BatchNorm(0.99, 1e-5);
+            nn.SwitchSecondAndThirdDimension(false);
         }
 
         if (UseConv1D)
         {
-            network.Conv1D(Encoder_TimeSteps, Conv1DKernelWidth, 1, Conv1DPaddingType, network.Sample.lambdaL2Regularization, true);
+            nn.Conv1D(Encoder_TimeSteps, Conv1DKernelWidth, 1, Conv1DPaddingType, nn.Sample.lambdaL2Regularization, true);
 
             if (UseBatchNormAfterConv1D)
             {
-                network.BatchNorm(0.99, 1e-5);
+                nn.BatchNorm(0.99, 1e-5);
             }
             if (UseReluAfterConv1D)
             {
-                network.Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_CLIPPED_RELU, null);
+                nn.Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_CLIPPED_RELU, null);
             }
         }
 
         //We add the Encoder
         if (Use_GRU_instead_of_LSTM)
         {
-            network.GRU(HiddenSize, false, Use_Bidirectional_RNN, Encoder_NumLayers, Encoder_DropoutRate, Use_Decoder);
+            nn.GRU(HiddenSize, false, Use_Bidirectional_RNN, Encoder_NumLayers, Encoder_DropoutRate, Use_Decoder);
         }
         else
         {
-            network.LSTM(HiddenSize, false, Use_Bidirectional_RNN, Encoder_NumLayers, Encoder_DropoutRate, Use_Decoder);
+            nn.LSTM(HiddenSize, false, Use_Bidirectional_RNN, Encoder_NumLayers, Encoder_DropoutRate, Use_Decoder);
         }
 
         if (UseBatchNorm2)
         {
-            network.SwitchSecondAndThirdDimension(true);
+            nn.SwitchSecondAndThirdDimension(true);
 
             //TO TEST:  network.BatchNorm(0.0, 1e-5);
-            network.BatchNorm(0.99, 1e-5);
-            network.SwitchSecondAndThirdDimension(false);
+            nn.BatchNorm(0.99, 1e-5);
+            nn.SwitchSecondAndThirdDimension(false);
         }
 
         if (Use_Decoder && DropoutRate_Between_Encoder_And_Decoder >= 1e-6)
         {
-            network.Dropout(DropoutRate_Between_Encoder_And_Decoder);
+            nn.Dropout(DropoutRate_Between_Encoder_And_Decoder);
         }
 
         //We add the Decoder
         if (Use_Decoder)
         {
-            int encoderLayerIndex = network.Layers.Count - 1;
-            network.Input(Decoder_TimeSteps, ((DatasetSampleForTimeSeries)datasetSample).GetInputSize(false), -1);
+            int encoderLayerIndex = nn.Layers.Count - 1;
+            nn.Input(Decoder_TimeSteps, ((DatasetSampleForTimeSeries)datasetSample).GetInputSize(false), -1);
             if (Pid_EmbeddingDim >= 1)
             {
-                network.Embedding(new[] { CFM60Entry.DISTINCT_PID_COUNT }, new[] { Pid_EmbeddingDim }, new[] { 0 }, network.Sample.lambdaL2Regularization, ClipValueForGradients, DivideGradientsByTimeSteps);
+                nn.Embedding(new[] { CFM60Entry.DISTINCT_PID_COUNT }, new[] { Pid_EmbeddingDim }, new[] { 0 }, nn.Sample.lambdaL2Regularization, ClipValueForGradients, DivideGradientsByTimeSteps);
             }
-            network.DecoderLayer(encoderLayerIndex, Decoder_NumLayers, Decoder_DropoutRate);
+            nn.DecoderLayer(encoderLayerIndex, Decoder_NumLayers, Decoder_DropoutRate);
         }
 
 
         if (DropoutRate_After_EncoderDecoder >= 1e-6)
         {
-            network.Dropout(DropoutRate_After_EncoderDecoder);
+            nn.Dropout(DropoutRate_After_EncoderDecoder);
         }
 
-        network.Dense(DenseUnits, network.Sample.lambdaL2Regularization, true)
+        nn.Dense(DenseUnits, nn.Sample.lambdaL2Regularization, true)
             .Activation(ActivationFunctionAfterFirstDense);
-        network.Dense(1, network.Sample.lambdaL2Regularization, true);
-        network.Flatten();
+        nn.Dense(1, nn.Sample.lambdaL2Regularization, true);
+        nn.Flatten();
 
         if (WithSpecialEndV1)
         {
-            network.Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID);
-            network.Linear(2, 0);
-            network.Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_LN);
+            nn.Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID);
+            nn.Linear(2, 0);
+            nn.Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_LN);
         }
     }
 

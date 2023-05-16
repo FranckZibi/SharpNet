@@ -114,67 +114,6 @@ public bool use_market_correl_r_day_equity;
         return new TrainingAndTestDataset(training, test, Name);
     }
 
-    /*
-    public override List<TrainingAndTestDataset> KFoldSplit(DataSet fullDataset0, int kfold, int countMustBeMultipleOf)
-    {
-        if (fullDataset0 is not DataFrameDataSet dataset)
-        {
-            throw new InvalidEnumArgumentException($"dataset must be a {nameof(DataFrameDataSet)}");
-        }
-        if (x_training_raw.Shape[0] != dataset.Count)
-        {
-            throw new InvalidEnumArgumentException($"dataset must have the same number of rows as {nameof(x_training_raw)}");
-        }
-
-        var days = x_training_raw.IntColumnContent("day");
-
-        var dayToIndexes = new Dictionary<int, HashSet<int>>();
-        for (int index = 0; index < days.Length; index++)
-        {
-            var day = days[index];
-            if (!dayToIndexes.TryGetValue(day, out var indexes))
-            {
-                indexes = new HashSet<int>();
-                dayToIndexes.Add(day, indexes);
-            }
-            indexes.Add(index);
-        }
-
-        var kfoldToIndexes = new List<HashSet<int>>();
-        while (kfoldToIndexes.Count < kfold)
-        {
-            kfoldToIndexes.Add(new HashSet<int>());
-        }
-
-        var indexesForEachDay = dayToIndexes.OrderBy(e=>e.Key).Select(t=>t.Value).ToList();
-        if (RandomizeOrderWhileTraining)
-        {
-            Utils.Shuffle(indexesForEachDay, new Random(0));
-        }
-        foreach (var dayIndexes in indexesForEachDay)
-        {
-            int indexSmallestGroup = 0;
-            for (int k = 1; k < kfold; k++)
-            {
-                if (kfoldToIndexes[k].Count < kfoldToIndexes[indexSmallestGroup].Count)
-                {
-                    indexSmallestGroup = k;
-                }
-            }
-            kfoldToIndexes[indexSmallestGroup].UnionWith(dayIndexes);
-        }
-        List<TrainingAndTestDataset> res = new();
-        for (var k = 0; k < kfold; k++)
-        {
-            var k_copy = k;
-            var training = dataset.SubDataSet(id => !kfoldToIndexes[k_copy].Contains(id));
-            var test = dataset.SubDataSet(id => kfoldToIndexes[k_copy].Contains(id));
-            res.Add(new TrainingAndTestDataset(training, test, KFoldModel.KFoldModelNameEmbeddedModelName(CFM84Utils.NAME, k)));
-        }
-        return res;
-    }
-    */
-    
     private (DataFrameDataSet fullTrainingAndValidation, DataFrameDataSet testDataset) LoadAndEncodeDataset_If_Needed()
     {
         var sw = Stopwatch.StartNew();
@@ -201,8 +140,8 @@ public bool use_market_correl_r_day_equity;
         var yTrain_Encoded_OneHot = yTrain_Encoded_Sparse.FromSparseToOneHotEncoding(NumClass);
         var xtest_Encoded = DatasetEncoder.Transform(xtest);
 
-        var fullTrainingAndValidation = new DataFrameDataSet(this, xTrain_Encoded, yTrain_Encoded_OneHot, y_training_raw.StringColumnContent(IdColumn), false);
-        var testDataset = new DataFrameDataSet(this, xtest_Encoded, null, y_test_random_raw.StringColumnContent(IdColumn), false);
+        var fullTrainingAndValidation = new DataFrameDataSet(this, xTrain_Encoded, yTrain_Encoded_OneHot, y_training_raw.StringColumnContent(IdColumn));
+        var testDataset = new DataFrameDataSet(this, xtest_Encoded, null, y_test_random_raw.StringColumnContent(IdColumn));
 
         //CacheDataset.TryAdd(key, Tuple.Create(fullTrainingAndValidation, testDataset, DatasetEncoder));
         Log.Debug($"{nameof(LoadAndEncodeDataset_If_Needed)} for key {key} took {sw.Elapsed.Seconds} s");

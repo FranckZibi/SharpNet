@@ -284,8 +284,8 @@ public class Natixis70DatasetSample : AbstractDatasetSample
 
         DatasetEncoder.FitMissingCategoricalColumns(xTrain_Encoded_InModelFormat, xTest_Encoded_InModelFormat);
 
-        var fullTrainingAndValidation = new DataFrameDataSet(this, xTrain_Encoded_InModelFormat, yTrain_Encoded_InModelFormat, xTrain_InTargetFormat.StringColumnContent(IdColumn), false);
-        var testDataset = new DataFrameDataSet(this, xTest_Encoded_InModelFormat, null, xTest_InTargetFormat.StringColumnContent(IdColumn), false);
+        var fullTrainingAndValidation = new DataFrameDataSet(this, xTrain_Encoded_InModelFormat, yTrain_Encoded_InModelFormat, xTrain_InTargetFormat.StringColumnContent(IdColumn));
+        var testDataset = new DataFrameDataSet(this, xTest_Encoded_InModelFormat, null, xTest_InTargetFormat.StringColumnContent(IdColumn));
         CacheDataset.TryAdd(key, Tuple.Create(fullTrainingAndValidation, testDataset, DatasetEncoder));
         return (fullTrainingAndValidation, testDataset);
     }

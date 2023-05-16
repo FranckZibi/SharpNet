@@ -8,8 +8,8 @@ namespace SharpNet.Datasets.Biosonar85;
 public class Biosonar85DatasetSample : AbstractDatasetSample
 {
     #region private fields
-    private InMemoryDataSet trainDataset;
-    private InMemoryDataSet testDataset;
+    private static readonly InMemoryDataSet trainDataset;
+    private static readonly InMemoryDataSet testDataset;
     #endregion
     
     #region public fields & properties
@@ -17,11 +17,21 @@ public class Biosonar85DatasetSample : AbstractDatasetSample
     #endregion
 
     #region HyperParameters
-    
+
+    public bool UseTransformers = false;
     #endregion
 
 
-
+    static Biosonar85DatasetSample()
+    {
+        var sw = Stopwatch.StartNew();
+        Log.Debug($"Starting loading raw files");
+        trainDataset = Biosonar85Utils.Load("X_train_23168_101_64_1024_512.bin", "Y_train_23168_1_64_1024_512.bin", "Y_train_ofTdMHi.csv");
+        //trainDataset = Biosonar85Utils.Load("X_train_small_1000_101_64_1024_512.bin", "Y_train_small_1000_1_64_1024_512.bin", "Y_train_small.csv", true);
+        //AddToDispose(trainDataset);
+        testDataset = Biosonar85Utils.Load("X_test_950_101_64_1024_512.bin", null, "Y_random_Xwjr6aB.csv");
+        Log.Info($"Loading of raw files took {sw.Elapsed.Seconds}s");
+    }
 
     public Biosonar85DatasetSample() : base(new HashSet<string>())
     {
@@ -59,15 +69,15 @@ public class Biosonar85DatasetSample : AbstractDatasetSample
     
     private (InMemoryDataSet fullTrainingAndValidation, InMemoryDataSet testDataset) LoadAndEncodeDataset_If_Needed()
     {
-        if (trainDataset == null)
+        if (UseTransformers && trainDataset.X.Shape.Length == 4)
         {
-            var sw = Stopwatch.StartNew();
-            Log.Debug($"Starting loading raw files");
-            trainDataset = Biosonar85Utils.Load("X_train_23168_101_64_1024_512.bin", "Y_train_23168_1_64_1024_512.bin", "Y_train_ofTdMHi.csv", true);
-            //trainDataset = Biosonar85Utils.Load("X_train_small_1000_101_64_1024_512.bin", "Y_train_small_1000_1_64_1024_512.bin", "Y_train_small.csv", true);
-            AddToDispose(trainDataset);
-            testDataset = Biosonar85Utils.Load("X_test_950_101_64_1024_512.bin", "Y_test_950_1_64_1024_512.bin", "Y_random_Xwjr6aB.csv", false);
-            Log.Info($"Loading of raw files took {sw.Elapsed.Seconds}s");
+            trainDataset.X.ReshapeInPlace(trainDataset.X.Shape[0], trainDataset.X.Shape[2], trainDataset.X.Shape[3]);
+            testDataset.X.ReshapeInPlace(trainDataset.X.Shape);
+        }
+        if (!UseTransformers && trainDataset.X.Shape.Length == 3)
+        {
+            trainDataset.X.ReshapeInPlace(trainDataset.X.Shape[0], 1, trainDataset.X.Shape[1], trainDataset.X.Shape[2]);
+            testDataset.X.ReshapeInPlace(trainDataset.X.Shape);
         }
 
         return (trainDataset, testDataset);

@@ -59,7 +59,7 @@ namespace SharpNet.Datasets
         /// name of the Id Column, null or empty if no Id columns are available
         /// </summary>
         [NotNull] public string IdColumn { get; }
-        public bool UseBackgroundThreadToLoadNextMiniBatch { get; }
+
         public char Separator { get; }
         #endregion
 
@@ -73,7 +73,6 @@ namespace SharpNet.Datasets
             [NotNull] string[] categoricalFeatures,
             string idColumn,
             [CanBeNull] string[] Y_IDs,
-            bool useBackgroundThreadToLoadNextMiniBatch,
             char separator)
         {
             Name = name;
@@ -85,7 +84,6 @@ namespace SharpNet.Datasets
             Separator = separator;
             IdColumn = idColumn;
             this.Y_IDs = Y_IDs;
-            UseBackgroundThreadToLoadNextMiniBatch = useBackgroundThreadToLoadNextMiniBatch;
 
             _rands = new Random[2 * Environment.ProcessorCount];
             for (int i = 0; i < _rands.Length; ++i)
@@ -100,12 +98,6 @@ namespace SharpNet.Datasets
                 categoricalFeatures = Utils.Intersect(categoricalFeatures, ColumnNames).ToArray();
             }
             CategoricalFeatures = categoricalFeatures;
-
-            if (UseBackgroundThreadToLoadNextMiniBatch)
-            {
-                thread = new Thread(BackgroundThread);
-                thread.Start();
-            }
         }
         #endregion
 
@@ -173,7 +165,7 @@ namespace SharpNet.Datasets
             yMiniBatch.AssertIsNotDisposed();
 
             int elementsActuallyLoaded;
-            if (UseBackgroundThreadToLoadNextMiniBatch)
+            if (HasBackgroundThreadRunning)
             {
                 //if the background thread is working, we'll wait until it finishes
                 backgroundThreadIsIdle.WaitOne();
@@ -232,7 +224,7 @@ namespace SharpNet.Datasets
             //we check if we can start compute the next mini batch content in advance
             int firstIndexInShuffledElementIdForNextMiniBatch = firstIndexInShuffledElementId + all_xMiniBatches[0].Shape[0];
             int nextMiniBatchSize = Math.Min(shuffledElementId.Length - firstIndexInShuffledElementIdForNextMiniBatch, all_xMiniBatches[0].Shape[0]);
-            if (UseBackgroundThreadToLoadNextMiniBatch && nextMiniBatchSize > 0)
+            if (HasBackgroundThreadRunning && nextMiniBatchSize > 0)
             {
                 //we will ask the background thread to compute the next mini batch
                 backgroundThreadIsIdle.WaitOne();
@@ -526,21 +518,11 @@ namespace SharpNet.Datasets
                 all_xBufferForDataAugmentedMiniBatch.Clear();
                 yDataAugmentedMiniBatch?.Dispose();
             }
-            if (UseBackgroundThreadToLoadNextMiniBatch)
-            {
-                //we stop the background thread
-                threadParameters = null;
-                shouldStopBackgroundThread = true;
-                backgroundThreadIsIdle.WaitOne(1000);
-                backgroundThreadHasSomethingTodo.Set();
-                Thread.Sleep(10);
-                if (thread.IsAlive)
-                {
-                    // ReSharper disable once InconsistentlySynchronizedField
-                    Log.Info("fail to stop BackgroundThread in " + Name);
-                }
-            }
+            StopBackgroundThreadToLoadNextMiniBatchIfNeeded();
         }
+
+
+     
         ~DataSet()
         {
             Dispose(false);
@@ -563,16 +545,48 @@ namespace SharpNet.Datasets
         public int TypeSize => 4; //float size
         public override string ToString() {return Name;}
 
-        public virtual ITrainingAndTestDataset SplitIntoTrainingAndValidation(double percentageInTrainingSet)
+        public ITrainingAndTestDataset SplitIntoTrainingAndValidation(double percentageInTrainingSet, bool shuffleDatasetBeforeSplit, bool stratifiedDatasetForSplit)
         {
             int countInTrainingSet = (int)(percentageInTrainingSet * Count+0.1);
-            return IntSplitIntoTrainingAndValidation(countInTrainingSet);
+            return IntSplitIntoTrainingAndValidation(countInTrainingSet, shuffleDatasetBeforeSplit, stratifiedDatasetForSplit);
         }
-        public virtual ITrainingAndTestDataset IntSplitIntoTrainingAndValidation(int countInTrainingSet)
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="countInTrainingSet"></param>
+        /// <param name="shuffleDatasetBeforeSplit">if we should shuffle the dataset *before* doing the split </param>
+        /// <param name="stratifiedDatasetBeforeSplit">
+        /// in classification task :
+        ///     when doing the split, if we should make sure that split has the same percentage of each category as in the original dataset
+        /// in regression task :
+        ///     it has no effect
+        /// </param>
+        /// <returns></returns>
+        public virtual ITrainingAndTestDataset IntSplitIntoTrainingAndValidation(int countInTrainingSet, bool shuffleDatasetBeforeSplit, bool stratifiedDatasetBeforeSplit)
         {
-            var training = SubDataSet(id => id < countInTrainingSet);
-            var test = SubDataSet(id => id >= countInTrainingSet);
-            return new TrainingAndTestDataset(training, test, Name);
+            if (stratifiedDatasetBeforeSplit)
+            {
+                if (IsRegressionProblem)
+                {
+                    throw new ArgumentException($"stratifiedDatasetBeforeSplit is not supported for regression problem, only for classification");
+                }
+                throw new NotImplementedException("stratifiedDatasetBeforeSplit is not implemented yet");
+            }
+            var allIds = Enumerable.Range(0, Count).ToList();
+            if (shuffleDatasetBeforeSplit)
+            {
+                Utils.Shuffle(allIds, _rands[0]);
+            }
+
+            //allIds = allIds.Take(1_000).ToList();
+            //countInTrainingSet = Utils.NearestInt( ((float)countInTrainingSet / Count) * allIds.Count );
+
+            var idsInTraining = new HashSet<int>(allIds.Take(countInTrainingSet));
+            var idsInValidation = new HashSet<int>(allIds.Skip(countInTrainingSet));
+            var training = SubDataSet(id => idsInTraining.Contains(id));
+            var validation = SubDataSet(id => idsInValidation.Contains(id));
+            return new TrainingAndTestDataset(training, validation, Name);
         }
 
         public static bool AreCompatible_X_Y(Tensor X, Tensor Y)
@@ -988,21 +1002,21 @@ namespace SharpNet.Datasets
             return desc;
         }
 
-        #region Processing Thread management
+        #region Background Thread management
         /// <summary>
         /// true if we should use a separate thread to load the content of the next mini batch
         /// while working on the current mini batch
         /// </summary>
-        private readonly Thread thread;
+        private Thread backgroundThreadToLoadNextMiniBatch = null;
         private Tuple<bool, bool, int[], int, NetworkSample, List<int[]>, int[]> threadParameters;
-        private readonly AutoResetEvent backgroundThreadHasSomethingTodo = new AutoResetEvent(false);
-        private readonly AutoResetEvent backgroundThreadIsIdle = new AutoResetEvent(false);
+        private readonly AutoResetEvent backgroundThreadHasSomethingTodo = new(false);
+        private readonly AutoResetEvent backgroundThreadIsIdle = new(false);
         private bool shouldStopBackgroundThread = false;
         /// <summary>
         /// number of elements actually loaded by the background thread
         /// </summary>
         private int elementsActuallyLoadedByBackgroundThread = 0;
-        private void BackgroundThread()
+        private void BackgroundThreadToLoadNextMiniBatchMethod()
         {
             for (; ; )
             {
@@ -1018,6 +1032,38 @@ namespace SharpNet.Datasets
                 // ReSharper disable once PossibleNullReferenceException
                 elementsActuallyLoadedByBackgroundThread = LoadMiniBatchInCpu(threadParameters.Item1, threadParameters.Item2, threadParameters.Item3, threadParameters.Item4, threadParameters.Item5, threadParameters.Item6, threadParameters.Item7);
                 threadParameters = null;
+            }
+        }
+        public void StartBackgroundThreadToLoadNextMiniBatchIfNeeded()
+        {
+            if (!HasBackgroundThreadRunning)
+            {
+                //we start a background thread
+                backgroundThreadToLoadNextMiniBatch = new Thread(BackgroundThreadToLoadNextMiniBatchMethod);
+                backgroundThreadToLoadNextMiniBatch.Start();
+                Thread.Sleep(10);
+            }
+        }
+
+
+        private bool HasBackgroundThreadRunning => backgroundThreadToLoadNextMiniBatch != null && backgroundThreadToLoadNextMiniBatch.IsAlive;
+
+        public void StopBackgroundThreadToLoadNextMiniBatchIfNeeded()
+        {
+            if (HasBackgroundThreadRunning)
+            {
+                //we stop the background thread
+                threadParameters = null;
+                shouldStopBackgroundThread = true;
+                backgroundThreadIsIdle.WaitOne(1000);
+                backgroundThreadHasSomethingTodo.Set();
+                Thread.Sleep(10);
+                if (backgroundThreadToLoadNextMiniBatch.IsAlive)
+                {
+                    // ReSharper disable once InconsistentlySynchronizedField
+                    Log.Info("fail to stop BackgroundThread in " + Name);
+                }
+                backgroundThreadToLoadNextMiniBatch = null;
             }
         }
         #endregion

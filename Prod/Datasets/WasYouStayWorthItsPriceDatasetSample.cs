@@ -273,8 +273,8 @@ public class WasYouStayWorthItsPriceDatasetSample : AbstractDatasetSample
         var yTrain_Encoded = DatasetEncoder.Transform(xyTrain[TargetLabels]);
         var xtest_Encoded = DatasetEncoder.Transform(xtest);
 
-        var fullTrainingAndValidation = new DataFrameDataSet(this, xTrain_Encoded, yTrain_Encoded, xytrain_string_df.StringColumnContent(IdColumn), false);
-        var testDataset = new DataFrameDataSet(this, xtest_Encoded, null, xtest_string_df.StringColumnContent(IdColumn), false);
+        var fullTrainingAndValidation = new DataFrameDataSet(this, xTrain_Encoded, yTrain_Encoded, xytrain_string_df.StringColumnContent(IdColumn));
+        var testDataset = new DataFrameDataSet(this, xtest_Encoded, null, xtest_string_df.StringColumnContent(IdColumn));
 
         CacheDataset.TryAdd(key, Tuple.Create(fullTrainingAndValidation, testDataset, DatasetEncoder));
         return (fullTrainingAndValidation, testDataset);

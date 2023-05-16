@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using JetBrains.Annotations;
 using SharpNet.CPU;
 
 namespace SharpNet.Datasets;
@@ -8,7 +9,7 @@ public abstract class WrappedDataSet : DataSet
 {
     private readonly DataSet _original;
 
-    protected WrappedDataSet(DataSet original, bool useBackgroundThreadToLoadNextMiniBatch)
+    protected WrappedDataSet(DataSet original, [CanBeNull] string[] Y_IDs)
         : base(original.Name,
             original.Objective,
             original.Channels,
@@ -17,8 +18,7 @@ public abstract class WrappedDataSet : DataSet
             original.ColumnNames,
             original.CategoricalFeatures,
             original.IdColumn,
-            original.Y_IDs,
-            useBackgroundThreadToLoadNextMiniBatch,
+            Y_IDs,
             original.Separator)
     {
         _original = original;

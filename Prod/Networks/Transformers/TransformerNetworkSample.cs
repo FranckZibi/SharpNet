@@ -22,6 +22,24 @@ public class TransformerNetworkSample : NetworkSample
     public cudnnActivationMode_t lastActivationLayer = cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX_LAST_DIMENSION;
     public int N_PositionalEncoding = PositionalEncodingAttnIsAllYouNeedLayer.DEFAULT_N_POSITIONAL_ENCODING;
 
+
+    /// <summary>
+    /// if false:
+    ///     expect the input layer to be of shape (batch_size, seq_len)
+    /// if true:
+    ///     expect the input layer to be of shape (batch_size, seq_len, embedding_dim)
+    /// </summary>
+    public bool input_is_already_embedded = false;
+
+
+    /// <summary>
+    /// if false:
+    ///     the predicted shape is (batch_size, seq_len, 1)
+    /// else:
+    ///     the predicted shape is (batch_size, 1)
+    /// </summary>
+    public bool output_shape_must_be_scalar = false;
+
     public bool layer_norm_before_ffd = true;              //should be true
     public bool layer_norm_after_ffd = false;              //should be false
     public bool layer_norm_before_last_dense = true; // must be true
@@ -83,15 +101,33 @@ public class TransformerNetworkSample : NetworkSample
         {
             //Full encoders
             var inputShape = datasetSample.GetInputShapeOfSingleElement();
-            if (inputShape.Length != 1)
+            if (!input_is_already_embedded)
             {
-                throw new ArgumentException($"inputShape.Length={inputShape.Length} != 1");
+                if (inputShape.Length != 1)
+                {
+                    throw new ArgumentException($"inputShape.Length={inputShape.Length} != 1");
+                }
+                int timeSteps = inputShape[0];
+                nn.Input(timeSteps, -1, -1);
+                nn.Embedding(new[] { datasetSample.NumClass }, new[] { embedding_dim }, new[] { -1 }, 0.0);
             }
-            int timeSteps = inputShape[0];
-            nn.Input(timeSteps, -1, -1)
-                .Embedding(new[] { datasetSample.NumClass }, new[] { embedding_dim }, new[] { -1 }, 0.0)
-                .PositionalEncodingAttnIsAllYouNeedLayer(N_PositionalEncoding)
-                ;
+            else
+            {
+                if (inputShape.Length != 2)
+                {
+                    throw new ArgumentException($"inputShape.Length={inputShape.Length} != 2");
+                }
+                
+                int timeSteps = inputShape[0];
+                if (inputShape[1] != embedding_dim)
+                {
+                    throw new ArgumentException($"inputShape[1]={inputShape[1]} != embedding_dim={embedding_dim}");
+                }
+                nn.Input(timeSteps, embedding_dim, -1);
+            }
+            
+
+            nn.PositionalEncodingAttnIsAllYouNeedLayer(N_PositionalEncoding);
             AddTransformers(nn, datasetSample.NumClass, nn.LastLayerIndex, -1);
             return;
         }
@@ -157,6 +193,12 @@ public class TransformerNetworkSample : NetworkSample
             network.LayerNorm(1, layer_norm_epsilon, "last_layer_norm");
         }
         network.Dense(categoryCount, network.Sample.lambdaL2Regularization, true, "probs");
+
+        if (output_shape_must_be_scalar)
+        {
+            network.Dense(1, network.Sample.lambdaL2Regularization, false, "probs_scalar");
+        }
+
         network.Activation(lastActivationLayer);
     }
 

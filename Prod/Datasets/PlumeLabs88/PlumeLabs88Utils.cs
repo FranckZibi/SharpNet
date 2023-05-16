@@ -328,7 +328,7 @@ public static class PlumeLabs88Utils
             { "BatchSize", new[] {100} },
             { "NumEpochs", new[] { numEpochs } },
             {"LossFunction", "Mse"},
-            { "RandomizeOrder", true},
+            { "ShuffleDatasetBeforeEachEpoch", true},
 
             //related to Dataset 
             { "NormalizeFeatureMean", new[] {/*0f,*/ 0.5f} },

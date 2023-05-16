@@ -78,9 +78,7 @@ public class PlumeLabs88DatasetSample : AbstractDatasetSample
 
     public override DataSet FullTrainingAndValidation()
     {
-        var res = new PlumeLabs88DirectoryDataSet(this, true);
-        AddToDispose(res);
-        return res;
+        return new PlumeLabs88DirectoryDataSet(this, true);
     }
 
 

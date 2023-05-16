@@ -81,7 +81,6 @@ namespace SharpNet.Datasets
                 new string[0],
                 "",
                 elementIdToID,
-                true,
                 ',')
         {
             _elementIdToPaths.AddRange(elementIdToPaths);

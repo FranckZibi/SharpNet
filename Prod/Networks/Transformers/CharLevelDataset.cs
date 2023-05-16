@@ -18,8 +18,7 @@ public class CharLevelDataset : DataSet
         CharLevelTransformersDatasetSample datasetSample,
         string name,
         string text,
-        [NotNull] Tokenizer tokenizer,
-        bool useBackgroundThreadToLoadNextMiniBatch = true)
+        [NotNull] Tokenizer tokenizer)
         : base(name,
             datasetSample.GetObjective(),
             datasetSample.max_length,
@@ -29,7 +28,6 @@ public class CharLevelDataset : DataSet
             new string[0],
             "",
             null,
-            useBackgroundThreadToLoadNextMiniBatch,
             ',')
     {
         _datasetSample = datasetSample;
@@ -52,20 +50,7 @@ public class CharLevelDataset : DataSet
             }
         }
     }
-
-    //public override ITrainingAndTestDataset IntSplitIntoTrainingAndValidation(int countInTrainingSet)
-    //{
-    //    var training = new CharLevelDataset(_datasetSample, Name, _text.Substring(0, countInTrainingSet), _tokenizer, UseBackgroundThreadToLoadNextMiniBatch);
-    //    var test = new CharLevelDataset(_datasetSample, Name, _text.Substring(countInTrainingSet), _tokenizer, UseBackgroundThreadToLoadNextMiniBatch);
-
-    //    if (UseBackgroundThreadToLoadNextMiniBatch)
-    //    {
-    //        _datasetSample.AddToDispose(training);
-    //        _datasetSample.AddToDispose(test);
-    //    }
-    //    return new TrainingAndTestDataset(training, test, Name);
-    //}
-
+    
     public override int Count => _textToSequence.Length - _datasetSample.max_length - 1;
     public override int ElementIdToCategoryIndex(int elementId)
     {

@@ -10,7 +10,7 @@ public sealed class MappedDataSet : WrappedDataSet
     private readonly IReadOnlyList<int> _elementIdToOriginalElementId;
     private readonly CpuTensor<float> yMappedDataSet;
         
-    public MappedDataSet(DataSet original, IReadOnlyList<int> elementIdToOriginalElementId) : base(original, false)
+    public MappedDataSet(DataSet original, IReadOnlyList<int> elementIdToOriginalElementId) : base(original, null)
     {
         _original = original;
         _elementIdToOriginalElementId = new List<int>(elementIdToOriginalElementId);

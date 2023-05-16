@@ -11,7 +11,6 @@ using System.Threading;
 using SharpNet.CPU;
 using SharpNet.Data;
 using SharpNet.Datasets;
-using SharpNet.Datasets.CFM60;
 using SharpNet.GPU;
 using SharpNet.Layers;
 using SharpNet.Models;
@@ -957,6 +956,7 @@ namespace SharpNet.Networks
         {
             Debug.Assert(IsMaster);
             Debug.Assert(miniBatchSizeForAllWorkers >= 1);
+            dataSet.StartBackgroundThreadToLoadNextMiniBatchIfNeeded();
 
             if (_slaveNetworks.Any())
             {
@@ -1010,15 +1010,15 @@ namespace SharpNet.Networks
                 shuffledElementId[i] = i%dataSet.Count;
             }
 
-            if (Sample.RandomizeOrder && isTraining)
+            if (Sample.ShuffleDatasetBeforeEachEpoch && isTraining)
             {
-                if (Sample.RandomizeOrderBlockSize <= 1)
+                if (Sample.ShuffleDatasetBeforeEachEpochBlockSize <= 1)
                 {
                     Utils.Shuffle(shuffledElementId, Rand);
                 }
                 else
                 {
-                    Utils.Shuffle(shuffledElementId, Rand, Sample.RandomizeOrderBlockSize);
+                    Utils.Shuffle(shuffledElementId, Rand, Sample.ShuffleDatasetBeforeEachEpochBlockSize);
                 }
             }
 
@@ -1169,6 +1169,7 @@ namespace SharpNet.Networks
                 }
                 firstIndexInShuffledElementId += actualNumberOfLoadedItems;
             }
+            dataSet.StopBackgroundThreadToLoadNextMiniBatchIfNeeded();
 
             all_x_miniBatch_cpu_allWorkers.ForEach(t => t.Dispose());
             all_x_miniBatch_cpu_allWorkers.Clear();

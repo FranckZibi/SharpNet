@@ -139,15 +139,14 @@ namespace SharpNet.HPO
                 embeddedDatasetSample,
                 x_training_InModelFormat_df,
                 y_true_training_InModelFormat, //y_true_training_InTargetFormat,
-                null, //TODO
-                false);
+                null); //TODO
+
 
             var InferenceDataSet = new DataFrameDataSet(
                 embeddedDatasetSample,
                 x_inference_InModelFormat_df,
                 null,
-                null, //TODO
-                false);
+                null); //TODO
 
             //TrainingDataSet.to_csv_in_directory(workingDirectory, true, true, true);
             //InferenceDataSet.to_csv_in_directory(workingDirectory, true, true, true);

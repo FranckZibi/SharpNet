@@ -96,13 +96,10 @@ public class CharLevelTransformersDatasetSample : AbstractDatasetSample
 
     public override DataSet FullTrainingAndValidation()
     {
-        var result = new CharLevelDataset(
+        return new CharLevelDataset(
             this,
             "CharLevel",
             GetText(MaxCharacterLengthForTraining),
-            GetTokenizer(),
-            true);
-        AddToDispose(result);
-        return result;
+            GetTokenizer());
     }
 }

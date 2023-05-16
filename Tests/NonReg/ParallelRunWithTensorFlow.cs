@@ -234,7 +234,7 @@ namespace SharpNetTests.NonReg
             var sample = new NetworkSample
                     {
                         LossFunction = EvaluationMetricEnum.CategoricalCrossentropy,
-                        RandomizeOrder = false,
+                        ShuffleDatasetBeforeEachEpoch = false,
                         CompatibilityMode = NetworkSample.CompatibilityModeEnum.TensorFlow,
                         ResourceIds = new List<int> { gpuDeviceId }
                     }
@@ -309,7 +309,7 @@ namespace SharpNetTests.NonReg
                         new NetworkSample
                         {
                             LossFunction = EvaluationMetricEnum.CategoricalCrossentropy,
-                            RandomizeOrder = false,
+                            ShuffleDatasetBeforeEachEpoch = false,
                             CompatibilityMode = NetworkSample.CompatibilityModeEnum.TensorFlow,
                             ConvolutionAlgoPreference = GPUWrapper.ConvolutionAlgoPreference.FASTEST_DETERMINIST_NO_TRANSFORM,
                             ResourceIds = new List<int> { gpuDeviceId }
@@ -390,7 +390,7 @@ namespace SharpNetTests.NonReg
                         new NetworkSample
                         {
                             LossFunction = EvaluationMetricEnum.CategoricalCrossentropy,
-                            RandomizeOrder = false,
+                            ShuffleDatasetBeforeEachEpoch = false,
                             CompatibilityMode = NetworkSample.CompatibilityModeEnum.TensorFlow,
                             ConvolutionAlgoPreference = GPUWrapper.ConvolutionAlgoPreference.FASTEST_DETERMINIST_NO_TRANSFORM,
                             ResourceIds = new List<int> { gpuDeviceId }
@@ -479,7 +479,7 @@ namespace SharpNetTests.NonReg
                         new NetworkSample
                         {
                             LossFunction = EvaluationMetricEnum.CategoricalCrossentropy,
-                            RandomizeOrder = false,
+                            ShuffleDatasetBeforeEachEpoch = false,
                             CompatibilityMode = NetworkSample.CompatibilityModeEnum.TensorFlow,
                             ConvolutionAlgoPreference = GPUWrapper.ConvolutionAlgoPreference.FASTEST_DETERMINIST_NO_TRANSFORM,
                             ResourceIds = new List<int> { gpuDeviceId }
@@ -549,7 +549,7 @@ namespace SharpNetTests.NonReg
                         new NetworkSample
                         {
                             LossFunction = EvaluationMetricEnum.CategoricalCrossentropy,
-                            RandomizeOrder = false,
+                            ShuffleDatasetBeforeEachEpoch = false,
                             CompatibilityMode = NetworkSample.CompatibilityModeEnum.TensorFlow,
                             ResourceIds = new List<int> { gpuDeviceId }
                         }
@@ -623,7 +623,7 @@ namespace SharpNetTests.NonReg
                         new NetworkSample
                         {
                             LossFunction = EvaluationMetricEnum.BinaryCrossentropy,
-                            RandomizeOrder = false,
+                            ShuffleDatasetBeforeEachEpoch = false,
                             CompatibilityMode = NetworkSample.CompatibilityModeEnum.TensorFlow,
                             ResourceIds = new List<int> { deviceId }
                         }
@@ -692,7 +692,7 @@ namespace SharpNetTests.NonReg
             var networkSample = new NetworkSample
             {
                 LossFunction = EvaluationMetricEnum.BinaryCrossentropy,
-                RandomizeOrder = false,
+                ShuffleDatasetBeforeEachEpoch = false,
                 CompatibilityMode = NetworkSample.CompatibilityModeEnum.TensorFlow,
                 ResourceIds = new List<int> { deviceId }
             };
@@ -765,7 +765,7 @@ namespace SharpNetTests.NonReg
             var networkSample = new NetworkSample
             {
                 LossFunction = EvaluationMetricEnum.BinaryCrossentropy,
-                RandomizeOrder = false,
+                ShuffleDatasetBeforeEachEpoch = false,
                 CompatibilityMode = NetworkSample.CompatibilityModeEnum.TensorFlow,
                 ResourceIds = new List<int> { deviceId }
             };
@@ -874,7 +874,7 @@ namespace SharpNetTests.NonReg
             var networkSample = new NetworkSample
             {
                 LossFunction = EvaluationMetricEnum.BinaryCrossentropy,
-                RandomizeOrder = true,
+                ShuffleDatasetBeforeEachEpoch = true,
                 CompatibilityMode = NetworkSample.CompatibilityModeEnum.TensorFlow,
                 ResourceIds = new List<int> { deviceId }
             };
@@ -944,7 +944,7 @@ namespace SharpNetTests.NonReg
                         new NetworkSample
                         {
                             LossFunction = EvaluationMetricEnum.CategoricalCrossentropy,
-                            RandomizeOrder = false,
+                            ShuffleDatasetBeforeEachEpoch = false,
                             CompatibilityMode = NetworkSample.CompatibilityModeEnum.TensorFlow,
                             ConvolutionAlgoPreference = GPUWrapper.ConvolutionAlgoPreference.FASTEST_DETERMINIST_NO_TRANSFORM,
                             ResourceIds = new List<int> { gpuDeviceId }
@@ -1017,7 +1017,7 @@ namespace SharpNetTests.NonReg
                         {
                             LossFunction = EvaluationMetricEnum.Huber,
                             //LossFunction = LossFunctionEnum.BinaryCrossentropy,
-                            RandomizeOrder = false,
+                            ShuffleDatasetBeforeEachEpoch = false,
                             CompatibilityMode = NetworkSample.CompatibilityModeEnum.TensorFlow,
                             ResourceIds = new List<int> { deviceId }
                         }
@@ -1090,7 +1090,7 @@ namespace SharpNetTests.NonReg
                         new NetworkSample
                         {
                             LossFunction = EvaluationMetricEnum.Mse,
-                            RandomizeOrder = false,
+                            ShuffleDatasetBeforeEachEpoch = false,
                             CompatibilityMode = NetworkSample.CompatibilityModeEnum.TensorFlow,
                             Metrics = new List<EvaluationMetricEnum> {EvaluationMetricEnum.Mse, EvaluationMetricEnum.Mae},
                             ResourceIds = new List<int> { deviceId }
@@ -1201,7 +1201,7 @@ namespace SharpNetTests.NonReg
                         new NetworkSample
                         {
                             LossFunction = EvaluationMetricEnum.Huber,
-                            RandomizeOrder = false,
+                            ShuffleDatasetBeforeEachEpoch = false,
                             CompatibilityMode = NetworkSample.CompatibilityModeEnum.TensorFlow,
                             Metrics = new List<EvaluationMetricEnum> { EvaluationMetricEnum.Huber, EvaluationMetricEnum.Mae},
                             ResourceIds = new List<int> { deviceId }
@@ -1320,13 +1320,13 @@ namespace SharpNetTests.NonReg
 
 
             using var fullDataSet = new UnivariateTimeSeriesDataSet(series.Content, timeSteps, 1);
-            using var trainAndTestDataSet = fullDataSet.SplitIntoTrainingAndValidation(trainingDataSetCount / (double)fullDataSet.Count);
+            using var trainAndTestDataSet = fullDataSet.IntSplitIntoTrainingAndValidation(trainingDataSetCount, false, false);
 
             var network = TestNetwork.NewForTests(
                 new NetworkSample
                     {
                         LossFunction = EvaluationMetricEnum.Mse,
-                        RandomizeOrder = shuffle,
+                        ShuffleDatasetBeforeEachEpoch = shuffle,
                         CompatibilityMode = NetworkSample.CompatibilityModeEnum.TensorFlow,
                         Metrics = new List<EvaluationMetricEnum> { EvaluationMetricEnum.Mse, EvaluationMetricEnum.Mae },
                         ResourceIds = new List<int> { deviceId }
@@ -1404,13 +1404,13 @@ namespace SharpNetTests.NonReg
 
 
             using var fullTrainingAndTestDataSet = new ImdbTrainingAndTestDataset();
-            using var trainAndTestDataSet = fullTrainingAndTestDataSet.Training.SplitIntoTrainingAndValidation(0.8);
+            using var trainAndTestDataSet = fullTrainingAndTestDataSet.Training.SplitIntoTrainingAndValidation(0.8, false, false);
 
             var network = TestNetwork.NewForTests(
                         new NetworkSample
                         {
                             LossFunction = EvaluationMetricEnum.BinaryCrossentropy,
-                            RandomizeOrder = shuffle,
+                            ShuffleDatasetBeforeEachEpoch = shuffle,
                             CompatibilityMode = NetworkSample.CompatibilityModeEnum.TensorFlow,
                             Metrics = new List<EvaluationMetricEnum> { EvaluationMetricEnum.BinaryCrossentropy, EvaluationMetricEnum.Accuracy},
                             ResourceIds = new List<int> { deviceId }

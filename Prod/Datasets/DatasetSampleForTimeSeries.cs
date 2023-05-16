@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using SharpNet.Datasets.CFM60;
 using SharpNet.Networks;
 
 namespace SharpNet.Datasets;

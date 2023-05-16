@@ -32,7 +32,6 @@ namespace SharpNet.Datasets
                 new string[0],
                 "",
                 null, //TODO
-                true,
                 ',')
         {
             var annotationsDirectory = Path.Combine(NetworkSample.DefaultDataDirectory, vocDevKitDirectory, subDirectory, "Annotations");

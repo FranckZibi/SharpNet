@@ -1,17 +1,14 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Data;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using log4net;
 using SharpNet.CatBoost;
-using SharpNet.Data;
 using SharpNet.HPO;
 using SharpNet.HyperParameters;
 using SharpNet.LightGBM;
 using SharpNet.Networks;
-using static System.Net.WebRequestMethods;
 
 namespace SharpNet.Datasets.CFM84;
 
@@ -38,6 +35,7 @@ public static class CFM84Utils
 
 
 
+    // ReSharper disable once UnusedMember.Global
     public static void AverageTestPredictions(double[] weights, params string[] predictionsPaths)
     {
         var outputTestRandom_df = DataFrame.read_float_csv(YTestRandomPath);
@@ -64,6 +62,7 @@ public static class CFM84Utils
         return r/10000;
     }
 
+    // ReSharper disable once UnusedMember.Global
     public static void BuildStatNormalizeFile()
     {
         var train = DataFrame.read_csv(XTrainPath, true, ColumnNameToType, true);
@@ -103,14 +102,14 @@ public static class CFM84Utils
     public static void Run()
     {
         //Misc.CreateAllFiles(); return;
-        Misc.YCNG();
+        //Misc.YCNG(); return;
         //BuildStatNormalizeFile();
-        //Misc.BuildStatFile();
+        //Misc.BuildStatFile(); return;
 
         //using var m = ModelAndDatasetPredictions.Load(@"C:\Projects\Challenges\CFM84\dump\", "FB801BE40C", true);
         //m.EstimateLossContribution(computeAlsoRankingScore: true, maxGroupSize: 5000);
 
-        //ChallengeTools.Retrain(Path.Combine(WorkingDirectory, "dump"), "26A5D7BA9E", null, 0.1, false);
+        ChallengeTools.Retrain(Path.Combine(WorkingDirectory, "dump"), "E1B434F23C", null, 0.99, false);
 
 
         //AverageTestPredictions(new []{0.5,0.5}, @"C:\Projects\Challenges\CFM84\submit\9DE295AB09_modelformat_predict_test_.csv",  @"C:\Projects\Challenges\CFM84\submit\CF37BAB198_modelformat_predict_test_.csv");
@@ -136,6 +135,7 @@ public static class CFM84Utils
         return typeof(float);
     }
 
+    // ReSharper disable once UnusedMember.Global
     public static void LaunchCatBoostHPO(int iterations = 10, int maxAllowedSecondsForAllComputation = 0)
     {
         // ReSharper disable once ConvertToConstant.Local
@@ -211,6 +211,7 @@ public static class CFM84Utils
         hpo.Process(t => SampleUtils.TrainWithHyperParameters((ModelAndDatasetPredictionsSample)t, WorkingDirectory, retrainOnFullDatasetIfBetterModelFound, ref bestScoreSoFar), maxAllowedSecondsForAllComputation);
     }
     
+    // ReSharper disable once UnusedMember.Global
     public static (ISample bestSample, IScore bestScore) LaunchLightGBMHPO(int num_iterations = 100, int maxAllowedSecondsForAllComputation = 0)
     {
         var searchSpace = new Dictionary<string, object>
@@ -308,6 +309,7 @@ public static class CFM84Utils
     }
 
 
+    // ReSharper disable once UnusedMember.Global
     public static void LaunchNeuralNetworkHPO(int numEpochs = 10, int maxAllowedSecondsForAllComputation = 0)
     {
         var searchSpace = new Dictionary<string, object>

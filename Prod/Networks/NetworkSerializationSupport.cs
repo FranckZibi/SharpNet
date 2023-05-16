@@ -103,7 +103,10 @@ namespace SharpNet.Networks
             {
                 foreach (var p in l.GetParametersAsCpuFloatTensors(Sample.CompatibilityMode))
                 {
-                    h5File.Write(p.Key, p.Value);
+                    if (!h5File.Write(p.Key, p.Value))
+                    {
+                        Log.Warn("Error saving parameter " + p.Key + " of shape " + Utils.ShapeToString(p.Value.Shape) + " in " + parametersFilePath);
+                    }
                 }
             }
             LogInfo("Network Parameters '" + ModelName + "' saved in " + parametersFilePath + " in " + Math.Round(swSaveParametersTime.Elapsed.TotalSeconds, 1) + "s");

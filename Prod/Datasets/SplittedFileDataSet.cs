@@ -30,7 +30,6 @@ namespace SharpNet.Datasets
                 new string[0],
                 "",
                 null, //TODO
-                true,
                 ',')
         {
             //Currently only pictures (channels x height x width) are supported

@@ -27,8 +27,7 @@ public class AmazonEmployeeAccessChallengeDatasetSample : AbstractDatasetSample
             GetObjective(),
             null,
             columnNames: x_dataframe.Columns,
-            categoricalFeatures: CategoricalFeatures,
-            useBackgroundThreadToLoadNextMiniBatch: false);
+            categoricalFeatures: CategoricalFeatures);
 
         _testDataset = new InMemoryDataSet(DataFrame.read_float_csv(GetXTestDatasetPath()).Drop("id").FloatCpuTensor(),
             null,
@@ -36,8 +35,7 @@ public class AmazonEmployeeAccessChallengeDatasetSample : AbstractDatasetSample
             GetObjective(),
             null,
             columnNames: x_dataframe.Columns,
-            categoricalFeatures: CategoricalFeatures,
-            useBackgroundThreadToLoadNextMiniBatch: false);
+            categoricalFeatures: CategoricalFeatures);
 
     }
 

@@ -462,7 +462,7 @@ public class CFM60DatasetSample : DatasetSampleForTimeSeries
             
             
             //Related to model
-            {"RandomizeOrder", true},
+            {"ShuffleDatasetBeforeEachEpoch", true},
             {"CompatibilityMode", "TensorFlow"},
             {"BatchSize", 2048},
             {"NumEpochs", numEpochs},

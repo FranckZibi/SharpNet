@@ -22,7 +22,6 @@ namespace SharpNet.Datasets
             new string[0],
             "",
             null, //TODO
-            true, 
             ',')
         {
             _cocoDirectory = cocoDirectory;

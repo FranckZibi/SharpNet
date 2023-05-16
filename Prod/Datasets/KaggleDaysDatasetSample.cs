@@ -334,8 +334,8 @@ public class KaggleDaysDatasetSample : AbstractDatasetSample
             var xTrain_Encoded = DatasetEncoder.Transform(xyTrain.Drop(TargetLabels));
             var yTrain_Encoded = DatasetEncoder.Transform(xyTrain[TargetLabels]);
             var xtest_Encoded = DatasetEncoder.Transform(xtest);
-            var fullTrainingAndValidation = new DataFrameDataSet(this, xTrain_Encoded, yTrain_Encoded, xytrain_string_df.StringColumnContent(IdColumn),  false);
-            var testDataset = new DataFrameDataSet(this, xtest_Encoded, null, xtest_string_df.StringColumnContent(IdColumn), false);
+            var fullTrainingAndValidation = new DataFrameDataSet(this, xTrain_Encoded, yTrain_Encoded, xytrain_string_df.StringColumnContent(IdColumn));
+            var testDataset = new DataFrameDataSet(this, xtest_Encoded, null, xtest_string_df.StringColumnContent(IdColumn));
             CacheDataset[key] = Tuple.Create(fullTrainingAndValidation, testDataset, DatasetEncoder);
             ISample.Log.Debug($"Loading Encoded Dataset for key '{key}' took {sw.Elapsed.TotalSeconds}s");
             return (fullTrainingAndValidation, testDataset);

@@ -23,7 +23,6 @@ public class InMemoryDataSet : DataSet
         string[] categoricalFeatures = null,
         string idColumn = "",
         [CanBeNull] string[] yIDs = null,
-        bool useBackgroundThreadToLoadNextMiniBatch = true,
         char separator = ',')
         : base(name,
             objective,
@@ -34,7 +33,6 @@ public class InMemoryDataSet : DataSet
             categoricalFeatures ??new string[0],
             idColumn ?? "",
             yIDs,
-            useBackgroundThreadToLoadNextMiniBatch,
             separator)
     {
         Debug.Assert(y==null || AreCompatible_X_Y(x, y));
@@ -74,8 +72,15 @@ public class InMemoryDataSet : DataSet
         _x.CopyTo(_x.Idx(elementId), xBuffer, xBuffer.Idx(indexInBuffer), xBuffer.MultDim0);
         if (yBuffer != null)
         {
-            Debug.Assert(_yInMemoryDataSet.SameShapeExceptFirstDimension(yBuffer));
-            _yInMemoryDataSet.CopyTo(_yInMemoryDataSet.Idx(elementId), yBuffer, yBuffer.Idx(indexInBuffer), yBuffer.MultDim0);
+            if (_yInMemoryDataSet == null)
+            {
+                yBuffer.ZeroMemory();
+            }
+            else
+            {
+                Debug.Assert(_yInMemoryDataSet.SameShapeExceptFirstDimension(yBuffer));
+                _yInMemoryDataSet.CopyTo(_yInMemoryDataSet.Idx(elementId), yBuffer, yBuffer.Idx(indexInBuffer), yBuffer.MultDim0);
+            }
         }
     }
 

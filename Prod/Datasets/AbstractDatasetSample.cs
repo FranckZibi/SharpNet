@@ -11,20 +11,34 @@ using SharpNet.Models;
 
 namespace SharpNet.Datasets;
 
+public interface IGetDatasetSample
+{
+    AbstractDatasetSample GetDatasetSample();
+}
+
 [SuppressMessage("ReSharper", "EmptyGeneralCatchClause")]
 public abstract class AbstractDatasetSample : AbstractSample, IDisposable
 {
-    private readonly List<IDisposable> _toDispose = new();
-
-    public void AddToDispose(IDisposable disposable)
-    {
-        _toDispose.Add(disposable);
-    }
-
     #region Hyper-Parameters
     //For numerical features:
     // should we standardize them (with mean=0 & volatility=1) before sending them to the model ?
     public bool StandardizeDoubleValues = false;
+
+
+    /// <summary>
+    /// should we shuffle the dataset before splitting it into training / validation ?
+    /// </summary>
+    public bool ShuffleDatasetBeforeSplit = false;
+
+    /// <summary>
+    /// in classification task :
+    ///     when doing the split, if we should make sure that split has the same percentage of each category as in the original dataset
+    /// in regression task :
+    ///     it has no effect (must be false)
+    /// </summary>
+    public bool StratifiedDatasetBeforeSplit = false;
+
+
     public double PercentageInTraining = 0.8;
     /// <summary>
     /// number of splits for KFold
@@ -413,12 +427,13 @@ public abstract class AbstractDatasetSample : AbstractSample, IDisposable
     /// </summary>
     /// <returns></returns>
     public abstract DataSet FullTrainingAndValidation();
+
     public virtual ITrainingAndTestDataset SplitIntoTrainingAndValidation()
     {
         var fullTrain = FullTrainingAndValidation();
         int rowsForTraining = (int)(PercentageInTraining * fullTrain.Count + 0.1);
         rowsForTraining -= rowsForTraining % DatasetRowsInModelFormatMustBeMultipleOf();
-        return fullTrain.IntSplitIntoTrainingAndValidation(rowsForTraining);
+        return fullTrain.IntSplitIntoTrainingAndValidation(rowsForTraining, ShuffleDatasetBeforeSplit, StratifiedDatasetBeforeSplit);
     }
 
     /// <summary>
@@ -546,16 +561,13 @@ public abstract class AbstractDatasetSample : AbstractSample, IDisposable
             var yTensor = CpuTensor<float>.FromClassIndexToProba(y.FloatTensor, NumClass);
             y = DataFrame.New(yTensor);
         }
-        return new DataFrameDataSet(this, x, y, null, false);
+        return new DataFrameDataSet(this, x, y, null);
     }
 
     #region Dispose pattern
     protected bool disposed = false;
     protected virtual void Dispose(bool disposing)
     {
-        _toDispose.ForEach(d=>d?.Dispose());
-        _toDispose.Clear();
-
         if (disposed)
         {
             return;

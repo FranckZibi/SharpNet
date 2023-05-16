@@ -1366,7 +1366,7 @@ namespace SharpNetTests.NonReg
                 new NetworkSample{ 
                     LossFunction = evaluationMetric, 
                     Metrics = evaluationMetrics,
-                    RandomizeOrder = false, 
+                    ShuffleDatasetBeforeEachEpoch = false, 
                     ConvolutionAlgoPreference = GPUWrapper.ConvolutionAlgoPreference.FASTEST_DETERMINIST_NO_TRANSFORM, CompatibilityMode = NetworkSample.CompatibilityModeEnum.TensorFlow, 
                     ResourceIds = resourceIds.ToList()
                 },

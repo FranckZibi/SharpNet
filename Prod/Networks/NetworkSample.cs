@@ -43,9 +43,9 @@ namespace SharpNet.Networks
         public double SGD_momentum = 0.9;
         public double lambdaL2Regularization;
         public bool SGD_usenesterov = true;
-        public bool RandomizeOrder = true;
-        //when RandomizeOrder is true, consider that the dataset is built from block of 'RandomizeOrderBlockSize' element (that must be kept in same order)
-        public int RandomizeOrderBlockSize = 1;
+        public bool ShuffleDatasetBeforeEachEpoch = true;
+        //when ShuffleDatasetBeforeEachEpoch is true, consider that the dataset is built from block of 'ShuffleDatasetBeforeEachEpochBlockSize' element (that must be kept in same order)
+        public int ShuffleDatasetBeforeEachEpochBlockSize = 1;
         public Optimizer.OptimizationEnum OptimizerType = Optimizer.OptimizationEnum.VanillaSGD;
         #endregion
 
@@ -412,7 +412,7 @@ namespace SharpNet.Networks
             return this;
         }
 
-        public virtual void BuildLayers(Network network, AbstractDatasetSample datasetSample)
+        public virtual void BuildLayers(Network nn, AbstractDatasetSample datasetSample)
         {
             ISample.Log.Warn($"{nameof(BuildLayers)} is not overriden and will do nothing");
         }
