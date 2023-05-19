@@ -89,6 +89,111 @@ namespace SharpNet.CatBoost
                 trainLossIfAvailable, validationLossIfAvailable, trainRankingMetricIfAvailable, validationRankingMetricIfAvailable);
         }
 
+        public static List<int> LabelIndexFromColumnDescriptionFile(string datasetColumnDescriptionPath)
+        {
+            if (string.IsNullOrEmpty(datasetColumnDescriptionPath) || !File.Exists(datasetColumnDescriptionPath))
+            {
+                return null;
+            }
+            List<int> res = new();
+            foreach (var l in File.ReadAllLines(datasetColumnDescriptionPath))
+            {
+                var splitted = l.Split('\t');
+                if (splitted.Length == 2 && string.Equals(splitted[1], "Label", StringComparison.OrdinalIgnoreCase))
+                {
+                    res.Add(int.Parse(splitted[0]));
+                }
+            }
+            return res;
+        }
+
+        public override DataFrame ComputeFeatureImportance(AbstractDatasetSample datasetSample, AbstractDatasetSample.DatasetType datasetType)
+        {
+            var sw = Stopwatch.StartNew();
+            Log.Info($"Computing feature importance for {datasetType} Dataset...");
+            try
+            {
+                if (!File.Exists(ModelPath))
+                {
+                    Log.Error($"missing model {ModelPath} for computing Feature Importance");
+                    return null;
+                }
+                var datasetPath = datasetSample.ExtractDatasetPath_InModelFormat(datasetType);
+                if (string.IsNullOrEmpty(datasetPath) || !File.Exists(datasetPath))
+                {
+                    Log.Error($"missing {datasetType} Dataset {datasetPath} for computing Feature Importance");
+                    return null;
+                }
+                string datasetColumnDescriptionPath = datasetPath + ".co";
+                if (!File.Exists(datasetColumnDescriptionPath))
+                {
+                    Log.Error($"missing {datasetColumnDescriptionPath} file for computing Feature Importance");
+                    return null;
+                }
+                var contribPath = Path.Combine(TempPath, ModelName + "_contrib_" + Path.GetFileNameWithoutExtension(datasetPath) + ".txt");
+                string arguments = "fstr " +
+                                   " --model-file " + ModelPath +
+                                   " --delimiter=\"" + datasetSample.GetSeparator()+ "\"" +
+                                   " --has-header" +
+                                   " --fstr-type ShapValues" +
+                                   " --column-description " + datasetColumnDescriptionPath +
+                                   " --input-path " + datasetPath +
+                                   " --output-path " + contribPath;
+                ;
+
+                Utils.Launch(WorkingDirectory, ExePath, arguments, Log, false);
+
+                //we retrieve the column names, removing any label columns we may find
+                var labelIndexes = LabelIndexFromColumnDescriptionFile(datasetColumnDescriptionPath);
+                var columnsWithoutLabels = Utils.ReadCsv(datasetPath).First();
+                foreach (var labelIndex in labelIndexes.OrderByDescending(x => x).ToList())
+                {
+                    var tmp = columnsWithoutLabels.ToList();
+                    tmp.RemoveAt(labelIndex);
+                    columnsWithoutLabels = tmp.ToArray();
+                }
+                var featureImportance_df = LoadFeatureImportance(contribPath, columnsWithoutLabels);
+                Utils.TryDelete(contribPath);
+                Log.Info($"Feature importance for {datasetType} Dataset has been computed in {sw.ElapsedMilliseconds}ms");
+                return featureImportance_df;
+            }
+            catch (Exception e)
+            {
+                Log.Error($"fail to compute feature importance for {datasetType} Dataset: {e}");
+                return null;
+            }
+        }
+
+        private static DataFrame LoadFeatureImportance(string featureImportancePath, string[] columns)
+        {
+            Log.Info($"Loading Feature Importance file {featureImportancePath}...");
+            var raw_df = DataFrame.read_csv_normalized(featureImportancePath, '\t', false, x => typeof(float));
+            var entireFeatureImportance = raw_df.FloatTensor.SpanContent;
+            // the last column of the TSV SHAP file is the expected prediction: it can be ignored
+            int cols = raw_df.Shape[1];
+            if ((cols-1) != columns.Length)
+            {
+                var errorMsg = $"Feature Importance file {featureImportancePath} has {cols-1} feature columns instead of {columns.Length}";
+                Log.Error(errorMsg);
+                throw new ArgumentException(errorMsg);
+            }
+
+            var featureImportance = new float[cols];
+            for (int i = 0; i < entireFeatureImportance.Length; ++i)
+            {
+                featureImportance[i % cols] += Math.Abs(entireFeatureImportance[i]);
+            }
+            featureImportance = featureImportance.Take(columns.Length).ToArray();
+            var totalFeatureImportance = Math.Max(featureImportance.Sum(), 0.01f);
+            featureImportance = featureImportance.Select(i => (100f * i / totalFeatureImportance)).ToArray();
+            var featureName_df = DataFrame.New(columns, new[] { "Feature" });
+            var featureImportance_df = DataFrame.New(featureImportance, new[] { "Importance" });
+
+            var finalDf = DataFrame.MergeHorizontally(featureName_df, featureImportance_df);
+            finalDf = finalDf.sort_values("Importance", ascending: false);
+            return finalDf;
+        }
+
         public override (DataFrame,string) PredictWithPath(DataSet dataset, bool removeAllTemporaryFilesAtEnd)
         {
             if (!File.Exists(ModelPath))

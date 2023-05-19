@@ -17,12 +17,12 @@ public static class ChallengeTools
     /// <summary>
     ///  compute feature importance of a Model
     /// </summary>
-    public static void ComputeAndSaveFeatureImportance(string workingDirectory, string modelName)
+    public static void ComputeAndSaveFeatureImportance(string workingDirectory, string modelName, bool computeFeatureImportanceForAllDatasetTypes = false)
     {
         Utils.ConfigureGlobalLog4netProperties(workingDirectory, $"{nameof(ComputeAndSaveFeatureImportance)}");
         Utils.ConfigureThreadLog4netProperties(workingDirectory, $"{nameof(ComputeAndSaveFeatureImportance)}");
         using var m = ModelAndDatasetPredictions.Load(workingDirectory, modelName, true);
-        m.ComputeAndSaveFeatureImportance();
+        m.ComputeAndSaveFeatureImportance(computeFeatureImportanceForAllDatasetTypes);
     }
 
     public static void EstimateLossContribution(string workingDirectory, string modelName)
