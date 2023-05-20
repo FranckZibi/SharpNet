@@ -45,6 +45,9 @@ namespace SharpNet.Datasets
         private readonly Random[] _rands;
         #endregion
 
+
+        public Random FirstRandom => _rands[0];
+
         #region public properties
         public List<Tuple<float, float>> MeanAndVolatilityForEachChannel { get; }
         /// <summary>
@@ -66,24 +69,22 @@ namespace SharpNet.Datasets
         #region constructor
         protected DataSet(string name,
             Objective_enum objective,
-            int channels,
             List<Tuple<float, float>> meanAndVolatilityForEachChannel,
             ResizeStrategyEnum resizeStrategy,
             [NotNull] string[] columnNames,
             [NotNull] string[] categoricalFeatures,
             string idColumn,
-            [CanBeNull] string[] Y_IDs,
+            [CanBeNull] string[] yIDs,
             char separator)
         {
             Name = name;
             Objective = objective;
-            Channels = channels;
             MeanAndVolatilityForEachChannel = meanAndVolatilityForEachChannel;
             ResizeStrategy = resizeStrategy;
             ColumnNames = columnNames;
             Separator = separator;
             IdColumn = idColumn;
-            this.Y_IDs = Y_IDs;
+            Y_IDs = yIDs;
 
             _rands = new Random[2 * Environment.ProcessorCount];
             for (int i = 0; i < _rands.Length; ++i)
@@ -266,30 +267,31 @@ namespace SharpNet.Datasets
         /// original content (no data augmentation/no normalization) of the element at index 'elementId'
         /// </summary>
         /// <param name="elementId">the index of element to retrieve (between 0 and Count-1) </param>
+        /// <param name="channels"></param>
         /// <param name="targetHeight"></param>
         /// <param name="targetWidth"></param>
         /// <param name="withDataAugmentation"></param>
         /// <param name="isTraining"></param>
         /// <returns>a byte tensor containing the element at index 'elementId' </returns>
-        public virtual BitmapContent OriginalElementContent(int elementId, int targetHeight, int targetWidth,
+        public virtual BitmapContent OriginalElementContent(int elementId, int channels, int targetHeight, int targetWidth,
             bool withDataAugmentation, bool isTraining)
         {
-            var xBuffer = new CpuTensor<float>(new[] { 1, Channels, targetHeight, targetWidth });
+            var xBuffer = new CpuTensor<float>(new[] { 1, channels, targetHeight, targetWidth });
             LoadAt(elementId, 0, xBuffer, null, withDataAugmentation, isTraining);
 
-            var inputShape_CHW = new[]{Channels, targetHeight, targetWidth};
+            var inputShape_CHW = new[]{channels, targetHeight, targetWidth};
 
             xBuffer.ReshapeInPlace(inputShape_CHW); //from (1,c,h,w) shape to (c,h,w) shape
             var bufferContent = xBuffer.ReadonlyContent;
 
 
-            var resultContent = new byte[Channels * targetHeight * targetWidth];
+            var resultContent = new byte[channels * targetHeight * targetWidth];
             int idxInResultContent = 0;
             var result = new BitmapContent(inputShape_CHW, resultContent);
 
             int nbBytesByChannel = targetHeight * targetWidth;
             var isNormalized = IsNormalized;
-            for (int channel = 0; channel < Channels; ++channel)
+            for (int channel = 0; channel < channels; ++channel)
             {
                 var originalChannelVolatility = OriginalChannelVolatility(channel);
                 var originalChannelMean = OriginalChannelMean(channel);
@@ -316,12 +318,13 @@ namespace SharpNet.Datasets
         /// TODO : check if we should use a cache to avoid recomputing the image stat at each epoch
         /// </summary>
         /// <param name="elementId"></param>
+        /// <param name="channels"></param>
         /// <param name="targetHeight"></param>
         /// <param name="targetWidth"></param>
         /// <returns></returns>
-        public ImageStatistic ElementIdToImageStatistic(int elementId, int targetHeight, int targetWidth)
+        public ImageStatistic ElementIdToImageStatistic(int elementId, int channels, int targetHeight, int targetWidth)
         {
-            return ImageStatistic.ValueOf(OriginalElementContent(elementId, targetHeight, targetWidth, false, false));
+            return ImageStatistic.ValueOf(OriginalElementContent(elementId, channels, targetHeight, targetWidth, false, false));
         }
 
 
@@ -382,10 +385,6 @@ namespace SharpNet.Datasets
             //return DataFrame.New(content, new string[] { IdColumn });
         }
 
-        /// <summary>
-        /// number of channels of each elements
-        /// </summary>
-        public int Channels { get; }
         /// <summary>
         /// return the mean of channel 'channel' of the original DataSet (before normalization)
         /// </summary>
@@ -643,9 +642,7 @@ namespace SharpNet.Datasets
             NetworkSample dataAugmentationSample,
             List<int[]> all_xMiniBatchShape, int[] yMiniBatchShape)
         {
-            Debug.Assert(Channels == all_xMiniBatchShape[0][1]);
             var miniBatchSize = all_xMiniBatchShape[0][0];
-
             int maxElementsToLoad = GetMaxElementsToLoad(shuffledElementId, firstIndexInShuffledElementId, miniBatchSize);
 
             var miniBatchId = ComputeMiniBatchHashId(shuffledElementId, firstIndexInShuffledElementId, miniBatchSize);
@@ -694,9 +691,10 @@ namespace SharpNet.Datasets
             {
                 //Data Augmentation for images
                 Debug.Assert(all_xMiniBatchShape.Count == 1);
+                int channels = all_xMiniBatchShape[0][1];
                 int targetHeight = all_xMiniBatchShape[0][2];
                 int targetWidth = all_xMiniBatchShape[0][3];
-                Lazy<ImageStatistic> MiniBatchIdxToLazyImageStatistic(int miniBatchIdx) => new Lazy<ImageStatistic>(() => ElementIdToImageStatistic(MiniBatchIdxToElementId(miniBatchIdx), targetHeight, targetWidth));
+                Lazy<ImageStatistic> MiniBatchIdxToLazyImageStatistic(int miniBatchIdx) => new Lazy<ImageStatistic>(() => ElementIdToImageStatistic(MiniBatchIdxToElementId(miniBatchIdx), channels, targetHeight, targetWidth));
                 var imageDataGenerator = new ImageDataGenerator(dataAugmentationSample);
                 Parallel.For(0, miniBatchSize, indexInMiniBatch => imageDataGenerator.DataAugmentationForMiniBatch(indexInMiniBatch % maxElementsToLoad, all_xOriginalNotAugmentedMiniBatch[0], all_xDataAugmentedMiniBatch[0], yDataAugmentedMiniBatch, MiniBatchIdxToCategoryIndex, MiniBatchIdxToLazyImageStatistic, MeanAndVolatilityForEachChannel, GetRandomForIndexInMiniBatch(indexInMiniBatch), all_xBufferForDataAugmentedMiniBatch[0]));
             }

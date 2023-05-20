@@ -15,7 +15,6 @@ namespace SharpNet.Datasets
         #region constructor
         public COCODataSet(string cocoDirectory, List<Tuple<float, float>> meanAndVolatilityOfEachChannel, ResizeStrategyEnum resizeStrategy) : base("COCO", 
             Objective_enum.Classification, 
-            3, 
             meanAndVolatilityOfEachChannel, 
             resizeStrategy,
             new string[0],

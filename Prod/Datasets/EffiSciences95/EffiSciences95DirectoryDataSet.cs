@@ -101,9 +101,9 @@ public class EffiSciences95DirectoryDataSet : DirectoryDataSet
     }
 
 
-    public override BitmapContent OriginalElementContent(int elementId, int targetHeight, int targetWidth, bool withDataAugmentation, bool isTraining)
+    public override BitmapContent OriginalElementContent(int elementId, int channels, int targetHeight, int targetWidth, bool withDataAugmentation, bool isTraining)
     {
-        var res = base.OriginalElementContent(elementId, targetHeight, targetWidth, withDataAugmentation, isTraining);
+        var res = base.OriginalElementContent(elementId, channels, targetHeight, targetWidth, withDataAugmentation, isTraining);
         if (res == null || !isTraining || _boxes[elementId] == null || _boxes[elementId].IsEmpty)
         {
             return res;
@@ -160,7 +160,7 @@ public class EffiSciences95DirectoryDataSet : DirectoryDataSet
         var width = col_End - col_Start + 1;
 
         var span = res.SpanContent;
-        for (int c = 0; c < Channels; ++c)
+        for (int c = 0; c < res.GetChannels(); ++c)
         {
             //!D TO CHECK: var meanValue = (byte)PrecomputedMeanAndVolatilityForEachChannel[c].Item1;
             for (int row = row_Start; row <= row_End; ++row)

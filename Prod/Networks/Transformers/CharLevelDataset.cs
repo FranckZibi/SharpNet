@@ -21,7 +21,6 @@ public class CharLevelDataset : DataSet
         [NotNull] Tokenizer tokenizer)
         : base(name,
             datasetSample.GetObjective(),
-            datasetSample.max_length,
             null,
             ResizeStrategyEnum.None,
             new string[0],

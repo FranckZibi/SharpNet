@@ -85,6 +85,7 @@ namespace SharpNetTests.NonReg
         {
             const bool useMultiThreading = true;
             const bool useMultiGpu = true;
+            const int channels = 3;
             const int targetHeight = 118;
             const int targetWidth = 100;
             var miniBatchSize = 300;
@@ -98,7 +99,7 @@ namespace SharpNetTests.NonReg
             using DirectoryDataSet dataset = database.ExtractDataSet(e => CancelDatabase.IsValidNonEmptyCancel(e.Cancel), ResizeStrategyEnum.BiggestCropInOriginalImageToKeepSameProportion);
             
             //dataAugmentationConfig.DataAugmentationType = ImageDataGenerator.DataAugmentationEnum.AUTO_AUGMENT_CIFAR10;
-            var xMiniBatchShape = new []{miniBatchSize, 3, targetHeight, targetWidth};
+            var xMiniBatchShape = new []{miniBatchSize, channels, targetHeight, targetWidth};
             var yMiniBatchShape = new[] { miniBatchSize, dataset.Y_DirectoryDataSet.Shape[1] };
             var rand = new Random(0);
             var shuffledElementId = Enumerable.Range(0, dataset.Count).ToArray();
@@ -135,7 +136,7 @@ namespace SharpNetTests.NonReg
                 swLoad.Stop();
                 swDA.Start();
                 int MiniBatchIdxToCategoryIndex(int miniBatchIdx) => dataset.ElementIdToCategoryIndex(MiniBatchIdxToElementId(miniBatchIdx));
-                Lazy<ImageStatistic> MiniBatchIdxToImageStatistic(int miniBatchIdx) => new Lazy<ImageStatistic>(() => dataset.ElementIdToImageStatistic(MiniBatchIdxToElementId(miniBatchIdx), targetHeight, targetWidth));
+                Lazy<ImageStatistic> MiniBatchIdxToImageStatistic(int miniBatchIdx) => new Lazy<ImageStatistic>(() => dataset.ElementIdToImageStatistic(MiniBatchIdxToElementId(miniBatchIdx), channels, targetHeight, targetWidth));
                 if (useMultiThreading)
                 {
                     Parallel.For(0, miniBatchSize, indexInMiniBatch => imageDataGenerator.DataAugmentationForMiniBatch(

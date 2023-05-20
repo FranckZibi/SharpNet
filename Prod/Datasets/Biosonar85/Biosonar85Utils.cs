@@ -6,154 +6,10 @@ using SharpNet.CPU;
 using SharpNet.GPU;
 using SharpNet.HPO;
 using SharpNet.HyperParameters;
-using SharpNet.Layers;
 using SharpNet.MathTools;
-using SharpNet.Networks;
 using SharpNet.Networks.Transformers;
 
 namespace SharpNet.Datasets.Biosonar85;
-
-
-public class Biosonor85TransformersNetworkSample : NetworkSample
-{
-    public double batchNorm_momentum = 0.99;
-    public bool Use_MaxPooling = false;
-    public bool Use_AvgPooling = false;
-
-
-    public override bool FixErrors()
-    {
-        if (!base.FixErrors())
-        {
-            return false;
-        }
-
-        if (Use_AvgPooling && Use_MaxPooling)
-        {
-            if (Utils.RandomCoinFlip())
-            {
-                Use_MaxPooling = true;
-                Use_AvgPooling = false;
-            }
-            else
-            {
-                Use_MaxPooling = false;
-                Use_AvgPooling = true;
-            }
-        }
-
-        return true;
-    }
-
-    public Biosonor85TransformersNetworkSample()
-    {
-    }
-    public override void BuildLayers(Network nn, AbstractDatasetSample datasetSample)
-    {
-        nn.Input(datasetSample.GetInputShapeOfSingleElement());
-
-        nn.Convolution(8, 5, 2, ConvolutionLayer.PADDING_TYPE.VALID, lambdaL2Regularization, true); //padding =2
-        nn.Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU);
-        nn.BatchNorm(batchNorm_momentum, 1e-5);
-
-        nn.Convolution(16, 3, 2, ConvolutionLayer.PADDING_TYPE.VALID, lambdaL2Regularization, true); //padding =1
-        nn.Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU);
-        nn.BatchNorm(batchNorm_momentum, 1e-5);
-
-        nn.Convolution(32, 3, 2, ConvolutionLayer.PADDING_TYPE.VALID, lambdaL2Regularization, true); //padding =1
-        nn.Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU);
-        nn.BatchNorm(batchNorm_momentum, 1e-5);
-
-        nn.Convolution(64, 3, 2, ConvolutionLayer.PADDING_TYPE.VALID, lambdaL2Regularization, true); //padding =1
-        nn.Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU);
-        nn.BatchNorm(batchNorm_momentum, 1e-5);
-
-        if (Use_AvgPooling)
-        {
-            nn.GlobalAvgPooling();
-        }
-        if (Use_MaxPooling)
-        {
-            nn.GlobalMaxPooling();
-        }
-        nn.Flatten();
-        nn.Dense(datasetSample.NumClass, lambdaL2Regularization, true);
-        nn.Activation(datasetSample.ActivationForLastLayer);
-    }
-
-}
-
-
-
-public class Biosonor85NetworkSample : NetworkSample
-{
-    public double batchNorm_momentum = 0.99;
-    public bool Use_MaxPooling = false;
-    public bool Use_AvgPooling = false;
-
-
-    public override bool FixErrors()
-    {
-        if (!base.FixErrors())
-        {
-            return false;
-        }
-
-        if (Use_AvgPooling && Use_MaxPooling)
-        {
-            if (Utils.RandomCoinFlip())
-            {
-                Use_MaxPooling = true;
-                Use_AvgPooling = false;
-            }
-            else
-            {
-                Use_MaxPooling = false;
-                Use_AvgPooling = true;
-            }
-        }
-
-        return true;
-    }
-
-    public Biosonor85NetworkSample()
-    {
-    }
-    public override void BuildLayers(Network nn, AbstractDatasetSample datasetSample)
-    {
-        nn.Input(datasetSample.GetInputShapeOfSingleElement());
-
-        nn.Convolution(8, 5, 2, ConvolutionLayer.PADDING_TYPE.VALID, lambdaL2Regularization, true); //padding =2
-        nn.Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU);
-        nn.BatchNorm(batchNorm_momentum, 1e-5);
-
-        nn.Convolution(16, 3, 2, ConvolutionLayer.PADDING_TYPE.VALID, lambdaL2Regularization, true); //padding =1
-        nn.Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU);
-        nn.BatchNorm(batchNorm_momentum, 1e-5);
-
-        nn.Convolution(32, 3, 2, ConvolutionLayer.PADDING_TYPE.VALID, lambdaL2Regularization, true); //padding =1
-        nn.Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU);
-        nn.BatchNorm(batchNorm_momentum, 1e-5);
-
-        nn.Convolution(64, 3, 2, ConvolutionLayer.PADDING_TYPE.VALID, lambdaL2Regularization, true); //padding =1
-        nn.Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU);
-        nn.BatchNorm(batchNorm_momentum, 1e-5);
-
-        if (Use_AvgPooling)
-        {
-            nn.GlobalAvgPooling();
-        }
-        if (Use_MaxPooling)
-        {
-            nn.GlobalMaxPooling();
-        }
-        nn.Flatten();
-        nn.Dense(datasetSample.NumClass, lambdaL2Regularization, true);
-        nn.Activation(datasetSample.ActivationForLastLayer);
-    }
-
-}
-
 
 public static class Biosonar85Utils
 {
@@ -166,6 +22,7 @@ public static class Biosonar85Utils
 
     public static string WorkingDirectory => Path.Combine(Utils.ChallengesPath, NAME);
     public static string DataDirectory => Path.Combine(WorkingDirectory, "Data");
+    public static string SubmitDirectory => Path.Combine(WorkingDirectory, "Submit");
     // ReSharper disable once MemberCanBePrivate.Global
 
 
@@ -203,7 +60,22 @@ public static class Biosonar85Utils
     const float x_train_mean = -37.149295f; 
     const float x_train_volatility = 14.906728f;
 
+    public static void Run()
+    {
+        //var trainDataset = Load("X_train_23168_101_64_1024_512.bin", "Y_train_23168_1_64_1024_512.bin", true);
+        //var testDataset = Load("X_test_950_101_64_1024_512.bin", "Y_test_950_1_64_1024_512.bin", false);
 
+        //var bin_file = Path.Combine(DataDirectory, "Y_train_ofTdMHi.csv.bin");
+        //var tensor = CpuTensor<float>.LoadFromBinFile(bin_file, new[] { -1, 101, 64});
+
+        ChallengeTools.Retrain(Path.Combine(WorkingDirectory, "Dump"), "BF0F549010", null, 0.8, false);
+
+
+        //Launch_HPO_Transformers(5);
+        //Launch_HPO(30);
+    }
+
+    
     public static InMemoryDataSet Load(string xFileName, [CanBeNull] string yFileNameIfAny, string csvFileName)
     {
         var xPath = Path.Join(DataDirectory, xFileName);
@@ -249,17 +121,7 @@ public static class Biosonar85Utils
         return dataset;
     }
 
-    public static void Run()
-    {
-        //var trainDataset = Load("X_train_23168_101_64_1024_512.bin", "Y_train_23168_1_64_1024_512.bin", true);
-        //var testDataset = Load("X_test_950_101_64_1024_512.bin", "Y_test_950_1_64_1024_512.bin", false);
-
-        //var bin_file = Path.Combine(DataDirectory, "Y_train_ofTdMHi.csv.bin");
-        //var tensor = CpuTensor<float>.LoadFromBinFile(bin_file, new[] { -1, 101, 64});
-
-        Launch_HPO_Transformers(70);
-    }
-
+    
     public static void Launch_HPO_Transformers(int numEpochs = 10, int maxAllowedSecondsForAllComputation = 0)
     {
         Utils.ConfigureGlobalLog4netProperties(WorkingDirectory, "log");
@@ -288,7 +150,7 @@ public static class Biosonar85Utils
             {"embedding_dim", 64},
             {"input_is_already_embedded", true },
             
-            {"encoder_num_transformer_blocks", new[]{6} }, //?D 2
+            {"encoder_num_transformer_blocks", new[]{6} }, //!D 2
             
             {"encoder_num_heads", new[]{8} },
 
@@ -372,7 +234,7 @@ public static class Biosonar85Utils
 
         //var hpo = new BayesianSearchHPO(searchSpace, () => ModelAndDatasetPredictionsSample.New(DefaultEfficientNetNetworkSample(), new Biosonar85DatasetSample()), WorkingDirectory);
         //var hpo = new RandomSearchHPO(searchSpace, () => ModelAndDatasetPredictionsSample.New(DefaultEfficientNetNetworkSample(), new Biosonar85DatasetSample()), WorkingDirectory);
-         var hpo = new RandomSearchHPO(searchSpace, () => ModelAndDatasetPredictionsSample.New(new Biosonor85NetworkSample(), new Biosonar85DatasetSample()), WorkingDirectory);
+         var hpo = new RandomSearchHPO(searchSpace, () => ModelAndDatasetPredictionsSample.New(new Biosonar85NetworkSample(), new Biosonar85DatasetSample()), WorkingDirectory);
         IScore bestScoreSoFar = null;
         const bool retrainOnFullDatasetIfBetterModelFound = false;
         hpo.Process(t => SampleUtils.TrainWithHyperParameters((ModelAndDatasetPredictionsSample)t, WorkingDirectory, retrainOnFullDatasetIfBetterModelFound, ref bestScoreSoFar), maxAllowedSecondsForAllComputation);

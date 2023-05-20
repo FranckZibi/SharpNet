@@ -26,7 +26,6 @@ public class InMemoryDataSet : DataSet
         char separator = ',')
         : base(name,
             objective,
-            x.Shape[1], 
             meanAndVolatilityForEachChannel, 
             ResizeStrategyEnum.None,
             columnNames ?? new string[0],

@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using SharpNet.CPU;
 
 namespace SharpNet.Datasets
@@ -13,7 +12,6 @@ namespace SharpNet.Datasets
 
         public ImageNetDataSet(string imageNetDirectory) : base(imageNetDirectory, 
             Objective_enum.Classification, 
-            3, 
             MeanAndVolatilityOfEachChannel, 
             ResizeStrategyEnum.None,
             new string[0],
@@ -30,8 +28,6 @@ namespace SharpNet.Datasets
         public override void LoadAt(int elementId, int indexInBuffer, CpuTensor<float> xBuffer,
             CpuTensor<float> yBuffer, bool withDataAugmentation, bool isTraining)
         {
-            Debug.Assert(xBuffer.Shape[0] == yBuffer.Shape[0]);
-            Debug.Assert(xBuffer.Shape[1] == Channels);
             throw new NotImplementedException();
         }
 

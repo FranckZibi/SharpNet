@@ -940,6 +940,41 @@ namespace SharpNet
             return (int)Math.Round(d);
         }
 
+        public static int PrevPowerOf2(int n)
+        {
+            if (n < 1)
+            {
+                return 0;
+            }
+
+            var result = 1;
+            while (2*result <= n)
+            {
+                result *=2;
+            }
+
+            return result;
+        }
+
+        public static int NextPowerOf2(int n)
+        {
+            if (n == 0)
+            {
+                return 1;
+            }
+
+            n--;
+            n |= n >> 1; // Divide by 2^k for consecutive doublings of k up to 32,
+            n |= n >> 2; // and then or the results.
+            n |= n >> 4;
+            n |= n >> 8;
+            n |= n >> 16;
+            n++; // The result is a number of 1 bits equal to the number
+            // of bits in the original number, plus 1. That's the
+            // next highest power of 2.
+            return n;
+        }
+
         public static bool SameContent(float[] a, float[] b, double epsilon)
         {
             return SameContent(a, b, epsilon, out _);

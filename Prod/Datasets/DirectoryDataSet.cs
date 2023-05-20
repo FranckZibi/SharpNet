@@ -74,7 +74,6 @@ namespace SharpNet.Datasets
             string[] elementIdToID)
             : base(name,
                 objective, 
-                channels, 
                 meanAndVolatilityForEachChannel, 
                 resizeStrategy,
                 featureNames?? new string[0],
@@ -88,7 +87,7 @@ namespace SharpNet.Datasets
 
             if (meanAndVolatilityForEachChannel == null)
             {
-                meanAndVolatilityForEachChannel = ComputeMeanAndVolatilityForEachChannel();
+                meanAndVolatilityForEachChannel = ComputeMeanAndVolatilityForEachChannel(channels);
                 throw new ArgumentException("please update mean and volatility for dataSet " + name);
             }
 
@@ -108,11 +107,11 @@ namespace SharpNet.Datasets
         public override void LoadAt(int elementId, int indexInBuffer, CpuTensor<float> xBuffer,
             CpuTensor<float> yBuffer, bool withDataAugmentation, bool isTraining)
         {
-            Debug.Assert(Channels == xBuffer.Shape[1]);
+            int channels = xBuffer.Shape[1];
             int targetHeight = xBuffer.Shape[2];
             int targetWidth = xBuffer.Shape[3];
-            
-            var data = OriginalElementContent(elementId, targetHeight, targetWidth, withDataAugmentation, isTraining);
+
+            var data = OriginalElementContent(elementId, channels, targetHeight, targetWidth, withDataAugmentation, isTraining);
             if (data == null)
             {
                 return;
@@ -151,30 +150,31 @@ namespace SharpNet.Datasets
 
 
         // ReSharper disable once UnusedMethodReturnValue.Local
-        private List<Tuple<float, float>> ComputeMeanAndVolatilityForEachChannel()
+        private List<Tuple<float, float>> ComputeMeanAndVolatilityForEachChannel(int channels)
         {
             const int DistinctValuesToComputeInEachChannel = 3; //sum + sumSquare + count
-            var sumSumSquareCountForEachChannel = new float[Channels * DistinctValuesToComputeInEachChannel];
+            var sumSumSquareCountForEachChannel = new float[channels * DistinctValuesToComputeInEachChannel];
             int nbPerformed = 0;
-            Parallel.For(0, Count, elementId => UpdateWith_Sum_SumSquare_Count_For_Each_Channel(elementId, sumSumSquareCountForEachChannel, ref nbPerformed));
-            return Sum_SumSquare_Count_to_ComputeMeanAndVolatilityForEachChannel(sumSumSquareCountForEachChannel, Channels);
+            Parallel.For(0, Count, elementId => UpdateWith_Sum_SumSquare_Count_For_Each_Channel(elementId, channels, sumSumSquareCountForEachChannel, ref nbPerformed));
+            return Sum_SumSquare_Count_to_ComputeMeanAndVolatilityForEachChannel(sumSumSquareCountForEachChannel, channels);
         }
 
         /// <summary>
         /// extract the original element 'elementId' from disk, resize it if needed, and returns it
         /// </summary>
         /// <param name="elementId"></param>
+        /// <param name="channels"></param>
         /// <param name="targetHeight">the mandatory height of the output bitmap (or -1 if we should keep the same height of the original image)</param>
         /// <param name="targetWidth">the mandatory width of the output bitmap (or -1 if we should keep the same width of the original image)</param>
         /// <param name="withDataAugmentation"></param>
         /// <param name="isTraining"></param>
         /// <returns></returns>
-        public override BitmapContent OriginalElementContent(int elementId, int targetHeight, int targetWidth, bool withDataAugmentation, bool isTraining)
+        public override BitmapContent OriginalElementContent(int elementId, int channels, int targetHeight, int targetWidth, bool withDataAugmentation, bool isTraining)
         {
             try
             {
                 var elementPaths = _elementIdToPaths[elementId];
-                if (elementPaths.Count == 1 && Channels == 3)
+                if (elementPaths.Count == 1 && channels == 3)
                 {
                     //single file containing all channels of the element
                     var path = elementPaths[0];
@@ -219,8 +219,6 @@ namespace SharpNet.Datasets
                     }
                     return BitmapContent.ValueFomSingleRgbBitmap(path);
                 }
-
-                Debug.Assert(Channels == elementPaths.Count);
                 //each file contains 1 channel of the element
                 return BitmapContent.ValueFromSeveralSingleChannelBitmaps(elementPaths);
             }
@@ -247,10 +245,10 @@ namespace SharpNet.Datasets
             }
             return result;
         }
-        private void UpdateWith_Sum_SumSquare_Count_For_Each_Channel(int elementId, float[] _sum_SumSquare_Count_For_Each_Channel, ref int nbPerformed)
+        private void UpdateWith_Sum_SumSquare_Count_For_Each_Channel(int elementId, int channels, float[] _sum_SumSquare_Count_For_Each_Channel, ref int nbPerformed)
         {
             UpdateStatus(ref nbPerformed);
-            OriginalElementContent(elementId,-1,-1, false, false).UpdateWith_Sum_SumSquare_Count_For_Each_Channel(_sum_SumSquare_Count_For_Each_Channel);
+            OriginalElementContent(elementId, channels ,- 1,-1, false, false).UpdateWith_Sum_SumSquare_Count_For_Each_Channel(_sum_SumSquare_Count_For_Each_Channel);
         }
     }
 }

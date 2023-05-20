@@ -158,7 +158,6 @@ public class TimeSeriesDataset : DataSet, ITimeSeriesDataSet, IGetDatasetSample
         DatasetSampleForTimeSeries datasetSample, TimeSeriesDataset trainingDataSetOldIfAny = null)
         : base(name,
             datasetSample.GetObjective(),
-            networkSample.Encoder_TimeSteps,
             null,
             ResizeStrategyEnum.None,
             datasetSample.GetColumnNames(),

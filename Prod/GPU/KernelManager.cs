@@ -17,7 +17,7 @@ namespace SharpNet.GPU
             public uint ThreadsPerBlock { get; set; }
             public uint BlocksPerGrid { get; set; }
             // ReSharper disable once MemberCanBeMadeStatic.Local
-            public uint DynamicSharedMemory => 0;
+            public uint DynamicSharedMemory { get; set; } = 0;
             public CudaKernel(byte[] fatBinaryObject, string kernelName)
             {
                 var res = NVCudaWrapper.cuModuleLoadFatBinary(out IntPtr moduleHandle, fatBinaryObject);
@@ -93,6 +93,7 @@ namespace SharpNet.GPU
                     "SparseCategoricalCrossentropyGradient",
                     "ArgMax",
                     "StandardizeRowsInPlaceBroadcastGammasBetas",
+                    "Compute_Row_Mean_Variance_V2",
                 },
                 "SharpNet.GPU.Kernels.SinglePrecision.cu",
                 out var errorMsg);
@@ -102,10 +103,23 @@ namespace SharpNet.GPU
             }
         }
 
-        public void RunKernel(string kernelName, int count, object[] parameterLists, int mandatoryThreadsPerBlock=-1)
+        public void RunKernel(string kernelName, int count, object[] parameterLists, int dynamicSharedMemory)
+        {
+            var (blocksPerGrid, threadsPerBlock) = Compute_BlocksPerGrid_ThreadsPerBlock(count, _gpu.MaxThreadsPerBlock, _gpu.MultiProcessorCount, _gpu.WarpSize, _gpu.ThreadsByMultiprocessor);
+            RunKernel(kernelName, count, parameterLists, blocksPerGrid, threadsPerBlock, dynamicSharedMemory);
+        }
+
+
+        public void RunKernel(string kernelName, int count, object[] parameterLists, int blocksPerGrid, int threadsPerBlock, int dynamicSharedMemory)
         {
             var kernel = _kernels[kernelName];
-            (kernel.BlocksPerGrid, kernel.ThreadsPerBlock) = Compute_BlocksPerGrid_ThreadsPerBlock(count, _gpu.MaxThreadsPerBlock, _gpu.MultiProcessorCount, _gpu.WarpSize, mandatoryThreadsPerBlock);
+            if (threadsPerBlock <= 0 || threadsPerBlock > _gpu.MaxThreadsPerBlock)
+            {
+                throw new ArgumentException($"threadsPerBlock must be between 1 and {_gpu.MaxThreadsPerBlock}, not {threadsPerBlock}");
+            }
+            kernel.BlocksPerGrid = (uint)blocksPerGrid;
+            kernel.ThreadsPerBlock = (uint)threadsPerBlock;
+            kernel.DynamicSharedMemory = (uint)dynamicSharedMemory;
             for (var i = 0; i < parameterLists.Length; i++)
             {
                 var e = parameterLists[i];
@@ -146,32 +160,44 @@ namespace SharpNet.GPU
             GPUWrapper.CheckStatus(res);
         }
 
-        //return a Tuple<BlocksPerGrid, ThreadsPerBlock>
-        public static (uint BlocksPerGrid, uint ThreadsPerBlock) Compute_BlocksPerGrid_ThreadsPerBlock(int count, int maxThreadsPerBlock, int multiProcessorCount, int warpSize, int mandatoryThreadsPerBlock=-1)
+        public static (int BlocksPerGrid, int ThreadsPerBlock) Compute_BlocksPerGrid_ThreadsPerBlock_From_rows_cols(int rows, int cols, int threadsByMultiprocessor)
+        {
+            int targetThreadsPerBlock = 2* threadsByMultiprocessor;
+            if (cols < targetThreadsPerBlock)
+            {
+                return (rows, Utils.PrevPowerOf2(cols));
+            }
+            return (rows, targetThreadsPerBlock);
+        }
+
+
+
+        public static (int BlocksPerGrid, int ThreadsPerBlock) Compute_BlocksPerGrid_ThreadsPerBlock(int count, int maxThreadsPerBlock, int multiProcessorCount, int warpSize, int threadsByMultiprocessor)
         {
             count = Math.Max(1, count);
+
             if (count <= warpSize)
             {
-                return (1u, (uint)count);
+                return (1, count);
             }
-            if (count < maxThreadsPerBlock * multiProcessorCount)
+
+            //!D TO OPTIMIZE
+            if (count < threadsByMultiprocessor * multiProcessorCount)
             {
                 int threadsPerBlockBeforeRoundingUp = (count + multiProcessorCount - 1) / multiProcessorCount;
                 //we want 'ThreadsPerBlock' be a multiple of 'warpSize'
                 int threadsPerBlockAfterRoundingUp = Utils.FirstMultipleOfAtomicValueAboveOrEqualToMinimum(threadsPerBlockBeforeRoundingUp, warpSize);
-                return ((uint)multiProcessorCount, (uint)threadsPerBlockAfterRoundingUp);
+                return (multiProcessorCount, threadsPerBlockAfterRoundingUp);
             }
 
-            if (mandatoryThreadsPerBlock != -1 && mandatoryThreadsPerBlock % warpSize != 0)
-            {
-                throw new ArgumentException($"mandatoryThreadsPerBlock ({mandatoryThreadsPerBlock}) must be a multiple of warpSize ({warpSize})");
-            }
+            var threadsPerBlock = maxThreadsPerBlock;
 
-            var threadsPerBlock = (mandatoryThreadsPerBlock!=-1)
-                ? mandatoryThreadsPerBlock
-                : maxThreadsPerBlock;
+            //!D TO OPTIMIZE
+            //!D
+            //threadsPerBlock = 2 * threadsByMultiprocessor;
+
             var blocksPerGrid = (count + threadsPerBlock - 1) / threadsPerBlock;
-            return ((uint)blocksPerGrid, (uint)threadsPerBlock);
+            return (blocksPerGrid, threadsPerBlock);
         }
 
         #region Dispose pattern

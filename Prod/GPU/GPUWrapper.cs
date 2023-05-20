@@ -59,6 +59,10 @@ namespace SharpNet.GPU
         public StreamWrapper DefaultStream { get; }
         public int MaxThreadsPerBlock { get; }
         public int MultiProcessorCount { get; }
+
+        public int ThreadsByMultiprocessor { get; }
+
+
         public int WarpSize { get; }
         public Stopwatch SwCopyDeviceToSameDevice { get; } = new Stopwatch();
         public Stopwatch SwCopyDeviceToOtherDevice { get; } = new Stopwatch();
@@ -130,6 +134,9 @@ namespace SharpNet.GPU
             MultiProcessorCount = properties[CUdevice_attribute.CU_DEVICE_ATTRIBUTE_MULTIPROCESSOR_COUNT];
             WarpSize = properties[CUdevice_attribute.CU_DEVICE_ATTRIBUTE_WARP_SIZE];
 
+
+            ThreadsByMultiprocessor = 128; //!D TODO
+
             DefaultStream = new StreamWrapper();
             var cudnnRes = CudnnWrapper.cudnnCreate(out _cudnnHandle);
             CheckStatus(cudnnRes);
@@ -156,11 +163,17 @@ namespace SharpNet.GPU
         public cusolverDnHandle_t CusolverDnHandle => _cusolverDnHandle;
 
 
-        public void RunKernel(string kernelName, int count, object[] parameterLists, int mandatoryThreadsPerBlock = -1)
+        public void RunKernel(string kernelName, int count, object[] parameterLists, int dynamicSharedMemory = 0)
         {
             CheckThreadId();
-            _kernelManager.RunKernel(kernelName, count, parameterLists, mandatoryThreadsPerBlock);
+            _kernelManager.RunKernel(kernelName, count, parameterLists, dynamicSharedMemory);
         }
+        public void RunKernel(string kernelName, int count, object[] parameterLists, int blocksPerGrid, int threadsPerBlock, int dynamicSharedMemory = 0)
+        {
+            CheckThreadId();
+            _kernelManager.RunKernel(kernelName, count, parameterLists, blocksPerGrid, threadsPerBlock, dynamicSharedMemory);
+        }
+
         public cudnnActivationDescriptor_t ActivationDesc(cudnnActivationMode_t activationFunctionType)
         {
             CheckThreadId();

@@ -79,7 +79,7 @@ public class TestUtils
     [TestCase(false, EvaluationMetricEnum.CategoricalCrossentropyWithHierarchy)]
     public void TestHigherScoreIsBetter(bool expectedResult, EvaluationMetricEnum metric)
     {
-        Assert.AreEqual(12, Enum.GetNames(typeof(EvaluationMetricEnum)).Length, $"expecting {Enum.GetNames(typeof(EvaluationMetricEnum)).Length} distinct tests for each {typeof(EvaluationMetricEnum)}");
+        Assert.AreEqual(16, Enum.GetNames(typeof(EvaluationMetricEnum)).Length, $"expecting {Enum.GetNames(typeof(EvaluationMetricEnum)).Length} distinct tests for each {typeof(EvaluationMetricEnum)}");
         Assert.AreEqual(expectedResult, Utils.HigherScoreIsBetter(metric));
     }
     
@@ -186,5 +186,32 @@ public class TestUtils
     {
         Assert.AreEqual(expected, Utils.NormalizeCategoricalFeatureValue(str));
     }
+
+
+    [TestCase(1, 0)]
+    [TestCase(1, 1)]
+    [TestCase(2, 2)]
+    [TestCase(256, 256)]
+    [TestCase(512, 257)]
+    [TestCase(256, 255)]
+    public void TestNextPowerOf2(int expected, int n)
+    {
+        Assert.AreEqual(expected, Utils.NextPowerOf2(n));
+
+    }
+
+    [TestCase(0, 0)]
+    [TestCase(1, 1)]
+    [TestCase(2, 2)]
+    [TestCase(2, 3)]
+    [TestCase(256, 256)]
+    [TestCase(256, 257)]
+    [TestCase(128, 255)]
+    public void TestPrevPowerOf2(int expected, int n)
+    {
+        Assert.AreEqual(expected, Utils.PrevPowerOf2(n));
+
+    }
+    
     
 }

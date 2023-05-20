@@ -23,7 +23,6 @@ namespace SharpNet.Datasets
         public SplittedFileDataSet([NotNull] List<string> files, string name, [NotNull] string[] categoryDescriptions, [NotNull] int[] singleElementShape_CHW, [CanBeNull]  List<Tuple<float, float>> meanAndVolatilityForEachChannel, [NotNull] Func<byte, int> categoryByteToCategoryIndex)
             : base(name, 
                 Objective_enum.Classification, 
-                singleElementShape_CHW[0], 
                 meanAndVolatilityForEachChannel, 
                 ResizeStrategyEnum.None,
                 new string[0],
@@ -64,7 +63,6 @@ namespace SharpNet.Datasets
             CpuTensor<float> yBuffer, bool withDataAugmentation, bool isTraining)
         {
             Debug.Assert(indexInBuffer >= 0 && indexInBuffer < xBuffer.Shape[0]);
-            Debug.Assert(Channels == xBuffer.Shape[1]); //same number of channels
 
             var targetHeight = xBuffer.Shape[2];
             var targetWidth = xBuffer.Shape[3];
@@ -76,7 +74,7 @@ namespace SharpNet.Datasets
             //we initialize 'xBuffer'
             int xByteIndex = 1;
             int xBufferIndex = xBuffer.Idx(indexInBuffer);
-            for (int channel = 0; channel < Channels; ++channel)
+            for (int channel = 0; channel < xBuffer.Shape[1]; ++channel)
             {
                 for (int row = 0; row < targetHeight; ++row)
                 {

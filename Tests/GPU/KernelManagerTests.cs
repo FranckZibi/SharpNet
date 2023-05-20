@@ -1,10 +1,13 @@
 ﻿using System;
 using System.Diagnostics;
+using System.Linq;
 using NUnit.Framework;
+using SharpNet;
 using SharpNet.CPU;
 using SharpNet.Data;
 using SharpNet.GPU;
 using SharpNetTests.CPU;
+using SharpNetTests.NonReg;
 
 namespace SharpNetTests.GPU
 {
@@ -32,7 +35,7 @@ namespace SharpNetTests.GPU
             Tensor a = aCpu.ToGPU<float>(GpuWrapper);
             Tensor b = bCpu.ToGPU<float>(GpuWrapper);
             Tensor resultGpu = new GPUTensor<float>(shape, null, GpuWrapper);
-            km.RunKernel("Sum", resultGpu.Count, new object[] { a, b, resultGpu });
+            km.RunKernel("Sum", resultGpu.Count, new object[] { a, b, resultGpu }, 0);
             Assert.IsTrue(TensorExtensions.SameFloatContent(resultCpu, resultGpu, 1e-2));
         }
 
@@ -48,7 +51,7 @@ namespace SharpNetTests.GPU
         [TestCase(524288+1, 2048, 1024*1024*1024+1, 2048, 20, 32)]
         public void Compute_BlocksPerGrid_ThreadsPerBlockTest(int expectedBlocksPerGrid, int expectedThreadsPerBlock, int count, int maxThreadsPerBlock, int multiProcessorCount, int warpSize)
         {
-            var (BlocksPerGrid, ThreadsPerBlock) = KernelManager.Compute_BlocksPerGrid_ThreadsPerBlock(count, maxThreadsPerBlock, multiProcessorCount, warpSize);
+            var (BlocksPerGrid, ThreadsPerBlock) = KernelManager.Compute_BlocksPerGrid_ThreadsPerBlock(count, maxThreadsPerBlock, multiProcessorCount, warpSize,256);
             Assert.AreEqual(expectedBlocksPerGrid, BlocksPerGrid);
             Assert.AreEqual(expectedThreadsPerBlock, ThreadsPerBlock);
         }
@@ -82,9 +85,50 @@ namespace SharpNetTests.GPU
             sw = Stopwatch.StartNew();
             for (int batchId = 0; batchId < nbBatchGPU; ++batchId)
             {
-                km.RunKernel("Sum", resultGpu.Count, new object[] {a, b, resultGpu});
+                km.RunKernel("Sum", resultGpu.Count, new object[] {a, b, resultGpu}, 0);
             }
             Console.WriteLine("1 GPU Time: " + (sw.Elapsed.TotalMilliseconds / nbBatchGPU) + "ms");
+        }
+
+        [Test, Explicit]
+        public void BenchmarkTestV2()
+        {
+            var km = new KernelManager(GpuWrapper);
+            const int rows = 1_000;
+            const int cols = 1024;
+            var shape = new[] { rows, cols };
+            var aCpu = TestNetworkPropagation.numpy_array_for_tests(shape); 
+
+            Tensor a = aCpu.ToGPU<float>(GpuWrapper);
+            Tensor mean = new GPUTensor<float>(new[]{ rows},null, GpuWrapper);
+            Tensor variance = new GPUTensor<float>(new[]{ rows},null, GpuWrapper);
+            var sw = Stopwatch.StartNew();
+            const int nb_computes = 100_000;
+            //const int nb_computes = 1;
+
+            var (blocksPerGrid, threadsPerBlock) = KernelManager.Compute_BlocksPerGrid_ThreadsPerBlock_From_rows_cols(rows, cols, GpuWrapper.ThreadsByMultiprocessor);
+            int dynamicSharedMemory = sizeof(float) * (cols+1+cols);
+            int nextColsPowerOf2 = Utils.NextPowerOf2(cols);
+
+            for (int batchId = 0; batchId < nb_computes; ++batchId)
+            {
+                km.RunKernel("Compute_Row_Mean_Variance_V2", blocksPerGrid * threadsPerBlock, new object[] { a, mean, variance, cols, nextColsPowerOf2, false }, blocksPerGrid, threadsPerBlock, dynamicSharedMemory);
+                //a.Compute_Row_Mean_Variance(mean, variance, false);
+            }
+            Console.WriteLine($"Total Time: {sw.Elapsed.TotalMilliseconds}ms, {sw.Elapsed.TotalMilliseconds / nb_computes}ms/compute");
+
+            var expectedSum = 0f;
+            var expectedSumSquare = 0f;
+            foreach (var v in aCpu.SpanContent)
+            {
+                expectedSum += v;
+                expectedSumSquare += v*v;
+            }
+
+
+            Console.WriteLine($"Expected Sum of mean: {expectedSum/cols}" );
+            Console.WriteLine($"Observed Sum of mean: {mean.ContentAsFloatArray().Sum()}");
+            Console.WriteLine($"Observed Sum of variance: {variance.ContentAsFloatArray().Sum()}");
         }
 
         private CpuTensor<float> RandomTensor(int[] shape)

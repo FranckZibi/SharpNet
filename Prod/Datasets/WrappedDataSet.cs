@@ -12,7 +12,6 @@ public abstract class WrappedDataSet : DataSet
     protected WrappedDataSet(DataSet original, [CanBeNull] string[] Y_IDs)
         : base(original.Name,
             original.Objective,
-            original.Channels,
             original.MeanAndVolatilityForEachChannel,
             original.ResizeStrategy,
             original.ColumnNames,

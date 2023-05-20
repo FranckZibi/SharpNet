@@ -23,6 +23,7 @@ public static class CFM84Utils
 
     public static string WorkingDirectory => Path.Combine(Utils.ChallengesPath, NAME);
     public static string DataDirectory => Path.Combine(WorkingDirectory, "Data");
+    public static string SubmitDirectory => Path.Combine(WorkingDirectory, "Submit");
     // ReSharper disable once MemberCanBePrivate.Global
 
     public static string XTrainPath => Path.Combine(DataDirectory, "input_training.csv");
@@ -105,13 +106,10 @@ public static class CFM84Utils
         //Misc.YCNG(); return;
         //BuildStatNormalizeFile();
         //Misc.BuildStatFile(); return;
-
         //using var m = ModelAndDatasetPredictions.Load(@"C:\Projects\Challenges\CFM84\dump\", "FB801BE40C", true);
         //m.EstimateLossContribution(computeAlsoRankingScore: true, maxGroupSize: 5000);
-
         ChallengeTools.Retrain(Path.Combine(WorkingDirectory, "dump"), "E1B434F23C", null, 0.99, false);
-
-
+        //ChallengeTools.ComputeAndSaveFeatureImportance(SubmitDirectory, "E1B434F23C", false);
         //AverageTestPredictions(new []{0.5,0.5}, @"C:\Projects\Challenges\CFM84\submit\9DE295AB09_modelformat_predict_test_.csv",  @"C:\Projects\Challenges\CFM84\submit\CF37BAB198_modelformat_predict_test_.csv");
         //AverageTestPredictions(new[] { 0.6, 0.4 }, @"C:\Projects\Challenges\CFM84\avg\26A5D7BA9E_modelformat_predict_test_.csv", @"C:\Projects\Challenges\CFM84\avg\CFB81C1361_modelformat_predict_test_.csv");
         //LaunchLightGBMHPO(100);

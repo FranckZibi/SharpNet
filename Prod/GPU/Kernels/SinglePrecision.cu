@@ -19,8 +19,6 @@
 			W[i] -= (multiplicative_factor * adam_vW[i]) / (sqrtf(adam_sW[i]) + epsilon) + adamW_l2Regularization * W[i];
 		}
 	}
-
-
 	
 	// for each row of tensor 'x' (of shape (N, cols), normalize the value
 	//  y = (x-mean)/volatility
@@ -1101,7 +1099,7 @@
 		int src_index = blockIdx.x * blockDim.x + threadIdx.x;
 		if (src_index >= N)
 			return;
-		int a = src_index / (B*C*D);
+		//int a = src_index / (B*C*D);
 		int bcd = src_index % (B*C*D);
 
 		int b = bcd / (C*D);
@@ -1145,5 +1143,69 @@
 		}
 	}
 
+	__device__ void warpReduce(volatile float* sdata, int tid) {
+		sdata[tid] += sdata[tid + 32];
+		sdata[tid] += sdata[tid + 16];
+		sdata[tid] += sdata[tid + 8];
+		sdata[tid] += sdata[tid + 4];
+		sdata[tid] += sdata[tid + 2];
+		sdata[tid] += sdata[tid + 1];
+	}
+
+
+	__global__ void Compute_Row_Mean_Variance_V2(int N, float* g_idata, float* mean, float* variance, int cols, int nextColsPowerOf2, bool unbiasedVariance) {
+
+		extern __shared__ float sdata[];
+		int tid = threadIdx.x;
+		int idx = blockIdx.x * blockDim.x + threadIdx.x;
+
+		float* sum_data = sdata;
+		float* sumSquare_data = &sdata[cols+1];
+
+		//the current thread 'tid' will take care of all elements in current row in range:
+		//	[ start_col_idx, end_col_idx [
+		int start_col_idx = (tid * cols) / blockDim.x;
+		int end_col_idx = ((tid + 1) * cols) / blockDim.x;
+
+		if (idx < N)
+		{
+			int g_idata_idx = blockIdx.x * cols + start_col_idx;
+			for (int col_idx = start_col_idx; col_idx < end_col_idx; col_idx++)
+			{
+				float tmp = g_idata[g_idata_idx++];
+				sum_data[col_idx] = tmp;
+				sumSquare_data[col_idx] = tmp * tmp;
+			}
+		}
+		__syncthreads();
+
+		int min_stride_excluded = cols < 32 ? 0 : 32;
+		for (int stride = nextColsPowerOf2 / 2; stride > min_stride_excluded; stride >>= 1) {
+
+			int max_cold_idx = min(min(stride, cols - stride), end_col_idx);
+			for (int col_idx = start_col_idx; col_idx < max_cold_idx; col_idx++)
+			{
+				sum_data[col_idx] += sum_data[col_idx + stride];
+				sumSquare_data[col_idx] += sumSquare_data[col_idx + stride];
+			}
+			__syncthreads();
+		}
+		if (tid < 32 && min_stride_excluded == 32) {
+			warpReduce(sum_data, tid);
+			warpReduce(sumSquare_data, tid);
+		}
+
+		// write result for this block to global mem
+		if (tid == 0) {
+
+			int rowId = blockIdx.x;
+			float row_mean = (float)(sum_data[0] / cols);
+			mean[rowId] = row_mean;
+			int divider = unbiasedVariance ? (cols - 1) : cols;
+			float row_variance = (float)abs(sumSquare_data[0] - cols * row_mean * row_mean) / divider;
+			variance[rowId] = row_variance;
+		}
+	}
 }
+
 

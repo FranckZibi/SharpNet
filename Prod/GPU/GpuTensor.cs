@@ -193,6 +193,25 @@ namespace SharpNet.GPU
             _wrapper.RunKernel("Compute_Row_Mean_Variance", rows, new object[] { cols, x, row_mean, row_variance, unbiasedVariance });
         }
 
+        private void Compute_Row_Mean_VarianceV2(Tensor row_mean, Tensor row_variance, bool unbiasedVariance)
+        {
+            var x = this;
+            Debug.Assert(AreCompatible(new List<Tensor> { this, row_mean, row_variance }));
+            Debug.Assert(row_mean.SameShape(row_variance));
+            int rows = row_mean.Count;
+            if (x.Count % rows != 0)
+            {
+                throw new ArgumentException("x.Count % rows != 0");
+            }
+            int cols = x.Count / rows;
+            var (blocksPerGrid, threadsPerBlock) = KernelManager.Compute_BlocksPerGrid_ThreadsPerBlock_From_rows_cols(rows, cols, _wrapper.ThreadsByMultiprocessor);
+            int dynamicSharedMemory = sizeof(float) * (cols + 1 + cols);
+            int nextColsPowerOf2 = Utils.NextPowerOf2(cols);
+            _wrapper.RunKernel("Compute_Row_Mean_Variance_V2", blocksPerGrid * threadsPerBlock, new object[] { x, row_mean, row_variance, cols, nextColsPowerOf2, false }, blocksPerGrid, threadsPerBlock, dynamicSharedMemory);
+        }
+
+
+
         public override void StandardizeInPlace(Tensor row_mean, Tensor row_variance, int axis, float epsilon)
         {
             var x = this;

@@ -26,7 +26,6 @@ public class DataFrameDataSet : DataSet, IGetDatasetSample
         [CanBeNull] string[] y_IDs)
         : base(datasetSample.Name,
             datasetSample.GetObjective(),
-            x_df.Shape[1],
             null,
             ResizeStrategyEnum.None,
             x_df.Columns,

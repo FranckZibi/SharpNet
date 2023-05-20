@@ -18,7 +18,6 @@ namespace SharpNet.Datasets
             string name = "", List<Tuple<float, float>> meanAndVolatilityForEachChannel = null)
             : base(name, 
                 Objective_enum.Regression,
-                timeSteps,
                 meanAndVolatilityForEachChannel,
                 ResizeStrategyEnum.None,
                 new string[0],

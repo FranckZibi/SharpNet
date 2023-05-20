@@ -1,7 +1,6 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using SharpNet.Datasets;
-using SharpNet.Datasets.CFM60;
 using SharpNet.GPU;
 using SharpNet.Models;
 using SharpNet.Networks;
@@ -65,81 +64,8 @@ namespace SharpNetTests
             //using var network = Network.ValueOf(Path.Combine(NetworkSample.DefaultLogDirectory, "Cancel", "efficientnet-b0_DA_SVHN_20200526_1736_70.txt"));
             //using var dataSet = builder.ExtractDataSet(e => e.HasExpectedWidthHeightRatio(xShape[3] / ((double)xShape[2]), 0.05), root);
             //network.Predict(dataSet, Path.Combine(ImageDatabaseManagementPath, "Prediction.csv"));
-
-
-            //SharpNet.Datasets.Natixis70.DatasetHPO(@"C:\Users\Franck\AppData\Local\SharpNet\NATIXIS70\Dataset\1000tress\surrogate_train_20220122.csv", new []{"bagging_fraction", "max_depth" }, Parameters.boosting_enum.rf, 100);
-            //SharpNet.Datasets.Natixis70.DatasetHPO(@"C:\Users\Franck\AppData\Local\SharpNet\NATIXIS70\Dataset\1000tress\surrogate_train_20220129.csv", new string[]{}, Parameters.boosting_enum.rf, 100);
-            //SharpNet.Datasets.Natixis70.Natixis70DatasetSample.TrainNetwork(10, 120); return;
-            //SharpNet.Datasets.Natixis70.Natixis70DatasetSample.LaunchCatBoostHPO(10, 1*60); return;
-            //KFoldModel.TrainEmbeddedModelWithKFold(@"C:\Projects\Challenges\Natixis70\submit\5F73F0353D_bis", "5F73F0353D", 5);
-            //new ChallengeTools().StackedEnsemble(30, 0);
-
-            //Model.LoadProbaFile(@"C:\Projects\Challenges\KaggleDays\catboost\Temp\a_FULL_predict_A4C28F4395.tsv", true, true, null, null);
-            //Model.LoadProbaFile(@"C:\Projects\Challenges\KaggleDays\catboost\Temp\a_FULL_predict_D3D1ED8387.tsv", true, true, null, null);
-            //return;
-
-            //SharpNet.Datasets.EffiSciences95.EffiSciences95Utils.InferenceUnlabeledEffiSciences95("C:/Projects/Challenges/EffiSciences95/", "F1040C26F7_FULL", true); return;
-            //SharpNet.Datasets.EffiSciences95.EffiSciences95Utils.Launch_HPO(30, -1); return;
-
-
-            //new ChallengeTools().Retrain(-1, true); return;
-
-            //Natixis70DatasetSample.TestDatasetMustHaveLabels = true;
-
-            //KaggleDaysDatasetSample.Enrich(@"\\ryzen2700\Challenges\KaggleDays\526FA40EC2_KFOLD_modelformat_predict_test_.csv"); return;
-            //KaggleDaysDatasetSample.CreateEnrichedDataSet(); return;
-            //KaggleDaysDatasetSample.LaunchLightGBMHPO(100,3600); return;
-            //KaggleDaysDatasetSample.LaunchCatBoostHPO(25, 0);
-
-            //KFoldSample.Compute12();
-            //AbstractSample.Compute12();
-
-            //SharpNet.Misc.DoStuff();
-            //CFM60Tests(); return;
-            //CFM60DatasetSample.TrainNetwork(10);
-
-            //WasYouStayWorthItsPriceDatasetSample.TrainNetwork(10, 120);
-            //new ChallengeTools().StackedEnsemble(30, 0);
-            //new ChallengeTools().ComputeAndSaveFeatureImportance();
-            //WasYouStayWorthItsPriceDatasetSample.Retrain();
-            //WasYouStayWorthItsPriceDatasetSample.LaunchLightGBMHPO(1, 1);
-            //new ChallengeTools().ComputeAndSaveFeatureImportance();
-            //WasYouStayWorthItsPriceDatasetSample.LaunchCatBoostHPO(10, 10);
-            //WasYouStayWorthItsPriceDatasetSample.CreateEnrichedDataSet();return;
-
-
-
-            //SharpNet.Datasets.CFM84.CFM84Utils.Run();return;
-
-            //KFoldModel.TrainEmbeddedModelWithKFold(@"C:\Projects\Challenges\Natixis70\aaa", "7F1CA8E4AE", 5, 3);
-            //KFoldModel.TrainEmbeddedModelWithKFold(@"C:\Projects\Challenges\Natixis70\aaa", "A3699BA7D3", 5, 3);
-
-            //ModelAndDatasetPredictions.Load(@"C:\Projects\Challenges\Natixis70\embeddedModel", "ABB2EC09A2").Fit(true, true, false); return;
-
-            //Utils.ConfigureGlobalLog4netProperties(Natixis70Utils.WorkingDirectory, "TrainEmbeddedModelWithKFold");
-            //Utils.ConfigureThreadLog4netProperties(Natixis70Utils.WorkingDirectory, "TrainEmbeddedModelWithKFold");
-            //foreach(var kfold in new []{3,5})
-            //{
-            //    KFoldModel.TrainEmbeddedModelWithKFold(@"C:\Projects\Challenges\Natixis70\aaa6", @"C:\Projects\Challenges\Natixis70\embeddedModel", "ABB2EC09A2", kfold);
-            //}
-            //return;
-
-            //KFoldModel.TrainEmbeddedModelWithKFold(@"C:\Projects\Challenges\Natixis70\submit\5F73F0353D_ter", "5F73F0353D", 5, 3);
-            //KFoldModel.TrainEmbeddedModelWithKFold(@"C:\Projects\Challenges\Natixis70\submit\5F73F0353D_ter", "5F73F0353D", 10, 3);
-            //var modelAndDataset = ModelAndDataset.LoadModelAndDataset(@"C:\Projects\Challenges\Natixis70\submit\v2", "A8A78BE573");
-            //modelAndDataset.Model.ModelSample.Use_All_Available_Cores();
-            //modelAndDataset.Fit(true, false, true);
-            //return;
-            //trainableSample.DatasetSample.ComputePredictions(model007); return;
-
-
-            //Natixis70Utils.SearchForBestWeights_full_Dataset(); return;
-            //new TestCatBoostSample().TestToJson();
-
-            //AmazonEmployeeAccessChallengeUtils.Launch_CatBoost_HPO(); return;
-
             //new TestCpuTensor().TestMaxPooling3D();return;
-            //new NonReg.ParallelRunWithTensorFlow().TestParallelRunWithTensorFlow_UnivariateTimeSeries(); return;
+            //new NonReg.ParallelRunWithTensorFlow().Test_Speed_MultiHeadAttention(); return;
             //EfficientNetTests_Cancel(true);
             //WideResNetTests();
             //SVHNTests();
@@ -151,6 +77,13 @@ namespace SharpNetTests
             //new NonReg.TestBenchmark().TestGPUBenchmark_Memory();new NonReg.TestBenchmark().TestGPUBenchmark_Speed();
             //new NonReg.TestBenchmark().TestGPUBenchmark_Speed();
             //new NonReg.TestBenchmark().BenchmarkDataAugmentation();
+            
+            //SharpNet.Datasets.EffiSciences95.EffiSciences95Utils.InferenceUnlabeledEffiSciences95("C:/Projects/Challenges/EffiSciences95/", "F1040C26F7_FULL", true); return;
+            //SharpNet.Datasets.EffiSciences95.EffiSciences95Utils.Launch_HPO(30, -1); return;
+            //SharpNet.Networks.Transformers.TextTransformersUtils.Run();  return;
+            //SharpNet.Datasets.PlumeLabs88.PlumeLabs88Utils.Run();
+            //SharpNet.Datasets.CFM84.CFM84Utils.Run();return;
+            SharpNet.Datasets.Biosonar85.Biosonar85Utils.Run();return;
         }
 
 
@@ -194,6 +127,7 @@ namespace SharpNetTests
 
         private static void EfficientNetTests_Cancel(bool useMultiGpu)
         {
+            const int channels = 3;
             const int targetHeight = 470; const int targetWidth = 400;var batchSize = 20;const double defaultInitialLearningRate = 0.01;
             //var targetHeight = 235;var targetWidth = 200;var batchSize = 80;var defaultInitialLearningRate = 0.02;
             //var targetHeight = 118;var targetWidth = 100;var batchSize = 300;var defaultInitialLearningRate = 0.05;
@@ -240,21 +174,21 @@ namespace SharpNetTests
             // ReSharper disable once ConditionIsAlwaysTrueOrFalse
             var networkGeometries = new List<Action<EfficientNetNetworkSample, int>>
             {
-                (p,gpuDeviceId) =>{p.SetResourceId(gpuDeviceId);Train_Cancel_EfficientNet(p, targetHeight, targetWidth);},
+                (p,gpuDeviceId) =>{p.SetResourceId(gpuDeviceId);Train_Cancel_EfficientNet(p, channels, targetHeight, targetWidth);},
             };
 
             PerformAllActionsInAllGpu(networkMetaParameters, networkGeometries, useMultiGpu);
         }
-        private static void Train_Cancel_EfficientNet(EfficientNetNetworkSample p, int targetHeight, int targetWidth)
+        private static void Train_Cancel_EfficientNet(EfficientNetNetworkSample p, int channels, int targetHeight, int targetWidth)
         {
             var database = new CancelDatabase();
             //TODO Test with selection of only matching size input in the training set
             //using var dataset = database.ExtractDataSet(e=>e.HasExpectedWidthHeightRatio(targetWidth / ((double)targetHeight), 0.05) && CancelDatabase.IsValidNonEmptyCancel(e.Cancel), ResizeStrategyEnum.ResizeToHeightAndWidthSizeKeepingSameProportionWith5PercentTolerance);
             using var dataset = database.ExtractDataSet(e=>CancelDatabase.IsValidNonEmptyCancel(e.Cancel), ResizeStrategyEnum.BiggestCropInOriginalImageToKeepSameProportion);
-            using var trainingAndValidation = dataset.SplitIntoTrainingAndValidation(0.9); //90% for training,  10% for validation
+            using var trainingAndValidation = dataset.SplitIntoTrainingAndValidation(0.9, false, false); //90% for training,  10% for validation
 
             var rootPrediction = CancelDatabase.Hierarchy.RootPrediction();
-            using var network = p.EfficientNetB0(DenseNetNetworkSample.CancelWorkingDirectory, true, "", new[] { trainingAndValidation.Training.Channels, targetHeight, targetWidth }, rootPrediction.Length);
+            using var network = p.EfficientNetB0(DenseNetNetworkSample.CancelWorkingDirectory, true, "", new[] { channels, targetHeight, targetWidth }, rootPrediction.Length);
             network.SetSoftmaxWithHierarchy(rootPrediction);
             //network.LoadParametersFromH5File(@System.IO.Path.Combine(NetworkSample.DefaultLogDirectory, "Cancel", "efficientnet-b0_Imagenet_400_470_20200620_1427_310.h5"), NetworkSample.CompatibilityModeEnum.TensorFlow1);
 
@@ -297,15 +231,11 @@ namespace SharpNetTests
         }
         private static void Train_CIFAR10_EfficientNet(EfficientNetNetworkSample p)
         {
-            const int zoomFactor = 7;
-            using var cifar10Original = new CIFAR10DataSet();
-            var zoomedInputShape = new []{CIFAR10DataSet.Shape_CHW[0], zoomFactor * CIFAR10DataSet.Shape_CHW[1],zoomFactor * CIFAR10DataSet.Shape_CHW[2]};
-            using var cifar10Zoomed = new ZoomedTrainingAndTestDataset(cifar10Original, CIFAR10DataSet.Shape_CHW, zoomFactor, zoomFactor);
-            using var network = p.EfficientNetB0_CIFAR10(p.WeightForTransferLearning, zoomedInputShape);
+            throw new NotImplementedException();
+            using var cifar10 = new CIFAR10DataSet();
+            using var network = p.EfficientNetB0_CIFAR10(p.WeightForTransferLearning, CIFAR10DataSet.Shape_CHW);
             Log.Info(network.ToString());
-            //network.FindBestLearningRate(cifar10.Training, 1e-5, 10, p.Config.BatchSize);return;
-
-            network.Fit(cifar10Zoomed.Training, cifar10Zoomed.Test);
+            network.Fit(cifar10.Training, cifar10.Test);
         }
         #endregion
 
@@ -447,51 +377,6 @@ namespace SharpNetTests
             using var network = buildNetwork();
             network.Fit(cifar10.Training, cifar10.Test);
         }
-
-
-        #region CFM60 Training
-        private static void CFM60Tests()
-        {
-            const bool useMultiGpu = false;
-            var networkGeometries = new List<Action<Cfm60NetworkSampleOld, int>>
-            {
-                (p,gpuDeviceId) =>{p.SetResourceId(gpuDeviceId);Train_CFM60(p);},
-            };
-
-            var networkMetaParameters = new List<Func<Cfm60NetworkSampleOld>>
-            {
-                () =>{var p = Cfm60NetworkSampleOld.Default();return p;},
-            };
-
-            //networkMetaParameters = SharpNet.Utils.Repeat(networkMetaParameters, 2);
-
-            PerformAllActionsInAllGpu(networkMetaParameters, networkGeometries, useMultiGpu);
-        }
-
-
-
-        private static void Train_CFM60(Cfm60NetworkSampleOld p)
-        {
-            using var network = p.CFM60();
-            //using var network = Network.ValueOf(@"C:\Users\Franck\AppData\Local\SharpNet\CFM60\CFM60-0-0_InputSize4_64_DropoutRate0_2_20210115_1831_10.txt");
-            using var cfm60TrainingAndTestDataSet = new Cfm60TrainingAndTestDatasetOld(p, s => Model.Log.Info(s));
-            var cfm60 = (CFM60DataSetOld)cfm60TrainingAndTestDataSet.Training;
-            //To compute feature importances, uncomment the following line
-            //cfm60.ComputeFeatureImportances("c:/temp/cfm60_featureimportances.csv", false); return;
-            using var trainingValidation = cfm60.SplitIntoTrainingAndValidation(p.PercentageInTraining);
-            //var res = network.FindBestLearningRate(cfm60, 1e-7, 0.9, p.Config.BatchSize);return;
-            ((CFM60DataSetOld)trainingValidation.Training).ValidationDataSetOld = (CFM60DataSetOld)trainingValidation.Test;
-            ((CFM60DataSetOld)trainingValidation.Training).OriginalTestDataSetOld = (CFM60DataSetOld)cfm60TrainingAndTestDataSet.Test;
-            network.Fit(trainingValidation.Training, trainingValidation.Test);
-            ((CFM60DataSetOld)trainingValidation.Training).ValidationDataSetOld = null;
-            ((CFM60DataSetOld)trainingValidation.Training).OriginalTestDataSetOld = null;
-
-            //((CFM60DataSet)cfm60TrainingAndTestDataSet.Test).CreatePredictionFile(network);
-            //((CFM60DataSet)trainingValidation.Test).CreatePredictionFile(network);
-        }
-        #endregion
-
-
 
         /// <summary>
         /// perform as much actions as possible among 'allActionsToPerform'

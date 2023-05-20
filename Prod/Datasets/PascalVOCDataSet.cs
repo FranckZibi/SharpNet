@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -25,7 +24,6 @@ namespace SharpNet.Datasets
         private PascalVOCDataSet(string vocDevKitDirectory, string subDirectory, List<Tuple<float, float>> meanAndVolatilityOfEachChannel, ResizeStrategyEnum resizeStrategy) 
             : base(subDirectory, 
                 Objective_enum.Classification, 
-                3, 
                 meanAndVolatilityOfEachChannel, 
                 resizeStrategy,
                 new string[0],
@@ -81,7 +79,7 @@ namespace SharpNet.Datasets
 
             _directoryDataSet = new DirectoryDataSet(
                     elementIdToPaths, elementIdToCategoryIndex, null
-                    , subDirectory, Objective_enum.Classification, Channels, _CategoryIndexToDescription, meanAndVolatilityOfEachChannel, ResizeStrategyEnum.ResizeToTargetSize, null, elementIdToId.ToArray());
+                    , subDirectory, Objective_enum.Classification, 3, _CategoryIndexToDescription, meanAndVolatilityOfEachChannel, ResizeStrategyEnum.ResizeToTargetSize, null, elementIdToId.ToArray());
         }
 
         public static PascalVOCDataSet PascalVOC2007()
@@ -98,8 +96,6 @@ namespace SharpNet.Datasets
         public override void LoadAt(int elementId, int indexInBuffer, CpuTensor<float> xBuffer,
             CpuTensor<float> yBuffer, bool withDataAugmentation, bool isTraining)
         {
-            Debug.Assert(xBuffer.Shape[0] == yBuffer?.Shape[0]);
-            Debug.Assert(xBuffer.Shape[1] == Channels);
             throw new NotImplementedException();
         }
 

@@ -30,7 +30,6 @@ public sealed class RandomizeColumnDataSet : DataSet
     public RandomizeColumnDataSet(DataSet original, List<string> columnNameToRandomize, Random r)
         : base(original.Name,
             original.Objective,
-            original.Channels,
             original.MeanAndVolatilityForEachChannel,
             original.ResizeStrategy,
             original.ColumnNames,
