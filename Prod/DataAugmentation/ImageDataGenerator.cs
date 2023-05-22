@@ -12,7 +12,7 @@ namespace SharpNet.DataAugmentation
         private readonly NetworkSample _sample;
 
         //TODO: add FillModeEnum: Constant
-        public enum FillModeEnum { Nearest, Reflect };
+        public enum FillModeEnum { Nearest, Reflect, Modulo };
         public enum DataAugmentationEnum
         {
             DEFAULT,
@@ -44,6 +44,8 @@ namespace SharpNet.DataAugmentation
             Debug.Assert(_sample.HeightShiftRangeInPercentage >= 0);
             Debug.Assert(_sample.HeightShiftRangeInPercentage <= 1.0);
             Debug.Assert(_sample.CutoutPatchPercentage <= 1.0);
+            Debug.Assert(_sample.ColumnsCutoutPatchPercentage <= 1.0);
+            Debug.Assert(_sample.RowsCutoutPatchPercentage <= 1.0);
             Debug.Assert(_sample.RotationRangeInDegrees >= 0);
             Debug.Assert(_sample.RotationRangeInDegrees <= 180.0);
             Debug.Assert(_sample.ZoomRange >= 0);
@@ -104,8 +106,8 @@ namespace SharpNet.DataAugmentation
 
             var lazyStats = indexInMiniBatchToImageStatistic(indexInMiniBatch);
 
-            var nbRows = xOriginalMiniBatch.Shape[2];
-            var nbCols = xOriginalMiniBatch.Shape[3];
+            var nbRows = xOriginalMiniBatch.Shape[^2];
+            var nbCols = xOriginalMiniBatch.Shape[^1];
             result.Add(Rotate.ValueOf(_sample.RotationRangeInDegrees, rand, nbRows, nbCols));
 
             double horizontalMultiplier = 1.0;
@@ -167,6 +169,8 @@ namespace SharpNet.DataAugmentation
             result.Add(CutMix.ValueOf(_sample.AlphaCutMix, indexInMiniBatch, xOriginalMiniBatch, rand));
             result.Add(Mixup.ValueOf(_sample.AlphaMixup, indexInMiniBatch, xOriginalMiniBatch, rand));
             result.Add(Cutout.ValueOf(_sample.CutoutPatchPercentage, rand, nbRows, nbCols));
+            result.Add(Cutout.ValueOfColumnsCutout(_sample.ColumnsCutoutPatchPercentage, rand, nbRows, nbCols));
+            result.Add(Cutout.ValueORowsCutout(_sample.RowsCutoutPatchPercentage, rand, nbRows, nbCols));
             result.RemoveAll(x => x == null);
 #if DEBUG
             OperationHelper.CheckIntegrity(result);

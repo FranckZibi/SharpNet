@@ -1644,5 +1644,20 @@ namespace SharpNet
 
             return (d < 0) ? -1 : 0;
         }
+
+
+        /// <summary>
+        /// return the modulo of 'x' always in positive range [0, modulo-1]
+        /// (even if x is negative)
+        /// </summary>
+        /// <param name="x">a number that can be negative</param>
+        /// <param name="modulo"></param>
+        /// <returns></returns>
+        public static int AlwaysPositiveModulo(int x, int modulo)
+        {
+            int r = x % modulo;
+            return r < 0 ? r + modulo : r;
+        }
+
     }
 }

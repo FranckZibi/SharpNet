@@ -3,6 +3,7 @@ using System.IO;
 using JetBrains.Annotations;
 using log4net;
 using SharpNet.CPU;
+using SharpNet.DataAugmentation;
 using SharpNet.GPU;
 using SharpNet.HPO;
 using SharpNet.HyperParameters;
@@ -68,7 +69,7 @@ public static class Biosonar85Utils
         //var bin_file = Path.Combine(DataDirectory, "Y_train_ofTdMHi.csv.bin");
         //var tensor = CpuTensor<float>.LoadFromBinFile(bin_file, new[] { -1, 101, 64});
 
-        ChallengeTools.Retrain(Path.Combine(WorkingDirectory, "Dump"), "BF0F549010", null, 0.8, false);
+        ChallengeTools.Retrain(Path.Combine(WorkingDirectory, "Dump"), "D2A9222C2B", null, 0.8, false);
 
 
         //Launch_HPO_Transformers(5);
@@ -150,7 +151,7 @@ public static class Biosonar85Utils
             {"embedding_dim", 64},
             {"input_is_already_embedded", true },
             
-            {"encoder_num_transformer_blocks", new[]{6} }, //!D 2
+            {"encoder_num_transformer_blocks", new[]{2} }, //!D 2
             
             {"encoder_num_heads", new[]{8} },
 
@@ -167,6 +168,7 @@ public static class Biosonar85Utils
 
         
             // DataAugmentation
+            { "DataAugmentationType", nameof(ImageDataGenerator.DataAugmentationEnum.DEFAULT) },
             { "AlphaMixup", new[] { 0.0 /*, 0.5, 1.0*/ } },  //0
             { "AlphaCutMix", new[] { /*0.0, */ 0.5} }, //0 or 0.5
             { "CutoutPatchPercentage", new[] { 0.3} }, // 0 or 0.3

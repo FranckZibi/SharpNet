@@ -210,8 +210,18 @@ public class TestUtils
     public void TestPrevPowerOf2(int expected, int n)
     {
         Assert.AreEqual(expected, Utils.PrevPowerOf2(n));
+    }
+
+    [TestCase(0, 100, 100)]
+    [TestCase(100, 100, 150)]
+    [TestCase(0, 100, 50)]
+    [TestCase(1, 7,3)]
+    [TestCase(1, -99, 10)]
+    public void AlwaysPositiveModulo(int expected, int x, int modulo)
+    {
+        Assert.AreEqual(expected, Utils.AlwaysPositiveModulo(x, modulo));
 
     }
-    
-    
+
+
 }

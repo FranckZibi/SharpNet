@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using SharpNet.CPU;
 
 namespace SharpNet.DataAugmentation.Operations
@@ -12,6 +13,10 @@ namespace SharpNet.DataAugmentation.Operations
 
         public Cutout(int rowStart, int rowEnd, int colStart, int colEnd)
         {
+            Debug.Assert(rowStart >= 0);
+            Debug.Assert(rowEnd>=0);
+            Debug.Assert(colStart >= 0);
+            Debug.Assert(colEnd >= 0);
             _rowStart = rowStart;
             _rowEnd = rowEnd;
             _colStart = colStart;
@@ -68,6 +73,55 @@ namespace SharpNet.DataAugmentation.Operations
             var colEnd = Math.Min(nbCols - 1, colStart + cutoutPatchLength - 1);
 
             return new Cutout(rowStart, rowEnd, colStart, colEnd);
+        }
+
+        //cutout entire columns
+        public static Cutout ValueOfColumnsCutout(double columnsCutoutPatchPercentage, Random rand, int nbRows, int nbCols)
+        {
+            if (columnsCutoutPatchPercentage <= 0)
+            {
+                return null;
+            }
+            if (columnsCutoutPatchPercentage > 1.0)
+            {
+                throw new ArgumentException($"invalid {nameof(columnsCutoutPatchPercentage)}: {columnsCutoutPatchPercentage}");
+            }
+
+            int numberOfColumnsToCutout = (int)Math.Round(columnsCutoutPatchPercentage * nbCols, 0.0);
+
+            //the cutout columns will be centered at 'colMiddle'
+            //its size will be between 'nbRows x 1' (only 1 column will be entirely cutout)
+            //to 'nbRows x cutoutPatchLengthInNumberOfColumns' (maximum size)
+            var colMiddle = rand.Next(nbCols);
+
+            var colStart = Math.Max(0, colMiddle - numberOfColumnsToCutout / 2);
+            var colEnd = Math.Min(nbCols - 1, colStart + numberOfColumnsToCutout - 1);
+            return new Cutout(0, nbRows, colStart, colEnd);
+        }
+
+
+        //cutout entire rows
+        public static Cutout ValueORowsCutout(double rowsCutoutPatchPercentage, Random rand, int nbRows, int nbCols)
+        {
+            if (rowsCutoutPatchPercentage <= 0)
+            {
+                return null;
+            }
+            if (rowsCutoutPatchPercentage > 1.0)
+            {
+                throw new ArgumentException($"invalid {nameof(rowsCutoutPatchPercentage)}: {rowsCutoutPatchPercentage}");
+            }
+
+            int numberOfRowsToCutout = (int)Math.Round(rowsCutoutPatchPercentage * nbRows, 0.0);
+
+            //the cutout rows will be centered at 'rowMiddle'
+            //its size will be between '1 x nbCols' (only 1 row will be entirely cutout)
+            //to 'cutoutPatchLengthInNumberOfRows x nbCols' (maximum size)
+            var rowMiddle = rand.Next(nbRows);
+
+            var rowStart = Math.Max(0, rowMiddle - numberOfRowsToCutout / 2);
+            var rowEnd = Math.Min(nbRows - 1, rowStart + numberOfRowsToCutout - 1);
+            return new Cutout(rowStart, rowEnd, 0, nbCols);
         }
     }
 }

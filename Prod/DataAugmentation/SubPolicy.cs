@@ -21,6 +21,15 @@ namespace SharpNet.DataAugmentation
             Debug.Assert(xOriginalMiniBatch.SameShape(xDataAugmentedMiniBatch));
             Debug.Assert(xBufferForDataAugmentedMiniBatch != null);
             Debug.Assert(xDataAugmentedMiniBatch.SameShape(xBufferForDataAugmentedMiniBatch));
+            
+            //special case: shape of (batchSize, rows, cols) (where there is only 1 channel that is omitted)
+            if (xOriginalMiniBatch.Shape.Length == 3)
+            {
+                xOriginalMiniBatch = (CpuTensor<float>)xOriginalMiniBatch.Reshape(xOriginalMiniBatch.Shape[0], 1, xOriginalMiniBatch.Shape[1], xOriginalMiniBatch.Shape[2]);
+                xDataAugmentedMiniBatch = (CpuTensor<float>)xDataAugmentedMiniBatch.Reshape(xOriginalMiniBatch.Shape);
+                xBufferForDataAugmentedMiniBatch = (CpuTensor<float>)xBufferForDataAugmentedMiniBatch.Reshape(xOriginalMiniBatch.Shape);
+            }
+
             if (subPolicy.Count == 0)
             {
                 xOriginalMiniBatch.CopyTo(xDataAugmentedMiniBatch);
@@ -66,33 +75,18 @@ namespace SharpNet.DataAugmentation
                             {
                                 //we compute the original row index (that will be transformed to 'rowOutput' after Data Augmentation)
                                 rowInput = UnconvertRow(rowOutput, colOutput, unconvertAX, unconvertBX, unconvertCX);
-                                if (rowInput < 0)
-                                {
-                                    rowInput = fillMode == ImageDataGenerator.FillModeEnum.Reflect ? Math.Abs(rowInput + 1) : 0;
-                                }
-                                if (rowInput >= nbRows)
-                                {
-                                    rowInput = fillMode == ImageDataGenerator.FillModeEnum.Reflect ? (nbRows - 1 - (rowInput - nbRows)) : (nbRows - 1);
-                                }
-                                rowInput = Math.Min(Math.Max(0, rowInput), nbRows - 1);
+                                rowInput = FixColInput(fillMode, nbRows, rowInput);
                                 Debug.Assert(rowInput >= 0 && rowInput < nbRows);
 
                                 //we compute the original column index (that will be transformed to 'colOutput' after Data Augmentation)
                                 colInput = UnconvertCol(rowOutput, colOutput, unconvertAY, unconvertBY, unconvertCY);
-                                if (colInput < 0)
-                                {
-                                    colInput = fillMode == ImageDataGenerator.FillModeEnum.Reflect ? Math.Abs(colInput + 1) : 0;
-                                }
-                                if (colInput >= nbCols)
-                                {
-                                    colInput = fillMode == ImageDataGenerator.FillModeEnum.Reflect ? (nbCols - 1 - (colInput - nbCols)) : (nbCols - 1);
-                                }
-                                colInput = Math.Min(Math.Max(0, colInput), nbCols - 1);
+                                colInput = FixColInput(fillMode, nbCols, colInput);
                                 Debug.Assert(colInput >= 0 && colInput < nbCols);
                             }
 
                             var realPrevious = (i == 0) ? xOriginalMiniBatch : previous;
                             var augmentedValue = policy.AugmentedValue(indexInMiniBatch, channel, realPrevious, rowInput, colInput, next, rowOutput, colOutput);
+                            //!D try to use same Span
                             next[outputPictureIdx + colOutput] = augmentedValue;
                         }
                     }
@@ -101,6 +95,40 @@ namespace SharpNet.DataAugmentation
             }
             subPolicy.ForEach(x => x.UpdateY(yDataAugmentedMiniBatch, indexInMiniBatch, indexInOriginalMiniBatchToCategoryIndex));
         }
+
+        /// <summary>
+        /// ensure that the column index 'colInput' is in the range [0, nbCols-1]
+        /// always return a value in range [0, nbCols-1]
+        /// </summary>
+        /// <param name="fillMode"></param>
+        /// <param name="nbCols">the total number of columns</param>
+        /// <param name="colInput">the index to fix</param>
+        /// <returns></returns>
+        private static int FixColInput(ImageDataGenerator.FillModeEnum fillMode, int nbCols, int colInput)
+        {
+            if (colInput >= 0 && colInput<nbCols)
+            {
+                //no need to fix 'colInput' : it is already in the range [0,nbCols-1]
+                return colInput;
+            }
+
+            if (fillMode == ImageDataGenerator.FillModeEnum.Reflect)
+            {
+                var colInputReflectResult = colInput < 0 ? Math.Abs(colInput + 1) : nbCols - 1 - (colInput - nbCols);
+                return Math.Min(Math.Max(0, colInputReflectResult), nbCols - 1);
+            }
+            if (fillMode == ImageDataGenerator.FillModeEnum.Nearest)
+            {
+                if (colInput < 0)
+                {
+                    return 0;
+                }
+                return nbCols - 1;
+            }
+            Debug.Assert(fillMode == ImageDataGenerator.FillModeEnum.Modulo);
+            return Utils.AlwaysPositiveModulo(colInput, nbCols);
+        }
+
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static int UnconvertRow(int row, int col, double unconvertAX, double unconvertBX, double unconvertCX)

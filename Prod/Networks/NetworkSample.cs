@@ -342,9 +342,15 @@ namespace SharpNet.Networks
                 ConvolutionAlgoPreference = GPUWrapper.ConvolutionAlgoPreference.FASTEST_DETERMINIST;
             }
 
+            if (DataAugmentationType == ImageDataGenerator.DataAugmentationEnum.NO_AUGMENTATION)
+            {
+                ZoomRange = RotationRangeInDegrees = AlphaCutMix = AlphaMixup = CutoutPatchPercentage = RowsCutoutPatchPercentage = ColumnsCutoutPatchPercentage = FillModeConstantVal = AlphaMixup = AlphaCutMix = WidthShiftRangeInPercentage = HeightShiftRangeInPercentage = 0;
+                HorizontalFlip = VerticalFlip = Rotate180Degrees= false;
+            }
+
             if (AlphaMixup>0 && AlphaCutMix>0)
             {
-                // Mixup and CutMix can not be used at the same time: we neeed to disable one of them
+                // Mixup and CutMix can not be used at the same time: we need to disable one of them
                 if (Utils.RandomCoinFlip())
                 {
                     AlphaMixup = 0; //We disable Mixup
@@ -565,12 +571,26 @@ namespace SharpNet.Networks
         public double FillModeConstantVal = 0.0;
 
         /// <summary>
-        /// The cutout to use in % of the longest length ( = Max(height, width) )
+        /// The cutout to use in maximum % of the longest length ( = Max(height, width) )
         /// ( = % of the max(width,height) of the zero mask to apply to the input picture) (see: https://arxiv.org/pdf/1708.04552.pdf)
         /// recommended size : 16/32=0.5 (= 16x16) for CIFAR-10 / 8/32=0.25 (= 8x8) for CIFAR-100 / 20/32 (= 20x20) for SVHN / 32/96 (= 32x32) for STL-10
         /// If less or equal to 0 , Cutout will be disabled
         /// </summary>
         public double CutoutPatchPercentage = 0.0;
+
+        /// <summary>
+        /// The columns cutout to use in maximum % of the number of columns
+        /// If less or equal to 0 , Columns Cutout will be disabled
+        /// </summary>
+        public double ColumnsCutoutPatchPercentage = 0.0;
+
+        /// <summary>
+        /// The rows cutout to use in maximum % of the number of rows
+        /// If less or equal to 0 , Rows Cutout will be disabled
+        /// </summary>
+        public double RowsCutoutPatchPercentage = 0.0;
+
+
 
         #region time series
 

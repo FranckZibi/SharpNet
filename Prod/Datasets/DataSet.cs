@@ -691,9 +691,11 @@ namespace SharpNet.Datasets
             {
                 //Data Augmentation for images
                 Debug.Assert(all_xMiniBatchShape.Count == 1);
-                int channels = all_xMiniBatchShape[0][1];
-                int targetHeight = all_xMiniBatchShape[0][2];
-                int targetWidth = all_xMiniBatchShape[0][3];
+                int channels = all_xMiniBatchShape[0].Length >= 4 
+                        ?all_xMiniBatchShape[0][^3]
+                        :1;
+                int targetHeight = all_xMiniBatchShape[0][^2];
+                int targetWidth = all_xMiniBatchShape[0][^1];
                 Lazy<ImageStatistic> MiniBatchIdxToLazyImageStatistic(int miniBatchIdx) => new Lazy<ImageStatistic>(() => ElementIdToImageStatistic(MiniBatchIdxToElementId(miniBatchIdx), channels, targetHeight, targetWidth));
                 var imageDataGenerator = new ImageDataGenerator(dataAugmentationSample);
                 Parallel.For(0, miniBatchSize, indexInMiniBatch => imageDataGenerator.DataAugmentationForMiniBatch(indexInMiniBatch % maxElementsToLoad, all_xOriginalNotAugmentedMiniBatch[0], all_xDataAugmentedMiniBatch[0], yDataAugmentedMiniBatch, MiniBatchIdxToCategoryIndex, MiniBatchIdxToLazyImageStatistic, MeanAndVolatilityForEachChannel, GetRandomForIndexInMiniBatch(indexInMiniBatch), all_xBufferForDataAugmentedMiniBatch[0]));

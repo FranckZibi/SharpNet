@@ -20,19 +20,19 @@ namespace SharpNetTests.DataAugmentation.Operations
             OperationTests.Check(new Cutout(0, 3, 0, 3), input, inputShape, expected, null, ImageDataGenerator.FillModeEnum.Nearest, null, null);
 
             //single element cutout
-            expected = new[] { 0f, 1, 2, 3, 4, 5, default, 7, 8, 9, 10, 11, 12, 13, 14, 15 };
+            expected = new[] { 0f, 1, 2, 3, 4, 5, 0, 7, 8, 9, 10, 11, 12, 13, 14, 15 };
             OperationTests.Check(new Cutout(1, 1, 2, 2), input, inputShape, expected, null, ImageDataGenerator.FillModeEnum.Nearest, null, null);
             
             //single row cutout
-            expected = new[] { 0f, 1, 2, 3, default(int), default(int), default(int), default(int), 8, 9, 10, 11, 12, 13, 14, 15 };
+            expected = new[] { 0f, 1, 2, 3, 0, 0, 0, 0, 8, 9, 10, 11, 12, 13, 14, 15 };
             OperationTests.Check(new Cutout(1, 1, 0, 3), input, inputShape, expected, null, ImageDataGenerator.FillModeEnum.Nearest, null, null);
 
             //single col cutout
-            expected = new[] { 0f, 1, default(int), 3, 4, 5, default(int), 7, 8, 9, default(int), 11, 12, 13, default(int), 15 };
+            expected = new[] { 0f, 1, 0, 3, 4, 5, 0, 7, 8, 9, 0, 11, 12, 13, 0, 15 };
             OperationTests.Check(new Cutout(0, 3, 2, 2), input, inputShape, expected, null, ImageDataGenerator.FillModeEnum.Nearest, null, null);
 
             //top right cutout
-            expected = new[] { 0f, 1, default(int), default(int), 4, 5, default(int), default(int), 8, 9, 10, 11, 12, 13, 14, 15 };
+            expected = new[] { 0f, 1, 0, 0, 4, 5, 0, 0, 8, 9, 10, 11, 12, 13, 14, 15 };
             var operation = new Cutout(0, 1, 2, 3);
             OperationTests.Check(operation, input, inputShape, expected, null, ImageDataGenerator.FillModeEnum.Nearest, null, null);
 
