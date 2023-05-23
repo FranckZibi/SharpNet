@@ -378,6 +378,8 @@ public class Natixis70DatasetSample : AbstractDatasetSample
         return RowsInTargetFormatToRowsInModelFormat(1);
     }
     public override EvaluationMetricEnum GetRankingEvaluationMetric() => EvaluationMetricEnum.Rmse;
+    public override int NumClass => 1;
+    public override string[] TargetLabelDistinctValues => new string[0];
     public override Objective_enum GetObjective() => Objective_enum.Regression;
     public string[] ColumnsInModelFormat
     {

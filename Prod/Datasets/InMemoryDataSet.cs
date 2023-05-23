@@ -11,7 +11,7 @@ public class InMemoryDataSet : DataSet
     #region private fields
     private readonly int[] _elementIdToCategoryIndex;
     private readonly CpuTensor<float> _x;
-    private readonly CpuTensor<float> _yInMemoryDataSet;
+    [CanBeNull] private readonly CpuTensor<float> _yInMemoryDataSet;
     #endregion
     
     public InMemoryDataSet([NotNull] CpuTensor<float> x,
@@ -61,14 +61,16 @@ public class InMemoryDataSet : DataSet
             }
         }
     }
-    public override void LoadAt(int elementId, int indexInBuffer, CpuTensor<float> xBuffer, CpuTensor<float> yBuffer,
-        bool withDataAugmentation, bool isTraining)
+    public override void LoadAt(int elementId, int indexInBuffer, CpuTensor<float> xBuffer, CpuTensor<float> yBuffer, bool withDataAugmentation, bool isTraining)
     {
-        Debug.Assert(indexInBuffer >= 0 &&  indexInBuffer < xBuffer.Shape[0]);
-        //same number of channels / same height  / same width
-        //only the first dimension (batch size) can be different
-        Debug.Assert(_x.SameShapeExceptFirstDimension(xBuffer));
-        _x.CopyTo(_x.Idx(elementId), xBuffer, xBuffer.Idx(indexInBuffer), xBuffer.MultDim0);
+        if (xBuffer != null)
+        {
+            Debug.Assert(indexInBuffer >= 0 &&  indexInBuffer < xBuffer.Shape[0]);
+            //same number of channels / same height  / same width
+            //only the first dimension (batch size) can be different
+            Debug.Assert(_x.SameShapeExceptFirstDimension(xBuffer));
+            _x.CopyTo(_x.Idx(elementId), xBuffer, xBuffer.Idx(indexInBuffer), xBuffer.MultDim0);
+        }
         if (yBuffer != null)
         {
             if (_yInMemoryDataSet == null)
@@ -83,6 +85,16 @@ public class InMemoryDataSet : DataSet
         }
     }
 
+    public override CpuTensor<float> LoadFullY()
+    {
+        return _yInMemoryDataSet;
+    }
+
+    public override int[] Y_Shape()
+    {
+        return _yInMemoryDataSet?.Shape;
+    }
+
     public override int Count => _x.Shape[0];
 
     public override int ElementIdToCategoryIndex(int elementId)
@@ -95,7 +107,6 @@ public class InMemoryDataSet : DataSet
     }
 
     public CpuTensor<float> X => _x;
-    public override CpuTensor<float> Y => _yInMemoryDataSet;
     public override string ToString()
     {
         return _x + " => " + _yInMemoryDataSet;

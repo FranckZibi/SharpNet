@@ -8,25 +8,11 @@ public sealed class MappedDataSet : WrappedDataSet
 {
     private readonly DataSet _original;
     private readonly IReadOnlyList<int> _elementIdToOriginalElementId;
-    private readonly CpuTensor<float> yMappedDataSet;
         
     public MappedDataSet(DataSet original, IReadOnlyList<int> elementIdToOriginalElementId) : base(original, null)
     {
         _original = original;
         _elementIdToOriginalElementId = new List<int>(elementIdToOriginalElementId);
-
-        //We compute Y 
-        var originalYIfAny = original.Y;
-        if (originalYIfAny != null)
-        {
-            var mapped_Y_shape = (int[])originalYIfAny.Shape.Clone();
-            mapped_Y_shape[0] = elementIdToOriginalElementId.Count; // mapped batch size
-            yMappedDataSet = new CpuTensor<float>(mapped_Y_shape);
-            for (int elementId = 0; elementId < elementIdToOriginalElementId.Count; ++elementId)
-            {
-                originalYIfAny.CopyTo(originalYIfAny.Idx(elementIdToOriginalElementId[elementId]), yMappedDataSet, yMappedDataSet.Idx(elementId), originalYIfAny.MultDim0);
-            }
-        }
     }
 
     public override string ToString()
@@ -39,6 +25,14 @@ public sealed class MappedDataSet : WrappedDataSet
     {
         _original.LoadAt(_elementIdToOriginalElementId[subElementId], indexInBuffer, xBuffer, yBuffer, withDataAugmentation, isTraining);
     }
+
+    public override int[] Y_Shape()
+    {
+        var mapped_y_shape = (int[])_original.Y_Shape().Clone();
+        mapped_y_shape[0] = Count;
+        return mapped_y_shape;
+    }
+
     public override int Count => _elementIdToOriginalElementId.Count;
 
     public override int ElementIdToCategoryIndex(int elementId)
@@ -67,11 +61,6 @@ public sealed class MappedDataSet : WrappedDataSet
 
         return _original.ID_Y_row_InTargetFormat(_elementIdToOriginalElementId[Y_row_InTargetFormat]);
     }
-
-
-
-
-    public override CpuTensor<float> Y => yMappedDataSet;
 
     #region Dispose pattern
     protected override void Dispose(bool disposing)

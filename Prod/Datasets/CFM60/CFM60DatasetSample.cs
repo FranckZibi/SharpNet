@@ -264,6 +264,9 @@ public class CFM60DatasetSample : DatasetSampleForTimeSeries
     public override string[] CategoricalFeatures => new[] { "pid" };
     public override string IdColumn => "ID";
     public override string[] TargetLabels => new[] { "target" };
+    public override int NumClass => 1;
+    public override string[] TargetLabelDistinctValues => new string[0];
+
     public override Objective_enum GetObjective()
     {
         return Objective_enum.Regression;

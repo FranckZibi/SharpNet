@@ -4,7 +4,6 @@ using JetBrains.Annotations;
 using log4net;
 using SharpNet.CPU;
 using SharpNet.DataAugmentation;
-using SharpNet.DataAugmentation.Operations;
 using SharpNet.GPU;
 using SharpNet.HPO;
 using SharpNet.HyperParameters;

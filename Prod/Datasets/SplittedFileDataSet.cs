@@ -12,13 +12,15 @@ namespace SharpNet.Datasets
     {
         #region private fields
         [NotNull] private readonly int[] _elementIdToCategoryIndex;
-        [NotNull] private readonly CpuTensor<float> _ySplittedFileDataSet;
         [NotNull] private readonly List<string> Files;
+        [NotNull] private readonly string[] _categoryDescriptions;
         [NotNull] private readonly int[] FirstElementIdInFile;
         [NotNull] private readonly int[] LastElementIdInFile;
         [NotNull] private readonly int[] _singleElementShape_CHW; /* shape in format (channels, height, width) */
         [NotNull] private readonly Func<byte, int> CategoryByteToCategoryIndex;
         #endregion
+
+        private int NumClass => _categoryDescriptions.Length;
 
         public SplittedFileDataSet([NotNull] List<string> files, string name, [NotNull] string[] categoryDescriptions, [NotNull] int[] singleElementShape_CHW, [CanBeNull]  List<Tuple<float, float>> meanAndVolatilityForEachChannel, [NotNull] Func<byte, int> categoryByteToCategoryIndex)
             : base(name, 
@@ -34,6 +36,7 @@ namespace SharpNet.Datasets
             //Currently only pictures (channels x height x width) are supported
             Debug.Assert(singleElementShape_CHW.Length == 3);
             Files = files;
+            _categoryDescriptions = categoryDescriptions;
             _singleElementShape_CHW = singleElementShape_CHW;
             //+1 byte to store the category associated with each element
             long bytesInSingleElement = Utils.Product(singleElementShape_CHW) + 1;
@@ -55,47 +58,55 @@ namespace SharpNet.Datasets
             {
                 _elementIdToCategoryIndex[i] = -1;
             }
-
-            //TODO : initialize Y tensor
-            _ySplittedFileDataSet = new CpuTensor<float>(new[] { Count, categoryDescriptions.Length });
         }
-        public override void LoadAt(int elementId, int indexInBuffer, CpuTensor<float> xBuffer,
-            CpuTensor<float> yBuffer, bool withDataAugmentation, bool isTraining)
+        public override void LoadAt(int elementId, int indexInBuffer, CpuTensor<float> xBuffer, CpuTensor<float> yBuffer, bool withDataAugmentation, bool isTraining)
         {
             Debug.Assert(indexInBuffer >= 0 && indexInBuffer < xBuffer.Shape[0]);
 
-            var targetHeight = xBuffer.Shape[2];
-            var targetWidth = xBuffer.Shape[3];
-
             //we load the element content from the file
             var xByte = LoadElementIdFromFile(elementId);
-            var xBufferContent = xBuffer.SpanContent;
 
-            //we initialize 'xBuffer'
-            int xByteIndex = 1;
-            int xBufferIndex = xBuffer.Idx(indexInBuffer);
-            for (int channel = 0; channel < xBuffer.Shape[1]; ++channel)
+            if (xBuffer != null)
             {
-                for (int row = 0; row < targetHeight; ++row)
+
+                var targetHeight = xBuffer.Shape[2];
+                var targetWidth = xBuffer.Shape[3];
+                var xBufferContent = xBuffer.SpanContent;
+
+                //we initialize 'xBuffer'
+                int xByteIndex = 1;
+                int xBufferIndex = xBuffer.Idx(indexInBuffer);
+                for (int channel = 0; channel < xBuffer.Shape[1]; ++channel)
                 {
-                    for (int col = 0; col < targetWidth; ++col)
+                    for (int row = 0; row < targetHeight; ++row)
                     {
-                        var val = (double)xByte[xByteIndex++];
-                        val = (val - OriginalChannelMean(channel)) / OriginalChannelVolatility(channel);
-                        xBufferContent[xBufferIndex++] = (float)val;
+                        for (int col = 0; col < targetWidth; ++col)
+                        {
+                            var val = (double)xByte[xByteIndex++];
+                            val = (val - OriginalChannelMean(channel)) / OriginalChannelVolatility(channel);
+                            xBufferContent[xBufferIndex++] = (float)val;
+                        }
                     }
                 }
             }
 
-            //we initialize 'yBuffer'
-            var categoryIndex = CategoryByteToCategoryIndex(xByte[0]);
-            _elementIdToCategoryIndex[elementId] = categoryIndex;
-            for (int cat = 0; cat < _ySplittedFileDataSet.Shape[1]; ++cat)
+            if (yBuffer != null)
             {
-                yBuffer?.Set(indexInBuffer, cat, (cat == categoryIndex) ? 1f : 0f);
-                _ySplittedFileDataSet.Set(elementId, cat, (cat == categoryIndex) ? 1f : 0f);
+                //we initialize 'yBuffer'
+                var categoryIndex = CategoryByteToCategoryIndex(xByte[0]);
+                _elementIdToCategoryIndex[elementId] = categoryIndex;
+                for (int cat = 0; cat < NumClass; ++cat)
+                {
+                    yBuffer.Set(indexInBuffer, cat, (cat == categoryIndex) ? 1f : 0f);
+                }
             }
         }
+
+        public override int[] Y_Shape()
+        {
+            return new[] { Count, NumClass };
+        }
+
         public override int ElementIdToCategoryIndex(int elementId)
         {
             var res = _elementIdToCategoryIndex[elementId];
@@ -103,11 +114,6 @@ namespace SharpNet.Datasets
             return res;
         }
         public override int Count { get; }
-        public override CpuTensor<float> Y => _ySplittedFileDataSet;
-        public override string ToString()
-        {
-            return "X => " + _ySplittedFileDataSet;
-        }
         public static List<string> AllBinFilesInDirectory(string directory, params string[] filesPrefix)
         {
             var result = new List<string>();

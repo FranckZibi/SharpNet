@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using JetBrains.Annotations;
 using SharpNet.CPU;
 
 namespace SharpNet.Datasets
@@ -9,7 +10,7 @@ namespace SharpNet.Datasets
     {
         #region private fields
         private readonly Memory<float> _univariateTimeSeries;
-        private readonly CpuTensor<float> _yUnivariateTimeSeriesDataSet;
+        [NotNull] private readonly CpuTensor<float> _yUnivariateTimeSeriesDataSet;
         private readonly int _timeSteps;
         private readonly int _stride;
         #endregion
@@ -59,15 +60,18 @@ namespace SharpNet.Datasets
         public override void LoadAt(int elementId, int indexInBuffer, CpuTensor<float> xBuffer,
             CpuTensor<float> yBuffer, bool withDataAugmentation, bool isTraining)
         {
-            Debug.Assert(indexInBuffer >= 0 && indexInBuffer < xBuffer.Shape[0]);
-            Debug.Assert(xBuffer.SameShapeExceptFirstDimension(X_Shape));
-            Debug.Assert(xBuffer.Shape[0] == yBuffer.Shape[0]); //same batch size
-            Debug.Assert(yBuffer == null || yBuffer.SameShapeExceptFirstDimension(_yUnivariateTimeSeriesDataSet.Shape));
+            if (xBuffer != null)
+            {
+                Debug.Assert(indexInBuffer >= 0 && indexInBuffer < xBuffer.Shape[0]);
+                Debug.Assert(xBuffer.SameShapeExceptFirstDimension(X_Shape));
+                Debug.Assert(xBuffer.Shape[0] == yBuffer.Shape[0]); //same batch size
+                Debug.Assert(yBuffer == null || yBuffer.SameShapeExceptFirstDimension(_yUnivariateTimeSeriesDataSet.Shape));
 
-            var xSrc = _univariateTimeSeries.Span.Slice(elementId*_stride, xBuffer.MultDim0);
-            var xDest = xBuffer.AsFloatCpuSpan.Slice(indexInBuffer * xBuffer.MultDim0, xBuffer.MultDim0);
-            Debug.Assert(xSrc.Length == xDest.Length);
-            xSrc.CopyTo(xDest);
+                var xSrc = _univariateTimeSeries.Span.Slice(elementId*_stride, xBuffer.MultDim0);
+                var xDest = xBuffer.AsFloatCpuSpan.Slice(indexInBuffer * xBuffer.MultDim0, xBuffer.MultDim0);
+                Debug.Assert(xSrc.Length == xDest.Length);
+                xSrc.CopyTo(xDest);
+            }
             if (yBuffer != null)
             {
                 _yUnivariateTimeSeriesDataSet.CopyTo(_yUnivariateTimeSeriesDataSet.Idx(elementId), yBuffer, yBuffer.Idx(indexInBuffer), yBuffer.MultDim0);
@@ -97,9 +101,18 @@ namespace SharpNet.Datasets
 
         }
 
+        public override int[] Y_Shape()
+        {
+            return _yUnivariateTimeSeriesDataSet.Shape;
+        }
+
+        public override CpuTensor<float> LoadFullY()
+        {
+            return _yUnivariateTimeSeriesDataSet;
+        }
+
         private int[] X_Shape => new []{Count, _timeSteps, 1};
 
-        public override CpuTensor<float> Y => _yUnivariateTimeSeriesDataSet;
         public override string ToString()
         {
             return X_Shape + " => " + _yUnivariateTimeSeriesDataSet;

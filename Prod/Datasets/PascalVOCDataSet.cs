@@ -15,7 +15,7 @@ namespace SharpNet.Datasets
         private readonly DirectoryDataSet _directoryDataSet;
         private readonly List<PascalVOCImageDescription> _annotations;
 
-        public static readonly string[] _CategoryIndexToDescription = new[]
+        public static readonly string[] CategoryIndexToDescription = new[]
         {
             "aeroplane", "bicycle", "bird", "boat", "bottle", "bus", "car", "cat", "chair", "cow", "diningtable",
             "dog", "horse", "motorbike", "person", "pottedplant", "sheep", "sofa", "train", "tvmonitor"
@@ -79,7 +79,7 @@ namespace SharpNet.Datasets
 
             _directoryDataSet = new DirectoryDataSet(
                     elementIdToPaths, elementIdToCategoryIndex, null
-                    , subDirectory, Objective_enum.Classification, 3, _CategoryIndexToDescription, meanAndVolatilityOfEachChannel, ResizeStrategyEnum.ResizeToTargetSize, null, elementIdToId.ToArray());
+                    , subDirectory, Objective_enum.Classification, 3, CategoryIndexToDescription, meanAndVolatilityOfEachChannel, ResizeStrategyEnum.ResizeToTargetSize, null, elementIdToId.ToArray());
         }
 
         public static PascalVOCDataSet PascalVOC2007()
@@ -98,16 +98,16 @@ namespace SharpNet.Datasets
         {
             throw new NotImplementedException();
         }
-
+        public override int[] Y_Shape()
+        {
+            return new[] { Count, CategoryIndexToDescription.Length };
+        }
         public override int Count => _directoryDataSet.Count;
-
         public override int ElementIdToCategoryIndex(int elementId)
         {
             throw new ArgumentException("several categories may be associated with a single image");
         }
         public int ElementIdToHeight(int elementId) { return _annotations[elementId].Height; }
         public int ElementIdToWidth(int elementId) { return _annotations[elementId].Width; }
-        public override CpuTensor<float> Y => _directoryDataSet.Y;
     }
-
 }

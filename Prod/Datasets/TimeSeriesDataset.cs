@@ -19,8 +19,6 @@ public class TimeSeriesDataset : DataSet, ITimeSeriesDataSet, IGetDatasetSample
     // elementId : id of an element in the dataSet (in range [0, dataSet.Count[ )
     private readonly Dictionary<string, float> _idToPrediction = new ();
 
-    public override CpuTensor<float> Y => _yTimeSeriesDataset;
-
     public DatasetSampleForTimeSeries DatasetSampleForTimeSeries { get; }
 
     private readonly TimeSeriesDataset _trainingDataSetOldIfAny;
@@ -335,6 +333,17 @@ public class TimeSeriesDataset : DataSet, ITimeSeriesDataSet, IGetDatasetSample
             _yTimeSeriesDataset.CopyTo(_yTimeSeriesDataset.Idx(elementId), yBuffer, yBuffer.Idx(indexInBuffer), yBuffer.MultDim0);
         }
     }
+
+    public override int[] Y_Shape()
+    {
+        return _yTimeSeriesDataset?.Shape;
+    }
+
+    public override CpuTensor<float> LoadFullY()
+    {
+        return _yTimeSeriesDataset;
+    }
+
     public override void LoadAt(int elementId, int indexInBuffer, CpuTensor<float> xBuffer, CpuTensor<float> yBuffer,
         bool withDataAugmentation, bool isTraining)
     {

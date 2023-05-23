@@ -86,6 +86,7 @@ public class WasYouStayWorthItsPriceDatasetSample : AbstractDatasetSample
     public int Reviews_EmbeddingDim = TOTAL_Reviews_EmbeddingDim;
     #endregion
 
+    public override int NumClass => TargetLabelDistinctValues.Length;
     public override string[] TargetLabelDistinctValues => new[] { "0", "1", "2", "3", "4", "5", "6" }; //TODO: check if this is correct
 
     public const int TOTAL_Reviews_EmbeddingDim = 200; //Tf Idf

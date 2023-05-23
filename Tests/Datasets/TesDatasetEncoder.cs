@@ -44,6 +44,8 @@ public class TesDatasetEncoder
             TargetLabels = targetLabels;
         }
 
+        public override int NumClass => 1;
+        public override string[] TargetLabelDistinctValues => new string[0];
         public override Objective_enum GetObjective() => Objective_enum.Regression;
         public override string[] CategoricalFeatures { get; }
         public override string IdColumn { get; }

@@ -100,7 +100,7 @@ namespace SharpNetTests.NonReg
             
             //dataAugmentationConfig.DataAugmentationType = ImageDataGenerator.DataAugmentationEnum.AUTO_AUGMENT_CIFAR10;
             var xMiniBatchShape = new []{miniBatchSize, channels, targetHeight, targetWidth};
-            var yMiniBatchShape = new[] { miniBatchSize, dataset.Y_DirectoryDataSet.Shape[1] };
+            var yMiniBatchShape = new[] { miniBatchSize, dataset.LoadFullY().Shape[1] };
             var rand = new Random(0);
             var shuffledElementId = Enumerable.Range(0, dataset.Count).ToArray();
             Utils.Shuffle(shuffledElementId, rand);

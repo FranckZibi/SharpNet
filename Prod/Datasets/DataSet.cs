@@ -41,12 +41,9 @@ namespace SharpNet.Datasets
         /// or -1 if those tensors are empty
         /// </summary>
         private long alreadyComputedMiniBatchId = -1;
-
         private readonly Random[] _rands;
         #endregion
 
-
-        public Random FirstRandom => _rands[0];
 
         #region public properties
         public List<Tuple<float, float>> MeanAndVolatilityForEachChannel { get; }
@@ -118,18 +115,29 @@ namespace SharpNet.Datasets
         /// <param name="yBuffer">buffer where to store the associate category (with a capacity of 'yBuffer.Shape[0]' elements) </param>
         /// <param name="withDataAugmentation"></param>
         /// <param name="isTraining"></param>
-        public abstract void LoadAt(int elementId, int indexInBuffer, [NotNull] CpuTensor<float> xBuffer,
+        public abstract void LoadAt(int elementId, int indexInBuffer, [CanBeNull] CpuTensor<float> xBuffer,
             [CanBeNull] CpuTensor<float> yBuffer, bool withDataAugmentation, bool isTraining);
 
         protected virtual void LoadAt(int elementId, int indexInBuffer, [NotNull] List<CpuTensor<float>> xBuffers,
             [CanBeNull] CpuTensor<float> yBuffer, bool withDataAugmentation, bool isTraining)
         {
-            if (xBuffers.Count != 1)
+            if (xBuffers!=null && xBuffers.Count != 1)
             {
                 throw new ArgumentException("only 1 InputLayer is supported, received "+xBuffers.Count);
             }
             LoadAt(elementId, indexInBuffer, xBuffers[0], yBuffer, withDataAugmentation, isTraining);
         }
+        public abstract int[] Y_Shape();
+        public virtual CpuTensor<float> LoadFullY()
+        {
+            var yBuffer = new CpuTensor<float>(Y_Shape());
+            for (int elementId = 0; elementId < Count; elementId++)
+            {
+                LoadAt(elementId, elementId, (CpuTensor<float>)null, yBuffer, false, false);
+            }
+            return yBuffer;
+        }
+        public Random FirstRandom => _rands[0];
 
 
         /// <summary>
@@ -599,13 +607,13 @@ namespace SharpNet.Datasets
                                && (X.UseGPU == Y.UseGPU)
                                && (X.Shape[0] == Y.Shape[0]); //same number of tests
         }
-        /// <summary>
-        /// Y shape for
-        ///     regression:                 (_, 1)
-        ///     binary classification:      (_, 1)  where each element is a probability in [0, 1] range
-        ///     multi class classification  (_, NumClasses) with each element being the probability of belonging to this class
-        /// </summary>
-        public abstract CpuTensor<float> Y { get; }
+        ///// <summary>
+        ///// Y shape for
+        /////     regression:                 (_, 1)
+        /////     binary classification:      (_, 1)  where each element is a probability in [0, 1] range
+        /////     multi class classification  (_, NumClasses) with each element being the probability of belonging to this class
+        ///// </summary>
+        ////public abstract CpuTensor<float> Y { get; }
 
         /// <summary>
         /// Y_InModelFormat shape for
@@ -616,7 +624,8 @@ namespace SharpNet.Datasets
         /// <returns></returns>
         public DataFrame Y_InModelFormat()
         {
-            return Y == null ? null : DataFrame.New(Y);
+            var y = LoadFullY();
+            return y == null ? null : DataFrame.New(y);
         }
 
         protected void UpdateStatus(ref int nbPerformed)
@@ -739,7 +748,8 @@ namespace SharpNet.Datasets
                 Log.Debug($"Saving dataset {Name} in path {path}");
 
                 // ReSharper disable once PossibleNullReferenceException
-                var yDataAsSpan = Y != null ? Y.AsFloatCpuSpan : null;
+                var y = LoadFullY();
+                var yDataAsSpan = y != null ? y.AsFloatCpuSpan : null;
 
                 List<int> validIdxColumns = new();
                 for (var index = 0; index < ColumnNames.Length; index++)
@@ -823,7 +833,10 @@ namespace SharpNet.Datasets
                 Log.Debug($"Saving dataset {Name} in path {path} (addTargetColumnAsFirstColumn =  {addTargetColumnAsFirstColumn})");
 
                 // ReSharper disable once PossibleNullReferenceException
-                var yDataAsSpan = (addTargetColumnAsFirstColumn && Y != null) ? Y.AsFloatCpuSpan : null;
+
+                //!D load at the same time as X
+                var y = LoadFullY();
+                var yDataAsSpan = (addTargetColumnAsFirstColumn && y != null) ? y.AsFloatCpuSpan : null;
 
                 List<int> validIdxColumns;
                 if (includeIdColumns)
@@ -956,7 +969,8 @@ namespace SharpNet.Datasets
             var desc = ComputeDescription(dataset);
             if (addTargetColumnAsFirstColumn)
             {
-                desc += '_' + ComputeDescription(dataset.Y);
+                var y = dataset.LoadFullY();
+                desc += '_' + ComputeDescription(y);
             }
             if (!includeIdColumns)
             {

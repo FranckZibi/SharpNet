@@ -15,7 +15,7 @@ public class DataFrameDataSet : DataSet, IGetDatasetSample
     private readonly int[] _elementIdToCategoryIndex;
     private CpuTensor<float> _x => XDataFrame.FloatCpuTensor();
 
-    private CpuTensor<float> yDataFrameDataSet => YDataFrame_InModelFormat?.FloatCpuTensor();
+    [CanBeNull] private CpuTensor<float> yDataFrameDataSet => YDataFrame_InModelFormat?.FloatCpuTensor();
     #endregion
 
 
@@ -63,7 +63,11 @@ public class DataFrameDataSet : DataSet, IGetDatasetSample
         //same number of channels / same height  / same width
         //only the first dimension (batch size) can be different
         Debug.Assert(_x.SameShapeExceptFirstDimension(xBuffer));
-        _x.CopyTo(_x.Idx(elementId), xBuffer, xBuffer.Idx(indexInBuffer), xBuffer.MultDim0);
+        if (xBuffer != null)
+        {
+            _x.CopyTo(_x.Idx(elementId), xBuffer, xBuffer.Idx(indexInBuffer), xBuffer.MultDim0);
+        }
+
         if (yBuffer != null && yDataFrameDataSet != null)
         {
             Debug.Assert(yDataFrameDataSet.SameShapeExceptFirstDimension(yBuffer));
@@ -71,6 +75,15 @@ public class DataFrameDataSet : DataSet, IGetDatasetSample
         }
     }
 
+    public override int[] Y_Shape()
+    {
+        return yDataFrameDataSet?.Shape;
+    }
+
+    public override CpuTensor<float> LoadFullY()
+    {
+        return yDataFrameDataSet;
+    }
 
     public void ShuffleColumns(Random r, IList<string> columnToShuffle)
     {
@@ -91,7 +104,6 @@ public class DataFrameDataSet : DataSet, IGetDatasetSample
 
     public DataFrame XDataFrame { get; }
     public DataFrame YDataFrame_InModelFormat { get; }
-    public override CpuTensor<float> Y => yDataFrameDataSet;
     public override string ToString()
     {
         return XDataFrame + " => " + YDataFrame_InModelFormat;

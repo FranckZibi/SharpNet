@@ -167,6 +167,8 @@ namespace SharpNet.HPO
         }
 
 
+        public override int NumClass => _trainingDataFrameDataSet.DatasetSample.NumClass;
+
         public override DataSet TestDataset()
         {
             return _inferenceDataFrameDataSet;

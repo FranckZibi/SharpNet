@@ -35,6 +35,7 @@ public class PlumeLabs88DatasetSample : AbstractDatasetSample
     }
 
     public override int NumClass => 8;
+    public override string[] TargetLabelDistinctValues => new string[0];
 
     public override int[] GetInputShapeOfSingleElement()
     {

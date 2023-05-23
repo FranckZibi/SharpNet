@@ -19,6 +19,8 @@ public class TestISample
     private class TestClass : AbstractDatasetSample
     {
         public TestClass() : base(new HashSet<string>()) { }
+        public override int NumClass => 1;
+        public override string[] TargetLabelDistinctValues => new string[0];
         public override Objective_enum GetObjective() => Objective_enum.Regression;
         public override string[] CategoricalFeatures => Array.Empty<string>();
         public override string IdColumn => throw new NotImplementedException();

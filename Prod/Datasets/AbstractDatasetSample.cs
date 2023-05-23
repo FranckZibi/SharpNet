@@ -8,6 +8,7 @@ using SharpNet.CPU;
 using SharpNet.GPU;
 using SharpNet.HyperParameters;
 using SharpNet.Models;
+// ReSharper disable MemberCanBeProtected.Global
 
 namespace SharpNet.Datasets;
 
@@ -113,16 +114,17 @@ public abstract class AbstractDatasetSample : AbstractSample, IDisposable
         Debug.Assert(dataset != null);
         var start = Stopwatch.StartNew();
         var (y_pred_InModelFormat, path_pred_InModelFormat) = model.PredictWithPath(dataset, removeAllTemporaryFilesAtEnd);
-        var modelLossScore = model.ComputeLoss(dataset.Y, y_pred_InModelFormat.FloatTensor);
+        var y = dataset.LoadFullY();
+        var modelLossScore = model.ComputeLoss(y, y_pred_InModelFormat.FloatTensor);
         if (!computeAlsoRankingScore)
         {
             return (y_pred_InModelFormat, modelLossScore, null, null, path_pred_InModelFormat);
         }
         var y_pred_InTargetFormat = PredictionsInModelFormat_2_PredictionsInTargetFormat(y_pred_InModelFormat);
         IScore targetRankingScore = null;
-        if (dataset.Y != null)
+        if (y != null)
         {
-            var y_true_InTargetFormat = PredictionsInModelFormat_2_PredictionsInTargetFormat(DataFrame.New(dataset.Y));
+            var y_true_InTargetFormat = PredictionsInModelFormat_2_PredictionsInTargetFormat(DataFrame.New(y));
             targetRankingScore = ComputeRankingEvaluationMetric(y_true_InTargetFormat, y_pred_InTargetFormat);
         }
         ISample.Log.Debug($"{nameof(ComputePredictionsAndRankingScoreV2)} took {start.Elapsed.TotalSeconds}s");
@@ -344,37 +346,11 @@ public abstract class AbstractDatasetSample : AbstractSample, IDisposable
     }
 
 
-
-    public virtual int NumClass
-    {
-        get
-        {
-            if (GetObjective() == Objective_enum.Regression)
-            {
-                return 1;
-            }
-            return TargetLabelDistinctValues.Length;
-        }
-    }
-
-    public virtual string[] TargetLabelDistinctValues
-    {
-        get
-        {
-            if (GetObjective() == Objective_enum.Regression)
-            {
-                return Array.Empty<string>();
-            }
-            const string errorMsg = $"the method {nameof(TargetLabelDistinctValues)} must be overriden for classification problem";
-            ISample.Log.Error(errorMsg);
-            throw new NotImplementedException(errorMsg);
-        }
-    }
-
-
-    private bool IsRegressionProblem => GetObjective() == Objective_enum.Regression;
-
+    public abstract int NumClass { get; }
+    // new string[0] for regression problems
+    public abstract string[] TargetLabelDistinctValues { get; }
     public abstract Objective_enum GetObjective();
+    
     public IScore ComputeRankingEvaluationMetric(DataFrame y_true_InTargetFormat, DataFrame y_pred_InTargetFormat)
     {
         AssertNoIdColumns(y_true_InTargetFormat);

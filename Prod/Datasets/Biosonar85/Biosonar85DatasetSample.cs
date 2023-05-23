@@ -56,8 +56,9 @@ public class Biosonar85DatasetSample : AbstractDatasetSample
     }
     //public override IScore MinimumScoreToSaveModel => new Score(0.48f, GetRankingEvaluationMetric());
 
+    public override int NumClass => 1;
     public override string[] TargetLabelDistinctValues => Biosonar85Utils.TargetLabelDistinctValues;
-
+    
     public override InMemoryDataSet FullTrainingAndValidation()
     {
         return LoadAndEncodeDataset_If_Needed().fullTrainingAndValidation;

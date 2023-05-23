@@ -4,6 +4,9 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using SharpNet.MathTools;
+// ReSharper disable MemberCanBePrivate.Global
+// ReSharper disable UnassignedField.Global
+// ReSharper disable FieldCanBeMadeReadOnly.Global
 
 namespace SharpNet.Datasets.CFM84;
 
@@ -29,7 +32,7 @@ public class CFM84DatasetSample : AbstractDatasetSample
     public bool use_vol_r_day_market;
     public bool use_feature_101 = false;
 
-public bool use_market_correl_r_day_equity;
+    public bool use_market_correl_r_day_equity;
     public bool use_r_dataset_equity;
     public bool use_vol_r_dataset_equity;
     public bool use_r_dataset = false; //not used
@@ -79,6 +82,7 @@ public bool use_market_correl_r_day_equity;
     }
     //public override IScore MinimumScoreToSaveModel => new Score(0.48f, GetRankingEvaluationMetric());
 
+    public override int NumClass => TargetLabelDistinctValues.Length;
     public override string[] TargetLabelDistinctValues => CFM84Utils.TargetLabelDistinctValues;
 
     public override DataSet TestDataset()

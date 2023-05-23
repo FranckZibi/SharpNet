@@ -6,6 +6,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
+using JetBrains.Annotations;
 
 // ReSharper disable UnusedMember.Local
 
@@ -25,10 +26,9 @@ namespace SharpNet.Datasets
         private readonly List<List<string>> _elementIdToPaths = new List<List<string>>();
         private readonly List<int> _elementIdToCategoryIndex;
         private readonly Random _rand = new Random(0);
+        [NotNull] private CpuTensor<float> Y_DirectoryDataSet { get; }
         #endregion
 
-        public override CpuTensor<float> Y => Y_DirectoryDataSet;
-        public CpuTensor<float> Y_DirectoryDataSet { get; }
 
         public static DirectoryDataSet FromFiles(
             List<string> picturePaths,
@@ -107,27 +107,30 @@ namespace SharpNet.Datasets
         public override void LoadAt(int elementId, int indexInBuffer, CpuTensor<float> xBuffer,
             CpuTensor<float> yBuffer, bool withDataAugmentation, bool isTraining)
         {
-            int channels = xBuffer.Shape[1];
-            int targetHeight = xBuffer.Shape[2];
-            int targetWidth = xBuffer.Shape[3];
-
-            var data = OriginalElementContent(elementId, channels, targetHeight, targetWidth, withDataAugmentation, isTraining);
-            if (data == null)
+            if (xBuffer != null)
             {
-                return;
-            }
+                int channels = xBuffer.Shape[1];
+                int targetHeight = xBuffer.Shape[2];
+                int targetWidth = xBuffer.Shape[3];
 
-            var xBufferContent = xBuffer.SpanContent;
-            for (int channel = 0; channel < data.GetChannels(); ++channel)
-            {
-                for (int row = 0; row < data.GetHeight(); ++row)
+                var data = OriginalElementContent(elementId, channels, targetHeight, targetWidth, withDataAugmentation, isTraining);
+                if (data == null)
                 {
-                    for (int col = 0; col < data.GetWidth(); ++col)
+                    return;
+                }
+
+                var xBufferContent = xBuffer.SpanContent;
+                for (int channel = 0; channel < data.GetChannels(); ++channel)
+                {
+                    for (int row = 0; row < data.GetHeight(); ++row)
                     {
-                        var val = (double)data.Get(channel, row, col);
-                        val = (val - OriginalChannelMean(channel)) / OriginalChannelVolatility(channel);
-                        var bufferIdx = xBuffer.Idx(indexInBuffer, channel, row, col);
-                        xBufferContent[bufferIdx] = (float)val;
+                        for (int col = 0; col < data.GetWidth(); ++col)
+                        {
+                            var val = (double)data.Get(channel, row, col);
+                            val = (val - OriginalChannelMean(channel)) / OriginalChannelVolatility(channel);
+                            var bufferIdx = xBuffer.Idx(indexInBuffer, channel, row, col);
+                            xBufferContent[bufferIdx] = (float)val;
+                        }
                     }
                 }
             }
@@ -137,6 +140,17 @@ namespace SharpNet.Datasets
                 Y_DirectoryDataSet.CopyTo(Y_DirectoryDataSet.Idx(elementId), yBuffer, yBuffer.Idx(indexInBuffer), yBuffer.MultDim0);
             }
         }
+
+        public override int[] Y_Shape()
+        {
+            return Y_DirectoryDataSet.Shape;
+        }
+
+        public override CpuTensor<float> LoadFullY()
+        {
+            return Y_DirectoryDataSet;
+        }
+
         public override bool CanBeSavedInCSV => false;
         public override int Count => _elementIdToPaths.Count;
         public override int ElementIdToCategoryIndex(int elementId)

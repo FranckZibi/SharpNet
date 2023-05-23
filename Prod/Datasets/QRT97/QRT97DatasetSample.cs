@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using SharpNet.MathTools;
+// ReSharper disable MemberCanBePrivate.Global
 
 namespace SharpNet.Datasets.QRT97;
 
@@ -151,6 +152,9 @@ public class QRT97DatasetSample : AbstractDatasetSample
     public override string[] CategoricalFeatures { get; } = {  "DAY_ID", "COUNTRY" };
     public override string IdColumn => "ID";
     public override string[] TargetLabels { get; } = { "TARGET" };
+    public override int NumClass => 1;
+    public override string[] TargetLabelDistinctValues => new string[0];
+
     public override Objective_enum GetObjective()
     {
         return Objective_enum.Regression;

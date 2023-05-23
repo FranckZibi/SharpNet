@@ -15,15 +15,12 @@ namespace SharpNet.Datasets.CFM84;
 public static class CFM84Utils
 {
     public const string NAME = "CFM84";
-
-
-    #region public fields & properties
-    public static readonly ILog Log = LogManager.GetLogger(typeof(CFM84Utils));
+    #region private fields & properties
+    private static readonly ILog Log = LogManager.GetLogger(typeof(CFM84Utils));
     #endregion
 
     public static string WorkingDirectory => Path.Combine(Utils.ChallengesPath, NAME);
     public static string DataDirectory => Path.Combine(WorkingDirectory, "Data");
-    public static string SubmitDirectory => Path.Combine(WorkingDirectory, "Submit");
     // ReSharper disable once MemberCanBePrivate.Global
 
     public static string XTrainPath => Path.Combine(DataDirectory, "input_training.csv");
@@ -100,6 +97,7 @@ public static class CFM84Utils
         return res;
     }
 
+    // ReSharper disable once UnusedMember.Global
     public static void Run()
     {
         //Misc.CreateAllFiles(); return;

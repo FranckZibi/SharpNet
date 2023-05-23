@@ -45,8 +45,6 @@ public abstract class WrappedDataSet : DataSet
         return _original.KFoldSplit(kfold, countMustBeMultipleOf);
     }
 
-    public override CpuTensor<float> Y => _original.Y;
-
     #region Dispose pattern
     protected override void Dispose(bool disposing)
     {

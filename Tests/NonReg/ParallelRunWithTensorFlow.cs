@@ -1,8 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Drawing;
-using System.Drawing.Drawing2D;
 using System.IO;
 using System.Linq;
 using log4net;
@@ -16,7 +14,6 @@ using SharpNet.GPU;
 using SharpNet.Layers;
 using SharpNet.Models;
 using SharpNet.Networks;
-using SharpNet.Pictures;
 using SharpNet.TextPreprocessing;
 
 // ReSharper disable AccessToDisposedClosure
@@ -68,42 +65,6 @@ namespace SharpNetTests.NonReg
             File.Delete(saveParametersFile);
         }
 
-        [Test, Explicit]
-        public void TestParallelRunWithTensorFlow_YOLOV3()
-        {
-            var weightPath = Path.Combine(NetworkSample.DefaultDataDirectory, "YOLO", "yolov3_weights.h5");
-            if (!File.Exists(weightPath))
-            {
-                Console.WriteLine("ignoring test " + nameof(TestParallelRunWithTensorFlow_YOLOV3) + " because weight file is missing");
-                return;
-            }
-
-            var networkBuilder = Yolov3NetworkSample.ValueOf(new List<int> { 0 });
-            var network = networkBuilder.Build();
-            //network.PropagationManager.LogPropagation = true; 
-            network.LoadParametersFromH5File(weightPath, NetworkSample.CompatibilityModeEnum.TensorFlow);
-
-            //var imagePaths = new DirectoryInfo(@"C:\Franck\Photos\2019\Madagascar").GetFiles("*.jpg").Select(f => f.FullName).ToList();
-            var imagePaths = new List<string>{ @"C:\Projects\YOLOv3_TF2\data\images\test.jpg"};
-            foreach(var imagePath in imagePaths)
-            {
-                Log.Info("processing "+imagePath);
-
-                var imageSize = PictureTools.ImageSize(imagePath);
-                using var originalBmp = new Bitmap(imagePath);
-                PreferredResizedSizeForYoloV3(imageSize.Height, imageSize.Width, out var resizedHeight,out var resizedWidth);
-                var resizedOriginalBitmap = PictureTools.ResizeImage(originalBmp, resizedWidth, resizedHeight, InterpolationMode.Bicubic);
-                var content = BitmapContent.ValueFomSingleRgbBitmap(resizedOriginalBitmap);
-                var X = content.Select((_, _, b) => b / 255f);
-                X.ReshapeInPlace(new []{1, content.Shape[0], content.Shape[1], content.Shape[2]});
-                var yPredicted = network.Predict(X, false);
-                var predictions = NonMaxSuppressionLayer.ExtractSelectedAfterNonMaxSuppression(yPredicted.ToCpuFloat(), 0, int.MaxValue, int.MaxValue, 0.5, 0.5);
-                predictions.ForEach(p=>p.Box.UpSampling(imageSize.Height/ (double)resizedHeight, imageSize.Width/ (double)resizedWidth).Draw(originalBmp, p.CaptionFor(COCODataSet.CategoryIndexToDescription)));
-                originalBmp.Save(imagePath+"_"+DateTime.Now.Ticks+"_output.jpg");
-                
-                Log.Info("finished processing of " + imagePath);
-            }
-        }
 
         /// <summary>
         /// the width and height of the processed image must be a multiple of '32' in YOLO V3
