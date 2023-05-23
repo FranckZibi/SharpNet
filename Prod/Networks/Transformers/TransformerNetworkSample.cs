@@ -57,6 +57,8 @@ public class TransformerNetworkSample : NetworkSample
     public bool encoder_add_layer_norm_after_mha = false;   //should be false
 
 
+    public POOLING_BEFORE_DENSE_LAYER pooling_before_dense_layer = POOLING_BEFORE_DENSE_LAYER.NONE;
+
     //decoders Hyper-Parameters
     public int decoder_num_transformer_blocks = -1;
     public int decoder_num_heads = -1; //must be a divider of 'embedding_dim'
@@ -192,6 +194,16 @@ public class TransformerNetworkSample : NetworkSample
         {
             network.LayerNorm(1, layer_norm_epsilon, "last_layer_norm");
         }
+
+        if (pooling_before_dense_layer == POOLING_BEFORE_DENSE_LAYER.GlobalAveragePooling)
+        {
+            network.GlobalAvgPooling("avg_pool");
+        }
+        else if (pooling_before_dense_layer == POOLING_BEFORE_DENSE_LAYER.GlobalMaxPooling)
+        {
+            network.GlobalMaxPooling("max_pool");
+        }
+
         network.Dense(categoryCount, network.Sample.lambdaL2Regularization, true, "probs");
 
         if (output_shape_must_be_scalar)

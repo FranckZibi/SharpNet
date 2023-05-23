@@ -190,6 +190,14 @@ namespace SharpNet.DataAugmentation
             CpuTensor<float> xBufferForDataAugmentedMiniBatch //a temporary buffer used in the mini batch
             )
         {
+            //special case: shape of (batchSize, rows, cols) (where there is only 1 channel that is omitted)
+            if (xOriginalMiniBatch.Shape.Length == 3)
+            {
+                xOriginalMiniBatch = (CpuTensor<float>)xOriginalMiniBatch.Reshape(xOriginalMiniBatch.Shape[0], 1, xOriginalMiniBatch.Shape[1], xOriginalMiniBatch.Shape[2]);
+                xDataAugmentedMiniBatch = (CpuTensor<float>)xDataAugmentedMiniBatch?.Reshape(xOriginalMiniBatch.Shape);
+                xBufferForDataAugmentedMiniBatch = (CpuTensor<float>)xBufferForDataAugmentedMiniBatch?.Reshape(xOriginalMiniBatch.Shape);
+            }
+            
             var subPolicy = GetSubPolicy(indexInMiniBatch, xOriginalMiniBatch, meanAndVolatilityForEachChannel, indexInOriginalMiniBatchToImageStatistic, rand);
 #if DEBUG
             OperationHelper.CheckIntegrity(subPolicy);

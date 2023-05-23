@@ -4,11 +4,13 @@ using JetBrains.Annotations;
 using log4net;
 using SharpNet.CPU;
 using SharpNet.DataAugmentation;
+using SharpNet.DataAugmentation.Operations;
 using SharpNet.GPU;
 using SharpNet.HPO;
 using SharpNet.HyperParameters;
 using SharpNet.MathTools;
 using SharpNet.Networks.Transformers;
+using static SharpNet.Networks.NetworkSample;
 
 namespace SharpNet.Datasets.Biosonar85;
 
@@ -69,14 +71,13 @@ public static class Biosonar85Utils
         //var bin_file = Path.Combine(DataDirectory, "Y_train_ofTdMHi.csv.bin");
         //var tensor = CpuTensor<float>.LoadFromBinFile(bin_file, new[] { -1, 101, 64});
 
-        ChallengeTools.Retrain(Path.Combine(WorkingDirectory, "Dump"), "D2A9222C2B", null, 0.8, false);
+        //ChallengeTools.Retrain(Path.Combine(WorkingDirectory, "Dump"), "6BD0F16DEB", null, percentageInTraining:0.8, retrainOnFullDataset:false, useAllAvailableCores:true);return;
 
-
-        //Launch_HPO_Transformers(5);
-        //Launch_HPO(30);
+        //Launch_HPO_Transformers(30); return;
+        Launch_HPO(30);return;
     }
 
-    
+
     public static InMemoryDataSet Load(string xFileName, [CanBeNull] string yFileNameIfAny, string csvFileName)
     {
         var xPath = Path.Join(DataDirectory, xFileName);
@@ -140,49 +141,65 @@ public static class Biosonar85Utils
             // Optimizer 
             { "OptimizerType", new[] { "AdamW"} },
             //{ "OptimizerType", new[] { "SGD"} },
-            { "AdamW_L2Regularization", new[] {0.001} }, 
+            //{ "AdamW_L2Regularization", new[]{0.005f , 0.01f } }, //0.005 or 0.01
+            //{ "AdamW_L2Regularization", AbstractHyperParameterSearchSpace.Range(0.005f,0.01f) },
+            { "AdamW_L2Regularization", 0.005 },
 
             //Dataset
             { "ShuffleDatasetBeforeSplit", true},
             { "UseTransformers", true},
 
-
-              
             {"embedding_dim", 64},
             {"input_is_already_embedded", true },
-            
+
             {"encoder_num_transformer_blocks", new[]{2} }, //!D 2
             
             {"encoder_num_heads", new[]{8} },
 
-            {"encoder_mha_use_bias_Q_V_K", false},
+            {"encoder_mha_use_bias_Q_V_K", new[]{false /*,true*/ } },
             {"encoder_mha_use_bias_O", true  }, // must be true
 
-            {"encoder_mha_dropout", new[]{/*0f , 0.1f,*/ 0.2f } }, //.2
+            {"encoder_mha_dropout", new[]{0.2 } },
             {"encoder_feed_forward_dim", 4*64},
-            {"encoder_feed_forward_dropout", new[]{ 0f /*, 0.1f ,0.2f,*/}}, //0
+            {"encoder_feed_forward_dropout", new[]{/*0,*/ 0.2 }}, //0.2
 
             {"encoder_use_causal_mask", true},
             {"output_shape_must_be_scalar", true},
             {"lastActivationLayer", nameof(cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID)},
 
-        
+            {"pooling_before_dense_layer", new[]{ nameof(POOLING_BEFORE_DENSE_LAYER.NONE) /*,nameof(POOLING_BEFORE_DENSE_LAYER.GlobalAveragePooling), nameof(POOLING_BEFORE_DENSE_LAYER.GlobalMaxPooling)*/ } }, //must be NONE
+            {"layer_norm_before_last_dense", false}, // must be false
+
             // DataAugmentation
             { "DataAugmentationType", nameof(ImageDataGenerator.DataAugmentationEnum.DEFAULT) },
-            { "AlphaMixup", new[] { 0.0 /*, 0.5, 1.0*/ } },  //0
-            { "AlphaCutMix", new[] { /*0.0, */ 0.5} }, //0 or 0.5
-            { "CutoutPatchPercentage", new[] { 0.3} }, // 0 or 0.3
-
-
+            { "AlphaCutMix", new[] { /*0, 0.25, 0.5,*/ 1.0} }, //must be > 0
+            { "AlphaMixup", new[] { 0 /*, 0.25*/} }, // must be 0
+            //{ "CutoutPatchPercentage", new[] {0, 0.25} },
+            //{ "RowsCutoutPatchPercentage", new[] {0, 0.25, 0.5} },
+            //{ "ColumnsCutoutPatchPercentage", new[] {0, 0.25, 0.5 } },
+            //{ "HorizontalFlip",new[]{true,false } },
+            //{ "VerticalFlip",new[]{true,false } },
+            //{ "Rotate180Degrees",new[]{true,false } },
+            //{ "FillMode",new[]{ nameof(ImageDataGenerator.FillModeEnum.Reflect), nameof(ImageDataGenerator.FillModeEnum.Nearest), nameof(ImageDataGenerator.FillModeEnum.Modulo) } },
+            { "FillMode",nameof(ImageDataGenerator.FillModeEnum.Modulo) },
+            //{ "WidthShiftRangeInPercentage", new[] { 0.0 , 0.25 } },
+            //{ "HeightShiftRangeInPercentage", new[] { 0.0 , 0.01,0.05,0.1, 0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9 } },
+            //{ "HeightShiftRangeInPercentage", AbstractHyperParameterSearchSpace.Range(0,1.0f) },
+            //{ "ZoomRange", new[] { 0.0 , 0.05 } },
+            
+            
             
             // Learning Rate
-            { "InitialLearningRate", new []{0.01 }},
+            //{ "InitialLearningRate", AbstractHyperParameterSearchSpace.Range(0.01f,0.2f,AbstractHyperParameterSearchSpace.range_type.normal)}, 
+            //{ "InitialLearningRate", AbstractHyperParameterSearchSpace.Range(0.02f,0.05f)}, //0.02 to 0.05
+            { "InitialLearningRate", 0.02},
             // Learning Rate Scheduler
             //{ "LearningRateSchedulerType", new[] { "OneCycle" } },
             { "LearningRateSchedulerType", "CyclicCosineAnnealing" },
         };
 
         var hpo = new BayesianSearchHPO(searchSpace, () => ModelAndDatasetPredictionsSample.New(new TransformerNetworkSample(), new Biosonar85DatasetSample()), WorkingDirectory);
+        //var hpo = new RandomSearchHPO(searchSpace, () => ModelAndDatasetPredictionsSample.New(new TransformerNetworkSample(), new Biosonar85DatasetSample()), WorkingDirectory, AbstractHyperParameterSearchSpace.RANDOM_SEARCH_OPTION.FULLY_RANDOM);
         IScore bestScoreSoFar = null;
         const bool retrainOnFullDatasetIfBetterModelFound = false;
         hpo.Process(t => SampleUtils.TrainWithHyperParameters((ModelAndDatasetPredictionsSample)t, WorkingDirectory, retrainOnFullDatasetIfBetterModelFound, ref bestScoreSoFar), maxAllowedSecondsForAllComputation);
@@ -206,19 +223,33 @@ public static class Biosonar85Utils
             // Optimizer 
             { "OptimizerType", new[] { "AdamW" } },
             //{ "OptimizerType", new[] { "SGD"} },
-            { "AdamW_L2Regularization", new[] { 0.001} }, //0.00001
+            //{ "AdamW_L2Regularization", AbstractHyperParameterSearchSpace.Range(0.00001f,0.01f, AbstractHyperParameterSearchSpace.range_type.normal) },
+            //{ "AdamW_L2Regularization", AbstractHyperParameterSearchSpace.Range(0.00001f,0.01f, AbstractHyperParameterSearchSpace.range_type.normal) },
+            { "AdamW_L2Regularization", 0.01 },
 
             //Dataset
             { "ShuffleDatasetBeforeSplit", true},
 
 
-            { "Use_MaxPooling", new[]{true,false}},
-            { "Use_AvgPooling", new[]{/*true,*/false}}, //should be false
+            //{ "Use_MaxPooling", new[]{true,false}},
+            //{ "Use_AvgPooling", new[]{/*true,*/false}}, //should be false
                 
+
             // DataAugmentation
-            { "AlphaMixup", new[] { 0.0 , 0.5, 1.0 } }, //0.0
-            { "AlphaCutMix", new[] { 0.0, 0.5} }, 
-            { "CutoutPatchPercentage", new[] { 0.0, 0.15, 0.3} },
+            { "DataAugmentationType", nameof(ImageDataGenerator.DataAugmentationEnum.DEFAULT) },
+            { "AlphaCutMix", 0.5}, //must be > 0
+            { "AlphaMixup", new[] { 0 /*, 0.25*/} }, // must be 0
+            { "CutoutPatchPercentage", new[] {0, 0.1,0.2} },
+            { "RowsCutoutPatchPercentage", 0.2 },
+            { "ColumnsCutoutPatchPercentage", new[] {0.1, 0.2} },
+            //{ "HorizontalFlip",new[]{true,false } },
+            //{ "VerticalFlip",new[]{true,false } },
+            //{ "Rotate180Degrees",new[]{true,false } },
+            { "FillMode",nameof(ImageDataGenerator.FillModeEnum.Modulo) },
+            { "WidthShiftRangeInPercentage", 0.1 },
+            //{ "HeightShiftRangeInPercentage", new[] { 0.0 , 0.1,0.2 } }, //0
+            //{ "ZoomRange", new[] { 0.0 , 0.05 } },
+
             
 
             //{ "SGD_usenesterov", new[] { true, false } },
@@ -228,7 +259,9 @@ public static class Biosonar85Utils
             //{"LastActivationLayer", nameof(cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID)},
 
             // Learning Rate
-            { "InitialLearningRate", new []{0.01, 0.1 }}, //SGD: 0.01 //AdamW: 0.01 or 0.001
+            //{ "InitialLearningRate", new []{0.01, 0.1 }}, //SGD: 0.01 //AdamW: 0.01 or 0.001
+            //{ "InitialLearningRate", AbstractHyperParameterSearchSpace.Range(0.001f,0.2f,AbstractHyperParameterSearchSpace.range_type.normal)},
+            { "InitialLearningRate", 0.005}, 
             // Learning Rate Scheduler
             //{ "LearningRateSchedulerType", new[] { "OneCycle" } },
             { "LearningRateSchedulerType", "CyclicCosineAnnealing" },

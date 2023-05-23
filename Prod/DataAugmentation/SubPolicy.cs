@@ -21,14 +21,6 @@ namespace SharpNet.DataAugmentation
             Debug.Assert(xOriginalMiniBatch.SameShape(xDataAugmentedMiniBatch));
             Debug.Assert(xBufferForDataAugmentedMiniBatch != null);
             Debug.Assert(xDataAugmentedMiniBatch.SameShape(xBufferForDataAugmentedMiniBatch));
-            
-            //special case: shape of (batchSize, rows, cols) (where there is only 1 channel that is omitted)
-            if (xOriginalMiniBatch.Shape.Length == 3)
-            {
-                xOriginalMiniBatch = (CpuTensor<float>)xOriginalMiniBatch.Reshape(xOriginalMiniBatch.Shape[0], 1, xOriginalMiniBatch.Shape[1], xOriginalMiniBatch.Shape[2]);
-                xDataAugmentedMiniBatch = (CpuTensor<float>)xDataAugmentedMiniBatch.Reshape(xOriginalMiniBatch.Shape);
-                xBufferForDataAugmentedMiniBatch = (CpuTensor<float>)xBufferForDataAugmentedMiniBatch.Reshape(xOriginalMiniBatch.Shape);
-            }
 
             if (subPolicy.Count == 0)
             {
