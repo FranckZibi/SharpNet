@@ -59,8 +59,11 @@ public static class Biosonar85Utils
 
     //}
 
-    const float x_train_mean = -37.149295f; 
-    const float x_train_volatility = 14.906728f;
+    //const float x_train_mean = -37.149295f;       //for train dataset only 
+    const float x_train_mean = -37.076445f;         // for train+test dataset
+    
+    //const float x_train_volatility = 14.906728f;  //for train dataset only 
+    const float x_train_volatility = 14.84446f;     // for train+test dataset
 
     public static void Run()
     {
@@ -70,42 +73,43 @@ public static class Biosonar85Utils
         //var bin_file = Path.Combine(DataDirectory, "Y_train_ofTdMHi.csv.bin");
         //var tensor = CpuTensor<float>.LoadFromBinFile(bin_file, new[] { -1, 101, 64});
 
-        //ChallengeTools.Retrain(Path.Combine(WorkingDirectory, "Dump"), "6BD0F16DEB", null, percentageInTraining:0.8, retrainOnFullDataset:false, useAllAvailableCores:true);return;
+        ChallengeTools.Retrain(Path.Combine(WorkingDirectory, "Dump"), "0908F47370", null, percentageInTraining:0.8, retrainOnFullDataset:false, useAllAvailableCores:true);return;
 
         //Launch_HPO_Transformers(30); return;
-        Launch_HPO(30);return;
+        //Launch_HPO(1);return;
     }
 
+
+
+    public static (int[] shape, int n_fft, int hop_len) ProcessXFileName(string xPath)
+    {
+        var xSplitted = Path.GetFileNameWithoutExtension(xPath).Split("_");
+        //var xShape = new [] { int.Parse(xSplitted[^5]), 1, int.Parse(xSplitted[^4]), int.Parse(xSplitted[^3]) };
+        var xShape = new[] { int.Parse(xSplitted[^5]), int.Parse(xSplitted[^4]), int.Parse(xSplitted[^3]) };
+        var n_fft = int.Parse(xSplitted[^2]);
+        var hop_len = int.Parse(xSplitted[^1]);
+        return (xShape, n_fft, hop_len);
+    }
 
     public static InMemoryDataSet Load(string xFileName, [CanBeNull] string yFileNameIfAny, string csvFileName)
     {
         var xPath = Path.Join(DataDirectory, xFileName);
-        
-        var xSplitted  = Path.GetFileNameWithoutExtension(xPath).Split("_");
-        
-        //var xShape = new [] { int.Parse(xSplitted[^5]), 1, int.Parse(xSplitted[^4]), int.Parse(xSplitted[^3]) };
-        var xShape = new [] { int.Parse(xSplitted[^5]), int.Parse(xSplitted[^4]), int.Parse(xSplitted[^3]) };
+        (int[] xShape, int _, int _) = ProcessXFileName(xPath);
 
-        var yID = DataFrame.read_string_csv(Path.Join(DataDirectory, csvFileName)).StringColumnContent("id");
-
-        //var n_fft = int.Parse(xSplitted[^2]);
-        //var hop_len = int.Parse(xSplitted[^1]);
         var xTensor = CpuTensor<float>.LoadFromBinFile(xPath, xShape);
         var yTensor = string.IsNullOrEmpty(yFileNameIfAny)
             ?null //no Y available for Dataset
             :CpuTensor<float>.LoadFromBinFile(Path.Join(DataDirectory, yFileNameIfAny), new []{ xShape[0], 1 });
 
-        var xAcc = new DoubleAccumulator();
-        xAcc.Add(xTensor.ContentAsFloatArray());
-        Log.Info($"Stats for {xFileName} before standardization: {xAcc}");
-
         //We standardize the input
-        xTensor.LinearFunction(1f/ x_train_volatility, xTensor, -x_train_mean/x_train_volatility);
-    
-        xAcc = new DoubleAccumulator();
+        xTensor.LinearFunction(1f / x_train_volatility, xTensor, -x_train_mean / x_train_volatility);
+
+        var xAcc = new DoubleAccumulator();
         xAcc.Add(xTensor.ContentAsFloatArray());
         Log.Info($"Stats for {xFileName} after standardization: {xAcc}");
 
+
+        var yID = DataFrame.read_string_csv(Path.Join(DataDirectory, csvFileName)).StringColumnContent("id");
 
         var dataset = new InMemoryDataSet(
             xTensor,

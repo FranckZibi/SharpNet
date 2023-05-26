@@ -139,6 +139,9 @@ namespace SharpNet
         //Area Under the Curve, see: https://en.wikipedia.org/wiki/Receiver_operating_characteristic
         AUC, // works only for metric (to rank submission), do not work as a loss function, higher s better
 
+
+
+        DEFAULT, // default value, do not use
     }
 
 

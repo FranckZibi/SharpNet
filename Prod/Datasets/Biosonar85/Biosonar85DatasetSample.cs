@@ -2,12 +2,19 @@
 using log4net;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
+using SharpNet.CPU;
+using SharpNet.MathTools;
 
 namespace SharpNet.Datasets.Biosonar85;
 
 public class Biosonar85DatasetSample : AbstractDatasetSample
 {
+    private const string xTrainBin = "X_train_23168_101_64_1024_512.bin";
+    private const string xTestBin = "X_test_950_101_64_1024_512.bin";
+    private const string yTrainBin = "Y_train_23168_1_64_1024_512.bin";
+
     #region private fields
     private static readonly InMemoryDataSet trainDataset;
     private static readonly InMemoryDataSet testDataset;
@@ -18,7 +25,6 @@ public class Biosonar85DatasetSample : AbstractDatasetSample
     #endregion
 
     #region HyperParameters
-
     public bool UseTransformers = false;
     #endregion
 
@@ -27,10 +33,10 @@ public class Biosonar85DatasetSample : AbstractDatasetSample
     {
         var sw = Stopwatch.StartNew();
         Log.Debug($"Starting loading raw files");
-        trainDataset = Biosonar85Utils.Load("X_train_23168_101_64_1024_512.bin", "Y_train_23168_1_64_1024_512.bin", "Y_train_ofTdMHi.csv");
+        trainDataset = Biosonar85Utils.Load(xTrainBin, yTrainBin, "Y_train_ofTdMHi.csv");
         //trainDataset = Biosonar85Utils.Load("X_train_small_1000_101_64_1024_512.bin", "Y_train_small_1000_1_64_1024_512.bin", "Y_train_small.csv", true);
         //AddToDispose(trainDataset);
-        testDataset = Biosonar85Utils.Load("X_test_950_101_64_1024_512.bin", null, "Y_random_Xwjr6aB.csv");
+        testDataset = Biosonar85Utils.Load(xTestBin, null, "Y_random_Xwjr6aB.csv");
         Log.Info($"Loading of raw files took {sw.Elapsed.Seconds}s");
     }
 
@@ -45,8 +51,6 @@ public class Biosonar85DatasetSample : AbstractDatasetSample
         return modelMetrics.FirstOrDefault(v => v != null && v.Metric == GetRankingEvaluationMetric());
     }
 
-
-
     public override string[] CategoricalFeatures { get; } = { };
     public override string IdColumn => "id";
     public override string[] TargetLabels { get; } = { "pos_label" };
@@ -54,7 +58,7 @@ public class Biosonar85DatasetSample : AbstractDatasetSample
     {
         return Objective_enum.Classification;
     }
-    //public override IScore MinimumScoreToSaveModel => new Score(0.48f, GetRankingEvaluationMetric());
+    //public override IScore MinimumScoreToSaveModel => new Score(0.92f, GetRankingEvaluationMetric());
 
     public override int NumClass => 1;
     public override string[] TargetLabelDistinctValues => Biosonar85Utils.TargetLabelDistinctValues;
@@ -136,9 +140,29 @@ public class Biosonar85DatasetSample : AbstractDatasetSample
 
     public override EvaluationMetricEnum GetRankingEvaluationMetric()
     {
-        return EvaluationMetricEnum.Accuracy;
+        return EvaluationMetricEnum.AUC;
     }
 
+    /// <summary>
+    /// compute stats for train & test dataset
+    /// </summary>
+    private static void ComputeStats()
+    {
+        var xTrainPath = Path.Join(Biosonar85Utils.DataDirectory, xTrainBin);
+        (int[] xTrainShape, var _, var _) = Biosonar85Utils.ProcessXFileName(xTrainPath);
+        var xTrainTensor = CpuTensor<float>.LoadFromBinFile(xTrainPath, xTrainShape);
+        var xTrainAcc = new DoubleAccumulator();
+        xTrainAcc.Add(xTrainTensor.ContentAsFloatArray());
+        Log.Info($"Stats for {xTrainPath} before standardization: {xTrainAcc}");
 
+        var xTestPath = Path.Join(Biosonar85Utils.DataDirectory, xTestBin);
+        (int[] xTestShape, var _, var _) = Biosonar85Utils.ProcessXFileName(xTestPath);
+        var xTestTensor = CpuTensor<float>.LoadFromBinFile(xTestPath, xTestShape);
+        var xTestAcc = new DoubleAccumulator();
+        xTestAcc.Add(xTestTensor.ContentAsFloatArray());
+        Log.Info($"Stats for {xTestPath} before standardization: {xTestAcc}");
+
+        Log.Info($"Cumulative Stats Stats for : {DoubleAccumulator.Sum(xTrainAcc, xTestAcc)}");
+    }
 
 }

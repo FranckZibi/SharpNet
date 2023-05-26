@@ -7,7 +7,6 @@ using System.Linq;
 using SharpNet.Data;
 using SharpNet.DataAugmentation;
 using SharpNet.Datasets;
-using SharpNet.GPU;
 using SharpNet.HyperParameters;
 using SharpNet.Models;
 using SharpNet.Optimizers;
@@ -339,7 +338,7 @@ namespace SharpNet.Networks
             if (!MustUseGPU)
             {
                 //this is the only supported mode on CPU
-                ConvolutionAlgoPreference = GPUWrapper.ConvolutionAlgoPreference.FASTEST_DETERMINIST;
+                ConvolutionAlgoPreference = ConvolutionAlgoPreference.FASTEST_DETERMINIST;
             }
 
             if (DataAugmentationType == ImageDataGenerator.DataAugmentationEnum.NO_AUGMENTATION)
@@ -421,10 +420,6 @@ namespace SharpNet.Networks
         public virtual void BuildLayers(Network nn, AbstractDatasetSample datasetSample)
         {
             ISample.Log.Warn($"{nameof(BuildLayers)} is not overriden and will do nothing");
-        }
-
-        public virtual void SaveExtraModelInfos(Model model, string workingDirectory, string modelName)
-        {
         }
 
         public enum POOLING_BEFORE_DENSE_LAYER

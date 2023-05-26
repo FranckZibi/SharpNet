@@ -184,10 +184,7 @@ namespace SharpNet.Networks
             {
                 File.AppendAllLines(modelFilePath, new[] { l.Serialize() });
             }
-
-            NetworkSample.SaveExtraModelInfos(this, workingDirectory, modelName);
             LogInfo("Network Model '" + ModelName + "' saved in " + modelFilePath + " in " + Math.Round(swSaveModelTime.Elapsed.TotalSeconds, 1) + "s");
-
         }
 
         public override void Save(string workingDirectory, string modelName)
