@@ -51,6 +51,9 @@ public class TestUtils
     [TestCase(true, 1f, 0f, EvaluationMetricEnum.SparseAccuracy)]
     [TestCase(false, 0f, 1f, EvaluationMetricEnum.SparseAccuracy)]
     [TestCase(false, 0f, 0f, EvaluationMetricEnum.SparseAccuracy)]
+    [TestCase(true, 1f, 0f, EvaluationMetricEnum.AUC)]
+    [TestCase(false, 0f, 1f, EvaluationMetricEnum.AUC)]
+    [TestCase(false, 0f, 0f, EvaluationMetricEnum.AUC)]
     [TestCase(true, 1f, -0.5f, EvaluationMetricEnum.PearsonCorrelation)]
     [TestCase(false, 0f, 0.5f, EvaluationMetricEnum.PearsonCorrelation)]
     [TestCase(false, 0f, 0f, EvaluationMetricEnum.PearsonCorrelation)]
@@ -68,6 +71,7 @@ public class TestUtils
     [TestCase(true, EvaluationMetricEnum.F1Micro)]
     [TestCase(true, EvaluationMetricEnum.PearsonCorrelation)]
     [TestCase(true, EvaluationMetricEnum.SpearmanCorrelation)]
+    [TestCase(true, EvaluationMetricEnum.AUC)]
     [TestCase(false, EvaluationMetricEnum.Huber)]
     [TestCase(false, EvaluationMetricEnum.Mae)]
     [TestCase(false, EvaluationMetricEnum.Mse)]
@@ -79,7 +83,7 @@ public class TestUtils
     [TestCase(false, EvaluationMetricEnum.CategoricalCrossentropyWithHierarchy)]
     public void TestHigherScoreIsBetter(bool expectedResult, EvaluationMetricEnum metric)
     {
-        Assert.AreEqual(16, Enum.GetNames(typeof(EvaluationMetricEnum)).Length, $"expecting {Enum.GetNames(typeof(EvaluationMetricEnum)).Length} distinct tests for each {typeof(EvaluationMetricEnum)}");
+        Assert.AreEqual(17, Enum.GetNames(typeof(EvaluationMetricEnum)).Length, $"expecting {Enum.GetNames(typeof(EvaluationMetricEnum)).Length} distinct tests for each {typeof(EvaluationMetricEnum)}");
         Assert.AreEqual(expectedResult, Utils.HigherScoreIsBetter(metric));
     }
     

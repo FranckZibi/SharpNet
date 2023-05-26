@@ -1033,7 +1033,7 @@ namespace SharpNet.Data
                    || metricEnum == EvaluationMetricEnum.SparseAccuracy;
         }
         #endregion
-
+        
         #region Huber
         /// <summary>
         /// this = buffer
@@ -1134,6 +1134,17 @@ namespace SharpNet.Data
         public abstract double ComputeSpearmanCorrelation([NotNull] Tensor y_pred);
         #endregion
 
+        #region AUC
+        public abstract void ComputeAUCBuffer([NotNull] Tensor yExpected, [NotNull] Tensor yPredicted);
+        public double ComputeAUC(Tensor yExpectedSparse, Tensor yPredicted)
+        {
+            var buffer = this;
+            Debug.Assert(buffer.Count == 1);
+            ComputeBufferForEvaluationMetric(yExpectedSparse, yPredicted, EvaluationMetricEnum.AUC);
+            return buffer.ContentAsFloatArray()[0];
+        }
+        #endregion
+
         // ReSharper disable once UnusedParameter.Global
         public double BufferToEvaluationMetric(EvaluationMetricEnum evaluationMetric, int elementCountInBuffer)
         {
@@ -1165,6 +1176,9 @@ namespace SharpNet.Data
                 case EvaluationMetricEnum.SpearmanCorrelation:
                     throw new NotImplementedException();
                 //!D return yExpected.ComputeSpearmanCorrelation(yPredicted);
+                case EvaluationMetricEnum.AUC:
+                    buffer.ComputeAUCBuffer(yExpected, yPredicted);
+                    return;
                 case EvaluationMetricEnum.AccuracyCategoricalCrossentropyWithHierarchy:
                     buffer.ComputeAccuracyCategoricalCrossentropyWithHierarchyBuffer(yExpected, yPredicted);
                     return;
@@ -1207,6 +1221,10 @@ namespace SharpNet.Data
 
         public int[] ComputeMetricBufferShape(EvaluationMetricEnum metricEnum)
         {
+            if (metricEnum == EvaluationMetricEnum.AUC)
+            {
+                return new[] { 1 };
+            }
             if (IsSparseMetric(metricEnum))
             {
                 return new[] { Count };

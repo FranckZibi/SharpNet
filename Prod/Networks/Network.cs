@@ -1181,7 +1181,10 @@ namespace SharpNet.Networks
             }
 
             _yPredictedForEpoch?.ReshapeInPlace(YPredicted_MiniBatch_Shape(dataSet.Count));
-            return (_yPredictedForEpoch, metricAccumulatorForSingleEpoch?.Metrics());
+
+            var metrics = metricAccumulatorForSingleEpoch?.Metrics();
+            metricAccumulatorForSingleEpoch?.Dispose();
+            return (_yPredictedForEpoch, metrics);
         }
         public int LastLayerIndex => Layers.Last().LayerIndex;
         public int NbLayerOfType(Type layerType)

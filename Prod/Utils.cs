@@ -134,6 +134,11 @@ namespace SharpNet
         /// Do not support multi labels (each element can belong to exactly 1 category)
         /// </summary>
         SparseCategoricalCrossentropy, // ok for loss, lower is better
+
+
+        //Area Under the Curve, see: https://en.wikipedia.org/wiki/Receiver_operating_characteristic
+        AUC, // works only for metric (to rank submission), do not work as a loss function, higher s better
+
     }
 
 
@@ -141,6 +146,14 @@ namespace SharpNet
     {
         private static readonly ILog Log = LogManager.GetLogger(typeof(Utils));
 
+
+        public static int[] CloneShapeWithNewCount(int[] shape, int newCount)
+        {
+            var result = (int[])shape.Clone();
+            result[0] = newCount;
+            return result;
+        }
+        
         public static string ToValidFileName(string fileName)
         {
             var invalids = new HashSet<char>(Path.GetInvalidFileNameChars());
@@ -197,6 +210,7 @@ namespace SharpNet
                 case EvaluationMetricEnum.F1Micro:
                 case EvaluationMetricEnum.PearsonCorrelation:
                 case EvaluationMetricEnum.SpearmanCorrelation:
+                case EvaluationMetricEnum.AUC:
                     return true; // higher is better
                 case EvaluationMetricEnum.BinaryCrossentropy:
                 case EvaluationMetricEnum.CategoricalCrossentropy:

@@ -808,6 +808,15 @@ namespace SharpNet.GPU
             throw new NotImplementedException($"{nameof(EvaluationMetricEnum.SpearmanCorrelation)} can not be used on GPU (only available on CPU)");
         }
 
+        //!D TODO : use GPU for computation
+        public override void ComputeAUCBuffer(Tensor yExpectedSparse, Tensor yPredicted)
+        {
+            var buffer = this;
+            var cpuBuffer = new CpuTensor<float>(buffer.Shape);
+            cpuBuffer.ComputeAUCBuffer(yExpectedSparse.ToCpuFloat(), yPredicted.ToCpuFloat());
+            cpuBuffer.CopyTo(buffer);
+        }
+
         public override void ComputeSparseAccuracyBuffer(Tensor yExpectedSparse, Tensor yPredicted)
         {
             var buffer = this;

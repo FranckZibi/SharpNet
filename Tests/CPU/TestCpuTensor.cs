@@ -431,6 +431,19 @@ namespace SharpNetTests.CPU
             Assert.AreEqual(expected_value, observedLoss, 1e-6);
         }
 
+        [TestCase(new[] { 1f, 1, 1, 1, 0, 1, 1, 0, 1, 0, 0, 0, 1, 0, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 0, 0 }, new[] { 0.29717186f, 0.9885438f, 0.64269745f, 0.7629636f, 0.030394293f, 0.3810045f, 0.34314185f, 0.95745516f, 0.5051292f, 0.7159725f, 0.11895773f, 0.27345148f, 0.90709794f, 0.7947656f, 0.33716035f, 0.45720878f, 0.14682505f, 0.22131474f, 0.41007328f, 0.7187268f, 0.6198303f, 0.48796806f, 0.19491343f, 0.8781915f, 0.8254232f, 0.7353975f, 0.8582192f, 0.679749f, 0.6248661f, 0.21840678f, 0.89536244f, 0.8964398f }, 0.4583333333333333f)]
+        [TestCase(new[] { 1f, 1, 1, 0, 0 }, new[] { 0.9f, 0.8f, 0.45f, 0.55f, 0.65f }, 2/3f)]
+        [TestCase(new[] { 1f, 1, 0 }, new[] { 0.9f, 0.8f, 0.85f }, 0.5f)]
+        public void Test_ComputeEvaluationMetric_AUC(float[] y_true_array, float[] y_pred_array, float expected_value)
+        {
+            var y_true = CpuTensor<float>.New(y_true_array, 1);
+            var y_pred = CpuTensor<float>.New(y_pred_array, 1);
+            const EvaluationMetricEnum metric = EvaluationMetricEnum.AUC;
+            var buffer = new CpuTensor<float>(y_pred.ComputeMetricBufferShape(metric));
+            var observedLoss = buffer.ComputeEvaluationMetric(y_true, y_pred, metric);
+            Assert.AreEqual(expected_value, observedLoss, 1e-6);
+        }
+
         [Test]
         public void TestComputeCategoricalCrossentropyWithHierarchyLoss()
         {
@@ -833,6 +846,19 @@ namespace SharpNetTests.CPU
                 int indexSecondCategory = (indexFirstCategory+7)%categoryCount;
                 var expectedSecondCategory = 1f-expectedFirstCategory;
                 result.Set(row, indexSecondCategory, expectedSecondCategory);
+            }
+            return result;
+        }
+
+        //random tensor containing only integers values between minValueIncluded (included) and maxValueExcluded (excluded)
+        //in each row: only 2 elements with non zero value, the sum of the 2 elements is always = 1.0
+        public static CpuTensor<float> RandomIntValuesTensor(int[] shape, Random rand, int minValueIncluded, int maxValueExcluded)
+        {
+            var result = new CpuTensor<float>(shape);
+            var resultSpan = result.SpanContent;
+            for (int i = 0; i < resultSpan.Length; ++i)
+            {
+                resultSpan[i] = rand.Next(minValueIncluded, maxValueExcluded);
             }
             return result;
         }

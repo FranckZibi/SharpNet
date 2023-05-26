@@ -1835,8 +1835,6 @@ namespace SharpNet.CPU
             return spearmanCorrelation;
         }
 
-
-
         [SuppressMessage("ReSharper", "PossibleNullReferenceException")]
         public override void ComputeAccuracyBuffer([NotNull] Tensor yExpected, [NotNull] Tensor yPredicted)
         {
@@ -1968,6 +1966,43 @@ namespace SharpNet.CPU
             Parallel.For(0, rows, row => bufferPointer[row] = ComputeSingleSparseAccuracy(yExpectedSparseCpu, yPredictedCpu, row));
         }
 
+        public override void ComputeAUCBuffer(Tensor yExpected, Tensor yPredicted)
+        {
+            var buffer = this;
+            Debug.Assert(buffer.Count == 1);
+            Debug.Assert(yExpected.SameShape(yPredicted));
+            Debug.Assert(yExpected.Shape.Length == 2);
+            Debug.Assert(yExpected.Shape[1] == 1);
+
+            var yExpectedCpu = yExpected.AsFloatCpu.SpanContent;
+            var yPredictedCpu = yPredicted.AsFloatCpu.SpanContent;
+
+            int batchSize = yExpected.Shape[0];
+            List<Tuple<float, float>> data = new(batchSize);
+            for (var i = 0; i < batchSize; ++i)
+            {
+                data.Add(Tuple.Create(yExpectedCpu[i], yPredictedCpu[i]));
+            }
+            data.Sort((x,y)=>x.Item2.CompareTo(y.Item2));
+            double falseCount = 0;
+            double auc = 0;
+            for (int i = 0; i < batchSize; ++i)
+            {
+                float y_i = data[i].Item1;
+                falseCount += (1 - y_i);
+                auc += y_i * falseCount;
+            }
+
+            if (falseCount == 0 || falseCount == batchSize)
+            {
+                auc = 0.0;
+            }
+            else
+            {
+                auc /= (falseCount * (batchSize - falseCount));
+            }
+            buffer.AsFloatCpu[0] = (float)auc;
+        }
 
         private static float ComputeSingleSparseAccuracy(CpuTensor<float> yExpectedSparse, CpuTensor<float> yPredicted, int row)
         {

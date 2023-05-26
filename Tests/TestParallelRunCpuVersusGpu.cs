@@ -1109,6 +1109,15 @@ namespace SharpNetTests
         }
 
         [Test]
+        public void TestAUC()
+        {
+            var y_true = TestCpuTensor.RandomIntValuesTensor(new[] { 128, 1 }, _rand, 0, 2);
+            var y_pred = TestCpuTensor.RandomFloatTensor(y_true.Shape, _rand, 0, 1.0);
+            var buffer = RandomTensor(new[] {1});
+            TestAllForReturnValue(new[] { buffer, y_true, y_pred }, tensors => tensors[0].ComputeAUC(tensors[1], tensors[2]));
+        }
+
+        [Test]
         public void TestComputeSparseAccuracy_3D()
         {
             foreach (var batchSize in new[] { 1, 32 })
