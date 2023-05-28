@@ -27,7 +27,6 @@ public class TestISample
         public override string[] TargetLabels => throw new NotImplementedException();
         public override DataSet TestDataset() => throw new NotImplementedException();
         public override DataSet FullTrainingAndValidation() => throw new NotImplementedException();
-        public override EvaluationMetricEnum GetRankingEvaluationMetric() => throw new NotImplementedException();
     }
 
     [Test]

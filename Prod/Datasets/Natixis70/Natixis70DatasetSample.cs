@@ -109,7 +109,7 @@ public class Natixis70DatasetSample : AbstractDatasetSample
         Debug.Assert(predictionsInModelFormatSpanIndex == predictionsInModelFormat.Count);
         return predictionsInModelFormat;
     }
-    public override DataFrame PredictionsInModelFormat_2_PredictionsInTargetFormat(DataFrame predictionsInModelFormat)
+    public override DataFrame PredictionsInModelFormat_2_PredictionsInTargetFormat(DataFrame predictionsInModelFormat, Objective_enum objective)
     {
         if (predictionsInModelFormat == null)
         {
@@ -377,7 +377,6 @@ public class Natixis70DatasetSample : AbstractDatasetSample
     {
         return RowsInTargetFormatToRowsInModelFormat(1);
     }
-    public override EvaluationMetricEnum GetRankingEvaluationMetric() => EvaluationMetricEnum.Rmse;
     public override int NumClass => 1;
     public override string[] TargetLabelDistinctValues => new string[0];
     public override Objective_enum GetObjective() => Objective_enum.Regression;
@@ -526,6 +525,9 @@ public class Natixis70DatasetSample : AbstractDatasetSample
                 { "MergeHorizonAndMarketIdInSameFeature",new[]{true/*, false*/} },
                 //{ "Normalization",new[] { "NONE", "DIVIDE_BY_ABS_MEAN"} },
 
+                //related to model
+                {"objective", nameof(LightGBMSample.objective_enum.regression)},
+                {"metric", ""}, //same as objective
                 { "bagging_fraction", new[]{0.8f, 0.9f, 1.0f} },
                 { "bagging_freq", new[]{0, 1} },
                 { "boosting", new []{"gbdt", "dart"}},
@@ -558,14 +560,15 @@ public class Natixis70DatasetSample : AbstractDatasetSample
                 //{"KFold", 2},
                 {"PercentageInTraining", 0.8}, //will be automatically set to 1 if KFold is enabled
 
-                //related to CatBoost model
+                //related to model
+                { "loss_function", nameof(CatBoostSample.loss_function_enum.RMSE)},
+                { "eval_metric", nameof(CatBoostSample.metric_enum.RMSE)},
                 { "logging_level", "Silent"},
                 { "allow_writing_files",false},
                 { "thread_count",1},
                 { "iterations", iterations },
                 { "od_type", "Iter"},
                 { "od_wait",iterations/10},
-
                 { "depth", AbstractHyperParameterSearchSpace.Range(2, 10) },
                 { "learning_rate",AbstractHyperParameterSearchSpace.Range(0.01f, 1.00f)},
                 { "random_strength",AbstractHyperParameterSearchSpace.Range(1e-9f, 10f, AbstractHyperParameterSearchSpace.range_type.normal)},
@@ -629,21 +632,18 @@ public class Natixis70DatasetSample : AbstractDatasetSample
             //dataset 
             //{"Reviews_EmbeddingDim", new[]{0, 100, TOTAL_Reviews_EmbeddingDim}},
             
-            {"LossFunction", "Mse"},
-
-
+            //related to model
+            { "LossFunction", nameof(EvaluationMetricEnum.Rmse)},
+            //{ "RankingEvaluationMetric", nameof(EvaluationMetricEnum.Rmse)},
             // Optimizer 
             {"OptimizerType", "AdamW"},
             //{"AdamW_L2Regularization", AbstractHyperParameterSearchSpace.Range(0.003f, 0.01f)},
             {"AdamW_L2Regularization", 0.004},
-
             // Learning Rate Scheduler
             {"LearningRateSchedulerType", new[]{ "CyclicCosineAnnealing"}},
             {"OneCycle_PercentInAnnealing", 0.5},
-
             { "EmbeddingDim", new[]{10} },
             //{ "EmbeddingDim", 10 },
-
             //{"dropout_top", 0.1},
             //{"dropout_mid", 0.3},
             //{"dropout_bottom", 0},

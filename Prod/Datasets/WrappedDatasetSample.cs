@@ -16,8 +16,7 @@ public abstract class WrappedDatasetSample : AbstractDatasetSample
     public override string[] TargetLabels => Original.TargetLabels;
     public override string[] TargetLabelDistinctValues => Original.TargetLabelDistinctValues;
     public override Objective_enum GetObjective() => Original.GetObjective();
-    public override DataFrame PredictionsInModelFormat_2_PredictionsInTargetFormat(DataFrame predictionsInModelFormat) => Original.PredictionsInModelFormat_2_PredictionsInTargetFormat(predictionsInModelFormat);
-    public override EvaluationMetricEnum GetRankingEvaluationMetric() => Original.GetRankingEvaluationMetric();
+    public override DataFrame PredictionsInModelFormat_2_PredictionsInTargetFormat(DataFrame predictionsInModelFormat, Objective_enum objective) => Original.PredictionsInModelFormat_2_PredictionsInTargetFormat(predictionsInModelFormat, objective);
     public override int DatasetRowsInModelFormatMustBeMultipleOf() => Original.DatasetRowsInModelFormatMustBeMultipleOf();
     public override char GetSeparator() => Original.GetSeparator();
     public override void SavePredictionsInTargetFormat(DataFrame y_pred_Encoded_InTargetFormat, DataSet xDataset, string path) => Original.SavePredictionsInTargetFormat(y_pred_Encoded_InTargetFormat, xDataset, path);

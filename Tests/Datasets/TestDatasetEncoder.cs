@@ -7,7 +7,7 @@ using SharpNet.Datasets;
 namespace SharpNetTests.Datasets;
 
 [TestFixture]
-public class TesDatasetEncoder
+public class TestDatasetEncoder
 {
     public static DataFrame SimpleTestDataFrame()
     {
@@ -52,6 +52,5 @@ public class TesDatasetEncoder
         public override string[] TargetLabels { get; }
         public override DataSet TestDataset() { throw new NotImplementedException(); }
         public override DataSet FullTrainingAndValidation() => throw new NotImplementedException();
-        public override EvaluationMetricEnum GetRankingEvaluationMetric() => throw new NotImplementedException();
     }
 }

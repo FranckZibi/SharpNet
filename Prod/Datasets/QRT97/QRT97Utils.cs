@@ -161,14 +161,13 @@ public static class QRT97Utils
             {"use_DAY_ID", false},
             {"use_COUNTRY", true},
 
-
-            {"loss_function", "RMSE"},
+            //related to model
+            { "loss_function", nameof(CatBoostSample.loss_function_enum.RMSE)},
+            { "eval_metric", nameof(CatBoostSample.metric_enum.RMSE)},
             { "logging_level", nameof(CatBoostSample.logging_level_enum.Verbose)},
             { "allow_writing_files",false},
             { "thread_count",1},
-
             { "task_type","GPU"},
-
             { "iterations", AbstractHyperParameterSearchSpace.Range(iterations_min, iterations_max)},
             //{ "od_type", "Iter"},
             //{ "od_wait",iterations/10},
@@ -195,11 +194,11 @@ public static class QRT97Utils
             {"KFold", 5},
             //{"PercentageInTraining", 0.8}, //will be automatically set to 1 if KFold is enabled
           
-            
+            //related to model
             { "num_threads", -1},
             { "verbosity", "0" },
-            {"objective", "regression_l1"},      //for Regression Tasks
-            
+            {"objective", nameof(LightGBMSample.objective_enum.regression_l1)},
+            {"metric", ""}, //same as objective
             //high priority
             { "bagging_fraction", new[]{0.8f, 0.9f, 1.0f} },
             { "bagging_freq", new[]{0, 10} },
@@ -279,11 +278,10 @@ public static class QRT97Utils
             //{ "KFold", 3 },
             {"PercentageInTraining", new[]{0.8}},
             
-           
-            {"LossFunction", "Mae"},                     //for Regression Tasks: Rmse, Mse, Mae, etc.
-            
+           //related to model
+           { "LossFunction", nameof(EvaluationMetricEnum.Mae)},
+           { "RankingEvaluationMetric", nameof(EvaluationMetricEnum.Mae)},
             {"fillna_with_0", true},  //NaN are not supported in Neural Networks
-
             // Optimizer 
             { "OptimizerType", new[] { "AdamW" } },
             //{ "OptimizerType", "SGD" },

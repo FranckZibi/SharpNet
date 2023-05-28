@@ -1495,6 +1495,20 @@ namespace SharpNet.Data
             Debug.Assert(shape3D.Length == 3);
             return new[] { shape3D[0], 1, shape3D[1], shape3D[2] };
         }
+
+        public static Tensor To_NCHW(Tensor t)
+        {
+            switch (t.Shape.Length)
+            {
+                case 4:
+                    return t;
+                case 3:
+                    return t.Reshape(ToPooling4D(t.Shape));
+                default:
+                    throw new NotSupportedException($"only shape of length 3 and 4 are supported, not {t.Shape.Length}");
+            }
+        }
+
         public static CpuTensor<float> SingleFloat(float f)
         {
             return new CpuTensor<float>(new []{1}, new[] {f});

@@ -63,7 +63,7 @@ public sealed class ModelAndDatasetPredictions : IDisposable
     {
         Debug.Assert(n_splits >= 2);
         var embeddedModel = EmbeddedModel;
-        var kfoldSample = new KFoldSample(n_splits, embeddedModel.WorkingDirectory, embeddedModel.ModelName, embeddedModel.ModelSample.GetLoss(), DatasetSample.DatasetRowsInModelFormatMustBeMultipleOf());
+        var kfoldSample = new KFoldSample(n_splits, embeddedModel.WorkingDirectory, embeddedModel.ModelName, embeddedModel.ModelSample.GetLoss(), embeddedModel.ModelSample.GetRankingEvaluationMetric(), DatasetSample.DatasetRowsInModelFormatMustBeMultipleOf());
         var modelAndDatasetPredictionsSample = ModelAndDatasetPredictionsSample
             .CopyWithNewModelSample(kfoldSample)
             .CopyWithNewPercentageInTrainingAndKFold(1.0, n_splits);
@@ -131,8 +131,8 @@ public sealed class ModelAndDatasetPredictions : IDisposable
             var trainRankingMetricIfAvailable, 
             var validationRankingMetricIfAvailable) 
             = Model.Fit(trainDataset, validationDataSet);
-        var trainRankingScore = DatasetSample.ExtractRankingScoreFromModelMetricsIfAvailable(trainLossIfAvailable, trainRankingMetricIfAvailable);
-        var validationRankingScore = DatasetSample.ExtractRankingScoreFromModelMetricsIfAvailable(validationLossIfAvailable, validationRankingMetricIfAvailable);
+        var trainRankingScore = ExtractRankingScoreFromModelMetricsIfAvailable(trainLossIfAvailable, trainRankingMetricIfAvailable);
+        var validationRankingScore = ExtractRankingScoreFromModelMetricsIfAvailable(validationLossIfAvailable, validationRankingMetricIfAvailable);
         if (computeAndSavePredictions)
         {
             var start = Stopwatch.StartNew();
@@ -164,6 +164,16 @@ public sealed class ModelAndDatasetPredictions : IDisposable
 
         ISample.Log.Debug($"Model {Model.ModelName} losses: trainLoss = {trainLossIfAvailable} / validationLoss = {validationLossIfAvailable} / trainRankingScore = {trainRankingScore} / validationRankingScore = {validationRankingScore}");
         return validationRankingScore;
+    }
+
+    /// <summary>
+    /// try to use one of the metric computed when training the model as a ranking score
+    /// </summary>
+    /// <param name="modelMetrics">the metrics computed when training the model</param>
+    /// <returns></returns>
+    private IScore ExtractRankingScoreFromModelMetricsIfAvailable(params IScore[] modelMetrics)
+    {
+        return modelMetrics.FirstOrDefault(v => v != null && v.Metric == Model.ModelSample.GetRankingEvaluationMetric());
     }
 
 
@@ -298,7 +308,7 @@ public sealed class ModelAndDatasetPredictions : IDisposable
                + $"{LossContribution(trainLoss, baseTrainLoss)},"
                + $"{ToString(validationLoss)},"
                + $"{LossContribution(validationLoss, baseValidationLoss)},"
-               + $"{DatasetSample.GetRankingEvaluationMetric()},"
+               + $"{Model.ModelSample.GetRankingEvaluationMetric()},"
                + $"{ToString(trainRankingScore)},"
                + $"{LossContribution(trainRankingScore, baseTrainRankingScore)},"
                + $"{ToString(validationRankingScore)},"

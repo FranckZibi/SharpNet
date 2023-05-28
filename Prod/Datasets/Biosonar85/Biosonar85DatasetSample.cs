@@ -46,11 +46,6 @@ public class Biosonar85DatasetSample : AbstractDatasetSample
         Utils.ConfigureThreadLog4netProperties(Biosonar85Utils.WorkingDirectory, "log");
     }
 
-    public override IScore ExtractRankingScoreFromModelMetricsIfAvailable(params IScore[] modelMetrics)
-    {
-        return modelMetrics.FirstOrDefault(v => v != null && v.Metric == GetRankingEvaluationMetric());
-    }
-
     public override string[] CategoricalFeatures { get; } = { };
     public override string IdColumn => "id";
     public override string[] TargetLabels { get; } = { "pos_label" };
@@ -136,11 +131,6 @@ public class Biosonar85DatasetSample : AbstractDatasetSample
         }
 
         return (trainDataset, testDataset);
-    }
-
-    public override EvaluationMetricEnum GetRankingEvaluationMetric()
-    {
-        return EvaluationMetricEnum.AUC;
     }
 
     /// <summary>

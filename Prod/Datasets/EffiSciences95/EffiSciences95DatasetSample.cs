@@ -52,11 +52,6 @@ public class EffiSciences95DatasetSample : AbstractDatasetSample
 
         return _lazyFullTrainingAndValidation;
     }
-    public override EvaluationMetricEnum GetRankingEvaluationMetric()
-    {
-        return EvaluationMetricEnum.Accuracy;
-    }
-
     public override bool FixErrors()
     {
         if (!base.FixErrors())

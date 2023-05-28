@@ -2,7 +2,6 @@
 using log4net;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
 using SharpNet.MathTools;
 // ReSharper disable MemberCanBePrivate.Global
 
@@ -142,13 +141,6 @@ public class QRT97DatasetSample : AbstractDatasetSample
     public QRT97DatasetSample() : base(new HashSet<string>())
     {
     }
-
-    public override IScore ExtractRankingScoreFromModelMetricsIfAvailable(params IScore[] modelMetrics)
-    {
-        return modelMetrics.FirstOrDefault(v => v != null && v.Metric == GetRankingEvaluationMetric());
-    }
-
-
     public override string[] CategoricalFeatures { get; } = {  "DAY_ID", "COUNTRY" };
     public override string IdColumn => "ID";
     public override string[] TargetLabels { get; } = { "TARGET" };
@@ -163,7 +155,7 @@ public class QRT97DatasetSample : AbstractDatasetSample
 
 
 
-    public override DataFrame PredictionsInModelFormat_2_PredictionsInTargetFormat(DataFrame predictionsInModelFormat)
+    public override DataFrame PredictionsInModelFormat_2_PredictionsInTargetFormat(DataFrame predictionsInModelFormat, Objective_enum objective)
     {
         AssertNoIdColumns(predictionsInModelFormat);
         return DataFrame.New(predictionsInModelFormat.FloatCpuTensor(), TargetLabels);
@@ -240,13 +232,4 @@ public class QRT97DatasetSample : AbstractDatasetSample
         }
         return x;
     }
-
-
-    public override EvaluationMetricEnum GetRankingEvaluationMetric()
-    {
-        return EvaluationMetricEnum.SpearmanCorrelation;
-    }
-
-
-
 }

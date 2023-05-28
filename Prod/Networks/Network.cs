@@ -555,7 +555,7 @@ namespace SharpNet.Networks
             void CallBackAfterEachMiniBatch(Tensor yExpectedMiniBatch, Tensor yPredictedMiniBatch)
             {
                 MemoryPool.GetFloatTensor(ref _buffer, new[] { yExpectedMiniBatch.Shape[0] });
-                var blockLoss = _buffer.ComputeEvaluationMetric(yExpectedMiniBatch, yPredictedMiniBatch, Sample.LossFunction);
+                var blockLoss = _buffer.ComputeEvaluationMetric(yExpectedMiniBatch, yPredictedMiniBatch, Sample.GetLoss());
                 learningRateFinder.AddLossForLastBlockId(blockLoss);
             }
             MiniBatchGradientDescentForSingleEpoch(trainingDataSet, miniBatchSizeForAllWorkers, learningRateFinder, CallBackAfterEachMiniBatch, returnPredictionsForFullDataset: false, computeMetricsForFullDataset: false);
@@ -590,6 +590,10 @@ namespace SharpNet.Networks
         {
             //FindBestLearningRate(trainingDataset, 1e-8, 10.0, Sample.BatchSize);
 
+            if (ModelSample.GetLoss() == EvaluationMetricEnum.DEFAULT_VALUE)
+            {
+                throw new ArgumentException("Loss Function not set");
+            }
             int miniBatchSizeForAllWorkers = Sample.BatchSize;
             int numEpochs = Sample.NumEpochs;
             var learningRateComputer = Sample.GetLearningRateComputer();
@@ -636,8 +640,8 @@ namespace SharpNet.Networks
 
                     var swEpoch = Stopwatch.StartNew();
 
-                    var lrMultiplicativeFactorFromReduceLrOnPlateau = learningRateComputer.MultiplicativeFactorFromReduceLrOnPlateau(EpochData, Sample.LossFunction);
-                    if (learningRateComputer.ShouldReduceLrOnPlateau(EpochData, Sample.LossFunction))
+                    var lrMultiplicativeFactorFromReduceLrOnPlateau = learningRateComputer.MultiplicativeFactorFromReduceLrOnPlateau(EpochData, Sample.GetLoss());
+                    if (learningRateComputer.ShouldReduceLrOnPlateau(EpochData, Sample.GetLoss()))
                     {
                         LogInfo("Reducing learningRate because of plateau at epoch " + epoch + " (new multiplicative coeff:"+ lrMultiplicativeFactorFromReduceLrOnPlateau+")");
                     }
@@ -700,7 +704,7 @@ namespace SharpNet.Networks
                         || (Sample.AutoSaveIntervalInMinutes>=0 && (DateTime.Now - lastAutoSaveTime).TotalMinutes > Sample.AutoSaveIntervalInMinutes)
                         || learningRateComputer.ShouldCreateSnapshotForEpoch(epoch)
                         || trainingDataset.ShouldCreateSnapshotForEpoch(epoch, this)
-                        || (Sample.AutoSaveIntervalInMinutes >= 0 && ShouldStopTrainingBecauseOfEarlyStopping(EpochData, Sample.EarlyStoppingRounds, Sample.LossFunction))
+                        || (Sample.AutoSaveIntervalInMinutes >= 0 && ShouldStopTrainingBecauseOfEarlyStopping(EpochData, Sample.EarlyStoppingRounds, Sample.GetLoss()))
                     )
                     {
                         trainingDataset.Save(this, WorkingDirectory, ModelName);
@@ -714,7 +718,7 @@ namespace SharpNet.Networks
                         LogInfo("Saving network '" + ModelName + "' stats in " + networkStatFileName);
                         File.WriteAllText(networkStatFileName, ContentStats());
                     }
-                    if (ShouldStopTrainingBecauseOfEarlyStopping(EpochData, Sample.EarlyStoppingRounds, Sample.LossFunction))
+                    if (ShouldStopTrainingBecauseOfEarlyStopping(EpochData, Sample.EarlyStoppingRounds, Sample.GetLoss()))
                     {
                         LogInfo("Stopping Training because of EarlyStopping");
                         break;
@@ -735,9 +739,9 @@ namespace SharpNet.Networks
                         + learningRateComputer.LearningRate(1, 0, 1.0) + ";"
                         + _spInternalFit.Elapsed.TotalSeconds + ";"
                         + (_spInternalFit.Elapsed.TotalSeconds / GetNumEpochs()) + ";"
-                        + EpochData.Last().GetTrainingLoss(Sample.LossFunction) + ";"
+                        + EpochData.Last().GetTrainingLoss(Sample.GetLoss()) + ";"
                         + EpochData.Last().TrainingAccuracy + ";"
-                        + EpochData.Last().GetValidationLoss(Sample.LossFunction) + ";"
+                        + EpochData.Last().GetValidationLoss(Sample.GetLoss()) + ";"
                         + EpochData.Last().ValidationAccuracy + ";"
                         + Environment.NewLine;
                     File.AppendAllText(Utils.ConcatenatePathWithFileName(WorkingDirectory, testsCsv), line);
@@ -768,8 +772,8 @@ namespace SharpNet.Networks
             IScore trainRankingMetricIfAvailable = null;
             IScore validationRankingMetricIfAvailable = null;
 
-            var lossMetric = Sample.LossFunction;
-            var rankingMetric = Sample.Metrics.Last();
+            var lossMetric = Sample.GetLoss();
+            var rankingMetric = Sample.GetRankingEvaluationMetric();
             if (trainingMetrics != null && trainingMetrics.ContainsKey(lossMetric))
             {
                 trainLossIfAvailable = new Score((float)trainingMetrics[lossMetric], lossMetric);
@@ -905,7 +909,7 @@ namespace SharpNet.Networks
                 throw new ArgumentException($"invalid {nameof(YPredicted_MiniBatch_Shape)} shape: {Utils.ShapeToString(YPredicted_MiniBatch_Shape)}");
             }
 
-            if (Sample.LossFunction == EvaluationMetricEnum.SparseCategoricalCrossentropy)
+            if (Sample.GetLoss() == EvaluationMetricEnum.SparseCategoricalCrossentropy)
             {
                 // the Y Predicted shape is of shape (a, embeddingDim)
                 // the Y Expected shape is of shape  (a,1)
@@ -979,7 +983,7 @@ namespace SharpNet.Networks
 
             //the first epoch is #1
             int epoch = EpochData.Count + 1;
-            var lrMultiplicativeFactorFromReduceLrOnPlateau = learningRateComputerIfTraining?.MultiplicativeFactorFromReduceLrOnPlateau(EpochData, Sample.LossFunction) ?? 1.0;
+            var lrMultiplicativeFactorFromReduceLrOnPlateau = learningRateComputerIfTraining?.MultiplicativeFactorFromReduceLrOnPlateau(EpochData, Sample.GetLoss()) ?? 1.0;
 
             //dataSet.Count:
             // actual number of elements in the dataSet that we'll process
@@ -1114,7 +1118,7 @@ namespace SharpNet.Networks
                 PropagationManager.Forward(all_x_miniBatch, yPredicted_miniBatch_master, isTraining);
                 if (isTraining)
                 {
-                    PropagationManager.Backward(yExpected_miniBatch_master, yPredicted_miniBatch_master, Sample.LossFunction);
+                    PropagationManager.Backward(yExpected_miniBatch_master, yPredicted_miniBatch_master, Sample.GetLoss());
                 }
 
                 // we ensure that all slaves have finished
@@ -1207,8 +1211,8 @@ namespace SharpNet.Networks
         {
             return
                 EpochData.Count >= 1
-                && EpochData.All(e => !double.IsNaN(e.GetValidationLoss(Sample.LossFunction)))
-                && Math.Abs(EpochData.Select(e => e.GetValidationLoss(Sample.LossFunction)).Min() - EpochData.Last().GetValidationLoss(Sample.LossFunction)) < 1e-6;
+                && EpochData.All(e => !double.IsNaN(e.GetValidationLoss(Sample.GetLoss())))
+                && Math.Abs(EpochData.Select(e => e.GetValidationLoss(Sample.GetLoss())).Min() - EpochData.Last().GetValidationLoss(Sample.GetLoss())) < 1e-6;
         }
         public string Summary()
         {

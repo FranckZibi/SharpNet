@@ -174,7 +174,7 @@ namespace SharpNet.Datasets
             yMiniBatch.AssertIsNotDisposed();
 
             int elementsActuallyLoaded;
-            if (HasBackgroundThreadRunning)
+            if (HasBackgroundThreadAlive)
             {
                 //if the background thread is working, we'll wait until it finishes
                 backgroundThreadIsIdle.WaitOne();
@@ -233,7 +233,7 @@ namespace SharpNet.Datasets
             //we check if we can start compute the next mini batch content in advance
             int firstIndexInShuffledElementIdForNextMiniBatch = firstIndexInShuffledElementId + all_xMiniBatches[0].Shape[0];
             int nextMiniBatchSize = Math.Min(shuffledElementId.Length - firstIndexInShuffledElementIdForNextMiniBatch, all_xMiniBatches[0].Shape[0]);
-            if (HasBackgroundThreadRunning && nextMiniBatchSize > 0)
+            if (HasBackgroundThreadAlive && nextMiniBatchSize > 0)
             {
                 //we will ask the background thread to compute the next mini batch
                 backgroundThreadIsIdle.WaitOne();
@@ -1050,9 +1050,10 @@ namespace SharpNet.Datasets
         }
         public void StartBackgroundThreadToLoadNextMiniBatchIfNeeded()
         {
-            if (!HasBackgroundThreadRunning)
+            if (!HasBackgroundThreadAlive)
             {
                 //we start a background thread
+                shouldStopBackgroundThread = false;
                 backgroundThreadToLoadNextMiniBatch = new Thread(BackgroundThreadToLoadNextMiniBatchMethod);
                 backgroundThreadToLoadNextMiniBatch.Start();
                 Thread.Sleep(10);
@@ -1060,11 +1061,11 @@ namespace SharpNet.Datasets
         }
 
 
-        private bool HasBackgroundThreadRunning => backgroundThreadToLoadNextMiniBatch != null && backgroundThreadToLoadNextMiniBatch.IsAlive;
+        private bool HasBackgroundThreadAlive => backgroundThreadToLoadNextMiniBatch != null && backgroundThreadToLoadNextMiniBatch.IsAlive;
 
         public void StopBackgroundThreadToLoadNextMiniBatchIfNeeded()
         {
-            if (HasBackgroundThreadRunning)
+            if (HasBackgroundThreadAlive)
             {
                 //we stop the background thread
                 threadParameters = null;

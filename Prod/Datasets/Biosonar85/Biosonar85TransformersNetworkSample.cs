@@ -68,7 +68,7 @@ public class Biosonar85TransformersNetworkSample : NetworkSample
         }
         nn.Flatten();
         nn.Dense(datasetSample.NumClass, lambdaL2Regularization, true);
-        nn.Activation(datasetSample.ActivationForLastLayer);
+        nn.Activation(datasetSample.GetActivationForLastLayer(nn.ModelSample.GetObjective()));
     }
 
 }

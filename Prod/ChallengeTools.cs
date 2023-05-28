@@ -123,6 +123,9 @@ public static class ChallengeTools
             { "KFold", cv },
 
             //high priority
+            //TODO
+            //{"objective", nameof(LightGBMSample.objective.?)},
+            //{"metric", ?}, 
             { "bagging_fraction", new[]{/*0.8f,*/ 0.9f /*, 1.0f*/} },
             { "bagging_freq", new[]{0, 1} },
             { "boosting", new []{/*"gbdt",*/ "dart"}},

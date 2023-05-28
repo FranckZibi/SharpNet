@@ -297,7 +297,6 @@ public class KaggleDaysDatasetSample : AbstractDatasetSample
     public override int NumClass => TargetLabelDistinctValues.Length;
     public override string[] TargetLabelDistinctValues => new[] { "y" };
     public override Objective_enum GetObjective() => Objective_enum.Classification;
-    public override EvaluationMetricEnum GetRankingEvaluationMetric() => EvaluationMetricEnum.BinaryCrossentropy;
     public override string[] CategoricalFeatures => new[] { "channel_grouping", "country", "region", "device_category", "category", "name", "market" };
     public override string IdColumn => "session_id";
     public override string[] TargetLabels => new[] { "y" };
@@ -369,10 +368,7 @@ public class KaggleDaysDatasetSample : AbstractDatasetSample
             {"KFold", 2},
             //{"PercentageInTraining", 0.8}, //will be automatically set to 1 if KFold is enabled
 
-            //uncomment appropriate one
-            //{"LossFunction", "Rmse"},                     //for Regression Tasks: Rmse, Mse, Mae, etc.
-            //{"LossFunction", "BinaryCrossentropy"},       //for binary classification
-            {"LossFunction", "CategoricalCrossentropy"},  //for multi class classification
+            { "LossFunction", nameof(EvaluationMetricEnum.BinaryCrossentropy)},
 
             // Optimizer 
             { "OptimizerType", new[] { "AdamW"} },
@@ -423,11 +419,9 @@ public class KaggleDaysDatasetSample : AbstractDatasetSample
             {"KFold", 2},
             //{"PercentageInTraining", 0.8}, //will be automatically set to 1 if KFold is enabled
 
-            //uncomment appropriate one
-            //{"loss_function", "RMSE"},          //for Regression Tasks: RMSE, etc.
-            {"loss_function", "Logloss"},     //for binary classification
-            //{"loss_function", "MultiClass"},  //for multi class classification
-
+            //related to model
+            {"loss_function", nameof(CatBoostSample.loss_function_enum.Logloss)},
+            {"eval_metric", nameof(CatBoostSample.metric_enum.Logloss)},
             { "logging_level", "Silent"},
             { "allow_writing_files",false},
             { "thread_count",1},
@@ -458,35 +452,24 @@ public class KaggleDaysDatasetSample : AbstractDatasetSample
             //{"KFold", 2},
             {"PercentageInTraining", 0.8}, //will be automatically set to 1 if KFold is enabled
 
-            
+            //related to model
+            {"objective", nameof(LightGBMSample.objective_enum.binary)},
+            {"metric", ""}, //same as objective
             { "num_threads", 1},
             { "verbosity", "0" },
             { "early_stopping_round", num_iterations/10 },
             { "num_iterations", num_iterations },
-
-            //uncomment appropriate one
-            //{"objective", "regression"},      //for Regression Tasks
-            {"objective", "binary"},          //for binary classification
-            //{"objective", "multiclass"},      //for multi class classification
-            //{"num_class", number_of_class },  //for multi class classification
-
             //high priority
             { "bagging_fraction", 0.8},
             //{ "bagging_fraction", new[]{0.8f, 0.9f, 1.0f} },
             { "bagging_freq", new[]{0, 10} },
-            
-            
             //{ "boosting", new []{"gbdt", "dart"}},
             { "boosting", "dart"},
             { "colsample_bytree",AbstractHyperParameterSearchSpace.Range(0.6f, 1.0f)},
-
             { "lambda_l1",AbstractHyperParameterSearchSpace.Range(0f, 2f)},
             //{ "learning_rate",AbstractHyperParameterSearchSpace.Range(0.005f, 0.2f)},
-            
             { "learning_rate", new[]{0.001, 0.01, 0.1}},
-
             { "max_depth", new[]{10, 20, 50} },
-            
             { "min_data_in_leaf", new[]{20, 50 ,100} },
             { "num_leaves", AbstractHyperParameterSearchSpace.Range(3, 50) },
             //{ "num_leaves", new[]{3,15,50} },
@@ -515,6 +498,8 @@ public class KaggleDaysDatasetSample : AbstractDatasetSample
             //related to Dataset 
             {"KFold", 2},
             //{"PercentageInTraining", 0.8}, //will be automatically set to 1 if KFold is enabled
+            {"objective", nameof(LightGBMSample.objective_enum.binary)},
+            {"metric", ""}, //same as objective
             { "num_threads", -1},
             { "boosting", "gbdt"},
             {"objective", "binary"},          //for binary classification

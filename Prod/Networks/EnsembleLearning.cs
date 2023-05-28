@@ -31,7 +31,7 @@ namespace SharpNet.Networks
 
                 (var yPredictedSingleNetwork, _) = network.MiniBatchGradientDescentForSingleEpoch(testDataSet, miniBatchSize, returnPredictionsForFullDataset: true, computeMetricsForFullDataset: false);
                 var yCpuPredictedSingleNetwork = yPredictedSingleNetwork.ToCpuFloat();
-                lossFunction = network.Sample.LossFunction;
+                lossFunction = network.Sample.GetLoss();
                 var accuracy = (lossFunction == EvaluationMetricEnum.AccuracyCategoricalCrossentropyWithHierarchy)
                     ? buffer.ComputeAccuracyCategoricalCrossentropyWithHierarchy(testDataSet_YIfAny, yCpuPredictedSingleNetwork)
                     : buffer.ComputeAccuracy(testDataSet_YIfAny, yCpuPredictedSingleNetwork);

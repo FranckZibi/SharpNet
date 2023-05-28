@@ -135,59 +135,42 @@ public static class TextTransformersUtils
     {
         var searchSpace = new Dictionary<string, object>
         {
-            //Dataset specific
+            //related to Dataset
+            //{"MaxCharacterLengthForTraining", 1000 },
             //{ "KFold", 3 },
             {"PercentageInTraining", new[]{0.9}},
 
-            {"LossFunction", "SparseCategoricalCrossentropy"},
+            //related to model
+            {"LossFunction", nameof(EvaluationMetricEnum.SparseCategoricalCrossentropy)},
+            {"RankingEvaluationMetric", nameof(EvaluationMetricEnum.SparseAccuracy)},
             {"CompatibilityMode", "TensorFlow"},
-
-
-            //related to Dataset
-            
-            //{"MaxCharacterLengthForTraining", 1000 },
-
             {"max_length", new[]{256 } },
             {"embedding_dim", new[]{384} },
-
             //{"max_length", 256},
             //{"embedding_dim", 384},
             //{"max_length", 256},
             //{"embedding_dim", 64},
-
             //{"layer_norm_epsilon", new[]{1e-5, 1e-6 } },
-            
-            
             {"encoder_num_transformer_blocks", new[]{4 /*,6*/ } },
             {"encoder_num_heads", new[]{1,4,8} },
-            
             {"encoder_mha_use_bias_Q_V_K", false},
             {"encoder_mha_use_bias_O", new[]{true,false } },
-            
             {"encoder_mha_dropout", new[]{0.2f,0f ,0.1f} },
             {"encoder_feed_forward_dim", 4*64},
             {"encoder_feed_forward_dropout", new[]{0.2f,0f,0.1f }},
-            
             {"encoder_use_causal_mask", true},
-            
             //{"vocab_size", 58},   //shakespeare
             {"vocab_size", 81},     // victor hugo 
-
-            
             // Optimizer 
             { "OptimizerType", "AdamW" },
             //{ "AdamW_L2Regularization", 0.01},
-
             // Learning Rate
             { "InitialLearningRate", new[]{ 0.01 /*,0.05,0.001*/ } },
             // Learning Rate Scheduler
             //{ "LearningRateSchedulerType", new[] { "CyclicCosineAnnealing", "OneCycle", "Linear" } },
             { "LearningRateSchedulerType", "CyclicCosineAnnealing"},
             //{ "LearningRateSchedulerType", "Constant"},
-
-            
             { "BatchSize", new[]{64 } },
-
             { "NumEpochs", numEpochs },
             
 

@@ -36,7 +36,7 @@ namespace SharpNet.HyperParameters
 
         public static ModelAndDatasetPredictionsSample Load(string workingDirectory, string modelName, bool useAllAvailableCores)
         {
-            var modelSample = IModelSample.LoadModelSample(workingDirectory, ModelAndDatasetSampleIndexToSampleName(modelName, 0), useAllAvailableCores);
+            var modelSample = AbstractModelSample.LoadModelSample(workingDirectory, ModelAndDatasetSampleIndexToSampleName(modelName, 0), useAllAvailableCores);
             var datasetSample = LoadDatasetSample(workingDirectory, modelName);
             var predictionsSample = LoadPredictions(workingDirectory, modelName);
 
@@ -96,27 +96,12 @@ namespace SharpNet.HyperParameters
             return ModelAndDatasetSampleIndexToSampleName(modelName, sampleIndex);
         }
 
-        public override bool FixErrors()
-        {
-            if (ModelSample is Networks.NetworkSample networkSample)
-            {
-                networkSample.ApplyDataset(DatasetSample);
-            }
-            if (!base.FixErrors())
-            {
-                return false;
-            }
-            return true;
-        }
-
         #region Filling Search Space with Default Values for Model
         public override void FillSearchSpaceWithDefaultValues(IDictionary<string, object> hyperParameterSearchSpace)
         {
             ModelSample.FillSearchSpaceWithDefaultValues(hyperParameterSearchSpace, DatasetSample);
         }
-
         #endregion
-
 
         public IModelSample ModelSample => (IModelSample)Samples[0];
         public AbstractDatasetSample DatasetSample => (AbstractDatasetSample)Samples[1];

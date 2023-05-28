@@ -43,7 +43,7 @@ namespace SharpNet.Networks
             //we load the model (network description)
             var allLines = File.ReadAllLines(modelFilePath);
             var dicoFirstLine = Serializer.Deserialize(allLines[0]);
-            var sample = (NetworkSample) IModelSample.LoadModelSample(workingDirectory, modelName, useAllAvailableCores);
+            var sample = (NetworkSample) AbstractModelSample.LoadModelSample(workingDirectory, modelName, useAllAvailableCores);
             if (!string.IsNullOrEmpty(workingDirectory) && !Directory.Exists(workingDirectory))
             {
                 // ReSharper disable once PossibleNullReferenceException

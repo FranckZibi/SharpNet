@@ -34,9 +34,9 @@ public class TestColumnStatistics
     [TestCase(false)]
     public void TestProperties(bool standardizeDoubleValues)
     {
-        var testDatasetSample = new TesDatasetEncoder.TestDatasetSample(new [] { "cat2", "id" }, "id", new[] { "y" });
+        var testDatasetSample = new TestDatasetEncoder.TestDatasetSample(new [] { "cat2", "id" }, "id", new[] { "y" });
         var encoder = new DatasetEncoder(testDatasetSample, standardizeDoubleValues, true);
-        var rows = TesDatasetEncoder.SimpleTestDataFrame();
+        var rows = TestDatasetEncoder.SimpleTestDataFrame();
         encoder.Fit(rows);
 
         var idStats = encoder["id"];

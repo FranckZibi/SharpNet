@@ -278,7 +278,7 @@ namespace SharpNet.Networks
             PropagationManager.Forward(all_x_miniBatch, _yPredicted_miniBatch_slave, isTraining);
             if (isTraining)
             {
-                PropagationManager.Backward(_yExpected_miniBatch_slave, _yPredicted_miniBatch_slave, Sample.LossFunction);
+                PropagationManager.Backward(_yExpected_miniBatch_slave, _yPredicted_miniBatch_slave, Sample.GetLoss());
             }
 
             //copy miniBatch prediction (computed in slave network) to master network

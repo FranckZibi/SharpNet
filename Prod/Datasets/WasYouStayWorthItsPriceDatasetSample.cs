@@ -101,24 +101,20 @@ public class WasYouStayWorthItsPriceDatasetSample : AbstractDatasetSample
             {"KFold", 2},
             //{"PercentageInTraining", 0.8}, //will be automatically set to 1 if KFold is enabled
 
-            {"InitialLearningRate", AbstractHyperParameterSearchSpace.Range(0.003f, 0.2f, AbstractHyperParameterSearchSpace.range_type.normal)},
-
             //dataset 
             //{"StandardizeDoubleValues", new[]{true, false} },
             //{"Reviews_EmbeddingDim", new[]{0, 100, TOTAL_Reviews_EmbeddingDim}},
-            
+
+            //related to model
+            { "LossFunction", nameof(EvaluationMetricEnum.CategoricalCrossentropy)},
+            { "RankingEvaluationMetric", nameof(EvaluationMetricEnum.F1Micro)},
+            {"InitialLearningRate", AbstractHyperParameterSearchSpace.Range(0.003f, 0.2f, AbstractHyperParameterSearchSpace.range_type.normal)},
             // Optimizer 
             {"OptimizerType", "AdamW"},
             //{"AdamW_L2Regularization", AbstractHyperParameterSearchSpace.Range(0.003f, 0.01f)},
             {"AdamW_L2Regularization", 0.004},
-
-            //{"LossFunction", "Rmse"}, //Mse , Mae
-            //{"LossFunction", "BinaryCrossentropy"},
-            {"LossFunction", "CategoricalCrossentropy"},
-
             // Learning Rate Scheduler
             {"LearningRateSchedulerType", new[]{ "OneCycle"}},
-
             { "EmbeddingDim", new[]{10} },
             //{ "EmbeddingDim", 10 },
 
@@ -159,7 +155,9 @@ public class WasYouStayWorthItsPriceDatasetSample : AbstractDatasetSample
             {"KFold", 2},
             //{"PercentageInTraining", 0.8}, //will be automatically set to 1 if KFold is enabled
 
-            //related to CatBoost model
+            //related to model
+            {"loss_function", nameof(CatBoostSample.loss_function_enum.MultiClass)},
+            {"eval_metric", nameof(CatBoostSample.metric_enum.F1)},		
             { "logging_level", "Silent"},
             { "allow_writing_files",false},
             { "thread_count",1},
@@ -192,22 +190,19 @@ public class WasYouStayWorthItsPriceDatasetSample : AbstractDatasetSample
             //related to Dataset 
             {"KFold", 2},
             //{"PercentageInTraining", 0.8}, //will be automatically set to 1 if KFold is enabled
-
-            //related to Dataset 
             {"Reviews_EmbeddingDim", TOTAL_Reviews_EmbeddingDim},
             {"PercentageInTraining", 0.8}, //will be automatically set to 1 if KFold is enabled
             //!D {"KFold", new[]{2}},
-            
 
+            //related to model
+            {"objective", nameof(LightGBMSample.objective_enum.multiclass)},
+            {"metric", ""}, //same as objective
             {"boosting", new []{"gbdt", "dart"}},
             //dart mode
             //{"drop_rate", new[]{0.05, 0.1, 0.2}},
             {"max_drop", new[]{40, 50, 60}},
             {"skip_drop",AbstractHyperParameterSearchSpace.Range(0.1f, 0.6f)},
-            
-            //related to LightGBM model
-            //{ "metric", "multi_logloss" },
-            //{ "objective", "multiclass" },
+
             //{ "num_iterations", AbstractHyperParameterSearchSpace.Range(min_num_iterations, 3*min_num_iterations) },
             { "num_iterations", min_num_iterations },
             //{ "num_class", numClasses },
@@ -240,8 +235,7 @@ public class WasYouStayWorthItsPriceDatasetSample : AbstractDatasetSample
     }
 
     public override Objective_enum GetObjective() => Objective_enum.Classification;
-    public override EvaluationMetricEnum GetRankingEvaluationMetric() => EvaluationMetricEnum.F1Micro;
-    public override  IScore MinimumScoreToSaveModel => new Score(0.32f, GetRankingEvaluationMetric());
+    //public override  IScore MinimumScoreToSaveModel => new Score(0.32f, GetRankingEvaluationMetric());
     public override string[] CategoricalFeatures => new [] { "host_2", "host_3", "host_4", "host_5", "property_10", "property_15", "property_4", "property_5", "property_7"};
     public override string IdColumn => "id";
     public override string[] TargetLabels => new[] { "max_rating_class" };

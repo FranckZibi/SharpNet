@@ -14,7 +14,7 @@ namespace SharpNet.DataAugmentation.Operations
         public Cutout(int rowStart, int rowEnd, int colStart, int colEnd)
         {
             Debug.Assert(rowStart >= 0);
-            Debug.Assert(rowEnd>=0);
+            Debug.Assert(rowEnd >= 0);
             Debug.Assert(colStart >= 0);
             Debug.Assert(colEnd >= 0);
             _rowStart = rowStart;
@@ -25,14 +25,13 @@ namespace SharpNet.DataAugmentation.Operations
 
         public override float AugmentedValue(int indexInMiniBatch,
             int channel,
-            CpuTensor<float> xInputMiniBatch, int rowInput, int colInput, 
+            CpuTensor<float> xInputMiniBatch, int rowInput, int colInput,
             CpuTensor<float> xOutputMiniBatch, int rowOutput, int colOutput)
         {
             //we check if we should apply Cutout to the pixel
             //this Cutout must be the last performed operation (so must be after the CutMix operation if any)
             if (rowOutput >= _rowStart && rowOutput <= _rowEnd && colOutput >= _colStart && colOutput <= _colEnd)
             {
-                //TODO check if we should return the mean instead
                 return 0;
             }
             return xInputMiniBatch.Get(indexInMiniBatch, channel, rowInput, colInput);
@@ -50,6 +49,10 @@ namespace SharpNet.DataAugmentation.Operations
             }
 
             int cutoutPatchLength = (int)Math.Round(cutoutPatchPercentage * Math.Max(nbRows, nbCols), 0.0);
+            if (cutoutPatchLength <= 0)
+            {
+                return null;
+            }
 
             //the cutout patch will be centered at (rowMiddle,colMiddle)
             //its size will be between '1x1' (minimum patch size if the center is a corner) to 'cutoutPatchLength x cutoutPatchLength' (maximum size)
@@ -88,6 +91,10 @@ namespace SharpNet.DataAugmentation.Operations
             }
 
             int numberOfColumnsToCutout = (int)Math.Round(columnsCutoutPatchPercentage * nbCols, 0.0);
+            if (numberOfColumnsToCutout <= 0)
+            {
+                return null;
+            }
 
             //the cutout columns will be centered at 'colMiddle'
             //its size will be between 'nbRows x 1' (only 1 column will be entirely cutout)
@@ -113,6 +120,10 @@ namespace SharpNet.DataAugmentation.Operations
             }
 
             int numberOfRowsToCutout = (int)Math.Round(rowsCutoutPatchPercentage * nbRows, 0.0);
+            if (numberOfRowsToCutout <= 0)
+            {
+                return null;
+            }
 
             //the cutout rows will be centered at 'rowMiddle'
             //its size will be between '1 x nbCols' (only 1 row will be entirely cutout)

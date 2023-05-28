@@ -141,9 +141,9 @@ public static class CFM84Utils
             {"KFold", 5},
             //{"PercentageInTraining", 0.8}, //will be automatically set to 1 if KFold is enabled
 
-            //uncomment appropriate one
-            {"loss_function", "MultiClass"},  //for multi class classification
-            
+            //related to model
+            {"loss_function", nameof(CatBoostSample.loss_function_enum.MultiClass)},
+            {"eval_metric", nameof(CatBoostSample.metric_enum.Accuracy)},
             {"use_r_day_equity", new []{true , false}},                 //0.48218 Valid Accuracy (False) vs 0.48194 Valid Accuracy (True)
             {"use_vol_r_day_market", new []{/*true ,*/ false}},         //0.48194 Valid Accuracy (False) vs 0.47576 Valid Accuracy (True) , but much better result in training
             {"use_r_dataset_equity", new []{true, false}},              //0.48294 Valid Accuracy (False) vs 0.48194 Valid Accuracy (True)
@@ -152,16 +152,9 @@ public static class CFM84Utils
             {"use_market_correl_r_day_equity", new []{true, false}},    //0.48109 Valid Accuracy (False) vs 0.48194 Valid Accuracy (True)
             {"use_vol_r_dataset_equity", new []{true, false}},          //0.48194 Valid Accuracy (False) vs 0.48116 Valid Accuracy (True)
             {"rr_count", new[]{0,1,2} },
-
-
             //{"use_r_dataset", new []{/*true ,*/ false}}, //must be false
             //{"use_vol_r_dataset", new []{/*true,*/ false}}, //must be false
-
-
-
             //{"grow_policy", new []{ "SymmetricTree", "Depthwise" /*, "Lossguide"*/}},
-
-
             { "logging_level", nameof(CatBoostSample.logging_level_enum.Verbose)},
             { "allow_writing_files",false},
             { "thread_count",1},
@@ -188,18 +181,6 @@ public static class CFM84Utils
         //searchSpace["bagging_temperature"] = 0.9402393;
         //searchSpace["l2_leaf_reg"] = 9;
         //searchSpace["iterations"] = 10000;
-
-        /*
-        rr_count = 1
-        use_market_correl_r_day_equity = True
-        use_r_dataset_equity = True
-        use_r_day_equity = True
-        use_r_day_market = True
-        use_vol_r_dataset_equity = True
-        use_vol_r_day_equity = True
-        use_vol_r_day_market = False
-        */
-
 
         var hpo = new BayesianSearchHPO(searchSpace, () => ModelAndDatasetPredictionsSample.New(new CatBoostSample(), new CFM84DatasetSample()), WorkingDirectory);
         IScore bestScoreSoFar = null;
@@ -229,15 +210,14 @@ public static class CFM84Utils
             {"use_r_dataset", new []{/*true ,*/ false}}, //must be false
             {"use_vol_r_dataset", new []{/*true,*/ false}}, //must be false
 
-
             { "num_threads", -1},
             { "verbosity", "0" },
             { "early_stopping_round", num_iterations/10 },
             { "num_iterations", num_iterations },
 
-            {"objective", "multiclass"},
+            {"objective", nameof(LightGBMSample.objective_enum.multiclass)},
+            // {"metric", "accuracy"}, //!D TODO: change to accuracy metric 
             {"num_class", TargetLabelDistinctValues.Length},
-
 
             { "colsample_bytree",0.9},
 
@@ -313,27 +293,16 @@ public static class CFM84Utils
             //Dataset specific
             //{ "KFold", 3 },
             {"PercentageInTraining", new[]{0.8}},
-            
-            {"use_r_day_equity", new []{true , false}},                 //0.48218 Valid Accuracy (False) vs 0.48194 Valid Accuracy (True)
-            {"use_vol_r_day_market", new []{/*true , */ false}},             //0.48194 Valid Accuracy (False) vs 0.47576 Valid Accuracy (True) , but much better result in training
-            {"use_r_dataset_equity", new []{true, false}},              //0.48294 Valid Accuracy (False) vs 0.48194 Valid Accuracy (True)
-            {"use_vol_r_day_equity", new []{true, false}},              //0.48194 Valid Accuracy (False) vs 0.47949 Valid Accuracy (True) 
-            {"use_r_day_market", new []{true /*, false*/}},             //0.47531 Valid Accuracy (False) vs 0.48194 Valid Accuracy (True)
-            {"use_market_correl_r_day_equity", new []{true, false}},    //0.48109 Valid Accuracy (False) vs 0.48194 Valid Accuracy (True)
-            {"use_vol_r_dataset_equity", new []{true, false}},          //0.48194 Valid Accuracy (False) vs 0.48116 Valid Accuracy (True)
-            {"rr_count", new[]{0,1,2}},
 
-            {"LossFunction", "CategoricalCrossentropy"},  //for multi class classification
-            
-            {"fillna_with_0", true},  //NaN are not supported in Neural Networks
-
+            //related to model
+            {"LossFunction", nameof(EvaluationMetricEnum.CategoricalCrossentropy)},
+            {"RankingEvaluationMetric", nameof(EvaluationMetricEnum.Accuracy)},
             // Optimizer 
             { "OptimizerType", new[] { "AdamW" } },
             //{ "OptimizerType", "SGD" },
             { "AdamW_L2Regularization", new[] { 0.01 } },
             //{ "SGD_usenesterov", new[] { true, false } },
             //{ "lambdaL2Regularization", 0},
-
             // Learning Rate
             //{ "InitialLearningRate", AbstractHyperParameterSearchSpace.Range(1e-5f, 1f, AbstractHyperParameterSearchSpace.range_type.normal) },
             { "InitialLearningRate", new[]{ 0.001 } },
@@ -346,7 +315,6 @@ public static class CFM84Utils
             //{ "dropout_top", new[] { 0, 0.1, 0.2 } },
             //{ "dropout_mid", new[] { 0, 0.3, 0.5 } },
             //{ "dropout_bottom", new[] { 0, 0.2, 0.4 } },
-            
             { "BatchSize", new[] { 1024,2048,4096 } },
             { "NumEpochs", numEpochs },
 
@@ -355,6 +323,17 @@ public static class CFM84Utils
             { "channel_1", 256},
             { "channel_2", 512},
             { "channel_3", 512},
+
+            {"use_r_day_equity", new []{true , false}},                 //0.48218 Valid Accuracy (False) vs 0.48194 Valid Accuracy (True)
+            {"use_vol_r_day_market", new []{/*true , */ false}},             //0.48194 Valid Accuracy (False) vs 0.47576 Valid Accuracy (True) , but much better result in training
+            {"use_r_dataset_equity", new []{true, false}},              //0.48294 Valid Accuracy (False) vs 0.48194 Valid Accuracy (True)
+            {"use_vol_r_day_equity", new []{true, false}},              //0.48194 Valid Accuracy (False) vs 0.47949 Valid Accuracy (True) 
+            {"use_r_day_market", new []{true /*, false*/}},             //0.47531 Valid Accuracy (False) vs 0.48194 Valid Accuracy (True)
+            {"use_market_correl_r_day_equity", new []{true, false}},    //0.48109 Valid Accuracy (False) vs 0.48194 Valid Accuracy (True)
+            {"use_vol_r_dataset_equity", new []{true, false}},          //0.48194 Valid Accuracy (False) vs 0.48116 Valid Accuracy (True)
+            {"rr_count", new[]{0,1,2}},
+
+            {"fillna_with_0", true},  //NaN are not supported in Neural Networks
 
         };
 

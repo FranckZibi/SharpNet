@@ -79,15 +79,15 @@ public class KFoldModel : Model
     private Model GetEmbeddedModel(string directory, int embeddedModelIndex, AbstractDatasetSample datasetSample)
     {
         var embeddedModelName = KFoldModelNameEmbeddedModelName(ModelName, embeddedModelIndex);
-        IModelSample embeddedModelSample;
+        AbstractModelSample embeddedModelSample;
         try
         {
-            embeddedModelSample = IModelSample.LoadModelSample(directory, embeddedModelName, KFoldSample.Should_Use_All_Available_Cores);
+            embeddedModelSample = AbstractModelSample.LoadModelSample(directory, embeddedModelName, KFoldSample.Should_Use_All_Available_Cores);
         }
         catch
         {
             //we try to load the embedded model from its original name
-            embeddedModelSample = IModelSample.LoadModelSample(directory, KFoldModelNameEmbeddedModelName(ModelName, -1), KFoldSample.Should_Use_All_Available_Cores);
+            embeddedModelSample = AbstractModelSample.LoadModelSample(directory, KFoldModelNameEmbeddedModelName(ModelName, -1), KFoldSample.Should_Use_All_Available_Cores);
         }
         return embeddedModelSample.NewModel(datasetSample, WorkingDirectory, embeddedModelName);
     }
@@ -117,6 +117,10 @@ public class KFoldModel : Model
     public override (string train_XDatasetPath_InModelFormat, string train_YDatasetPath_InModelFormat, string train_XYDatasetPath_InModelFormat, string validation_XDatasetPath_InModelFormat, string validation_YDatasetPath_InModelFormat, string validation_XYDatasetPath_InModelFormat, IScore trainLossIfAvailable, IScore validationLossIfAvailable, IScore trainRankingMetricIfAvailable, IScore validationRankingMetricIfAvailable)
         Fit(DataSet trainDataset, DataSet nullValidationDataset)
     {
+        if (ModelSample.GetLoss() == EvaluationMetricEnum.DEFAULT_VALUE)
+        {
+            throw new ArgumentException("Loss Function not set");
+        }
         if (nullValidationDataset != null)
         {
             throw new ArgumentException($"Validation Dataset must be null for KFold");
@@ -230,7 +234,7 @@ public class KFoldModel : Model
 
 
         var y_true_InModelFormat = trainDataset.Y_InModelFormat().FloatCpuTensor();
-        var y_true_InTargetFormat = datasetSample.PredictionsInModelFormat_2_PredictionsInTargetFormat(DataFrame.New(y_true_InModelFormat));
+        var y_true_InTargetFormat = datasetSample.PredictionsInModelFormat_2_PredictionsInTargetFormat(DataFrame.New(y_true_InModelFormat), ModelSample.GetObjective());
 
         if (n_splits >= 2)
         {
@@ -243,14 +247,14 @@ public class KFoldModel : Model
         if (computeTrainMetrics)
         {
             trainLoss_InModelFormat = ComputeLoss(y_true_InModelFormat, trainPredictions_InModelFormat.FloatCpuTensor());
-            trainPredictions_InTargetFormat = datasetSample.PredictionsInModelFormat_2_PredictionsInTargetFormat(trainPredictions_InModelFormat);
-            trainRankingScore_InTargetFormat = datasetSample.ComputeRankingEvaluationMetric(y_true_InTargetFormat, trainPredictions_InTargetFormat);
+            trainPredictions_InTargetFormat = datasetSample.PredictionsInModelFormat_2_PredictionsInTargetFormat(trainPredictions_InModelFormat, ModelSample.GetObjective());
+            trainRankingScore_InTargetFormat = datasetSample.ComputeRankingEvaluationMetric(y_true_InTargetFormat, trainPredictions_InTargetFormat, ModelSample.GetRankingEvaluationMetric());
         }
 
         //validationPredictions_InModelFormat.Mult(1f / n_splits);
         var validationLoss_InModelFormat = ComputeLoss(y_true_InModelFormat, validationPredictions_InModelFormat.FloatCpuTensor());
-        var validationPredictions_InTargetFormat = datasetSample.PredictionsInModelFormat_2_PredictionsInTargetFormat(validationPredictions_InModelFormat);
-        var validationRankingScore_InTargetFormat = datasetSample.ComputeRankingEvaluationMetric(y_true_InTargetFormat, validationPredictions_InTargetFormat);
+        var validationPredictions_InTargetFormat = datasetSample.PredictionsInModelFormat_2_PredictionsInTargetFormat(validationPredictions_InModelFormat, ModelSample.GetObjective());
+        var validationRankingScore_InTargetFormat = datasetSample.ComputeRankingEvaluationMetric(y_true_InTargetFormat, validationPredictions_InTargetFormat, ModelSample.GetRankingEvaluationMetric());
 
         return 
             (trainPredictions_InTargetFormat, trainRankingScore_InTargetFormat,

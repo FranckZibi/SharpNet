@@ -28,7 +28,7 @@ namespace SharpNetTests.NonReg
     {
         private static readonly ILog Log = LogManager.GetLogger(typeof(ParallelRunWithTensorFlow));
 
-        [Test]
+        [Test, Explicit]
         public void TestParallelRunWithTensorFlow_Efficientnet_Inference()
         {
             var xFileName = Path.Combine(NetworkSample.DefaultDataDirectory, "NonReg", "X_1_224_224_3.txt");
@@ -1051,9 +1051,9 @@ namespace SharpNetTests.NonReg
                         new NetworkSample
                         {
                             LossFunction = EvaluationMetricEnum.Mse,
+                            RankingEvaluationMetric = EvaluationMetricEnum.Mae,
                             ShuffleDatasetBeforeEachEpoch = false,
                             CompatibilityMode = NetworkSample.CompatibilityModeEnum.TensorFlow,
-                            Metrics = new List<EvaluationMetricEnum> {EvaluationMetricEnum.Mse, EvaluationMetricEnum.Mae},
                             ResourceIds = new List<int> { deviceId }
                         }
                        .WithSGD(momentum, false),
@@ -1162,9 +1162,9 @@ namespace SharpNetTests.NonReg
                         new NetworkSample
                         {
                             LossFunction = EvaluationMetricEnum.Huber,
+                            RankingEvaluationMetric = EvaluationMetricEnum.Mae,
                             ShuffleDatasetBeforeEachEpoch = false,
                             CompatibilityMode = NetworkSample.CompatibilityModeEnum.TensorFlow,
-                            Metrics = new List<EvaluationMetricEnum> { EvaluationMetricEnum.Huber, EvaluationMetricEnum.Mae},
                             ResourceIds = new List<int> { deviceId }
                         }
                        .WithSGD(momentum, false),
@@ -1287,9 +1287,9 @@ namespace SharpNetTests.NonReg
                 new NetworkSample
                     {
                         LossFunction = EvaluationMetricEnum.Mse,
+                        RankingEvaluationMetric = EvaluationMetricEnum.Mae,
                         ShuffleDatasetBeforeEachEpoch = shuffle,
                         CompatibilityMode = NetworkSample.CompatibilityModeEnum.TensorFlow,
-                        Metrics = new List<EvaluationMetricEnum> { EvaluationMetricEnum.Mse, EvaluationMetricEnum.Mae },
                         ResourceIds = new List<int> { deviceId }
                     }
                     .WithSGD(momentum, false)
@@ -1371,9 +1371,9 @@ namespace SharpNetTests.NonReg
                         new NetworkSample
                         {
                             LossFunction = EvaluationMetricEnum.BinaryCrossentropy,
+                            RankingEvaluationMetric = EvaluationMetricEnum.Accuracy,
                             ShuffleDatasetBeforeEachEpoch = shuffle,
                             CompatibilityMode = NetworkSample.CompatibilityModeEnum.TensorFlow,
-                            Metrics = new List<EvaluationMetricEnum> { EvaluationMetricEnum.BinaryCrossentropy, EvaluationMetricEnum.Accuracy},
                             ResourceIds = new List<int> { deviceId }
                         }
                        //.WithSGD(momentum, false),

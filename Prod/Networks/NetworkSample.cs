@@ -17,7 +17,7 @@ using static SharpNet.GPU.GPUWrapper;
 
 namespace SharpNet.Networks
 {
-    public class NetworkSample : AbstractSample, IModelSample
+    public class NetworkSample : AbstractModelSample
     {
         #region constructors
         public NetworkSample() : base(new HashSet<string>())
@@ -122,9 +122,11 @@ namespace SharpNet.Networks
 
         public int NumEpochs;
         public int BatchSize;
-        public EvaluationMetricEnum LossFunction = EvaluationMetricEnum.CategoricalCrossentropy;
+        public override EvaluationMetricEnum GetLoss() => LossFunction;
+        public override EvaluationMetricEnum GetRankingEvaluationMetric() => RankingEvaluationMetric;
+        public EvaluationMetricEnum LossFunction = EvaluationMetricEnum.DEFAULT_VALUE;
+        public EvaluationMetricEnum RankingEvaluationMetric = EvaluationMetricEnum.DEFAULT_VALUE;
         public CompatibilityModeEnum CompatibilityMode = CompatibilityModeEnum.SharpNet;
-        public List<EvaluationMetricEnum> Metrics = new() { EvaluationMetricEnum.CategoricalCrossentropy, EvaluationMetricEnum.Accuracy };
         public string DataSetName;
         /// <summary>
         /// if true
@@ -284,7 +286,7 @@ namespace SharpNet.Networks
         }
         #endregion
 
-        public void Use_All_Available_Cores()
+        public override void Use_All_Available_Cores()
         {
             if (GetDeviceCount() == 0)
             {
@@ -358,6 +360,16 @@ namespace SharpNet.Networks
                 {
                     AlphaCutMix = 0; //We disable CutMix
                 }
+            }
+
+            if (LossFunction == EvaluationMetricEnum.DEFAULT_VALUE)
+            {
+                return false;
+            }
+
+            if (RankingEvaluationMetric == EvaluationMetricEnum.DEFAULT_VALUE)
+            {
+                RankingEvaluationMetric = GetLoss();
             }
 
             return true;
@@ -466,19 +478,7 @@ namespace SharpNet.Networks
         //    });
         //}
 
-       
 
-        public EvaluationMetricEnum GetLoss()
-        {
-            return LossFunction;
-        }
-
-        // ReSharper disable once UnusedParameter.Global
-        public virtual void ApplyDataset(AbstractDatasetSample datasetSample)
-        {
-            LossFunction = datasetSample.DefaultLossFunction;
-            Metrics = datasetSample.GetMetrics();
-        }
 
         public NetworkSample WithSGD(double momentum = 0.9, bool useNesterov = true)
         {
@@ -714,42 +714,16 @@ namespace SharpNet.Networks
             RandAugment_M = M;
         }
         public bool UseDataAugmentation => DataAugmentationType != ImageDataGenerator.DataAugmentationEnum.NO_AUGMENTATION;
-
+        
         //public static DataAugmentationSample ValueOf(string workingDirectory, string sampleName)
         //{
         //    return ISample.LoadSample<DataAugmentationSample>(workingDirectory, sampleName);
         //}
-
         #endregion
 
-
-
-        public void FillSearchSpaceWithDefaultValues(IDictionary<string, object> existingHyperParameterValues, AbstractDatasetSample datasetSample)
-        {
-            ApplyDataset(datasetSample);
-            const string lossFunctionKeyName = nameof(LossFunction);
-            if (!existingHyperParameterValues.ContainsKey(lossFunctionKeyName))
-            {
-                existingHyperParameterValues[lossFunctionKeyName] = GetDefaultHyperParameterValue(lossFunctionKeyName, datasetSample);
-            }
-        }
-
-        public Model NewModel(AbstractDatasetSample datasetSample, string workingDirectory, string modelName)
+        public override Model NewModel(AbstractDatasetSample datasetSample, string workingDirectory, string modelName)
         {
             return new Network(this, datasetSample, workingDirectory, modelName, true);
         }
-
-        private static object GetDefaultHyperParameterValue(string hyperParameterName, AbstractDatasetSample datasetSample)
-        {
-            switch (hyperParameterName)
-            {
-                case nameof(LossFunction):
-                    return datasetSample.DefaultLossFunction.ToString();
-            }
-            var errorMsg = $"do not know default value for Hyper Parameter {hyperParameterName} for model {typeof(Network)}";
-            ISample.Log.Error(errorMsg);
-            throw new ArgumentException(errorMsg);
-        }
-
     }
 }

@@ -1181,7 +1181,7 @@ namespace SharpNetTests.NonReg
 
             var network = GetNetwork(EvaluationMetricEnum.Mse, resourceIds);
             network.Sample.WithSGD(momentum, false);
-            network.Sample.Metrics = new List<EvaluationMetricEnum> { network.Sample.LossFunction, EvaluationMetricEnum.Mae};
+            network.Sample.RankingEvaluationMetric = EvaluationMetricEnum.Mae;
             network
                 .Input(X.Shape[1], X.Shape[2], X.Shape[3])
                 .Dense(3, 0.0, true)
@@ -1351,21 +1351,21 @@ namespace SharpNetTests.NonReg
         }
         #endregion
 
-        private static Network GetNetwork(EvaluationMetricEnum evaluationMetric, List<int> resourceIds)
+        private static Network GetNetwork(EvaluationMetricEnum lossFunction, List<int> resourceIds)
         {
-            var evaluationMetrics = new List<EvaluationMetricEnum>{ evaluationMetric};
-            if (evaluationMetric is EvaluationMetricEnum.BinaryCrossentropy or EvaluationMetricEnum.CategoricalCrossentropy)
+            var rankingEvaluationMetric = lossFunction;
+            if (lossFunction is EvaluationMetricEnum.BinaryCrossentropy or EvaluationMetricEnum.CategoricalCrossentropy)
             {
-                evaluationMetrics.Add(EvaluationMetricEnum.Accuracy);
+                rankingEvaluationMetric = EvaluationMetricEnum.Accuracy;
             }
-            if (evaluationMetric is EvaluationMetricEnum.SparseCategoricalCrossentropy)
+            if (lossFunction is EvaluationMetricEnum.SparseCategoricalCrossentropy)
             {
-                evaluationMetrics.Add(EvaluationMetricEnum.SparseAccuracy);
+                rankingEvaluationMetric = EvaluationMetricEnum.SparseAccuracy;
             }
             return TestNetwork.NewForTests(
                 new NetworkSample{ 
-                    LossFunction = evaluationMetric, 
-                    Metrics = evaluationMetrics,
+                    LossFunction = lossFunction,
+                    RankingEvaluationMetric = rankingEvaluationMetric,
                     ShuffleDatasetBeforeEachEpoch = false, 
                     ConvolutionAlgoPreference = GPUWrapper.ConvolutionAlgoPreference.FASTEST_DETERMINIST_NO_TRANSFORM, CompatibilityMode = NetworkSample.CompatibilityModeEnum.TensorFlow, 
                     ResourceIds = resourceIds.ToList()
@@ -1387,7 +1387,7 @@ namespace SharpNetTests.NonReg
             var observedMetrics = network.ComputeMetricsForTestDataSet(batchSize, dataSet);
             if (expectedLoss.HasValue)
             { 
-                Assert.AreEqual(expectedLoss.Value, observedMetrics[network.Sample.LossFunction], epsilon, "expected loss: " + expectedLoss.Value + " but was: " + observedMetrics[network.Sample.LossFunction]);
+                Assert.AreEqual(expectedLoss.Value, observedMetrics[network.Sample.GetLoss()], epsilon, "expected loss: " + expectedLoss.Value + " but was: " + observedMetrics[network.Sample.GetLoss()]);
             }
             if (expectedAccuracy.HasValue)
             {

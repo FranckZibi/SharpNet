@@ -136,11 +136,12 @@ public static class Biosonar85Utils
             //{"KFold", 2},
             {"PercentageInTraining", 0.8}, //will be automatically set to 1 if KFold is enabled
             
+            //related to model
+            { "LossFunction", nameof(EvaluationMetricEnum.BinaryCrossentropy)},
+            { "RankingEvaluationMetric", nameof(EvaluationMetricEnum.AUC)},
             { "BatchSize", new[] {256} },
             { "NumEpochs", new[] { numEpochs } },
-            {"LossFunction", "BinaryCrossentropy"},
             { "ShuffleDatasetBeforeEachEpoch", true},
-
             // Optimizer 
             { "OptimizerType", new[] { "AdamW"} },
             //{ "OptimizerType", new[] { "SGD"} },
@@ -202,7 +203,6 @@ public static class Biosonar85Utils
         };
 
         var hpo = new BayesianSearchHPO(searchSpace, () => ModelAndDatasetPredictionsSample.New(new TransformerNetworkSample(), new Biosonar85DatasetSample()), WorkingDirectory);
-        //var hpo = new RandomSearchHPO(searchSpace, () => ModelAndDatasetPredictionsSample.New(new TransformerNetworkSample(), new Biosonar85DatasetSample()), WorkingDirectory, AbstractHyperParameterSearchSpace.RANDOM_SEARCH_OPTION.FULLY_RANDOM);
         IScore bestScoreSoFar = null;
         const bool retrainOnFullDatasetIfBetterModelFound = false;
         hpo.Process(t => SampleUtils.TrainWithHyperParameters((ModelAndDatasetPredictionsSample)t, WorkingDirectory, retrainOnFullDatasetIfBetterModelFound, ref bestScoreSoFar), maxAllowedSecondsForAllComputation);
@@ -218,11 +218,12 @@ public static class Biosonar85Utils
             //{"KFold", 2},
             {"PercentageInTraining", 0.8}, //will be automatically set to 1 if KFold is enabled
             
+            //Related to model
+            { "LossFunction", nameof(EvaluationMetricEnum.BinaryCrossentropy)},
+            { "RankingEvaluationMetric", nameof(EvaluationMetricEnum.AUC)},
             { "BatchSize", new[] {256} },
             { "NumEpochs", new[] { numEpochs } },
-            {"LossFunction", "BinaryCrossentropy"},
             { "ShuffleDatasetBeforeEachEpoch", true},
-
             // Optimizer 
             { "OptimizerType", new[] { "AdamW" } },
             //{ "OptimizerType", new[] { "SGD"} },

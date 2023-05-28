@@ -18,6 +18,9 @@ namespace SharpNet.DataAugmentation
             ImageDataGenerator.FillModeEnum fillMode,
             CpuTensor<float> xBufferForDataAugmentedMiniBatch)
         {
+            //we ensure that all tensors shape are 4D 'NCHW' tensors  (where N is the batch size, C is the number of channels, H is the height and W is the width)
+            (xOriginalMiniBatch, xDataAugmentedMiniBatch, xBufferForDataAugmentedMiniBatch) = ImageDataGenerator.To_NCHW(xOriginalMiniBatch, xDataAugmentedMiniBatch, xBufferForDataAugmentedMiniBatch);
+            
             Debug.Assert(xOriginalMiniBatch.SameShape(xDataAugmentedMiniBatch));
             Debug.Assert(xBufferForDataAugmentedMiniBatch != null);
             Debug.Assert(xDataAugmentedMiniBatch.SameShape(xBufferForDataAugmentedMiniBatch));

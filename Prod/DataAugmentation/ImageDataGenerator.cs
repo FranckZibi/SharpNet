@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using SharpNet.CPU;
+using SharpNet.Data;
 using SharpNet.DataAugmentation.Operations;
 using SharpNet.Networks;
 
@@ -178,6 +179,12 @@ namespace SharpNet.DataAugmentation
             return result;
         }
 
+        //special case: shape of (batchSize, rows, cols) (where there is only 1 channel that is omitted)
+        public static (CpuTensor<float>, CpuTensor<float>, CpuTensor<float>) To_NCHW(CpuTensor<float> a, CpuTensor<float> b, CpuTensor<float> c)
+        {
+            return ((CpuTensor<float>)Tensor.To_NCHW(a), (CpuTensor<float>)Tensor.To_NCHW(b), (CpuTensor<float>)Tensor.To_NCHW(c));
+        }
+
         public void DataAugmentationForMiniBatch(
             int indexInMiniBatch, 
             CpuTensor<float> xOriginalMiniBatch,
@@ -190,13 +197,8 @@ namespace SharpNet.DataAugmentation
             CpuTensor<float> xBufferForDataAugmentedMiniBatch //a temporary buffer used in the mini batch
             )
         {
-            //special case: shape of (batchSize, rows, cols) (where there is only 1 channel that is omitted)
-            if (xOriginalMiniBatch.Shape.Length == 3)
-            {
-                xOriginalMiniBatch = (CpuTensor<float>)xOriginalMiniBatch.Reshape(xOriginalMiniBatch.Shape[0], 1, xOriginalMiniBatch.Shape[1], xOriginalMiniBatch.Shape[2]);
-                xDataAugmentedMiniBatch = (CpuTensor<float>)xDataAugmentedMiniBatch?.Reshape(xOriginalMiniBatch.Shape);
-                xBufferForDataAugmentedMiniBatch = (CpuTensor<float>)xBufferForDataAugmentedMiniBatch?.Reshape(xOriginalMiniBatch.Shape);
-            }
+            //we ensure that all tensors shape are 4D 'NCHW' tensors  (where N is the batch size, C is the number of channels, H is the height and W is the width)
+            (xOriginalMiniBatch, xDataAugmentedMiniBatch, xBufferForDataAugmentedMiniBatch) = To_NCHW(xOriginalMiniBatch, xDataAugmentedMiniBatch, xBufferForDataAugmentedMiniBatch);
             
             var subPolicy = GetSubPolicy(indexInMiniBatch, xOriginalMiniBatch, meanAndVolatilityForEachChannel, indexInOriginalMiniBatchToImageStatistic, rand);
 #if DEBUG

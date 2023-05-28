@@ -67,12 +67,6 @@ public class CFM84DatasetSample : AbstractDatasetSample
     {
     }
 
-    public override IScore ExtractRankingScoreFromModelMetricsIfAvailable(params IScore[] modelMetrics)
-    {
-        return modelMetrics.FirstOrDefault(v => v != null && v.Metric == GetRankingEvaluationMetric());
-    }
-
-
     public override string[] CategoricalFeatures { get; } = {  "equity", "reod", "wd" };
     public override string IdColumn => "ID";
     public override string[] TargetLabels { get; } = { "reod" };
@@ -239,13 +233,4 @@ public class CFM84DatasetSample : AbstractDatasetSample
 
         return xWithStats;
     }
-
-
-    public override EvaluationMetricEnum GetRankingEvaluationMetric()
-    {
-        return EvaluationMetricEnum.Accuracy;
-    }
-
-
-
 }

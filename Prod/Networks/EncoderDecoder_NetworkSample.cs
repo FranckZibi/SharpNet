@@ -24,17 +24,6 @@ public class EncoderDecoder_NetworkSample: NetworkSample
     #region Hyper-Parameters
 
 
-    // ReSharper disable once UnusedParameter.Global
-    public override void ApplyDataset(AbstractDatasetSample datasetSample)
-    {
-        base.ApplyDataset(datasetSample);
-        if (datasetSample is CFM60DatasetSample cfm60DatasetSample)
-        {
-            cfm60DatasetSample.encoderDecoder_NetworkSample = this;
-        }
-    }
-
-
     #region Encoder
     private List<string> Encoder_FeatureNames;
     /// <summary>

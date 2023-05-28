@@ -154,7 +154,7 @@ namespace SharpNet.Layers
 
             Debug.Assert(xAs2DMatrix.Shape.Length == 2);
             Debug.Assert(dyAs2DMatrix.Shape.Length == 2);
-            int batchSize = dx.Shape[0];
+            int batchSize = x.Shape[0];
 
             //we compute dW
             var multiplier = 1f / batchSize;

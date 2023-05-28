@@ -14,15 +14,17 @@ using SharpNet.Models;
 namespace SharpNet.LightGBM;
 
 [SuppressMessage("ReSharper", "MemberCanBePrivate.Global")]
-public class LightGBMSample : AbstractSample, IModelSample
+public class LightGBMSample : AbstractModelSample
 {
     public LightGBMSample() :base(_categoricalHyperParameters)
     {
     }
-    public EvaluationMetricEnum GetLoss()
+    public override EvaluationMetricEnum GetLoss()
     {
         switch (objective)
         {
+            case objective_enum.DEFAULT_VALUE:
+                return EvaluationMetricEnum.DEFAULT_VALUE;
             case objective_enum.regression:
                 return EvaluationMetricEnum.Rmse;
             case objective_enum.regression_l1:
@@ -36,6 +38,34 @@ public class LightGBMSample : AbstractSample, IModelSample
                 throw new NotImplementedException($"can't manage metric {objective}");
         }
     }
+    public override EvaluationMetricEnum GetRankingEvaluationMetric()
+    {
+        if (string.IsNullOrEmpty(metric))
+        {
+            return EvaluationMetricEnum.DEFAULT_VALUE;
+        }
+        switch (metric.ToLowerInvariant())
+        {
+            case "rmse":
+            case "regression":
+                return EvaluationMetricEnum.Rmse;
+            case "regression_l1":
+            case "mae":
+                return EvaluationMetricEnum.Mae;
+            case "huber":
+                return EvaluationMetricEnum.Huber;
+            case "auc":
+                return EvaluationMetricEnum.AUC;
+            case "binary":
+                return EvaluationMetricEnum.BinaryCrossentropy;
+            case "multiclass":
+            case "cross_entropy":
+                return EvaluationMetricEnum.CategoricalCrossentropy;
+            default:
+                throw new NotImplementedException($"can't manage metric {metric}");
+        }
+    }
+
     public override bool FixErrors()
     {
         if (boosting == boosting_enum.rf)
@@ -60,6 +90,10 @@ public class LightGBMSample : AbstractSample, IModelSample
             min_data_in_leaf = 2;
         }
 
+        if (objective == objective_enum.DEFAULT_VALUE)
+        {
+            throw new ArgumentException("objective must always be set");
+        }
 
         if (objective == objective_enum.multiclass || objective == objective_enum.multiclassova)
         {
@@ -95,7 +129,7 @@ public class LightGBMSample : AbstractSample, IModelSample
         return true;
     }
 
-    public void Use_All_Available_Cores()
+    public override void Use_All_Available_Cores()
     {
         num_threads = Utils.CoreCount;
     }
@@ -1057,21 +1091,16 @@ public class LightGBMSample : AbstractSample, IModelSample
         return searchSpace;
     }
 
-    public void FillSearchSpaceWithDefaultValues(IDictionary<string, object> existingHyperParameterValues, AbstractDatasetSample datasetSample)
+    public override void FillSearchSpaceWithDefaultValues(IDictionary<string, object> existingHyperParameterValues, AbstractDatasetSample datasetSample)
     {
-        const string objectiveKeyName = nameof(objective);
-        if (!existingHyperParameterValues.ContainsKey(objectiveKeyName))
-        {
-            existingHyperParameterValues[objectiveKeyName] = GetDefaultHyperParameterValueForLightGBM(objectiveKeyName, datasetSample);
-        }
         const string numClassKeyName = nameof(num_class);
-        if (!existingHyperParameterValues.ContainsKey(numClassKeyName) && datasetSample.GetObjective() == Objective_enum.Classification)
+        if (!existingHyperParameterValues.ContainsKey(numClassKeyName) && GetObjective() == Objective_enum.Classification)
         {
-            existingHyperParameterValues[numClassKeyName] = GetDefaultHyperParameterValueForLightGBM(numClassKeyName, datasetSample);
+            existingHyperParameterValues[numClassKeyName] = datasetSample.NumClass;
         }
     }
 
-    public Model NewModel(AbstractDatasetSample datasetSample, string workingDirectory, string modelName)
+    public override Model NewModel(AbstractDatasetSample datasetSample, string workingDirectory, string modelName)
     {
         return new LightGBMModel(this, workingDirectory, modelName);
     }
@@ -1080,20 +1109,6 @@ public class LightGBMSample : AbstractSample, IModelSample
     {
         switch (hyperParameterName)
         {
-            case nameof(objective):
-                if (datasetSample.GetObjective() == Objective_enum.Regression)
-                {
-                    return nameof(objective_enum.regression);
-                }
-                if (datasetSample.GetObjective() == Objective_enum.Classification)
-                {
-                    if (datasetSample.NumClass >= 2)
-                    {
-                        return nameof(objective_enum.multiclass);
-                    }
-                    return nameof(objective_enum.binary);
-                }
-                break;
             case nameof(num_class):
                 return datasetSample.NumClass;
         }

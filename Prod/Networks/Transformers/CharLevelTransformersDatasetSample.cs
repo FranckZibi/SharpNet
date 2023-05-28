@@ -1,6 +1,5 @@
 ﻿using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using log4net;
 using SharpNet.Datasets;
 using SharpNet.TextPreprocessing;
@@ -38,13 +37,11 @@ public class CharLevelTransformersDatasetSample : AbstractDatasetSample
         Utils.ConfigureThreadLog4netProperties(TextTransformersUtils.WorkingDirectory, "log");
     }
 
-
     public CharLevelTransformersDatasetSample() : base(new HashSet<string>())
     {
         //_fullText = File.ReadAllText(TextTransformersUtils.XTrainPath).Substring(0, 3_000); //!D;
         _fullText = File.ReadAllText(TextTransformersUtils.XTrainPath);
     }
-
 
     public Tokenizer GetTokenizer()
     {
@@ -63,18 +60,9 @@ public class CharLevelTransformersDatasetSample : AbstractDatasetSample
         return _fullText;
     }
 
-
-
-    public override IScore ExtractRankingScoreFromModelMetricsIfAvailable(params IScore[] modelMetrics)
-    {
-        return modelMetrics.FirstOrDefault(v => v != null && v.Metric == GetRankingEvaluationMetric());
-    }
-
-    public override EvaluationMetricEnum GetRankingEvaluationMetric() { return EvaluationMetricEnum.SparseAccuracy; }
-    public override EvaluationMetricEnum DefaultLossFunction => EvaluationMetricEnum.SparseCategoricalCrossentropy;
     public override int NumClass => vocab_size;
     public override int[] GetInputShapeOfSingleElement() => new[] { max_length };
-    public override DataFrame PredictionsInModelFormat_2_PredictionsInTargetFormat(DataFrame predictionsInModelFormat)
+    public override DataFrame PredictionsInModelFormat_2_PredictionsInTargetFormat(DataFrame predictionsInModelFormat, Objective_enum objective)
     {
         return predictionsInModelFormat;
     }

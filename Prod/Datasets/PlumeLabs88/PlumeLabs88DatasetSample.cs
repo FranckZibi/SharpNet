@@ -64,7 +64,7 @@ public class PlumeLabs88DatasetSample : AbstractDatasetSample
         var y_ID_count = NumClass * (1 + DatasetMaxId(isTrainingDataset));
         return y_IDs.Take(y_ID_count).ToArray();
     }
-    public override DataFrame PredictionsInModelFormat_2_PredictionsInTargetFormat(DataFrame predictionsInModelFormat)
+    public override DataFrame PredictionsInModelFormat_2_PredictionsInTargetFormat(DataFrame predictionsInModelFormat, Objective_enum objective)
     {
         AssertNoIdColumns(predictionsInModelFormat);
         var unnormalizedContent = predictionsInModelFormat.FloatTensor.ContentAsFloatArray().Select(UnNormalizeTarget).ToArray();
@@ -92,18 +92,7 @@ public class PlumeLabs88DatasetSample : AbstractDatasetSample
         _cacheColumns = Array.Empty<string>();
         return _cacheColumns;
     }
-
-    public override EvaluationMetricEnum GetRankingEvaluationMetric()
-    {
-        return EvaluationMetricEnum.MeanSquaredLogError;
-    }
-
-    public override List<EvaluationMetricEnum> GetMetrics()
-    {
-        return new List<EvaluationMetricEnum>() { DefaultLossFunction};
-    }
-
-
+    
     public void LoadElementIdIntoSpan(int elementId, Span<float> span, bool isTraining)
     {
         var shortRes = PlumeLabs88Utils.LoadRawElementId(elementId, isTraining);

@@ -40,6 +40,10 @@ namespace SharpNet.CatBoost
         public override (string train_XDatasetPath_InModelFormat, string train_YDatasetPath_InModelFormat, string train_XYDatasetPath_InModelFormat, string validation_XDatasetPath_InModelFormat, string validation_YDatasetPath_InModelFormat, string validation_XYDatasetPath_InModelFormat, IScore trainLossIfAvailable, IScore validationLossIfAvailable, IScore trainRankingMetricIfAvailable, IScore validationRankingMetricIfAvailable)
             Fit(DataSet trainDataset, DataSet validationDatasetIfAny)
         {
+            if (ModelSample.GetLoss() == EvaluationMetricEnum.DEFAULT_VALUE)
+            {
+                throw new ArgumentException("Loss Function not set");
+            }
             var sw = Stopwatch.StartNew();
             const bool addTargetColumnAsFirstColumn = true;
             const bool includeIdColumns = false;
@@ -225,7 +229,7 @@ namespace SharpNet.CatBoost
                             ;
 
             //+ " --prediction-type Probability,Class,RawFormulaVal,Exponent,LogProbability "
-            if (dataset.IsRegressionProblem)
+            if (ModelSample.IsRegressionProblem)
             {
                 arguments += " --prediction-type RawFormulaVal ";
             }

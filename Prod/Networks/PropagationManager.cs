@@ -174,7 +174,6 @@ namespace SharpNet.Networks
                     dyPredicted.AddTensor(-multiplier, yExpected, multiplier);
                     break;
                 case EvaluationMetricEnum.CategoricalCrossentropy:
-                    Debug.Assert(_layers.Last().IsSoftmaxActivationLayer());
                     //we compute: _dyPredicted = (yPredicted - yExpected)
                     yPredicted.CopyTo(dyPredicted);
                     dyPredicted.AddTensor(-1, yExpected, 1);

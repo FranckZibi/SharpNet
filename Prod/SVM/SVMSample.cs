@@ -12,12 +12,12 @@ using SharpNet.Models;
 
 namespace SharpNet.Svm;
 
-public class SVMSample : AbstractSample, IModelSample
+public class SVMSample : AbstractModelSample
 {
     public SVMSample() : base(_categoricalHyperParameters)
     {
     }
-    public EvaluationMetricEnum GetLoss()
+    public override EvaluationMetricEnum GetLoss()
     {
         switch (svm_type)
         {
@@ -33,24 +33,19 @@ public class SVMSample : AbstractSample, IModelSample
                 throw new NotImplementedException($"can't manage svm_type {svm_type}");
         }
     }
+    public override EvaluationMetricEnum GetRankingEvaluationMetric() => GetLoss();
     public override bool FixErrors()
     {
         return true;
     }
 
-    public void Use_All_Available_Cores()
+    public override void Use_All_Available_Cores()
     {
     }
-
-    public void FillSearchSpaceWithDefaultValues(IDictionary<string, object> existingHyperParameterValues, AbstractDatasetSample datasetSample)
-    {
-    }
-
-    public Model NewModel(AbstractDatasetSample datasetSample, string workingDirectory, string modelName)
+    public override Model NewModel(AbstractDatasetSample datasetSample, string workingDirectory, string modelName)
     {
         return new SVMModel(this, workingDirectory, modelName);
     }
-
 
     private static readonly HashSet<string> _categoricalHyperParameters = new()
     {

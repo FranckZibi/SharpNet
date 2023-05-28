@@ -6,14 +6,14 @@ using SharpNet.HyperParameters;
 
 namespace SharpNet.Models;
 
-public class KFoldSample : AbstractSample, IModelSample
+public class KFoldSample : AbstractModelSample
 {
     #region constructors
     // ReSharper disable once UnusedMember.Local
     private KFoldSample() : base(new HashSet<string>())
     {
     }
-    public KFoldSample(int nSplits, string embeddedModelWorkingDirectory, string embeddedModelName, EvaluationMetricEnum embeddedModelLoss, int countMustBeMultipleOf) : base(new HashSet<string>())
+    public KFoldSample(int nSplits, string embeddedModelWorkingDirectory, string embeddedModelName, EvaluationMetricEnum embeddedModelLoss, EvaluationMetricEnum rankingEvaluationMetric, int countMustBeMultipleOf) : base(new HashSet<string>())
     {
         if (nSplits <= 1)
         {
@@ -23,6 +23,7 @@ public class KFoldSample : AbstractSample, IModelSample
         EmbeddedModelWorkingDirectory = embeddedModelWorkingDirectory;
         EmbeddedModelName = embeddedModelName;
         EmbeddedModelLoss = embeddedModelLoss;
+        EmbeddedModelRankingEvaluationMetric = rankingEvaluationMetric;
         CountMustBeMultipleOf = countMustBeMultipleOf;
     }
     #endregion
@@ -32,28 +33,21 @@ public class KFoldSample : AbstractSample, IModelSample
     // ReSharper disable once MemberCanBePrivate.Global
     public string EmbeddedModelWorkingDirectory;
     public string EmbeddedModelName;
+    public EvaluationMetricEnum EmbeddedModelLoss = EvaluationMetricEnum.DEFAULT_VALUE;
+    public EvaluationMetricEnum EmbeddedModelRankingEvaluationMetric = EvaluationMetricEnum.DEFAULT_VALUE;
     // ReSharper disable once MemberCanBePrivate.Global
-    public EvaluationMetricEnum EmbeddedModelLoss;
+    //public EvaluationMetricEnum EmbeddedModelLoss;
     public int CountMustBeMultipleOf = 1;
     public bool Should_Use_All_Available_Cores = false;
     #endregion
-    public EvaluationMetricEnum GetLoss()
-    {
-        return EmbeddedModelLoss;
-    }
-
-    public void Use_All_Available_Cores()
+    public override EvaluationMetricEnum GetLoss() => EmbeddedModelLoss;
+    public override EvaluationMetricEnum GetRankingEvaluationMetric() => EmbeddedModelRankingEvaluationMetric;
+    public override void Use_All_Available_Cores()
     {
         Should_Use_All_Available_Cores = true;
     }
 
-
-    public void FillSearchSpaceWithDefaultValues(IDictionary<string, object> existingHyperParameterValues, AbstractDatasetSample datasetSample)
-    {
-        throw new NotImplementedException();
-    }
-
-    public Model NewModel(AbstractDatasetSample datasetSample, string workingDirectory, string modelName)
+    public override Model NewModel(AbstractDatasetSample datasetSample, string workingDirectory, string modelName)
     {
         return new KFoldModel(this, workingDirectory, modelName, datasetSample);
     }

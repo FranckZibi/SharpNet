@@ -16,6 +16,7 @@ using System.Xml;
 using log4net;
 using log4net.Config;
 using log4net.Util;
+using SharpNet.Datasets;
 using SharpNet.Pictures;
 using Path = System.IO.Path;
 
@@ -139,9 +140,7 @@ namespace SharpNet
         //Area Under the Curve, see: https://en.wikipedia.org/wiki/Receiver_operating_characteristic
         AUC, // works only for metric (to rank submission), do not work as a loss function, higher s better
 
-
-
-        DEFAULT, // default value, do not use
+        DEFAULT_VALUE = AbstractDatasetSample.DEFAULT_VALUE, // default value, do not use
     }
 
 

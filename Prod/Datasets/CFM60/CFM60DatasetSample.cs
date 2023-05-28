@@ -417,13 +417,6 @@ public class CFM60DatasetSample : DatasetSampleForTimeSeries
 
     }
 
-    public override EvaluationMetricEnum GetRankingEvaluationMetric()
-    {
-        return EvaluationMetricEnum.Mse;
-    }
-
-
-
     public static int DayThreshold(IList<CFM60Entry> entries, double percentageInTrainingSet)
     {
         var sortedDays = entries.Select(e => e.day).OrderBy(x => x).ToArray();
@@ -463,14 +456,14 @@ public class CFM60DatasetSample : DatasetSampleForTimeSeries
             //{"KFold", 2},
             {"PercentageInTraining", 0.8}, //will be automatically set to 1 if KFold is enabled
             
-            
             //Related to model
+            {"LossFunction", nameof(EvaluationMetricEnum.Mse)},
+            {"RankingEvaluationMetric", ""}, //same as loss function
             {"ShuffleDatasetBeforeEachEpoch", true},
             {"CompatibilityMode", "TensorFlow"},
             {"BatchSize", 2048},
             {"NumEpochs", numEpochs},
             {"InitialLearningRate", 0.002},
-            
             {"Use_day", true},
             {"Use_LS", false},
             {"Pid_EmbeddingDim", 8},

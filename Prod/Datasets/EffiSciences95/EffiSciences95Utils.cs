@@ -153,21 +153,34 @@ public static class EffiSciences95Utils
         {
             //related to Dataset 
             //{"KFold", 2},
-            {"PercentageInTraining", 0.9}, //will be automatically set to 1 if KFold is enabled
+            { "PercentageInTraining", 0.9}, //will be automatically set to 1 if KFold is enabled
 
+            //related to model
+            { "LossFunction", nameof(EvaluationMetricEnum.CategoricalCrossentropy)},
+            { "RankingEvaluationMetric", nameof(EvaluationMetricEnum.Accuracy)},
             { "BatchSize", new[] {64 /*, 96*/} },
             { "NumEpochs", new[] { numEpochs } },
-            {"LossFunction", "CategoricalCrossentropy"},  //for multi class classification
+            // Optimizer 
+            //{ "OptimizerType", new[] { "AdamW"} },
+            //{ "SGD_usenesterov", new[] { true, false } },
+            //{ "lambdaL2Regularization", new[] { 0.0005, 0.001, 0.00005 } },
+            { "lambdaL2Regularization", new[] { 0.0005 /*, 0.001, 0.00005*/ } },
+            { "DefaultMobileBlocksDescriptionCount", new[]{4, 5}},
+            // Learning Rate
+            { "InitialLearningRate", new []{0.01 /*, 0.015, 0.005*/}},
+            // Learning Rate Scheduler
+            //{ "LearningRateSchedulerType", new[] { "OneCycle" } },
+            //{ "LearningRateSchedulerType", "CyclicCosineAnnealing" },
 
 
             { "WidthShiftRangeInPercentage", new[] {0.1}},
             { "HeightShiftRangeInPercentage", new[] {0.1}},
-
             { "MinEnlargeForBox", new[] {3/*,3*/}},
             { "MaxEnlargeForBox", new[] {10}},
             { "EnlargeOldBoxToYoungBoxShape", new[] { /*false,*/ true} },
             { "AddNewBoxOfOtherCategory", new[] { false /*, true*/} },
     
+
             // DataAugmentation
             //{ "HorizontalFlip", new[] { true /*, false*/} }, //true
             //{ "VerticalFlip", new[] { false /*, true*/} }, //false
@@ -178,20 +191,7 @@ public static class EffiSciences95Utils
             //{ "ZoomRange", new[] { 0.05} },
             //{ "EqualizeOperationProbability", new[] { 0.0, 0.2} },
             //{ "AutoContrastOperationProbability", new[] { 1.0} },
-            
-
       
-            // Optimizer 
-            //{ "OptimizerType", new[] { "AdamW"} },
-            //{ "SGD_usenesterov", new[] { true, false } },
-            //{ "lambdaL2Regularization", new[] { 0.0005, 0.001, 0.00005 } },
-            { "lambdaL2Regularization", new[] { 0.0005 /*, 0.001, 0.00005*/ } },
-            {"DefaultMobileBlocksDescriptionCount", new[]{4, 5}},
-            // Learning Rate
-            { "InitialLearningRate", new []{0.01 /*, 0.015, 0.005*/}},
-            // Learning Rate Scheduler
-            //{ "LearningRateSchedulerType", new[] { "OneCycle" } },
-            //{ "LearningRateSchedulerType", "CyclicCosineAnnealing" },
         };
 
         var hpo = new BayesianSearchHPO(searchSpace, () => ModelAndDatasetPredictionsSample.New(DefaultEfficientNetNetworkSample(), new EffiSciences95DatasetSample()), WorkingDirectory);

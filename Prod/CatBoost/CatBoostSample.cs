@@ -14,7 +14,7 @@ namespace SharpNet.CatBoost;
 [SuppressMessage("ReSharper", "UnusedMember.Global")]
 [SuppressMessage("ReSharper", "IdentifierTypo")]
 [SuppressMessage("ReSharper", "MemberCanBePrivate.Global")]
-public class CatBoostSample : AbstractSample, IModelSample
+public class CatBoostSample : AbstractModelSample
 {
     #region Constructors
     public CatBoostSample() :base(CategoricalHyperParameters)
@@ -280,7 +280,7 @@ public class CatBoostSample : AbstractSample, IModelSample
     }
 
 
-    public void Use_All_Available_Cores()
+    public override void Use_All_Available_Cores()
     {
         thread_count = Utils.CoreCount;
         devices = null;
@@ -314,7 +314,16 @@ public class CatBoostSample : AbstractSample, IModelSample
         {
             diffusion_temperature = DEFAULT_VALUE;
         }
-        return true; //TODO
+
+        if (loss_function == loss_function_enum.DEFAULT_VALUE)
+        {
+            throw new ArgumentException("loss_function must always be specified");
+        }
+        if (eval_metric == metric_enum.DEFAULT_VALUE)
+        {
+            SetRankingEvaluationMetric(GetLoss());
+        } 
+        return true;
     }
     public string DeviceName()
     {
@@ -327,10 +336,12 @@ public class CatBoostSample : AbstractSample, IModelSample
             return "gpu";
         }
     }
-    public EvaluationMetricEnum GetLoss()
+    public override EvaluationMetricEnum GetLoss()
     {
         switch (loss_function)
         {
+            case loss_function_enum.DEFAULT_VALUE:
+                return EvaluationMetricEnum.DEFAULT_VALUE;
             case loss_function_enum.RMSE:
                 return EvaluationMetricEnum.Rmse;
             case loss_function_enum.MAE:
@@ -340,10 +351,50 @@ public class CatBoostSample : AbstractSample, IModelSample
             case loss_function_enum.MultiClass:
                 return EvaluationMetricEnum.CategoricalCrossentropy;
             default:
-            case loss_function_enum.DEFAULT_VALUE:
                 throw new NotImplementedException($"can't manage metric {loss_function}");
         }
     }
+    public override EvaluationMetricEnum GetRankingEvaluationMetric()
+    {
+        switch (eval_metric)
+        {
+            case metric_enum.DEFAULT_VALUE:
+                return EvaluationMetricEnum.DEFAULT_VALUE;
+            case metric_enum.MAE:
+                return EvaluationMetricEnum.Mae;
+            case metric_enum.Logloss:
+                return EvaluationMetricEnum.BinaryCrossentropy;
+            case metric_enum.MultiClass:
+                return EvaluationMetricEnum.CategoricalCrossentropy;
+            default:
+                throw new NotImplementedException($"can't manage {nameof(eval_metric)} {eval_metric}");
+        }
+    }
+
+    public void SetRankingEvaluationMetric(EvaluationMetricEnum rankingEvaluationMetric)
+    {
+        switch (rankingEvaluationMetric)
+        {
+            case EvaluationMetricEnum.DEFAULT_VALUE:
+                eval_metric = metric_enum.DEFAULT_VALUE;
+                return;
+            case EvaluationMetricEnum.Mae:
+                eval_metric = metric_enum.MAE;
+                return;
+            case EvaluationMetricEnum.BinaryCrossentropy:
+                eval_metric = metric_enum.Logloss;
+                return;
+            case EvaluationMetricEnum.CategoricalCrossentropy:
+                eval_metric = metric_enum.MultiClass;
+                return;
+            default:
+                throw new NotImplementedException($"can't set {nameof(eval_metric)} {rankingEvaluationMetric}");
+        }
+        
+        throw new NotImplementedException();
+    }
+
+
     private static readonly HashSet<string> CategoricalHyperParameters = new()
     {
         "use_best_model",
@@ -367,13 +418,8 @@ public class CatBoostSample : AbstractSample, IModelSample
         devices = MustUseGPU ? taskId.ToString() : null;
     }
 
-    public void FillSearchSpaceWithDefaultValues(IDictionary<string, object> existingHyperParameterValues, AbstractDatasetSample datasetSample)
+    public override void FillSearchSpaceWithDefaultValues(IDictionary<string, object> existingHyperParameterValues, AbstractDatasetSample datasetSample)
     {
-        const string lossFunctionKeyName = nameof(CatBoostSample.loss_function);
-        if (!existingHyperParameterValues.ContainsKey(lossFunctionKeyName))
-        {
-            existingHyperParameterValues[lossFunctionKeyName] = GetDefaultHyperParameterValueForCatBoost(lossFunctionKeyName, datasetSample);
-        }
         const string taskTypeName = nameof(CatBoostSample.task_type);
         if (!existingHyperParameterValues.ContainsKey(taskTypeName))
         {
@@ -397,35 +443,11 @@ public class CatBoostSample : AbstractSample, IModelSample
         }
     }
 
-    public Model NewModel(AbstractDatasetSample datasetSample, string workingDirectory, string modelName)
+    public override Model NewModel(AbstractDatasetSample datasetSample, string workingDirectory, string modelName)
     {
         return new CatBoostModel(this, workingDirectory, modelName);
     }
-
-    private static object GetDefaultHyperParameterValueForCatBoost(string hyperParameterName, AbstractDatasetSample DatasetSample)
-    {
-        switch (hyperParameterName)
-        {
-            case nameof(CatBoostSample.loss_function):
-                if (DatasetSample.GetObjective() == Objective_enum.Regression)
-                {
-                    return nameof(CatBoostSample.loss_function_enum.RMSE);
-                }
-                if (DatasetSample.GetObjective() == Objective_enum.Classification)
-                {
-                    if (DatasetSample.NumClass >= 2)
-                    {
-                        return nameof(CatBoostSample.loss_function_enum.MultiClass);
-                    }
-                    return nameof(CatBoostSample.loss_function_enum.Logloss);
-                }
-                break;
-        }
-        var errorMsg = $"do not know default value for Hyper Parameter {hyperParameterName} for model {typeof(CatBoostModel)}";
-        ISample.Log.Error(errorMsg);
-        throw new ArgumentException(errorMsg);
-    }
-
+    
     /// <summary>
     /// The default Search Space for CatBoost Model
     /// </summary>
@@ -436,9 +458,15 @@ public class CatBoostSample : AbstractSample, IModelSample
         var searchSpace = new Dictionary<string, object>
         {
             //uncomment appropriate one
-            //{"loss_function", "RMSE"},          //for Regression Tasks: RMSE, etc.
-            //{"loss_function", "Logloss"},     //for binary classification
-            //{"loss_function", "MultiClass"},  //for multi class classification
+            ////for Regression Tasks: RMSE, etc.
+            //{"loss_function", nameof(loss_function_enum.Logloss)},
+            ////no need to set 'eval_metric', it will be the same as 'loss_function'
+            ////for binary classification:
+            //{"loss_function", nameof(loss_function_enum.Logloss)},
+            //{"eval_metric", nameof(metric_enum.Accuracy)},
+            ////for multi class classification:
+            //{"loss_function", nameof(loss_function_enum.MultiClass)},
+            //{"eval_metric", nameof(metric_enum.Accuracy)},
 
             { "logging_level", nameof(CatBoostSample.logging_level_enum.Verbose)},
             { "allow_writing_files",false},

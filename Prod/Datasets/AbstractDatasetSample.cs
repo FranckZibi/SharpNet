@@ -92,11 +92,6 @@ public abstract class AbstractDatasetSample : AbstractSample, IDisposable
     // ReSharper disable once AutoPropertyCanBeMadeGetOnly.Local
     protected DatasetEncoder DatasetEncoder { get; set; }
 
-    public virtual List<EvaluationMetricEnum> GetMetrics()
-    {
-        return  new List<EvaluationMetricEnum>() { DefaultLossFunction, GetRankingEvaluationMetric() };
-    }
-
     /// <summary>
     /// list of target feature names (usually a single element)
     /// </summary>
@@ -120,12 +115,12 @@ public abstract class AbstractDatasetSample : AbstractSample, IDisposable
         {
             return (y_pred_InModelFormat, modelLossScore, null, null, path_pred_InModelFormat);
         }
-        var y_pred_InTargetFormat = PredictionsInModelFormat_2_PredictionsInTargetFormat(y_pred_InModelFormat);
+        var y_pred_InTargetFormat = PredictionsInModelFormat_2_PredictionsInTargetFormat(y_pred_InModelFormat, model.ModelSample.GetObjective());
         IScore targetRankingScore = null;
         if (y != null)
         {
-            var y_true_InTargetFormat = PredictionsInModelFormat_2_PredictionsInTargetFormat(DataFrame.New(y));
-            targetRankingScore = ComputeRankingEvaluationMetric(y_true_InTargetFormat, y_pred_InTargetFormat);
+            var y_true_InTargetFormat = PredictionsInModelFormat_2_PredictionsInTargetFormat(DataFrame.New(y), model.ModelSample.GetObjective());
+            targetRankingScore = ComputeRankingEvaluationMetric(y_true_InTargetFormat, y_pred_InTargetFormat, model.ModelSample.GetRankingEvaluationMetric());
         }
         ISample.Log.Debug($"{nameof(ComputePredictionsAndRankingScoreV2)} took {start.Elapsed.TotalSeconds}s");
         return (y_pred_InModelFormat, modelLossScore, y_pred_InTargetFormat, targetRankingScore, path_pred_InModelFormat);
@@ -242,38 +237,18 @@ public abstract class AbstractDatasetSample : AbstractSample, IDisposable
         }
         return (vocabularySizes.ToArray(), embeddingDims.ToArray(), indexesInLastDimensionToUse.ToArray());
     }
-    public virtual EvaluationMetricEnum DefaultLossFunction
+   
+    public cudnnActivationMode_t GetActivationForLastLayer(Objective_enum objective)
     {
-        get
+        if (objective == Objective_enum.Regression)
         {
-            if (GetObjective() == Objective_enum.Regression)
-            {
-                //!D TODO return EvaluationMetricEnum.Rmse;
-                return EvaluationMetricEnum.Mse;
-                //return EvaluationMetricEnum.Mae;
-            }
-            if (NumClass == 1)
-            {
-                return EvaluationMetricEnum.BinaryCrossentropy;
-            }
-            return EvaluationMetricEnum.CategoricalCrossentropy;
+            return cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID;
         }
-    }
-
-    public cudnnActivationMode_t ActivationForLastLayer
-    {
-        get
+        if (NumClass == 1)
         {
-            if (GetObjective() == Objective_enum.Regression)
-            {
-                return cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID;
-            }
-            if (NumClass == 1)
-            {
-                return cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID;
-            }
-            return cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX;
+            return cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID;
         }
+        return cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX;
     }
 
     public enum DatasetType
@@ -351,11 +326,11 @@ public abstract class AbstractDatasetSample : AbstractSample, IDisposable
     public abstract string[] TargetLabelDistinctValues { get; }
     public abstract Objective_enum GetObjective();
     
-    public IScore ComputeRankingEvaluationMetric(DataFrame y_true_InTargetFormat, DataFrame y_pred_InTargetFormat)
+    public IScore ComputeRankingEvaluationMetric(DataFrame y_true_InTargetFormat, DataFrame y_pred_InTargetFormat, EvaluationMetricEnum rankingEvaluationMetric)
     {
         AssertNoIdColumns(y_true_InTargetFormat);
         AssertNoIdColumns(y_pred_InTargetFormat);
-        return DataFrame.ComputeEvaluationMetric(y_true_InTargetFormat, y_pred_InTargetFormat, GetRankingEvaluationMetric());
+        return DataFrame.ComputeEvaluationMetric(y_true_InTargetFormat, y_pred_InTargetFormat, rankingEvaluationMetric);
     }
 
     /// <summary>
@@ -417,15 +392,16 @@ public abstract class AbstractDatasetSample : AbstractSample, IDisposable
     /// Those DataFrame are not allowed to contain Id Columns
     /// </summary>
     /// <param name="predictionsInModelFormat"></param>
+    /// <param name="objective"></param>
     /// <returns></returns>
-    public virtual DataFrame PredictionsInModelFormat_2_PredictionsInTargetFormat(DataFrame predictionsInModelFormat)
+    public virtual DataFrame PredictionsInModelFormat_2_PredictionsInTargetFormat(DataFrame predictionsInModelFormat, Objective_enum objective)
     {
         AssertNoIdColumns(predictionsInModelFormat);
-        if (GetObjective() == Objective_enum.Regression)
+        if (objective == Objective_enum.Regression)
         {
             return predictionsInModelFormat;
         }
-        if (GetObjective() == Objective_enum.Classification && NumClass >= 2)
+        if (objective == Objective_enum.Classification && NumClass >= 2)
         {
             return DataFrame.New(predictionsInModelFormat.FloatCpuTensor().ArgMax(), TargetLabels);
         }
@@ -479,23 +455,6 @@ public abstract class AbstractDatasetSample : AbstractSample, IDisposable
             nameof(Validation_XDatasetPath_InModelFormat), nameof(Validation_YDatasetPath_InModelFormat), nameof(Validation_XYDatasetPath_InModelFormat),
             nameof(Test_XDatasetPath_InModelFormat), nameof(Test_YDatasetPath_InModelFormat), nameof(Test_XYDatasetPath_InModelFormat)
         };
-    }
-    /// <summary>
-    /// the evaluation metric used to rank the final submission
-    /// depending on the evaluation metric, higher (ex: Accuracy) or lower (ex: Rmse) may be better
-    /// </summary>
-    /// <returns></returns>
-    public abstract EvaluationMetricEnum GetRankingEvaluationMetric();
-
-
-    /// <summary>
-    /// try to use one of the metric computed when training the model as a ranking score
-    /// </summary>
-    /// <param name="modelMetrics">the metrics computed when training the model</param>
-    /// <returns></returns>
-    public virtual IScore ExtractRankingScoreFromModelMetricsIfAvailable(params IScore[] modelMetrics)
-    {
-        return null;
     }
 
     private DataFrameDataSet LoadDataSet(string XDatasetPath, string YDatasetPath, string XYDatasetPath)

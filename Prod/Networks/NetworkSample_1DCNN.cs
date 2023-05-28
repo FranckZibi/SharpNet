@@ -123,7 +123,7 @@ public class NetworkSample_1DCNN : NetworkSample
             nn.Dense(datasetSample.NumClass, lambdaL2Regularization, false);
             if (weight_norm) { nn.BatchNorm(batchNorm_momentum, 1e-5); }
         }
-        nn.Activation(datasetSample.ActivationForLastLayer);
+        nn.Activation(datasetSample.GetActivationForLastLayer(nn.ModelSample.GetObjective()));
     }
 
     public override bool FixErrors()

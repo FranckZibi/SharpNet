@@ -18,12 +18,12 @@ public abstract class Model: IDisposable
     public static readonly ILog Log = LogManager.GetLogger(typeof(Model));
     public string WorkingDirectory { get; }
     public string ModelName { get; }
-    public IModelSample ModelSample { get; }
+    public AbstractModelSample ModelSample { get; }
     #endregion
 
 
     #region constructor
-    protected Model(IModelSample modelSample, string workingDirectory, string modelName)
+    protected Model(AbstractModelSample modelSample, string workingDirectory, string modelName)
     {
         WorkingDirectory = workingDirectory;
         ModelName = modelName;

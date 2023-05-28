@@ -77,14 +77,15 @@ public abstract class MultiSamples : ISample
     }
     public virtual bool FixErrors()
     {
+        bool ok = true;
         foreach (var s in Samples)
         {
             if (!s.FixErrors())
             {
-                return false;
+                ok = false;
             }
         }
-        return true;
+        return ok;
     }
     public string ComputeHash()
     {
