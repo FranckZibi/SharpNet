@@ -19,7 +19,7 @@ public class TransformerNetworkSample : NetworkSample
 
     public float layer_norm_epsilon = LayerNormalizationLayer.DEFAULT_EPSILON;
     public int embedding_dim = -1; // == d_model
-    public cudnnActivationMode_t lastActivationLayer = cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX_LAST_DIMENSION;
+    public cudnnActivationMode_t LastActivationLayer = cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX_LAST_DIMENSION;
     public int N_PositionalEncoding = PositionalEncodingAttnIsAllYouNeedLayer.DEFAULT_N_POSITIONAL_ENCODING;
 
 
@@ -137,15 +137,6 @@ public class TransformerNetworkSample : NetworkSample
         throw new NotSupportedException("only full encoders are currently supported");
     }
 
-    //private TransformerNetworkSample WithCommonParams(int embedding_dim, cudnnActivationMode_t lastActivationLayer = cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX, float layer_norm_epsilon = 1e-6f, int N_PositionalEncoding = PositionalEncodingAttnIsAllYouNeedLayer.DEFAULT_N_POSITIONAL_ENCODING)
-    //{
-    //    this.embedding_dim = embedding_dim;
-    //    this.lastActivationLayer = lastActivationLayer;
-    //    this.layer_norm_epsilon = layer_norm_epsilon;
-    //    this.N_PositionalEncoding = N_PositionalEncoding;
-    //    return this;
-    //}
-
     //private TransformerNetworkSample WithEncoders(int N, int num_heads, bool use_bias, float mha_dropout, int feed_forward_dim, float feed_forward_dropout, bool use_causal_mask = false, bool add_layer_norm_before_mha = false, bool add_layer_norm_after_mha = true)
     //{
     //    encoder_num_transformer_blocks = N;
@@ -211,7 +202,7 @@ public class TransformerNetworkSample : NetworkSample
             network.Dense(1, network.Sample.lambdaL2Regularization, false, "probs_scalar");
         }
 
-        network.Activation(lastActivationLayer);
+        network.Activation(LastActivationLayer);
     }
 
 

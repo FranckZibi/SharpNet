@@ -12,6 +12,7 @@ using SharpNet.HyperParameters;
 using SharpNet.LightGBM;
 using SharpNet.MathTools;
 using SharpNet.Networks;
+// ReSharper disable FieldCanBeMadeReadOnly.Global
 
 namespace SharpNet.Datasets.Natixis70;
 

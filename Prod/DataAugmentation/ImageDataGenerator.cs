@@ -25,6 +25,7 @@ namespace SharpNet.DataAugmentation
             AUTO_AUGMENT_SVHN,
             AUTO_AUGMENT_IMAGENET,
             RAND_AUGMENT,
+            // ReSharper disable once UnusedMember.Global
             TIME_SERIES
         };
 

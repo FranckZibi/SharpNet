@@ -9,6 +9,7 @@ using SharpNet.GPU;
 using SharpNet.HyperParameters;
 using SharpNet.Models;
 // ReSharper disable MemberCanBeProtected.Global
+// ReSharper disable MemberCanBePrivate.Global
 
 namespace SharpNet.Datasets;
 
@@ -23,12 +24,14 @@ public abstract class AbstractDatasetSample : AbstractSample, IDisposable
     #region Hyper-Parameters
     //For numerical features:
     // should we standardize them (with mean=0 & volatility=1) before sending them to the model ?
+    // ReSharper disable once FieldCanBeMadeReadOnly.Global
     public bool StandardizeDoubleValues = false;
 
 
     /// <summary>
     /// should we shuffle the dataset before splitting it into training / validation ?
     /// </summary>
+    // ReSharper disable once FieldCanBeMadeReadOnly.Global
     public bool ShuffleDatasetBeforeSplit = false;
 
     /// <summary>
@@ -37,6 +40,7 @@ public abstract class AbstractDatasetSample : AbstractSample, IDisposable
     /// in regression task :
     ///     it has no effect (must be false)
     /// </summary>
+    // ReSharper disable once ConvertToConstant.Global
     public bool StratifiedDatasetBeforeSplit = false;
 
 

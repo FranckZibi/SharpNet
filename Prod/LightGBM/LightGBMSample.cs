@@ -38,6 +38,7 @@ public class LightGBMSample : AbstractModelSample
                 throw new NotImplementedException($"can't manage metric {objective}");
         }
     }
+
     public override EvaluationMetricEnum GetRankingEvaluationMetric()
     {
         if (string.IsNullOrEmpty(metric))
@@ -95,17 +96,19 @@ public class LightGBMSample : AbstractModelSample
             throw new ArgumentException("objective must always be set");
         }
 
-        if (objective == objective_enum.multiclass || objective == objective_enum.multiclassova)
+        if (IsMultiClassClassificationProblem())
         {
             if (num_class < 2)
             {
-                return false;
+                throw new ArgumentException($"{nameof(num_class)} must be set for multi class problem (was:{num_class})");
             }
         }
         else
         {
-            //no need of 'num_class' field
-            num_class = DEFAULT_VALUE;
+            if (num_class != DEFAULT_VALUE)
+            {
+                throw new ArgumentException($"{nameof(num_class)} should be set only for multi class problem (was: {num_class})");
+            }
         }
 
         if (bagging_freq <= 0)
@@ -1052,10 +1055,15 @@ public class LightGBMSample : AbstractModelSample
         var searchSpace = new Dictionary<string, object>
         {
             //uncomment appropriate one
-            //{"objective", "regression"},      //for Regression Tasks
-            //{"objective", "binary"},          //for binary classification
-            //{"objective", "multiclass"},      //for multi class classification
-            //{"num_class", number_of_class },  //for multi class classification
+            ////for regression:
+            //{"objective", "regression"},      
+
+            ////for binary classification:
+            //{"objective", "binary"},          
+
+            ////for multi class classification:
+            //{"objective", "multiclass"},      
+            //{"num_class", number_of_class },
 
             //high priority
             { "bagging_fraction", new[]{0.8f, 0.9f, 1.0f} },
@@ -1091,32 +1099,22 @@ public class LightGBMSample : AbstractModelSample
         return searchSpace;
     }
 
-    public override void FillSearchSpaceWithDefaultValues(IDictionary<string, object> existingHyperParameterValues, AbstractDatasetSample datasetSample)
-    {
-        const string numClassKeyName = nameof(num_class);
-        if (!existingHyperParameterValues.ContainsKey(numClassKeyName) && GetObjective() == Objective_enum.Classification)
-        {
-            existingHyperParameterValues[numClassKeyName] = datasetSample.NumClass;
-        }
-    }
-
     public override Model NewModel(AbstractDatasetSample datasetSample, string workingDirectory, string modelName)
     {
         return new LightGBMModel(this, workingDirectory, modelName);
     }
 
-    private static object GetDefaultHyperParameterValueForLightGBM(string hyperParameterName, AbstractDatasetSample datasetSample)
+    private bool IsMultiClassClassificationProblem()
     {
-        switch (hyperParameterName)
+        switch (objective)
         {
-            case nameof(num_class):
-                return datasetSample.NumClass;
+            case objective_enum.multiclass:
+            case objective_enum.multiclassova:
+                return true;
+            default:
+                return false;
         }
-        var errorMsg = $"do not know default value for Hyper Parameter {hyperParameterName} for model {typeof(LightGBMModel)}";
-        ISample.Log.Error(errorMsg);
-        throw new ArgumentException(errorMsg);
     }
-
     private static readonly HashSet<string> _categoricalHyperParameters = new()
     {
         "saved_feature_importance_type",
@@ -1127,5 +1125,4 @@ public class LightGBMSample : AbstractModelSample
         "device_type",
         "tree_learner",
     };
-
 }

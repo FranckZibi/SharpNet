@@ -9,6 +9,8 @@ using System.Linq;
 using SharpNet.Datasets;
 using SharpNet.HyperParameters;
 using SharpNet.Models;
+// ReSharper disable ConvertToConstant.Global
+// ReSharper disable FieldCanBeMadeReadOnly.Global
 
 namespace SharpNet.Svm;
 

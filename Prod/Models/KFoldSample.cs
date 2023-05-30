@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using SharpNet.Datasets;
 using SharpNet.HyperParameters;
 // ReSharper disable FieldCanBeMadeReadOnly.Global
+// ReSharper disable MemberCanBePrivate.Global
 
 namespace SharpNet.Models;
 
@@ -32,6 +33,7 @@ public class KFoldSample : AbstractModelSample
     public int n_splits = 5;
     // ReSharper disable once MemberCanBePrivate.Global
     public string EmbeddedModelWorkingDirectory;
+    // ReSharper disable once NotAccessedField.Global
     public string EmbeddedModelName;
     public EvaluationMetricEnum EmbeddedModelLoss = EvaluationMetricEnum.DEFAULT_VALUE;
     public EvaluationMetricEnum EmbeddedModelRankingEvaluationMetric = EvaluationMetricEnum.DEFAULT_VALUE;

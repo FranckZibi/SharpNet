@@ -8,12 +8,14 @@ using SharpNet.GPU;
 using SharpNet.HPO;
 using SharpNet.HyperParameters;
 using SharpNet.Models;
+// ReSharper disable MemberCanBePrivate.Global
+// ReSharper disable FieldCanBeMadeReadOnly.Global
+// ReSharper disable NotAccessedField.Global
 
 namespace SharpNet.CatBoost;
 
 [SuppressMessage("ReSharper", "UnusedMember.Global")]
 [SuppressMessage("ReSharper", "IdentifierTypo")]
-[SuppressMessage("ReSharper", "MemberCanBePrivate.Global")]
 public class CatBoostSample : AbstractModelSample
 {
     #region Constructors
@@ -26,6 +28,7 @@ public class CatBoostSample : AbstractModelSample
     public void AddExtraMetricToComputeForTraining()
     {
     }
+    [SuppressMessage("ReSharper", "ExpressionIsAlwaysNull")]
     public (IScore trainLossIfAvailable, IScore validationLossIfAvailable, IScore trainRankingMetricIfAvailable, IScore validationRankingMetricIfAvailable) ExtractScores(IEnumerable<string> linesFromLog)
     {
         List<string> tokenAndMandatoryTokenAfterToken = new() { "learn:", null, "test:", null, "best:", null };
@@ -371,7 +374,7 @@ public class CatBoostSample : AbstractModelSample
         }
     }
 
-    public void SetRankingEvaluationMetric(EvaluationMetricEnum rankingEvaluationMetric)
+    private void SetRankingEvaluationMetric(EvaluationMetricEnum rankingEvaluationMetric)
     {
         switch (rankingEvaluationMetric)
         {
@@ -390,10 +393,7 @@ public class CatBoostSample : AbstractModelSample
             default:
                 throw new NotImplementedException($"can't set {nameof(eval_metric)} {rankingEvaluationMetric}");
         }
-        
-        throw new NotImplementedException();
     }
-
 
     private static readonly HashSet<string> CategoricalHyperParameters = new()
     {
@@ -418,26 +418,26 @@ public class CatBoostSample : AbstractModelSample
         devices = MustUseGPU ? taskId.ToString() : null;
     }
 
-    public override void FillSearchSpaceWithDefaultValues(IDictionary<string, object> existingHyperParameterValues, AbstractDatasetSample datasetSample)
+    public override void FillSearchSpaceWithDefaultValues(IDictionary<string, object> existingHyperParameterValues)
     {
-        const string taskTypeName = nameof(CatBoostSample.task_type);
+        const string taskTypeName = nameof(task_type);
         if (!existingHyperParameterValues.ContainsKey(taskTypeName))
         {
-            const string devicesKeyName = nameof(CatBoostSample.devices);
-            const string threadCountName = nameof(CatBoostSample.thread_count);
+            const string devicesKeyName = nameof(devices);
+            const string threadCountName = nameof(thread_count);
             existingHyperParameterValues.Remove(devicesKeyName); //need to be set after for GPU
             if (MustUseGPU)
             {
                 //Each GPU will be run in parallel, and will have some CPU dedicated to him
                 //So if we have 4 GPU, we'll run 4 tasks in parallel, and each task will have 1/4 of the total CPU resources
-                existingHyperParameterValues[taskTypeName] = nameof(CatBoostSample.task_type_enum.GPU);
+                existingHyperParameterValues[taskTypeName] = nameof(task_type_enum.GPU);
                 existingHyperParameterValues[threadCountName] = Math.Max(1, Utils.CoreCount / GPUWrapper.GetDeviceCount());
             }
             else
             {
                 //Each CPU will be run in parallel (no GPU)
                 //So if we have 4 CPU, we'll run 4 tasks in parallel
-                existingHyperParameterValues[taskTypeName] = nameof(CatBoostSample.task_type_enum.CPU);
+                existingHyperParameterValues[taskTypeName] = nameof(task_type_enum.CPU);
                 existingHyperParameterValues[threadCountName] = 1;
             }
         }
@@ -468,7 +468,7 @@ public class CatBoostSample : AbstractModelSample
             //{"loss_function", nameof(loss_function_enum.MultiClass)},
             //{"eval_metric", nameof(metric_enum.Accuracy)},
 
-            { "logging_level", nameof(CatBoostSample.logging_level_enum.Verbose)},
+            { "logging_level", nameof(logging_level_enum.Verbose)},
             { "allow_writing_files",false},
             { "thread_count",1},
             { "iterations", iterations },

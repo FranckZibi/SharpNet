@@ -51,6 +51,7 @@ public class DatasetEncoder
     /// <summary>
     /// number of time the method 'Inverse_Transform' has been called
     /// </summary>
+    // ReSharper disable once NotAccessedField.Local
     private int _inverseTransformCallCount = 0;
 
     #endregion
@@ -297,25 +298,6 @@ public class DatasetEncoder
             decodedContent[idx] = decodedValueAsString;
         }
         return DataFrame.New(decodedContent, float_df.Columns);
-    }
-
-
-    /// <summary>
-    /// return the distinct values of a 'categorical feature' or of a 'categorical target label '
-    /// </summary>
-    /// <param name="categoricalColumn"></param>
-    /// <returns></returns>
-    private IList<string> GetDistinctCategoricalValues(string categoricalColumn)
-    {
-        if (!IsCategoricalColumn(categoricalColumn))
-        {
-            throw new Exception($"Invalid column {categoricalColumn}: not a categorical column");
-        }
-        if (!_columnStats.ContainsKey(categoricalColumn))
-        {
-            return null;
-        }
-        return _columnStats[categoricalColumn].GetDistinctCategoricalValues();
     }
     private bool IsCategoricalColumn(string columnName)
     {

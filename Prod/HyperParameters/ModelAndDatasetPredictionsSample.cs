@@ -99,11 +99,11 @@ namespace SharpNet.HyperParameters
         #region Filling Search Space with Default Values for Model
         public override void FillSearchSpaceWithDefaultValues(IDictionary<string, object> hyperParameterSearchSpace)
         {
-            ModelSample.FillSearchSpaceWithDefaultValues(hyperParameterSearchSpace, DatasetSample);
+            ModelSample.FillSearchSpaceWithDefaultValues(hyperParameterSearchSpace);
         }
         #endregion
 
-        public IModelSample ModelSample => (IModelSample)Samples[0];
+        public AbstractModelSample ModelSample => (AbstractModelSample)Samples[0];
         public AbstractDatasetSample DatasetSample => (AbstractDatasetSample)Samples[1];
         public PredictionsSample PredictionsSample  => (PredictionsSample) Samples[2];
 
@@ -135,5 +135,18 @@ namespace SharpNet.HyperParameters
             Dispose(false);
         }
         #endregion
+
+        public override bool FixErrors()
+        {
+            if (!base.FixErrors())
+            {
+                return false;
+            }
+            if (ModelSample.GetObjective() != DatasetSample.GetObjective())
+            {
+                return false;
+            }
+            return true;
+        }
     }
 }

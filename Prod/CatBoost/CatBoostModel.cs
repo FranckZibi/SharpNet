@@ -93,7 +93,7 @@ namespace SharpNet.CatBoost
                 trainLossIfAvailable, validationLossIfAvailable, trainRankingMetricIfAvailable, validationRankingMetricIfAvailable);
         }
 
-        public static List<int> LabelIndexFromColumnDescriptionFile(string datasetColumnDescriptionPath)
+        private static List<int> LabelIndexFromColumnDescriptionFile(string datasetColumnDescriptionPath)
         {
             if (string.IsNullOrEmpty(datasetColumnDescriptionPath) || !File.Exists(datasetColumnDescriptionPath))
             {
@@ -135,15 +135,14 @@ namespace SharpNet.CatBoost
                     return null;
                 }
                 var contribPath = Path.Combine(TempPath, ModelName + "_contrib_" + Path.GetFileNameWithoutExtension(datasetPath) + ".txt");
-                string arguments = "fstr " +
-                                   " --model-file " + ModelPath +
-                                   " --delimiter=\"" + datasetSample.GetSeparator()+ "\"" +
-                                   " --has-header" +
-                                   " --fstr-type ShapValues" +
-                                   " --column-description " + datasetColumnDescriptionPath +
-                                   " --input-path " + datasetPath +
-                                   " --output-path " + contribPath;
-                ;
+                var arguments = "fstr " +
+                                " --model-file " + ModelPath +
+                                " --delimiter=\"" + datasetSample.GetSeparator()+ "\"" +
+                                " --has-header" +
+                                " --fstr-type ShapValues" +
+                                " --column-description " + datasetColumnDescriptionPath +
+                                " --input-path " + datasetPath +
+                                " --output-path " + contribPath;
 
                 Utils.Launch(WorkingDirectory, ExePath, arguments, Log, false);
 
@@ -217,7 +216,7 @@ namespace SharpNet.CatBoost
             var configFilePath = predictionResultPath.Replace(".txt", "_conf.json");
             CatBoostSample.Save(configFilePath);
 
-            string modelFormat = ModelPath.EndsWith("json") ? "json" : "CatboostBinary";
+            var modelFormat = ModelPath.EndsWith("json") ? "json" : "CatboostBinary";
             var arguments = "calc " +
                             " --input-path " + datasetPath +
                             " --output-path " + predictionResultPath +

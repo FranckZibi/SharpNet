@@ -1207,18 +1207,10 @@ namespace SharpNet.Networks
             }
             return result;
         }
-        public bool CurrentEpochIsAbsolutelyBestInValidationLoss()
-        {
-            return
-                EpochData.Count >= 1
-                && EpochData.All(e => !double.IsNaN(e.GetValidationLoss(Sample.GetLoss())))
-                && Math.Abs(EpochData.Select(e => e.GetValidationLoss(Sample.GetLoss())).Min() - EpochData.Last().GetValidationLoss(Sample.GetLoss())) < 1e-6;
-        }
         public string Summary()
         {
             return Layers.Any(x => x.PreviousLayers.Count >= 2) ? SummaryWithConnectedTo() : SummaryWithoutConnectedTo();
         }
-
 
         private void CreateWorkingDirectoryIfNeeded()
         {

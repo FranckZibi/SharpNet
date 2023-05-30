@@ -96,7 +96,7 @@ namespace SharpNetTests.NonReg
             p.BatchSize = miniBatchSize;
             var database = new CancelDatabase();
             //TODO Test with selection of only matching size input in the training set
-            using DirectoryDataSet dataset = database.ExtractDataSet(e => CancelDatabase.IsValidNonEmptyCancel(e.Cancel), ResizeStrategyEnum.BiggestCropInOriginalImageToKeepSameProportion);
+            using var dataset = database.ExtractDataSet(e => CancelDatabase.IsValidNonEmptyCancel(e.Cancel), ResizeStrategyEnum.BiggestCropInOriginalImageToKeepSameProportion);
             
             //dataAugmentationConfig.DataAugmentationType = ImageDataGenerator.DataAugmentationEnum.AUTO_AUGMENT_CIFAR10;
             var xMiniBatchShape = new []{miniBatchSize, channels, targetHeight, targetWidth};
@@ -136,7 +136,7 @@ namespace SharpNetTests.NonReg
                 swLoad.Stop();
                 swDA.Start();
                 int MiniBatchIdxToCategoryIndex(int miniBatchIdx) => dataset.ElementIdToCategoryIndex(MiniBatchIdxToElementId(miniBatchIdx));
-                Lazy<ImageStatistic> MiniBatchIdxToImageStatistic(int miniBatchIdx) => new Lazy<ImageStatistic>(() => dataset.ElementIdToImageStatistic(MiniBatchIdxToElementId(miniBatchIdx), channels, targetHeight, targetWidth));
+                Lazy<ImageStatistic> MiniBatchIdxToImageStatistic(int miniBatchIdx) => new(() => dataset.ElementIdToImageStatistic(MiniBatchIdxToElementId(miniBatchIdx), channels, targetHeight, targetWidth));
                 if (useMultiThreading)
                 {
                     Parallel.For(0, miniBatchSize, indexInMiniBatch => imageDataGenerator.DataAugmentationForMiniBatch(
@@ -238,8 +238,8 @@ namespace SharpNetTests.NonReg
             foreach (var byteCount in chunkSize)
             { 
                 ulong loopId = 0;
-                src.ReshapeInPlace(new[] { byteCount });
-                dest.ReshapeInPlace(new[] { byteCount });
+                src.ReshapeInPlace(byteCount);
+                dest.ReshapeInPlace(byteCount);
                 var sw = Stopwatch.StartNew();
                 while (sw.ElapsedMilliseconds < 5000)
                 {

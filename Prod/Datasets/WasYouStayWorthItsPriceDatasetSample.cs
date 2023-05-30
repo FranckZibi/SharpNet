@@ -197,6 +197,7 @@ public class WasYouStayWorthItsPriceDatasetSample : AbstractDatasetSample
             //related to model
             {"objective", nameof(LightGBMSample.objective_enum.multiclass)},
             {"metric", ""}, //same as objective
+            { "num_class", 7},
             {"boosting", new []{"gbdt", "dart"}},
             //dart mode
             //{"drop_rate", new[]{0.05, 0.1, 0.2}},
@@ -205,7 +206,6 @@ public class WasYouStayWorthItsPriceDatasetSample : AbstractDatasetSample
 
             //{ "num_iterations", AbstractHyperParameterSearchSpace.Range(min_num_iterations, 3*min_num_iterations) },
             { "num_iterations", min_num_iterations },
-            //{ "num_class", numClasses },
             { "verbosity", "0" },
             { "num_threads", 1},
             { "learning_rate",AbstractHyperParameterSearchSpace.Range(0.01f, 0.2f)},

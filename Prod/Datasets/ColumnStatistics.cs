@@ -240,9 +240,8 @@ public class ColumnStatistics
         double result = 0.0;
         double divider = 10.0;
 
-        for (var index = 0; index < featureValue.Length; index++)
+        foreach (var c in featureValue)
         {
-            var c = featureValue[index];
             if (insideNumber)
             {
                 if (isLeftNumber)

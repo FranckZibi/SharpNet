@@ -8,6 +8,7 @@ using SharpNet.HyperParameters;
 using SharpNet.Networks;
 // ReSharper disable UnusedMember.Global
 // ReSharper disable MemberCanBePrivate.Global
+// ReSharper disable FieldCanBeMadeReadOnly.Global
 
 namespace SharpNet.Datasets.CFM60;
 
@@ -152,6 +153,7 @@ public class CFM60DatasetSample : DatasetSampleForTimeSeries
 
 
 
+    // ReSharper disable once EmptyConstructor
     public CFM60DatasetSample()
     {
     }
@@ -274,10 +276,6 @@ public class CFM60DatasetSample : DatasetSampleForTimeSeries
 
     private List<string> Encoder_FeatureNames;
     private List<string> Decoder_FeatureNames;
-
-
-
-
 
     public override string[] GetColumnNames()
     {

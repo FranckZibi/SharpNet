@@ -8,16 +8,12 @@ namespace SharpNet.HyperParameters;
 
 public abstract class AbstractModelSample : AbstractSample, IModelSample
 {
-    protected AbstractModelSample(HashSet<string> mandatoryCategoricalHyperParameters) : base(mandatoryCategoricalHyperParameters)
+    protected AbstractModelSample(HashSet<string> mandatoryCategoricalHyperParameters) : base(
+        mandatoryCategoricalHyperParameters)
     {
     }
 
     public abstract EvaluationMetricEnum GetLoss();
-
-    public virtual void FillSearchSpaceWithDefaultValues(IDictionary<string, object> existingHyperParameterValues, AbstractDatasetSample datasetSample)
-    {
-    }
-
 
     public bool IsRegressionProblem => GetObjective() == Objective_enum.Regression;
 
@@ -66,7 +62,6 @@ public abstract class AbstractModelSample : AbstractSample, IModelSample
     public abstract EvaluationMetricEnum GetRankingEvaluationMetric();
     public abstract Model NewModel(AbstractDatasetSample datasetSample, string workingDirectory, string modelName);
     public abstract void Use_All_Available_Cores();
-
 
     public static AbstractModelSample LoadModelSample(string workingDirectory, string sampleName, bool useAllAvailableCores)
     {

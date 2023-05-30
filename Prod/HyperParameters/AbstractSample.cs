@@ -123,11 +123,7 @@ public abstract class AbstractSample : ISample
     {
         return new HashSet<string>();
     }
-    protected static bool DefaultAcceptForConfigContent(string fieldName, object fieldValue)
-    {
-        return !IsDefaultValue(fieldValue);
-    }
-   
+
     protected virtual string ToConfigContent(Func<string, object, bool> accept)
     {
         var result = new List<string>();
@@ -180,4 +176,11 @@ public abstract class AbstractSample : ISample
     public virtual void FillSearchSpaceWithDefaultValues(IDictionary<string, object> hyperParameterSearchSpace)
     {
     }
+
+    private static bool DefaultAcceptForConfigContent(string fieldName, object fieldValue)
+    {
+        return !IsDefaultValue(fieldValue);
+    }
+
+
 }

@@ -6,6 +6,8 @@ using System.IO;
 using System.Linq;
 using SharpNet.CPU;
 using SharpNet.MathTools;
+// ReSharper disable FieldCanBeMadeReadOnly.Global
+// ReSharper disable MemberCanBePrivate.Global
 
 namespace SharpNet.Datasets.Biosonar85;
 
@@ -21,7 +23,8 @@ public class Biosonar85DatasetSample : AbstractDatasetSample
     #endregion
     
     #region public fields & properties
-    public static readonly ILog Log = LogManager.GetLogger(typeof(Biosonar85DatasetSample));
+
+    private static readonly ILog Log = LogManager.GetLogger(typeof(Biosonar85DatasetSample));
     #endregion
 
     #region HyperParameters
@@ -136,6 +139,7 @@ public class Biosonar85DatasetSample : AbstractDatasetSample
     /// <summary>
     /// compute stats for train & test dataset
     /// </summary>
+    // ReSharper disable once UnusedMember.Local
     private static void ComputeStats()
     {
         var xTrainPath = Path.Join(Biosonar85Utils.DataDirectory, xTrainBin);

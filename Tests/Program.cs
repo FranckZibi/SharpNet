@@ -231,7 +231,6 @@ namespace SharpNetTests
         }
         private static void Train_CIFAR10_EfficientNet(EfficientNetNetworkSample p)
         {
-            throw new NotImplementedException();
             using var cifar10 = new CIFAR10DataSet();
             using var network = p.EfficientNetB0_CIFAR10(p.WeightForTransferLearning, CIFAR10DataSet.Shape_CHW);
             Log.Info(network.ToString());
@@ -384,7 +383,7 @@ namespace SharpNetTests
         /// <param name="gpuId">GPU deviceId to use 
         /// int.MaxValue means uses all available GPU</param>
         /// <param name="allActionsToPerform"></param>
-        public static void PerformActionsInSingleGpu(int gpuId, List<Action<int>> allActionsToPerform)
+        private static void PerformActionsInSingleGpu(int gpuId, List<Action<int>> allActionsToPerform)
         {
             for (; ; )
             {
@@ -413,7 +412,8 @@ namespace SharpNetTests
                 }
             }
         }
-        public static void PerformAllActionsInAllGpu<T>(List<Func<T>> networkMetaParameters, List<Action<T, int>> networkGeometriesOrderedFromSmallestToBiggest, bool useMultiGPU = false) where T : NetworkSample
+
+        private static void PerformAllActionsInAllGpu<T>(List<Func<T>> networkMetaParameters, List<Action<T, int>> networkGeometriesOrderedFromSmallestToBiggest, bool useMultiGPU = false) where T : NetworkSample
         {
             var taskToBePerformed = new List<Action<int>>();
 

@@ -3,16 +3,20 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+// ReSharper disable FieldCanBeMadeReadOnly.Global
+// ReSharper disable MemberCanBePrivate.Global
 
 namespace SharpNet.Datasets.PlumeLabs88;
 
 public class PlumeLabs88DatasetSample : AbstractDatasetSample
 {
     #region private fields & properties
+    // ReSharper disable once UnusedMember.Local
     private static readonly ILog Log = LogManager.GetLogger(typeof(PlumeLabs88DatasetSample));
     #endregion
 
     #region HyperParameters
+    // ReSharper disable once UnusedMember.Global
     public bool fillna_with_0 = false;
     public float NormalizeFeatureMean = 0.0f;
     public float NormalizeFeatureMult = 1.0f;

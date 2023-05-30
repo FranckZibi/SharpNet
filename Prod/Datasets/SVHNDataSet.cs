@@ -42,15 +42,10 @@ namespace SharpNet.Datasets
         public override DataSet Training { get; }
         public override DataSet Test { get; }
 
-        public override int CategoryByteToCategoryIndex(byte categoryByte)
+        protected override int CategoryByteToCategoryIndex(byte categoryByte)
         {
             return (categoryByte == 10) ? 0 : categoryByte;
         }
-        public override byte CategoryIndexToCategoryByte(int categoryIndex)
-        {
-            return (categoryIndex == 0) ? (byte)10 : (byte)categoryIndex;
-        }
-
 
         public static readonly int[] Shape_CHW = { 3, 32, 32 };
 

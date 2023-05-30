@@ -15,19 +15,15 @@ namespace SharpNet.Datasets.Biosonar85;
 
 public static class Biosonar85Utils
 {
-    public const string NAME = "Biosonar85";
+    private const string NAME = "Biosonar85";
 
 
     #region public fields & properties
-    public static readonly ILog Log = LogManager.GetLogger(typeof(Biosonar85Utils));
+    private static readonly ILog Log = LogManager.GetLogger(typeof(Biosonar85Utils));
     #endregion
 
     public static string WorkingDirectory => Path.Combine(Utils.ChallengesPath, NAME);
     public static string DataDirectory => Path.Combine(WorkingDirectory, "Data");
-    public static string SubmitDirectory => Path.Combine(WorkingDirectory, "Submit");
-    // ReSharper disable once MemberCanBePrivate.Global
-
-
     public static readonly string[] TargetLabelDistinctValues = new string[]{"y"};
 
     //public static EfficientNetNetworkSample DefaultEfficientNetNetworkSample()
@@ -73,9 +69,9 @@ public static class Biosonar85Utils
         //var bin_file = Path.Combine(DataDirectory, "Y_train_ofTdMHi.csv.bin");
         //var tensor = CpuTensor<float>.LoadFromBinFile(bin_file, new[] { -1, 101, 64});
 
-        ChallengeTools.Retrain(Path.Combine(WorkingDirectory, "Dump"), "0908F47370", null, percentageInTraining:0.8, retrainOnFullDataset:false, useAllAvailableCores:true);return;
+        //ChallengeTools.Retrain(Path.Combine(WorkingDirectory, "Dump"), "0908F47370", null, percentageInTraining:0.8, retrainOnFullDataset:false, useAllAvailableCores:true);return;
 
-        //Launch_HPO_Transformers(30); return;
+        Launch_HPO_Transformers(30); return;
         //Launch_HPO(1);return;
     }
 
@@ -127,6 +123,7 @@ public static class Biosonar85Utils
     }
 
     
+    // ReSharper disable once UnusedMember.Global
     public static void Launch_HPO_Transformers(int numEpochs = 10, int maxAllowedSecondsForAllComputation = 0)
     {
         Utils.ConfigureGlobalLog4netProperties(WorkingDirectory, "log");
@@ -169,7 +166,7 @@ public static class Biosonar85Utils
 
             {"encoder_use_causal_mask", true},
             {"output_shape_must_be_scalar", true},
-            {"lastActivationLayer", nameof(cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID)},
+            {"LastActivationLayer", nameof(cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID)},
 
             {"pooling_before_dense_layer", new[]{ nameof(POOLING_BEFORE_DENSE_LAYER.NONE) /*,nameof(POOLING_BEFORE_DENSE_LAYER.GlobalAveragePooling), nameof(POOLING_BEFORE_DENSE_LAYER.GlobalMaxPooling)*/ } }, //must be NONE
             {"layer_norm_before_last_dense", false}, // must be false
@@ -208,7 +205,7 @@ public static class Biosonar85Utils
         hpo.Process(t => SampleUtils.TrainWithHyperParameters((ModelAndDatasetPredictionsSample)t, WorkingDirectory, retrainOnFullDatasetIfBetterModelFound, ref bestScoreSoFar), maxAllowedSecondsForAllComputation);
     }
 
-
+    // ReSharper disable once UnusedMember.Global
     public static void Launch_HPO(int numEpochs = 10, int maxAllowedSecondsForAllComputation = 0)
     {
         Utils.ConfigureGlobalLog4netProperties(WorkingDirectory, "log");

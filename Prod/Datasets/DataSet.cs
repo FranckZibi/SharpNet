@@ -104,7 +104,7 @@ namespace SharpNet.Datasets
         /// </summary>
         public Objective_enum Objective { get; }
 
-        public bool IsRegressionProblem => Objective == Objective_enum.Regression;
+        protected bool IsRegressionProblem => Objective == Objective_enum.Regression;
 
         /// <summary>
         /// Load the element 'elementId' in the buffer 'buffer' at index 'indexInBuffer'
@@ -340,7 +340,7 @@ namespace SharpNet.Datasets
         /// number of elements in DataSet
         /// </summary>
         public abstract int Count { get; }
-        public virtual DataFrame AddIdColumnsAtLeftIfNeeded(DataFrame df)
+        public DataFrame AddIdColumnsAtLeftIfNeeded(DataFrame df)
         {
             if (string.IsNullOrEmpty(IdColumn))
             {

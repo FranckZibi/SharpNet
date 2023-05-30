@@ -174,7 +174,7 @@ public static class PlumeLabs88Utils
         Utils.ConfigureGlobalLog4netProperties(WorkingDirectory, "log");
         Utils.ConfigureThreadLog4netProperties(WorkingDirectory, "log");
 
-        ChallengeTools.Retrain(@"C:\Projects\Challenges\PlumeLabs88\dump", "543E24B90E", null, 0.9, false);
+        //ChallengeTools.Retrain(@"C:\Projects\Challenges\PlumeLabs88\dump", "543E24B90E", null, 0.9, false);
 
         //using var m = ModelAndDatasetPredictions.Load(@"C:\Projects\Challenges\PlumeLabs88\dump", "C8C8A2D3E2", true);
         //(_, _, DataFrame predictionsInTargetFormat, _, _) =  m.DatasetSample.ComputePredictionsAndRankingScoreV2(m.DatasetSample.TestDataset(), m.Model, false, true);
@@ -185,7 +185,7 @@ public static class PlumeLabs88Utils
 
         //ChallengeTools.ComputeAndSaveFeatureImportance(@"C:\Projects\Challenges\PlumeLabs88\Submit", "9B9DFA97F2_KFOLD_FULL");
         //ChallengeTools.EstimateLossContribution(@"C:\Projects\Challenges\PlumeLabs88\dump", "D885B11678");
-        //ChallengeTools.Retrain(@"C:\Projects\Challenges\PlumeLabs88\dump", "9B9DFA97F2_KFOLD_FULL", null, 0.8, false);
+        ChallengeTools.Retrain(@"C:\Projects\Challenges\PlumeLabs88\dump", "EE3EB20488", n_splits:null, percentageInTraining:0.9, retrainOnFullDataset:false);
 
         //ComputeStats();
         //Launch_HPO(10);
@@ -333,8 +333,8 @@ public static class PlumeLabs88Utils
 
 
             //related to model
-            { "LossFunction", nameof(EvaluationMetricEnum.MeanSquaredLogError)},
-            { "RankingEvaluationMetric", nameof(EvaluationMetricEnum.MeanSquaredLogError)},
+            { "LossFunction", nameof(EvaluationMetricEnum.Mse)},
+            { "RankingEvaluationMetric", nameof(EvaluationMetricEnum.Mse)},
             //{ "KFold", 2},
             //{ "PercentageInTraining", 0.9}, //will be automatically set to 1 if KFold is enabled
             { "PercentageInTraining", 0.9}, //will be automatically set to 1 if KFold is enabled
@@ -348,7 +348,7 @@ public static class PlumeLabs88Utils
             //{ "lambdaL2Regularization", new[] { 0.0005, 0.001, 0.00005 } },
             { "lambdaL2Regularization", new[] {0.001, 0.0005, 0.0001, 0.00005 } }, // 0.0001 or 0.001
             //{"DefaultMobileBlocksDescriptionCount", new[]{5}},
-            {"lastActivationLayer", nameof(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU)},
+            {"LastActivationLayer", nameof(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU)},
             // Learning Rate
             { "InitialLearningRate", new []{0.001, 0.01}}, //SGD: 0.01 //AdamW: 0.01 or 0.001
             // Learning Rate Scheduler

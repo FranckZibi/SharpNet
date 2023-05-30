@@ -3,6 +3,7 @@ using System.IO;
 using log4net;
 using SharpNet.Datasets;
 using SharpNet.TextPreprocessing;
+// ReSharper disable MemberCanBePrivate.Global
 
 namespace SharpNet.Networks.Transformers;
 
@@ -15,6 +16,7 @@ public class CharLevelTransformersDatasetSample : AbstractDatasetSample
     #endregion
 
     #region public fields & properties
+    // ReSharper disable once UnusedMember.Global
     public static readonly ILog Log = LogManager.GetLogger(typeof(CharLevelTransformersDatasetSample));
     #endregion
 
@@ -27,6 +29,8 @@ public class CharLevelTransformersDatasetSample : AbstractDatasetSample
     /// -1 means the full text (default value)
     /// other values are used to speed up the training process (usually for testing purpose)
     /// </summary>
+    // ReSharper disable once ConvertToConstant.Global
+    // ReSharper disable once FieldCanBeMadeReadOnly.Global
     public int MaxCharacterLengthForTraining = -1;
 
     #endregion

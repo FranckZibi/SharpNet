@@ -4,6 +4,7 @@ using SharpNet.Datasets;
 using SharpNet.GPU;
 using SharpNet.HPO;
 using SharpNet.Layers;
+// ReSharper disable FieldCanBeMadeReadOnly.Global
 
 // ReSharper disable MemberCanBePrivate.Global
 

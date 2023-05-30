@@ -132,7 +132,7 @@ public class KFoldModel : Model
         var foldedTrainAndValidationDataset = trainDataset.KFoldSplit(n_splits, KFoldSample.CountMustBeMultipleOf);
         var train_XYDatasetPath_InTargetFormat = trainDataset.to_csv_in_directory(DatasetPath, true, includeIdColumns, overwriteIfExists);
 
-        List<IScore> allFoldTraiLossIfAvailable = new();
+        List<IScore> allFoldTrainLossIfAvailable = new();
         List<IScore> allFoldValidationLossIfAvailable = new();
         List<IScore> allFoldTrainRankingMetricIfAvailable = new();
         List<IScore> allFoldValidationRankingMetricIfAvailable = new();
@@ -145,7 +145,7 @@ public class KFoldModel : Model
             var (_, _, _, _, _, _, foldTrainLossIfAvailable, foldValidationLossIfAvailable, foldTrainRankingMetricIfAvailable, foldValidationRankingMetricIfAvailable) = embeddedModel.Fit(trainAndValidation.Training, trainAndValidation.Test);
             if (foldTrainLossIfAvailable != null)
             {
-                allFoldTraiLossIfAvailable.Add(foldTrainLossIfAvailable);
+                allFoldTrainLossIfAvailable.Add(foldTrainLossIfAvailable);
             }
 
             if (foldTrainRankingMetricIfAvailable != null)
@@ -172,7 +172,7 @@ public class KFoldModel : Model
             }
             LogDebug($"Validation Loss for fold[{fold}/{n_splits}] : {foldValidationLossIfAvailable}");
         }
-        var trainLossIfAvailable = IScore.Average(allFoldTraiLossIfAvailable);
+        var trainLossIfAvailable = IScore.Average(allFoldTrainLossIfAvailable);
         var validationLossIfAvailable = IScore.Average(allFoldValidationLossIfAvailable);
         var trainRankingMetricIfAvailable = IScore.Average(allFoldTrainRankingMetricIfAvailable);
         var validationRankingMetricIfAvailable = IScore.Average(allFoldValidationRankingMetricIfAvailable);

@@ -13,13 +13,13 @@ public class TimeSeriesDataset : DataSet, ITimeSeriesDataSet, IGetDatasetSample
 {
     private readonly CpuTensor<float> _yTimeSeriesDataset;
 
-    public EncoderDecoder_NetworkSample EncoderDecoder_NetworkSample { get; }
+    private EncoderDecoder_NetworkSample EncoderDecoder_NetworkSample { get; }
 
     // CFM60EntryID = CFM60Entry.ID: the unique ID of a CFM60Entry
     // elementId : id of an element in the dataSet (in range [0, dataSet.Count[ )
     private readonly Dictionary<string, float> _idToPrediction = new ();
 
-    public DatasetSampleForTimeSeries DatasetSampleForTimeSeries { get; }
+    private DatasetSampleForTimeSeries DatasetSampleForTimeSeries { get; }
 
     private readonly TimeSeriesDataset _trainingDataSetOldIfAny;
 
@@ -42,14 +42,15 @@ public class TimeSeriesDataset : DataSet, ITimeSeriesDataSet, IGetDatasetSample
     public bool IsTrainingDataSet => _trainingDataSetOldIfAny == null;
     int EntriesCountForEachElementId_X => EncoderDecoder_NetworkSample.Use_Decoder ? EncoderDecoder_NetworkSample.Encoder_TimeSteps : 1 + EncoderDecoder_NetworkSample.Encoder_TimeSteps;
     int EntriesCountForEachElementId_Y => EncoderDecoder_NetworkSample.Use_Decoder ? EncoderDecoder_NetworkSample.Decoder_TimeSteps : 1;
-    public int Total_TimeSteps => EncoderDecoder_NetworkSample.Total_TimeSteps;
+    private int Total_TimeSteps => EncoderDecoder_NetworkSample.Total_TimeSteps;
 
     public override int Count => _yTimeSeriesDataset.Shape[0];
     public override int ElementIdToCategoryIndex(int elementId)
     {
         return -1;
     }
-    public IEnumerable<TimeSeriesSinglePoint> ElementId_to_YEntries(int elementId)
+
+    private IEnumerable<TimeSeriesSinglePoint> ElementId_to_YEntries(int elementId)
     {
         var lastEntry = _elementIdToLastAssociateEntry[elementId];
         var pidEntries = _pidToSortedEntries[lastEntry.TimeSeriesFamily];
@@ -100,7 +101,7 @@ public class TimeSeriesDataset : DataSet, ITimeSeriesDataSet, IGetDatasetSample
         throw new NotImplementedException();
     }
 
-    public static float DayThreshold(IList<TimeSeriesSinglePoint> entries, int countInTrainingSet)
+    private static float DayThreshold(IList<TimeSeriesSinglePoint> entries, int countInTrainingSet)
     {
         var sortedDays = entries.Select(e => e.TimeSeriesTimeStamp).OrderBy(x => x).ToArray();
         var dayThreshold = sortedDays[countInTrainingSet];

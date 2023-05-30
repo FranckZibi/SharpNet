@@ -16,7 +16,7 @@ using System.Xml;
 using log4net;
 using log4net.Config;
 using log4net.Util;
-using SharpNet.Datasets;
+using SharpNet.HyperParameters;
 using SharpNet.Pictures;
 using Path = System.IO.Path;
 
@@ -140,7 +140,7 @@ namespace SharpNet
         //Area Under the Curve, see: https://en.wikipedia.org/wiki/Receiver_operating_characteristic
         AUC, // works only for metric (to rank submission), do not work as a loss function, higher s better
 
-        DEFAULT_VALUE = AbstractDatasetSample.DEFAULT_VALUE, // default value, do not use
+        DEFAULT_VALUE = AbstractSample.DEFAULT_VALUE, // default value, do not use
     }
 
 
@@ -154,12 +154,6 @@ namespace SharpNet
             var result = (int[])shape.Clone();
             result[0] = newCount;
             return result;
-        }
-        
-        public static string ToValidFileName(string fileName)
-        {
-            var invalids = new HashSet<char>(Path.GetInvalidFileNameChars());
-            return new string(fileName.Select(x => invalids.Contains(x) ? '_' : x).ToArray());
         }
         public static int Product(int[] data)
         {
@@ -426,9 +420,7 @@ namespace SharpNet
             {
                 n--;
                 int k = rand.Next(n + 1);
-                T value = list[k];
-                list[k] = list[n];
-                list[n] = value;
+                (list[k], list[n]) = (list[n], list[k]);
             }
         }
         public static void Shuffle<T>(IList<T> list, Random rand, int blockSize)
@@ -490,7 +482,7 @@ namespace SharpNet
             return res;
         }
 
-        public static void LoadBufferFromBinaryFile<T>(string fileName, int startIndex, Span<T> buffer) where T : struct
+        private static void LoadBufferFromBinaryFile<T>(string fileName, int startIndex, Span<T> buffer) where T : struct
         {
             var bytesSpan = MemoryMarshal.Cast<T, byte>(buffer);
             int tSize = Marshal.SizeOf(typeof(T));
@@ -498,6 +490,7 @@ namespace SharpNet
             using var b = new BinaryReader(File.Open(fileName, FileMode.Open, FileAccess.Read, FileShare.Read));
             // Seek to our required position 'startIndex'
             b.BaseStream.Seek(startIndex * tSize, SeekOrigin.Begin);
+            // ReSharper disable once MustUseReturnValue
             b.Read(bytesSpan);
         }
         public static string ConcatenatePathWithFileName(string path, params string[] subPaths)
@@ -534,7 +527,7 @@ namespace SharpNet
         /// <returns></returns>
         public static IEnumerable<string[]> ReadCsv(string csvPath, char? mandatorySeparator = null)
         {
-            using System.IO.TextReader fileReader = System.IO.File.OpenText(csvPath);
+            using TextReader fileReader = File.OpenText(csvPath);
             var csvConfig = new CsvHelper.Configuration.CsvConfiguration(CultureInfo.InvariantCulture)
             {
                 TrimOptions = CsvHelper.Configuration.TrimOptions.InsideQuotes | CsvHelper.Configuration.TrimOptions.Trim,
@@ -636,16 +629,6 @@ namespace SharpNet
         private static bool CharToBeRemovedInStartOrEnd(char c)
         {
             return char.IsWhiteSpace(c) ||c == '\"' || c == '\n' || c == '\r' || c == ';' || c == ',';
-        }
-        private static bool CharToBeRemovedInMiddle(char c)
-        {
-            // space is a valid character in the middle of a token
-            return CharToBeRemovedInStartOrEnd(c)&&(c!= ' ');
-        }
-
-        public static List<T> Intersect<T>(IList<T> a, T b)
-        {
-            return Intersect(a, new List<T> { b });
         }
 
         /// <summary>
@@ -852,15 +835,6 @@ namespace SharpNet
 
             return result;
         }
-        public static float Average(this ReadOnlySpan<float> s)
-        {
-            if (s == null || s.Length == 0)
-            {
-                return 0;
-            }
-
-            return Sum(s) / s.Length;
-        }
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static float Sigmoid(float x)
         {
@@ -941,7 +915,9 @@ namespace SharpNet
 
             using var fs = new FileStream(filePath, FileMode.Open);
             using var bs = new BufferedStream(fs);
+#pragma warning disable SYSLIB0021
             using var sha1 = new SHA1Managed();
+#pragma warning restore SYSLIB0021
             var hash = sha1.ComputeHash(bs);
             var formatted = new StringBuilder(2 * hash.Length);
             foreach (byte b in hash)
@@ -1208,6 +1184,7 @@ namespace SharpNet
             }
             if (fieldValue is bool)
             {
+                // ReSharper disable once PossibleNullReferenceException
                 return fieldValue.ToString().ToLower();
             }
 
@@ -1332,14 +1309,7 @@ namespace SharpNet
                 {
                     return;
                 }
-                if (false)
-                {
-                    log.Info(e.Data.Replace("[Info] ", ""));
-                }
-                else
-                {
-                    log.Debug(e.Data);
-                }
+                log.Debug(e.Data);
             };
             process.BeginErrorReadLine();
             process.BeginOutputReadLine();
@@ -1351,17 +1321,6 @@ namespace SharpNet
                 throw new Exception(errorMsg);
             }
             return outputLines;
-        }
-
-        private static float Sum(this ReadOnlySpan<float> s)
-        {
-            var result = 0f;
-            foreach (var t in s)
-            {
-                result += t;
-            }
-
-            return result;
         }
         private static void AllPermutationsHelper<T>(List<T> data, int i, IList<IList<T>> result)
         {
@@ -1449,38 +1408,6 @@ namespace SharpNet
             }
         }
 
-        //!D ADD TEST
-        public static IList<int[]> SplitData(int nbTasks, int nbThreads)
-        {
-            Debug.Assert(nbThreads >= 1);
-            Debug.Assert(nbTasks >= 1);
-            var result = new List<int[]>();
-            int previousEndThread = -1;
-            for (int i = 0; i < nbThreads; ++i)
-            {
-                int startIndexForThread = previousEndThread + 1;
-                previousEndThread = 0 + NearestInt((i + 1) * (1.0 * nbTasks) / nbThreads - 1.0);
-                if (i == (nbThreads - 1))
-                {
-                    previousEndThread = nbTasks - 1;
-                }
-
-                result.Add(new[] { startIndexForThread, previousEndThread });
-            }
-            return result;
-        }
-
-        public static List<List<int>> SplitIntoSubListOfLength(int[] full_list, int length)
-        {
-            var res = new List<List<int>>();
-            for (var i = 0; i < full_list.Length / length + 1; i++)
-            {
-                res.Add(full_list.Skip(i * length).Take(length).ToList());
-            }
-
-            return res;
-        }
-
         /// <summary>
         /// process the log of a model to look for values after some specific token
         /// the last value found for a token is always the one to use
@@ -1545,123 +1472,10 @@ namespace SharpNet
         {
             return !string.IsNullOrEmpty(fileName) && File.Exists(fileName);
         }
-
-        public static void IncrementBy<T>(IDictionary<T, int> data, T t, int toAdd)
-        {
-            data.TryGetValue(t, out var previousResult);
-            data[t] = toAdd + previousResult;
-        }
-        public static void AddTo<T>(IDictionary<T, int> data, IEnumerable<KeyValuePair<T, int>> toAdd)
-        {
-            foreach (var e in toAdd)
-            {
-                IncrementBy(data, e.Key, e.Value);
-            }
-        }
-        public static void Add<T>(IDictionary<T, int> result, T val)
-        {
-            IncrementBy(result, val, 1);
-        }
-        public static double RadiansToDegrees(double angleInRadian)
-        {
-            return (angleInRadian / Math.PI) * 180.0;
-        }
-
-        public static int Max(int a, int b, int c)
-        {
-            return Math.Max(Math.Max(a, b), c);
-        }
-
-        public static int Min(int a, int b, int c, int d)
-        {
-            return Math.Min(Math.Min(a, b), Math.Min(c, d));
-        }
-
         public static int Max(int a, int b, int c, int d)
         {
             return Math.Max(Math.Max(a, b), Math.Max(c, d));
         }
-
-        public static double Min(double red, double green, double blue)
-        {
-            return Math.Min(Math.Min(red, green), blue);
-        }
-
-        public static IDictionary<T, int> CountByT<T>(T[,] data)
-        {
-            Dictionary<T, int> res = new();
-            for(int row=0;row<data.GetLength(0);++row)
-            for (int col = 0; col < data.GetLength(1); ++col)
-            {
-                var key = data[row, col];
-                if (res.ContainsKey(key))
-                {
-                    res[key]++;
-                }
-                else
-                {
-                    res[key] = 1;
-                }
-            }
-            return res;
-        }
-
-
-        public static double Max(double a, double b, double c)
-        {
-            return Math.Max(Math.Max(a, b), c);
-        }
-        public static double DegreesToRadians(double angleInDegrees)
-        {
-            return (angleInDegrees / 180.0) * Math.PI;
-        }
-        public static double[] String2DoubleVector(string str)
-        {
-            var input = Split(str);
-            var result = new double[input.Count];
-            for (int i = 0; i < input.Count; ++i)
-            {
-                if (!TryParse(input[i], out result[i]))
-                {
-                    return null;
-                }
-            }
-
-            return result;
-        }
-        public static List<string> Split(string input)
-        {
-            var result = new List<string>();
-            if (string.IsNullOrEmpty(input))
-            {
-                return result;
-            }
-
-            foreach (string s in input.Split(',', ';'))
-            {
-                if (s.Length != 0)
-                {
-                    result.Add(s);
-                }
-            }
-
-            return result;
-        }
-        public static bool TryParse(string doubleAsString, out double result)
-        {
-            return Double.TryParse(doubleAsString.Trim().Replace(',', '.'), NumberStyles.Any, CultureInfo.InvariantCulture, out result);
-        }
-        public static int AsIntForCompare(double d)
-        {
-            if (d > 0)
-            {
-                return 1;
-            }
-
-            return (d < 0) ? -1 : 0;
-        }
-
-
         /// <summary>
         /// return the modulo of 'x' always in positive range [0, modulo-1]
         /// (even if x is negative)
@@ -1674,6 +1488,5 @@ namespace SharpNet
             int r = x % modulo;
             return r < 0 ? r + modulo : r;
         }
-
     }
 }

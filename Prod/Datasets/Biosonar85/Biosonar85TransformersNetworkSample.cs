@@ -1,15 +1,19 @@
 ﻿using SharpNet.GPU;
 using SharpNet.Layers;
 using SharpNet.Networks;
+// ReSharper disable FieldCanBeMadeReadOnly.Global
+// ReSharper disable MemberCanBePrivate.Global
 
 namespace SharpNet.Datasets.Biosonar85;
 
 public class Biosonar85TransformersNetworkSample : NetworkSample
 {
+
+    #region Hyper Parameters
     public double batchNorm_momentum = 0.99;
     public bool Use_MaxPooling = false;
     public bool Use_AvgPooling = false;
-
+    #endregion
 
     public override bool FixErrors()
     {
@@ -35,6 +39,7 @@ public class Biosonar85TransformersNetworkSample : NetworkSample
         return true;
     }
 
+    // ReSharper disable once EmptyConstructor
     public Biosonar85TransformersNetworkSample()
     {
     }

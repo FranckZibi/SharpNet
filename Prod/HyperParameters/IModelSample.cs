@@ -1,11 +1,11 @@
 ﻿using SharpNet.Datasets;
 using SharpNet.Models;
-using System.Collections.Generic;
 
 namespace SharpNet.HyperParameters;
 
 public interface IModelSample : ISample
 {
+    // ReSharper disable once UnusedMemberInSuper.Global
     EvaluationMetricEnum GetLoss();
     
     /// <summary>
@@ -13,9 +13,8 @@ public interface IModelSample : ISample
     /// depending on the evaluation metric, higher (ex: Accuracy) or lower (ex: Rmse) may be better
     /// </summary>
     /// <returns></returns>
+    // ReSharper disable once UnusedMemberInSuper.Global
     EvaluationMetricEnum GetRankingEvaluationMetric();
-
-    void FillSearchSpaceWithDefaultValues(IDictionary<string, object> existingHyperParameterValues, AbstractDatasetSample datasetSample);
 
     Model NewModel(AbstractDatasetSample datasetSample, string workingDirectory, string modelName);
 }

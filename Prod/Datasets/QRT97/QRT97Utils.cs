@@ -14,15 +14,16 @@ namespace SharpNet.Datasets.QRT97;
 
 public static class QRT97Utils
 {
-    public const string NAME = "QRT97";
+    private const string NAME = "QRT97";
 
 
     #region public fields & properties
+    // ReSharper disable once UnusedMember.Global
     public static readonly ILog Log = LogManager.GetLogger(typeof(QRT97Utils));
     #endregion
 
     public static string WorkingDirectory => Path.Combine(Utils.ChallengesPath, NAME);
-    public static string DataDirectory => Path.Combine(WorkingDirectory, "Data");
+    private static string DataDirectory => Path.Combine(WorkingDirectory, "Data");
     // ReSharper disable once MemberCanBePrivate.Global
 
     public static string XTrainPath => Path.Combine(DataDirectory, "X_train_NHkHMNU.csv");
@@ -30,7 +31,7 @@ public static class QRT97Utils
     public static string XTestPath => Path.Combine(DataDirectory, "X_test_final.csv");
     public static string YTestRandomPath => Path.Combine(DataDirectory, "y_test_random_final.csv");
 
-    public static Dictionary<string, double> IdToPrediction(string path)
+    private static Dictionary<string, double> IdToPrediction(string path)
     {
         var res = new Dictionary<string, double>();
         var y_pred_df = DataFrame.read_csv(path, true, ColumnNameToType);
@@ -44,12 +45,13 @@ public static class QRT97Utils
     }
 
 
+    // ReSharper disable once UnusedMember.Global
     public static void ReorderColumns()
     {
         for(int i=0;i<2;++i)
         {
             var datasetPath = (i == 0) ? XTrainPath : XTestPath;
-            var dataset = DataFrame.read_csv(datasetPath, true, ColumnNameToType, true); ;
+            var dataset = DataFrame.read_csv(datasetPath, true, ColumnNameToType, true);
             var originalIdOrder = dataset.StringColumnContent("ID");
             var idToRow = new Dictionary<string, int>();
             for (int j = 0; j < originalIdOrder.Length; ++j)
@@ -87,6 +89,7 @@ public static class QRT97Utils
     }
 
 
+    // ReSharper disable once UnusedMember.Global
     public static void BuildStatNormalizeFile()
     {
         var train = DataFrame.read_csv(XTrainPath, true, ColumnNameToType, true);
@@ -120,6 +123,7 @@ public static class QRT97Utils
 
 
 
+    // ReSharper disable once UnusedMember.Global
     public static void Run()
     {
         //ChallengeTools.Retrain(@"C:\Projects\Challenges\QRT97\dump", "E8A881A122", null, 0.8, false);
@@ -149,7 +153,7 @@ public static class QRT97Utils
         return typeof(float);
     }
 
-    public static void LaunchCatBoostHPO(int iterations_min = 10, int iterations_max = 10, int maxAllowedSecondsForAllComputation = 0)
+    private static void LaunchCatBoostHPO(int iterations_min = 10, int iterations_max = 10, int maxAllowedSecondsForAllComputation = 0)
     {
         // ReSharper disable once ConvertToConstant.Local
         var searchSpace = new Dictionary<string, object>
@@ -186,6 +190,7 @@ public static class QRT97Utils
         hpo.Process(t => SampleUtils.TrainWithHyperParameters((ModelAndDatasetPredictionsSample)t, WorkingDirectory, retrainOnFullDatasetIfBetterModelFound, ref bestScoreSoFar), maxAllowedSecondsForAllComputation);
     }
     
+    // ReSharper disable once UnusedMember.Global
     public static (ISample bestSample, IScore bestScore) LaunchLightGBMHPO(int num_iterations_min = 100, int num_iterations_max = 100, int maxAllowedSecondsForAllComputation = 0)
     {
         var searchSpace = new Dictionary<string, object>
@@ -236,6 +241,7 @@ public static class QRT97Utils
 
 
 
+    // ReSharper disable once UnusedMember.Global
     public static (ISample bestSample, IScore bestScore) LaunchSvmHPO(int maxAllowedSecondsForAllComputation = 0)
     {
         var searchSpace = new Dictionary<string, object>
@@ -270,6 +276,7 @@ public static class QRT97Utils
         return (hpo.BestSampleFoundSoFar, hpo.ScoreOfBestSampleFoundSoFar);
     }
     
+    // ReSharper disable once UnusedMember.Global
     public static void LaunchNeuralNetworkHPO(int numEpochs = 10, int maxAllowedSecondsForAllComputation = 0)
     {
         var searchSpace = new Dictionary<string, object>
@@ -280,7 +287,7 @@ public static class QRT97Utils
             
            //related to model
            { "LossFunction", nameof(EvaluationMetricEnum.Mae)},
-           { "RankingEvaluationMetric", nameof(EvaluationMetricEnum.Mae)},
+           { "RankingEvaluationMetric", nameof(EvaluationMetricEnum.SpearmanCorrelation)},
             {"fillna_with_0", true},  //NaN are not supported in Neural Networks
             // Optimizer 
             { "OptimizerType", new[] { "AdamW" } },

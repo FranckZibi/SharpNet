@@ -14,7 +14,7 @@ namespace SharpNet.Datasets.CFM84;
 
 public static class CFM84Utils
 {
-    public const string NAME = "CFM84";
+    private const string NAME = "CFM84";
     #region private fields & properties
     private static readonly ILog Log = LogManager.GetLogger(typeof(CFM84Utils));
     #endregion
@@ -50,7 +50,7 @@ public static class CFM84Utils
         Log.Info($"Average predictions stored in {avgPath}");
     }
 
-    public static float NormalizeReturn(float r)
+    private static float NormalizeReturn(float r)
     {
         if (float.IsNaN(r) || Math.Abs(r)>10000)
         {
@@ -71,7 +71,7 @@ public static class CFM84Utils
         train.to_csv(XTrainPath.Replace(".csv","")+"_normalized.csv");
 
         //we re order the y train dataset so it has the same order as the x train dataset
-        var y_train_dico = CFM84Utils.PredToDico(YTrainPath);
+        var y_train_dico = PredToDico(YTrainPath);
         var y_train_ordered = new List<string>();
         foreach(var sorted_id in train.StringColumnContent("ID"))
         {
