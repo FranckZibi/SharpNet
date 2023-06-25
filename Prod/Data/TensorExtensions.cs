@@ -264,6 +264,25 @@ namespace SharpNet.Data
             return Utils.SameContent(a.ContentAsFloatArray(), b.ContentAsFloatArray(), epsilon, out difference);
         }
 
+
+        public static bool SameHalfFloatContent(Tensor aHalf, Tensor bFloat, double epsilon)
+        {
+            return SameHalfFloatContent(aHalf, bFloat, epsilon, out _);
+        }
+        public static bool SameHalfFloatContent(Tensor aHalf, Tensor bFloat, double epsilon, out string difference)
+        {
+            difference = "";
+            if (!SameShapeContent(aHalf, bFloat, out difference))
+            {
+                return false;
+            }
+            if (aHalf == null || bFloat == null)
+            {
+                return true;
+            }
+            return Utils.SameContent(aHalf.ContentAsHalfArray(), bFloat.ContentAsFloatArray(), epsilon, out difference);
+        }
+
         private static bool SameShapeContent(Tensor a, Tensor b, out string difference)
         {
             difference = "";

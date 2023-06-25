@@ -307,6 +307,9 @@ namespace SharpNet.GPU
             throw new ArgumentException("axis != 0 && axis != 1");
         }
 
+
+
+
         public override void ActivationForward(cudnnActivationMode_t activationType, Tensor activationParameter, Tensor y)
         {
             AssertIsNotDisposed();
@@ -734,6 +737,10 @@ namespace SharpNet.GPU
         public override float[] ContentAsFloatArray()
         {
             return (DeviceContent() as float[]);
+        }
+        public override Half[] ContentAsHalfArray()
+        {
+            return (DeviceContent() as Half[]);
         }
 
         public override Tensor Clone()

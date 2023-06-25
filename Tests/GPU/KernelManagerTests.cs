@@ -39,6 +39,34 @@ namespace SharpNetTests.GPU
             Assert.IsTrue(TensorExtensions.SameFloatContent(resultCpu, resultGpu, 1e-2));
         }
 
+        [Test]
+        public void TestCudaParsingKernelManagerTest()
+        {
+            var cudaSrcCode =
+                " //  y = (x-mean)/volatility" + Environment.NewLine +
+                " __global__ void StandardizeInPlaceByRow(int N, int cols, int pointsByThread, int threadsByRow, float* __restrict x, float* __restrict row_mean, float* __restrict row_variance, float epsilon)"+ Environment.NewLine +
+                "{int idx = blockIdx.x * blockDim.x + threadIdx.x;}" + Environment.NewLine +
+                " __device__ inline float sigmoidf(float x) { return 1.0f / (1 + expf(-x)); "+ Environment.NewLine +
+                " }" + Environment.NewLine + "   __global__ void " + Environment.NewLine +
+                "numpy_sum_RowByRow(int rows, int cols, const float* __restrict x, float* __restrict sum_buffer) " + Environment.NewLine +
+                "{ " + Environment.NewLine +
+                " //test" + Environment.NewLine +
+                " } " + Environment.NewLine;
+            var observedResult = KernelManager.ExtractCudaKernelNames(cudaSrcCode);
+            var expectedResult = new System.Collections.Generic.List<string>{ "StandardizeInPlaceByRow", "numpy_sum_RowByRow" };
+            Assert.AreEqual(expectedResult, observedResult);
+        }
+
+        [Test]
+        public void TestReplaceTemplateWithTargetTypeName()
+        {
+            var srcCode = " void A(int N, T cols, T* pointsByThread, aT threadsByRow, float* T1)";
+            var observedResult = KernelManager.ReplaceTemplateWithTargetTypeName(srcCode, "double");
+            const string expectedResult = " void A(int N, double cols, double* pointsByThread, aT threadsByRow, float* T1)";
+            Assert.AreEqual(expectedResult, observedResult);
+        }
+        
+
         [TestCase(1,1,0,2048,20,32)]
         [TestCase(1,1,1,2048, 20, 32)]
         [TestCase(1,30,30,2048, 20, 32)]

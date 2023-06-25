@@ -1,13 +1,20 @@
-﻿extern "C" {
+﻿#include <cuda_fp16.h>
+
+extern "C" {
+
+	__global__ void Sum(int N, const T* __restrict left, const T* __restrict right, T* __restrict output) {
+		int idx = blockIdx.x * blockDim.x + threadIdx.x;
+		if (idx < N) {
+			output[idx] = left[idx] + right[idx];
+		}
+	}
+
+	
 
 	__device__ inline float sigmoidf(float x) {
 		return 1.0f / (1 + expf(-x));
 	}
 
-    __global__ void Sum(int N, const float* __restrict left, const float* __restrict right, float* __restrict output) {
-		for (int i = blockIdx.x * blockDim.x + threadIdx.x; i < N; i += blockDim.x * gridDim.x)
-			output[i] = left[i] + right[i];
-	}
 
     __global__ void UpdateAdamOptimizer(int N, float beta1, float beta2, float epsilon, float adamW_l2Regularization, float multiplicative_factor,
 				const float* __restrict dW, float* __restrict W,
@@ -65,12 +72,12 @@
             }
 		}
 	}
-	__global__ void numpy_sum_ColByCol(int cols, int rows, const float* __restrict x, float* __restrict sum_buffer) 
+	__global__ void numpy_sum_ColByCol(int cols, int rows, const T* __restrict x, T* __restrict sum_buffer) 
 	{
 		int col = blockIdx.x * blockDim.x + threadIdx.x;
 		if (col < cols) {
 
-			float col_sum = 0.0f;
+			T col_sum = 0;
             for (int row = 0; row< rows; ++row)
             {
 				col_sum += x[row * cols + col];
@@ -79,12 +86,12 @@
 		}
 	}
 
-	__global__ void numpy_sum_RowByRow(int rows, int cols, const float* __restrict x, float* __restrict sum_buffer) 
+	__global__ void numpy_sum_RowByRow(int rows, int cols, const T* __restrict x, T* __restrict sum_buffer) 
 	{
 		int row = blockIdx.x * blockDim.x + threadIdx.x;
 		if (row < rows) {
 
-			float row_sum = 0.0f;
+			T row_sum = 0;
 			int index = row * cols;
             for (int col = 0; col< cols; ++col)
             {
@@ -94,7 +101,6 @@
 			sum_buffer[row] = row_sum;
 		}
 	}
-
 
 	// compute dmean and  dvariance vectors
 	__global__ void LayerNormalizationBackward_dmean_dvariance(int rows, int cols, const float* __restrict x,  const float* __restrict dy,  const float* __restrict gammas,  const float* __restrict mean,  const float* __restrict variance, float epsilon, float* dmean,  float* dvariance) 
@@ -106,7 +112,7 @@
 			float volatility_row = sqrtf(variance_row + epsilon);
 			float dvariance_row = 0;
 			float dmean_row = 0;
-			float sum_x_row_minus_mean = 0.0f;
+			float sum_x_row_minus_mean = 0;
 			int index =row*cols;
 			for (int col = 0; col < cols; ++col)
 			{
@@ -189,7 +195,7 @@
 			if (numClass == 1)
 			{
 				float error = fabsf(yExpectedOneHot[row] - yPredicted[row]);
-				buffer[row] = (error < 0.5f) ? 1.0f : 0.0f;
+				buffer[row] = (error < 0.5f) ? 1 : 0;
 				return;
 			}
 
@@ -204,7 +210,7 @@
 				if (yExpectedOneHot[j] > yExpectedOneHot[maxIndexExpected])
 					maxIndexExpected = j;
 			}
-			buffer[row] = (maxIndexPredicted == maxIndexExpected) ? 1.0f : 0.0f;
+			buffer[row] = (maxIndexPredicted == maxIndexExpected) ? 1 : 0;
 		}
 	}
 
@@ -220,11 +226,11 @@
 				if (yPredicted[startIndex+classIndex] > yPredicted[startIndex+predictedClassIndex])
 					predictedClassIndex = classIndex;
 			}
-			countOk[row] = (predictedClassIndex == expectedClassIndex) ? 1.0f : 0.0f;
+			countOk[row] = (predictedClassIndex == expectedClassIndex) ? 1 : 0;
 		}
 	}
 
-	__global__ void ArgMax(int N, int cols, float* __restrict buffer, const float* __restrict yPredicted) 
+	__global__ void ArgMax(int N, int cols, T* __restrict buffer, const T* __restrict yPredicted) 
 	{
 		int row = blockIdx.x * blockDim.x + threadIdx.x;
 		if (row < N) {
@@ -243,9 +249,9 @@
 	{
 		int subCategoriesFound = 0;
 		int predictedSubCategoryId = -1;
-		float bestPredictedSubCategoryProba = -1.0f;
+		float bestPredictedSubCategoryProba = -1;
 		int expectedSubCategoryId = -1;
-		float bestExpectedSubCategoryProba = -1.0f;
+		float bestExpectedSubCategoryProba = -1;
 		bool isAccurate = true;
 		bool previousIndexWasProba = false;
 
@@ -303,8 +309,8 @@
 		if (i < N) {
 			int nexIndexToCheck = 0;
 			countOk[i] = IsAccuratePredictionForCategoricalCrossentropyWithHierarchy(expected + i * nbCols, predicted + i * nbCols, nbCols, &nexIndexToCheck, 10000000)
-				? 1.0f 
-				: 0.0f;
+				? 1 
+				: 0;
 		}
 	}
 
@@ -344,7 +350,7 @@
 
 		if (probaFound)
 		{
-			float sumExp = 0.0f;
+			float sumExp = 0;
 			for (int i = 0; i < subCategoriesCount; ++i)
 			{
 				int idx = indexesProba[i];
@@ -382,7 +388,7 @@
 			{
 				float dyi = dy[i];
 				float yi = y[i];
-				dx[i] = (fabsf(dyi - 1.0f) < 1e-6) ? (yi * (1 - yi)) : (-yi * dyi);
+				dx[i] = (fabsf(dyi - 1) < 1e-6) ? (yi * (1 - yi)) : (-yi * dyi);
 			}
 			else
 			{
@@ -400,24 +406,24 @@
 		}
 	}
 
-	__global__ void LnGradient(int N, const float* __restrict dY, const float* __restrict X, float* dX)
+	__global__ void LnGradient(int N, const T* __restrict dY, const T* __restrict X, T* dX)
 	{
 		int row = blockIdx.x * blockDim.x + threadIdx.x;
 		if (row < N) {
-			float x = X[row];
+			T x = X[row];
 			dX[row] = dY[row] / x;
 		}
 	}
 
-	__global__ void Set1InMainDiagonal(int nbRows, int nbCols, float *result) 
+	__global__ void Set1InMainDiagonal(int nbRows, int nbCols, T *result) 
 	{
 		int row = blockIdx.x * blockDim.x + threadIdx.x;
 		if (row < nbRows && row < nbCols) {
-			result[row*nbCols+row] = 1.0f;
+			result[row*nbCols+row] = 1;
 		}
 	}
 
-	__global__ void SetAllElementsAboveMainDiagonal(int N, int rows_by_matrix, int cols_by_matrix, float valueForElementsAboveMainDiagonal, float *result) 
+	__global__ void SetAllElementsAboveMainDiagonal(int N, int rows_by_matrix, int cols_by_matrix, T valueForElementsAboveMainDiagonal, T *result) 
 	{
 		int current = blockIdx.x * blockDim.x + threadIdx.x;
 		if (current<N) {
@@ -430,7 +436,7 @@
 		}
 	}
 
-	__global__ void SetToZeroAllElementsBelowMainDiagonal(int nbRows, int nbCols, float *result) 
+	__global__ void SetToZeroAllElementsBelowMainDiagonal(int nbRows, int nbCols, T *result) 
 	{
 		int row = blockIdx.x * blockDim.x + threadIdx.x;
 		if (row < nbRows) {
@@ -438,18 +444,18 @@
 			int last_i = min(row, nbCols);
 			for(int i=0;i<last_i;++i)
 			{
-				result[i] = 0.0f;
+				result[i] = 0;
 			}
 		}
 	}
 
-	__global__ void MultiplyEachRowIntoSingleValue(int nbRows, int nbCols, float *result, const float* __restrict a, const float* __restrict b) 
+	__global__ void MultiplyEachRowIntoSingleValue(int nbRows, int nbCols, T *result, const T* __restrict a, const T* __restrict b) 
 	{
 		int row = blockIdx.x * blockDim.x + threadIdx.x;
 		if (row < nbRows) {
 			a += row*nbCols;
 			b += row*nbCols;
-			float sumInRow = 0;
+			T sumInRow = 0;
 			for(int i=0;i<nbCols;++i)
 			{
 				sumInRow += (*a)*(*b);
@@ -477,7 +483,7 @@
     //		h_dest = top_pad + h_src + bottom_pad;
     //      w_dest = left_pad + w_src + right_pad;
 	// N = n*c*h_src = number of distinct rows in 'src' tensor
-	__global__ void ApplyZeroPaddingForRowId(int N, int h_src, int w_src, int top_pad, int bottom_pad, int left_pad, int right_pad, float* paddedTensor, float* unpaddedTensor, bool isUnpadding) 
+	__global__ void ApplyZeroPaddingForRowId(int N, int h_src, int w_src, int top_pad, int bottom_pad, int left_pad, int right_pad, T* paddedTensor, T* unpaddedTensor, bool isUnpadding) 
 	{
 		// 'rowId' is the index of the row in 'src' tensor (0 <= rowId < N with N=n*c*h_src)
 		int rowId = blockIdx.x * blockDim.x + threadIdx.x;
@@ -489,9 +495,9 @@
             int destRowIdx = ((rowId / h_src) * h_dest + row_in + top_pad) * w_dest + left_pad;
             int rowIdx = rowId * w_src;
 			if (isUnpadding)
-				memcpy(unpaddedTensor+rowIdx, paddedTensor+destRowIdx, sizeof(float)*w_src);
+				memcpy(unpaddedTensor+rowIdx, paddedTensor+destRowIdx, sizeof(T)*w_src);
 			else
-				memcpy(paddedTensor+destRowIdx, unpaddedTensor+rowIdx, sizeof(float)*w_src);
+				memcpy(paddedTensor+destRowIdx, unpaddedTensor+rowIdx, sizeof(T)*w_src);
 		}
 	}
 
@@ -557,7 +563,7 @@
 		{
 			memcpy(dx + dxIndex-copyCountBeforeIndex, dy + dyIndex-copyCountBeforeIndex, sizeof(float) * copyCountBeforeIndex);
 		}
-		dx[dxIndex] = 0.0f;
+		dx[dxIndex] = 0;
 		//for the current timeStep, we copy the elements from 'dy' to 'dx' after 'indexInLastDimensionToUse'
 		if (copyCountAfterIndex > 0)
 		{
@@ -618,13 +624,13 @@
 	// src tensor (tensor before up sampling) has shape (n, c, h_src, w_src)
 	// dest tensor (tensor after upsampling) has shape (n, c, rowFactor*h_src, colFactor*w_dest)
 	// isUpscaling : true if we are up sampling (from 'src' to 'dest') / false if we are down sampling (from 'dest' to 'src')
-	__global__ void UpSampling2D(int N, int channels, int h_src, int w_src, int rowFactor, int colFactor, float* src, float* dest, bool isUpscaling) 
+	__global__ void UpSampling2D(int N, int channels, int h_src, int w_src, int rowFactor, int colFactor, T* src, T* dest, bool isUpscaling) 
 	{
 		int srcIndex = blockIdx.x * blockDim.x + threadIdx.x;
 		if (srcIndex < N) {
 			int h_dest = h_src * rowFactor;
 			int w_dest = w_src * colFactor;
-			float originalElement = src[srcIndex];
+			T originalElement = src[srcIndex];
 			int srcIndexbackup = srcIndex;
 	
 			int elementId = srcIndex / (channels*h_src*w_src);
@@ -634,7 +640,7 @@
 			int row_src = srcIndex / (w_src);
 			int col_src = srcIndex %(w_src);
 			srcIndex = srcIndexbackup;
-			float sum = 0; //only used when down sampling (isUpscaling = false)
+			T sum = 0; //only used when down sampling (isUpscaling = false)
 
 			int startOfRow = elementId*(channels*h_dest*w_dest)+channel*(h_dest*w_dest)+ row_src*rowFactor *w_dest + col_src* colFactor;
 			for(int rowOffset=0;rowOffset<rowFactor;++rowOffset)
@@ -659,7 +665,7 @@
 	{
 		int i = blockIdx.x * blockDim.x + threadIdx.x;
 		if (i < N) {
-			float loss = 0.0f;
+			float loss = 0;
 			int startIndex = i * numClass;
 			int endIndexExcluded = startIndex + numClass;
 			for (int j = startIndex; j < endIndexExcluded; ++j)
@@ -667,7 +673,7 @@
 				float predicted = yPredicted[j];
 				float expected = yExpectedOneHot[j];
 				//if ((predicted>0.01)&&(predicted<0.99f))
-				if ((predicted > 0.0f) && (predicted < 1.0f))
+				if ((predicted > 0) && (predicted < 1))
 					loss -= (expected * logf(predicted) + (1.0f - expected) * logf(1.0f - predicted)) / numClass;
 			}
 			lossBuffer[i] = loss;
@@ -678,7 +684,7 @@
 	{
 		int i = blockIdx.x * blockDim.x + threadIdx.x;
 		if (i < N) {
-			float loss = 0.0f;
+			float loss = 0;
 			int startIndex = i * nummClass;
 			int endIndexExcluded = startIndex + nummClass;
 			for (int j = startIndex; j < endIndexExcluded; ++j)
@@ -697,7 +703,7 @@
 	{
 		int i = blockIdx.x * blockDim.x + threadIdx.x;
 		if (i < N) {
-			float loss = 0.0f;
+			float loss = 0;
 			int startIndex = i * nbCols;
 			int endIndexExcluded = startIndex + nbCols;
 			for (int j = startIndex; j < endIndexExcluded; ++j)
@@ -761,7 +767,7 @@
 		if (i < batchSize) {
 			int startIndex = i * lineSize;
 			int endIndexExcluded = startIndex + lineSize;
-			float loss = 0.0f;
+			float loss = 0;
 			for (int j = startIndex; j < endIndexExcluded; ++j)
 			{
 				float diff = yExpected[j] - yPredicted[j];
@@ -794,7 +800,7 @@
 		if (i < batchSize) {
 			int startIndex = i * lineSize;
 			int endIndexExcluded = startIndex + lineSize;
-			float loss = 0.0f;
+			float loss = 0;
 			for (int j = startIndex; j < endIndexExcluded; ++j)
 			{
 				float diff = yExpected[j] - yPredicted[j];
@@ -840,7 +846,7 @@
 				sparseCategoricalCrossentropyGradient[j] = yPredicted[j];
 			}
             int yClass = (int)(yExpectedSparseMatrix[i]+0.1f);
-            sparseCategoricalCrossentropyGradient[i * numClass + yClass] -= 1.0f;
+            sparseCategoricalCrossentropyGradient[i * numClass + yClass] -= 1;
 		}
 	}
 
@@ -848,9 +854,9 @@
 	{
 		int day = blockIdx.x * blockDim.x + threadIdx.x;
 		if (day < timeSeriesLength) {
-			float top = 0.0f;
-            float expectedSquares = 0.0f;
-            float predictedSquares = 0.0f;
+			float top = 0;
+            float expectedSquares = 0;
+            float predictedSquares = 0;
             for (int t = day; t < yExpectedLength; t+= timeSeriesLength)
             {
                 float pred = yPredicted[t];
@@ -897,7 +903,7 @@
 		if (i < batchSize) {
 			int startIndex = i * lineSize;
 			int endIndexExcluded = startIndex + lineSize;
-			float loss = 0.0f;
+			float loss = 0;
 			for (int j = startIndex; j < endIndexExcluded; ++j)
 			{
 				float diff = logf(1+yPredicted[j]) - logf(1+yExpected[j]);
@@ -913,7 +919,7 @@
 		if (i < batchSize) {
 			int startIndex = i * lineSize;
 			int endIndexExcluded = startIndex + lineSize;
-			float loss = 0.0f;
+			float loss = 0;
 			for (int j = startIndex; j < endIndexExcluded; ++j)
 			{
 				float adjustedPredicted = fmaxf(epsilon, yPredicted[j]);
@@ -947,7 +953,7 @@
 		if (i < batchSize) {
 			int startIndex = i * lineSize;
 			int endIndexExcluded = startIndex + lineSize;
-			float loss = 0.0f;
+			float loss = 0;
 			for (int j = startIndex; j < endIndexExcluded; ++j)
 			{
 				float diff = yExpected[j] - yPredicted[j];
@@ -966,14 +972,14 @@
 			for (int j = startIndex; j < endIndexExcluded; ++j)
 			{
 				float diff = yPredicted[j] - yExpected[j];
-				mseGradient[j] = (diff>=0?1.0f:-1.f) / lineSize;
+				mseGradient[j] = (diff>=0?1:-1.f) / lineSize;
 			}
 		}
 	}
 
 
 	// Compute:  y = slope * x + intercept
-	__global__ void LinearFunction(int N, float* y, float slope, const float* x, float intercept)
+	__global__ void LinearFunction(int N, T* y, T slope, const T* x, T intercept)
 	{
 		int i = blockIdx.x * blockDim.x + threadIdx.x;
 		if (i < N)
@@ -982,7 +988,7 @@
 		}
 	}
 
-	__global__ void Concatenate(int N, int m, float* __restrict concat, int concatMultDim0, const float* __restrict a, int aMultDim0, const float* __restrict b, int bMultDim0)
+	__global__ void Concatenate(int N, int m, T* __restrict concat, int concatMultDim0, const T* __restrict a, int aMultDim0, const T* __restrict b, int bMultDim0)
 	{
 		int i = blockIdx.x * blockDim.x + threadIdx.x;
 		if (i >= N)  return;
@@ -995,7 +1001,7 @@
 
 	}
 
-	__global__ void Concatenate3(int N, int m, float* __restrict concat, int concatMultDim0, const float* __restrict a, int aMultDim0, const float* __restrict b, int bMultDim0, const float* __restrict c, int cMultDim0)
+	__global__ void Concatenate3(int N, int m, T* __restrict concat, int concatMultDim0, const T* __restrict a, int aMultDim0, const T* __restrict b, int bMultDim0, const T* __restrict c, int cMultDim0)
 	{
 		int i = blockIdx.x * blockDim.x + threadIdx.x;
 		if (i >= N)  return;
@@ -1008,7 +1014,7 @@
 	}
 
 
-	__global__ void Split(int N, int m, const float* __restrict concat, int concatMultDim0, float* __restrict a, int aMultDim0, float* __restrict b, int bMultDim0)
+	__global__ void Split(int N, int m, const T* __restrict concat, int concatMultDim0, T* __restrict a, int aMultDim0, T* __restrict b, int bMultDim0)
 	{
 		int i = blockIdx.x * blockDim.x + threadIdx.x;
 		if (i >= N)  return;
@@ -1020,7 +1026,7 @@
 			b[row*bMultDim0+colInConcat-aMultDim0] = concat[i];
 	}
 
-	__global__ void Split3(int N, int m, const float* __restrict concat, int concatMultDim0, float* __restrict a, int aMultDim0, float* __restrict b, int bMultDim0, float* __restrict c, int cMultDim0)
+	__global__ void Split3(int N, int m, const T* __restrict concat, int concatMultDim0, T* __restrict a, int aMultDim0, T* __restrict b, int bMultDim0, T* __restrict c, int cMultDim0)
 	{
 		int i = blockIdx.x * blockDim.x + threadIdx.x;
 		if (i >= N)  return;
@@ -1035,7 +1041,7 @@
 	}
 
 	// transform a 'src' tensor of shape [a,b,c] to a 'target' tensor of shape [b,a,c] 
-	__global__ void Switch_First_2_axis(int N, int aLength, int bLength, int cLength, const float* __restrict src, float *target)
+	__global__ void Switch_First_2_axis(int N, int aLength, int bLength, int cLength, const T* __restrict src, T *target)
 	{
 		int idx_src = blockIdx.x * blockDim.x + threadIdx.x;
 		if (idx_src < N) {
@@ -1050,7 +1056,7 @@
 	}
 
 	// transform a 'src' tensor of shape [n,c,h] to a 'target' tensor of shape [n,h,c] 
-	__global__ void SwitchSecondAndThirdDimension(int N, int nLength, int cLength, int hLength, const float* __restrict src, float* target)
+	__global__ void SwitchSecondAndThirdDimension(int N, int nLength, int cLength, int hLength, const T* __restrict src, T* target)
 	{
 		int i = blockIdx.x * blockDim.x + threadIdx.x;
 		if (i >= N)
@@ -1082,7 +1088,7 @@
 	}
 
 	// transform a 'src' tensor of shape >= 3 [A,B,C,*] to a 'target' tensor of shape [A,C,B,*] 
-	__global__ void TransposeSecondAndThirdDimension_V1(int N, int B, int C, int D, const float* __restrict src, float* target)
+	__global__ void TransposeSecondAndThirdDimension_V1(int N, int B, int C, int D, const T* __restrict src, T* target)
 	{
 
 		int src_index = blockIdx.x * blockDim.x + threadIdx.x;
@@ -1100,7 +1106,7 @@
 	}
 
 	// transform a 'src' tensor of shape >= 3 [A,B,C,*] to a 'target' tensor of shape [A,C,B,*] 
-	__global__ void TransposeSecondAndThirdDimension_V2(int N, int B, int C, int D, const float* __restrict src, float* target)
+	__global__ void TransposeSecondAndThirdDimension_V2(int N, int B, int C, int D, const T* __restrict src, T* target)
 	{
 		int abc = blockIdx.x * blockDim.x + threadIdx.x;
 		if (abc >= N)
@@ -1117,7 +1123,7 @@
 	}
 
 	// transform a 'src' tensor of shape >= 3 [A,B,C,*] to a 'target' tensor of shape [A,C,B,*] 
-	__global__ void TransposeSecondAndThirdDimension_V3(int N, int B, int C, int D, const float* __restrict src, float* target)
+	__global__ void TransposeSecondAndThirdDimension_V3(int N, int B, int C, int D, const T* __restrict src, T* target)
 	{
 		int ab = blockIdx.x * blockDim.x + threadIdx.x;
 		if (ab >= N)

@@ -991,6 +991,11 @@ namespace SharpNet
             return SameContent(a, b, epsilon, out _);
         }
 
+        public static bool SameContent(Half[] a, float[] b, double epsilon, out string difference)
+        {
+            return SameContent(a.Select(h => (float)h).ToArray(), b, epsilon, out difference);
+        }
+
         public static bool SameContent(float[] a, float[] b, double epsilon, out string difference)
         {
             difference = "";

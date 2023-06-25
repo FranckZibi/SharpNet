@@ -17,7 +17,6 @@ using static SharpNet.GPU.GPUWrapper;
 
 namespace SharpNet.CPU
 {
-
     public unsafe class CpuTensor<T> : Tensor
     {
         #region fields
@@ -1705,6 +1704,12 @@ namespace SharpNet.CPU
         {
             return AsFloatCpuSpan.ToArray();
         }
+
+        public override Half[] ContentAsHalfArray()
+        {
+            return AsHalfCpuSpan.ToArray();
+        }
+
 
         public override Tensor Clone()
         {
@@ -3411,6 +3416,5 @@ namespace SharpNet.CPU
             }
             return new CpuTensor<float>(shape, buffer);
         }
-
     }
 }

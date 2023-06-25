@@ -1,5 +1,8 @@
 ﻿using System;
+using System.Linq;
+using System.Runtime.InteropServices;
 using System.Text;
+using JetBrains.Annotations;
 using SharpNet.Data;
 
 namespace SharpNet.GPU
@@ -19,11 +22,21 @@ namespace SharpNet.GPU
 			var res = _nvrtcWrapper.nvrtcCreateProgram(out _programHandle, src, name, 0, null, null);
             GPUWrapper.CheckStatus(res);
 	    }
-	    public void Compile()
-	    {
-	        var res = _nvrtcWrapper.nvrtcCompileProgram(_programHandle, 0, null);
-	        GPUWrapper.CheckStatus(res);
-	        res = _nvrtcWrapper.nvrtcGetPTXSize(_programHandle, out size_t ptxSize);
+	    public void Compile([NotNull] string[] options)
+        {
+            var optionsPtr = options.Select(Marshal.StringToHGlobalAnsi).ToArray();
+            nvrtcResult res;
+            try
+            {
+                res = _nvrtcWrapper.nvrtcCompileProgram(_programHandle, options.Length, optionsPtr);
+            }
+            finally
+            {
+                Array.ForEach(optionsPtr, Marshal.FreeHGlobal);
+            }
+
+            GPUWrapper.CheckStatus(res);
+            res = _nvrtcWrapper.nvrtcGetPTXSize(_programHandle, out var ptxSize);
 	        GPUWrapper.CheckStatus(res);
 	        FatBinaryObject = new byte[ptxSize];
 	        res = _nvrtcWrapper.nvrtcGetPTX(_programHandle, FatBinaryObject);

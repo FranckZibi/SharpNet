@@ -190,9 +190,11 @@ namespace SharpNet.Data
         public int Dimension => Shape.Length;
         protected ulong ReallyNeededMemoryInBytesForShape(int[] shape) { return (ulong)Utils.Product(shape) * (ulong)TypeSize; }
         public CpuTensor<float> AsFloatCpu => AsCpu<float>();
+        public CpuTensor<Half> AsHalfCpu => AsCpu<Half>();
         public CpuTensor<string> AsStringCpu => AsCpu<string>();
         public CpuTensor<int> AsIntCpu => AsCpu<int>();
         public Span<float> AsFloatCpuSpan => AsFloatCpu.SpanContent;
+        public Span<Half> AsHalfCpuSpan => AsHalfCpu.SpanContent;
         public float*  AsFloatPointer => (float*)AsFloatCpu.Pointer;
 
         public ReadOnlySpan<float> AsReadonlyFloatCpuSpan => AsCpu<float>().ReadonlyContent;
@@ -1383,6 +1385,7 @@ namespace SharpNet.Data
         /// <param name="sameValue"></param>
         public abstract void SetValue(float sameValue);
         public abstract float[] ContentAsFloatArray();
+        public abstract Half[] ContentAsHalfArray();
 
         // ReSharper disable once UnusedMemberInSuper.Global
         public abstract Tensor Clone();

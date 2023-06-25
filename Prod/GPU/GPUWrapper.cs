@@ -59,7 +59,8 @@ namespace SharpNet.GPU
         public StreamWrapper DefaultStream { get; }
         public int MaxThreadsPerBlock { get; }
         public int MultiProcessorCount { get; }
-
+        public int ComputeCapabilityMajor { get; }
+        public int ComputeCapabilityMinor { get; }
         public int ThreadsByMultiprocessor { get; }
 
 
@@ -133,8 +134,8 @@ namespace SharpNet.GPU
             MaxThreadsPerBlock = properties[CUdevice_attribute.CU_DEVICE_ATTRIBUTE_MAX_THREADS_PER_BLOCK];
             MultiProcessorCount = properties[CUdevice_attribute.CU_DEVICE_ATTRIBUTE_MULTIPROCESSOR_COUNT];
             WarpSize = properties[CUdevice_attribute.CU_DEVICE_ATTRIBUTE_WARP_SIZE];
-
-
+            ComputeCapabilityMajor = properties[CUdevice_attribute.CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MAJOR];
+            ComputeCapabilityMinor = properties[CUdevice_attribute.CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MINOR];
             ThreadsByMultiprocessor = 128; //!D TODO
 
             DefaultStream = new StreamWrapper();
