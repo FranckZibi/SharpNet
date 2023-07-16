@@ -55,7 +55,7 @@ namespace SharpNet
         /// <summary>
         /// To be used with sigmoid activation layer.
         /// In a single row, each value will be in [0,1] range
-        /// Support of multi labels (one element can belong to several categoryCount at the same time)
+        /// Support of multi labels (one element can belong to several numClass at the same time)
         /// </summary>
         BinaryCrossentropy, // ok for loss, lower is better
 

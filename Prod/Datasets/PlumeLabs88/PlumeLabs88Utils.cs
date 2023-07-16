@@ -174,8 +174,6 @@ public static class PlumeLabs88Utils
         Utils.ConfigureGlobalLog4netProperties(WorkingDirectory, "log");
         Utils.ConfigureThreadLog4netProperties(WorkingDirectory, "log");
 
-        //ChallengeTools.Retrain(@"C:\Projects\Challenges\PlumeLabs88\dump", "543E24B90E", null, 0.9, false);
-
         //using var m = ModelAndDatasetPredictions.Load(@"C:\Projects\Challenges\PlumeLabs88\dump", "C8C8A2D3E2", true);
         //(_, _, DataFrame predictionsInTargetFormat, _, _) =  m.DatasetSample.ComputePredictionsAndRankingScoreV2(m.DatasetSample.TestDataset(), m.Model, false, true);
         //predictionsInTargetFormat.to_csv("c:/temp/toto.csv");
@@ -185,7 +183,7 @@ public static class PlumeLabs88Utils
 
         //ChallengeTools.ComputeAndSaveFeatureImportance(@"C:\Projects\Challenges\PlumeLabs88\Submit", "9B9DFA97F2_KFOLD_FULL");
         //ChallengeTools.EstimateLossContribution(@"C:\Projects\Challenges\PlumeLabs88\dump", "D885B11678");
-        ChallengeTools.Retrain(@"C:\Projects\Challenges\PlumeLabs88\dump", "EE3EB20488", n_splits:null, percentageInTraining:0.9, retrainOnFullDataset:false);
+        ChallengeTools.Retrain(@"C:\Projects\Challenges\PlumeLabs88\dump", "8D8FEBFE79", n_splits: null, percentageInTraining: 0.9, retrainOnFullDataset: false);
 
         //ComputeStats();
         //Launch_HPO(10);

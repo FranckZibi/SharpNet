@@ -56,21 +56,49 @@ namespace SharpNet.DataAugmentation.Operations
             return new CutMix(rowStart, rowEnd, colStart, colEnd, indexInMiniBatchForCutMix, xOriginalMiniBatch);
         }
 
+
+        public float CutMixLambda
+        {
+            get
+            {
+                int nbRows = _xOriginalMiniBatch.Shape[2];
+                int nbCols = _xOriginalMiniBatch.Shape[3];
+                float cutMixLambda = 1f - ((float)((_rowEnd - _rowStart + 1) * (_colEnd - _colStart + 1))) / (nbCols * nbRows);
+                return cutMixLambda;
+            }
+        }
+
         public override void UpdateY(CpuTensor<float> yMiniBatch, int indexInMiniBatch, Func<int, int> indexInMiniBatchToCategoryIndex)
         {
-            int nbRows = _xOriginalMiniBatch.Shape[2];
-            int nbCols = _xOriginalMiniBatch.Shape[3];
-
             // if CutMix has been used, wee need to update the expected output ('y' tensor)
+            
+
+            //special case:  when the y tensor is of shape (batchSizae, 1)
+            if (yMiniBatch.Shape.Length == 2 && yMiniBatch.Shape[1] == 1)
+            {
+                var originalValue = yMiniBatch.Get(indexInMiniBatch, 0);
+                var cutMixValue = yMiniBatch.Get(_indexInMiniBatchForCutMix, 0);
+                if (originalValue != cutMixValue)
+                {
+                    var cutMixLambda = CutMixLambda;
+                    // We need to update the expected y value at 'indexInMiniBatch':
+                    // the udpated y value is:
+                    //      'cutMixLambda' * y value of the element at 'indexInMiniBatch'
+                    //      +'1-cutMixLambda' * y value of the element at 'indexInMiniBatchForCutMix'
+                    yMiniBatch.Set(indexInMiniBatch, 0, cutMixLambda * originalValue + (1 - cutMixLambda) * cutMixValue);
+                }
+                return;
+            }
+
             var originalCategoryIndex = indexInMiniBatchToCategoryIndex(indexInMiniBatch);
             var cutMixCategoryIndex = indexInMiniBatchToCategoryIndex(_indexInMiniBatchForCutMix);
             if (originalCategoryIndex != cutMixCategoryIndex)
             {
-                float cutMixLambda = 1f - ((float)((_rowEnd - _rowStart + 1) * (_colEnd - _colStart + 1))) / (nbCols * nbRows);
                 // We need to update the expected y using CutMix lambda
                 // the associated y is:
                 //        'cutMixLambda' % of the category of the element at 'indexInMiniBatch'
                 //      '1-cutMixLambda' % of the category of the element at 'indexInMiniBatchForCutMix'
+                var cutMixLambda = CutMixLambda;
                 yMiniBatch.Set(indexInMiniBatch, originalCategoryIndex, cutMixLambda);
                 yMiniBatch.Set(indexInMiniBatch, cutMixCategoryIndex, 1f - cutMixLambda);
             }

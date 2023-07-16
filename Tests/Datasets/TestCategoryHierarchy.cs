@@ -111,9 +111,7 @@ namespace SharpNetTests.Datasets
                 elementIdToCategoryIndex.Add(-1);
             }
 
-            int nbCategories = hierarchy.RootPrediction().Length;
-            var categoryDescriptions = Enumerable.Range(0, nbCategories).Select(i => i.ToString()).ToArray();
-
+            int numClass = hierarchy.RootPrediction().Length;
             return new DirectoryDataSet(
                 elementIdToPaths,
                 elementIdToCategoryIndex,
@@ -121,9 +119,10 @@ namespace SharpNetTests.Datasets
                 path,
                 Objective_enum.Classification,
                 3,
-                categoryDescriptions,
+                numClass,
                 CancelDatabase.CancelMeanAndVolatilityForEachChannel,
                 ResizeStrategyEnum.BiggestCropInOriginalImageToKeepSameProportion,
+                null,
                 null,
                 null);
         }

@@ -76,7 +76,7 @@ namespace SharpNet.Networks
                 sample,
                 nameof(DenseNet_12_40) + "_" + CIFAR10DataSet.NAME,
                 new[] { 1, CIFAR10DataSet.Shape_CHW[0], CIFAR10DataSet.Shape_CHW[1], CIFAR10DataSet.Shape_CHW[2]},
-                CIFAR10DataSet.CategoryCount,
+                CIFAR10DataSet.NumClass,
                 false,
                 new[] { 12, 12, 12 },
                 false,
@@ -90,7 +90,7 @@ namespace SharpNet.Networks
                 sample,
                 nameof(DenseNetBC_12_100) + "_" + CIFAR10DataSet.NAME,
                 new[] { 1, CIFAR10DataSet.Shape_CHW[0], CIFAR10DataSet.Shape_CHW[1], CIFAR10DataSet.Shape_CHW[2] },
-                CIFAR10DataSet.CategoryCount,
+                CIFAR10DataSet.NumClass,
                 false,
                 new[] { 32 / 2, 32 / 2, 32 / 2 },
                 true,
@@ -105,7 +105,7 @@ namespace SharpNet.Networks
         /// <param name="sample"></param>
         /// <param name="networkName"></param>
         /// <param name="xShape"></param>
-        /// <param name="categoryCount"></param>
+        /// <param name="numClass"></param>
         /// <param name="subSampleInitialBlock"></param>
         /// <param name="nbConvBlocksInEachDenseBlock"></param>
         /// <param name="useBottleneckInEachConvBlock"></param>
@@ -117,7 +117,7 @@ namespace SharpNet.Networks
             NetworkSample sample,
             string networkName,
             int[] xShape, 
-            int categoryCount,
+            int numClass,
             bool subSampleInitialBlock,
             int[] nbConvBlocksInEachDenseBlock,
             bool useBottleneckInEachConvBlock,
@@ -161,8 +161,8 @@ namespace SharpNet.Networks
                 .BatchNorm(0.99, 1e-5)
                 .Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU)
                 .GlobalAvgPooling()
-                //.Dense(categoryCount, 0.0) //!D check if lambdaL2Regularization should be 0
-                .Dense(categoryCount, lambdaL2Regularization, false)
+                //.Dense(numClass, 0.0) //!D check if lambdaL2Regularization should be 0
+                .Dense(numClass, lambdaL2Regularization, false)
                 .Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
             return net;
         }

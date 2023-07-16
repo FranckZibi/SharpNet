@@ -392,7 +392,7 @@ namespace SharpNet.Datasets
         {
             var categoryNameToCount = new ConcurrentDictionary<string,int>();
             var elementIdToPaths = new List<List<string>>();
-            var rowInTargetFormatPredictionToID = new List<string>();
+            var y_IDs = new List<string>();
             var elementIdToCategoryIndex = new List<int>();
             var entries = _database.Values.Where(e => !e.IsRemoved && accept(e))
                 .OrderBy(e => e.SHA1).ToArray();
@@ -400,7 +400,7 @@ namespace SharpNet.Datasets
             while (elementIdToPaths.Count < entries.Length)
             {
                 elementIdToPaths.Add(null);
-                rowInTargetFormatPredictionToID.Add(null);
+                y_IDs.Add(null);
                 elementIdToCategoryIndex.Add(-1);
             }
 
@@ -420,7 +420,7 @@ namespace SharpNet.Datasets
                     categoryNameToCount[categoryName] = 1;
                 }
                 elementIdToPaths[elementId] = new List<string> {entry.Path(_rootPath)};
-                rowInTargetFormatPredictionToID[elementId] = entry.SHA1;
+                y_IDs[elementId] = entry.SHA1;
                 elementIdToCategoryIndex[elementId] = -1;
                 var elementPrediction = Hierarchy.ExpectedPrediction(categoryPath);
                 Debug.Assert(elementPrediction != null);
@@ -432,21 +432,22 @@ namespace SharpNet.Datasets
             }
             Parallel.For(0, entries.Length, Process);
 
-            Log.Debug("found "+ rowInTargetFormatPredictionToID.Count+" elements");
+            Log.Debug("found "+ y_IDs.Count+" elements");
             //Log.Info(string.Join(Environment.NewLine, categoryNameToCount.OrderBy(e=>e.Key).Select(e=>e.Key +" : "+e.Value)));
-            var categoryDescription = Enumerable.Range(0, yExpected.Shape[1]).Select(i=>i.ToString()).ToArray();
+            int numClass = yExpected.Shape[1];
             return new DirectoryDataSet(
                 elementIdToPaths, 
                 elementIdToCategoryIndex, 
                 yExpected, 
                 "Cancel", 
                 Objective_enum.Classification,
-                3, 
-                categoryDescription,
+                3,
+                numClass,
                 CancelMeanAndVolatilityForEachChannel,
                 resizeStrategy,
                 null,
-                rowInTargetFormatPredictionToID.ToArray());
+                null,
+                y_IDs.ToArray());
         }
         
         public static readonly List<Tuple<float, float>> CancelMeanAndVolatilityForEachChannel = new List<Tuple<float, float>> { Tuple.Create(147.02734f, 60.003986f), Tuple.Create(141.81636f, 51.15815f), Tuple.Create(130.15608f, 48.55502f) };

@@ -53,13 +53,16 @@ namespace SharpNet.Datasets
         [NotNull] public string[] ColumnNames { get; }
         [NotNull] public string[] CategoricalFeatures { get; }
         [CanBeNull] public string[] Y_IDs { get; }
-
-
+        /// <summary>
+        /// the type of use of the dataset : Regression or Classification
+        /// </summary>
+        public Objective_enum Objective { get; }
+        public string Name { get; }
+        public ResizeStrategyEnum ResizeStrategy { get; }
         /// <summary>
         /// name of the Id Column, null or empty if no Id columns are available
         /// </summary>
         [NotNull] public string IdColumn { get; }
-
         public char Separator { get; }
         #endregion
 
@@ -71,7 +74,7 @@ namespace SharpNet.Datasets
             [NotNull] string[] columnNames,
             [NotNull] string[] categoricalFeatures,
             string idColumn,
-            [CanBeNull] string[] yIDs,
+            [CanBeNull] string[] y_IDs,
             char separator)
         {
             Name = name;
@@ -81,7 +84,7 @@ namespace SharpNet.Datasets
             ColumnNames = columnNames;
             Separator = separator;
             IdColumn = idColumn;
-            Y_IDs = yIDs;
+            Y_IDs = y_IDs;
 
             _rands = new Random[2 * Environment.ProcessorCount];
             for (int i = 0; i < _rands.Length; ++i)
@@ -99,13 +102,7 @@ namespace SharpNet.Datasets
         }
         #endregion
 
-        /// <summary>
-        /// the type of use of the dataset : Regression or Classification
-        /// </summary>
-        public Objective_enum Objective { get; }
-
-        protected bool IsRegressionProblem => Objective == Objective_enum.Regression;
-
+        #region abstract methods that must be implemetned
         /// <summary>
         /// Load the element 'elementId' in the buffer 'buffer' at index 'indexInBuffer'
         /// </summary>
@@ -117,17 +114,20 @@ namespace SharpNet.Datasets
         /// <param name="isTraining"></param>
         public abstract void LoadAt(int elementId, int indexInBuffer, [CanBeNull] CpuTensor<float> xBuffer,
             [CanBeNull] CpuTensor<float> yBuffer, bool withDataAugmentation, bool isTraining);
-
-        protected virtual void LoadAt(int elementId, int indexInBuffer, [NotNull] List<CpuTensor<float>> xBuffers,
-            [CanBeNull] CpuTensor<float> yBuffer, bool withDataAugmentation, bool isTraining)
-        {
-            if (xBuffers!=null && xBuffers.Count != 1)
-            {
-                throw new ArgumentException("only 1 InputLayer is supported, received "+xBuffers.Count);
-            }
-            LoadAt(elementId, indexInBuffer, xBuffers[0], yBuffer, withDataAugmentation, isTraining);
-        }
         public abstract int[] Y_Shape();
+        /// <summary>
+        /// number of elements in DataSet
+        /// </summary>
+        public abstract int Count { get; }
+        /// <summary>
+        /// retrieve the category associated with a specific element
+        /// </summary>
+        /// <param name="elementId">the id of the element, int the range [0, Count-1] </param>
+        /// <returns>the associated category id, or -1 if the category is not known</returns>
+        public abstract int ElementIdToCategoryIndex(int elementId);
+        #endregion
+
+
         public virtual CpuTensor<float> LoadFullY()
         {
             var yBuffer = new CpuTensor<float>(Y_Shape());
@@ -155,7 +155,7 @@ namespace SharpNet.Datasets
         /// <param name="firstIndexInShuffledElementId"></param>
         /// <param name="dataAugmentationSample"></param>
         /// <param name="all_xMiniBatches"></param>
-        /// <param name="yMiniBatch">buffer where all categoryCount (associated with the mini batch) will be stored</param>
+        /// <param name="yMiniBatch">buffer where all predictions (associated with the mini batch) will be stored</param>
         /// <returns>number of actual items loaded,
         /// in range [1, miniBatchSize ]
         ///     with xMiniBatch.Shape[0] = xMiniBatch.Shape[0] </returns>
@@ -258,11 +258,11 @@ namespace SharpNet.Datasets
             var xWorkingSet = x.Select((_, c, val) => (float)((val - meanAndVolatilityOfEachChannel[c].Item1) / Math.Max(meanAndVolatilityOfEachChannel[c].Item2, 1e-9)));
             return xWorkingSet;
         }
-        public static CpuTensor<float> ToYWorkingSet(CpuTensor<byte> categoryBytes, int categoryCount , Func<byte, int> categoryByteToCategoryIndex)
+        public static CpuTensor<float> ToYWorkingSet(CpuTensor<byte> categoryBytes, int numClass , Func<byte, int> categoryByteToCategoryIndex)
         {
             Debug.Assert(categoryBytes.MultDim0 == 1);
             var batchSize = categoryBytes.Shape[0];
-            var newShape = new[] { batchSize, categoryCount };
+            var newShape = new[] { batchSize, numClass };
             var newY = new CpuTensor<float>(newShape);
             for (int n = 0; n < batchSize; ++n)
             {
@@ -270,7 +270,6 @@ namespace SharpNet.Datasets
             }
             return newY;
         }
-
         /// <summary>
         /// original content (no data augmentation/no normalization) of the element at index 'elementId'
         /// </summary>
@@ -321,7 +320,6 @@ namespace SharpNet.Datasets
             }
             return result;
         }
-
         /// <summary>
         /// TODO : check if we should use a cache to avoid recomputing the image stat at each epoch
         /// </summary>
@@ -334,12 +332,6 @@ namespace SharpNet.Datasets
         {
             return ImageStatistic.ValueOf(OriginalElementContent(elementId, channels, targetHeight, targetWidth, false, false));
         }
-
-
-        /// <summary>
-        /// number of elements in DataSet
-        /// </summary>
-        public abstract int Count { get; }
         public DataFrame AddIdColumnsAtLeftIfNeeded(DataFrame df)
         {
             if (string.IsNullOrEmpty(IdColumn))
@@ -352,9 +344,6 @@ namespace SharpNet.Datasets
             }
             return DataFrame.MergeHorizontally(ExtractIdDataFrame(df.Shape[0]), df);
         }
-
-        public string Name { get; }
-        public ResizeStrategyEnum ResizeStrategy { get; }
         /// <summary>
         /// check if we should save the network for the current epoch
         /// </summary>
@@ -362,64 +351,10 @@ namespace SharpNet.Datasets
         {
             return false;
         }
-
         public virtual void Save(Model model, string workingDirectory, string modelName)
         {
             model.Save(workingDirectory, modelName);
         }
-
-        protected virtual DataFrame ExtractIdDataFrame(int rows)
-        {
-            if (string.IsNullOrEmpty(IdColumn))
-            {
-                return null; // can't extract id columns because the DataFrame doesn't contain any
-            }
-            var content = new string[rows];
-            for (int row = 0; row < rows; ++row)
-            {
-                content[row] = ID_Y_row_InTargetFormat(row);
-            }
-            return DataFrame.New(content, new [] { IdColumn });
-            //int columnIndexesOfId = Array.IndexOf(ColumnNames, IdColumn);
-            //int cols = ColumnNames.Length;
-            //using CpuTensor<float> singleRow = new(new[] { 1, cols });
-            //var singleRowAsSpan = singleRow.AsReadonlyFloatCpuContent;
-            //int nextIdx = 0;
-            //for (int row = 0; row < Count; ++row)
-            //{
-            //    LoadAt(row, 0, singleRow, null, false, false);
-            //    content[nextIdx++] = singleRowAsSpan[columnIndexesOfId];
-            //}
-            //return DataFrame.New(content, new string[] { IdColumn });
-        }
-
-        /// <summary>
-        /// return the mean of channel 'channel' of the original DataSet (before normalization)
-        /// </summary>
-        /// <param name="channel">the channel for which we want to extract the mean</param>
-        /// <returns>mean of channel 'channel'</returns>
-        protected double OriginalChannelMean(int channel)
-        {
-            Debug.Assert(IsNormalized);
-            return MeanAndVolatilityForEachChannel[channel].Item1;
-        }
-
-        /// <summary>
-        /// return the volatility of channel 'channel' of the original DataSet (before normalization)
-        /// </summary>
-        /// <param name="channel">the channel for which we want to extract the volatility</param>
-        /// <returns>volatility of channel 'channel'</returns>
-        protected double OriginalChannelVolatility(int channel)
-        {
-            Debug.Assert(IsNormalized);
-            return MeanAndVolatilityForEachChannel[channel].Item2;
-        }
-
-        /// <summary>
-        /// true if the current data set is normalized (with mean=0 and volatility=1 in each channel)
-        /// </summary>
-        private bool IsNormalized => MeanAndVolatilityForEachChannel != null && MeanAndVolatilityForEachChannel.Count != 0;
-
         // ReSharper disable once UnusedMember.Global
         public DataSet Resize(int targetSize, bool shuffle)
         {
@@ -434,14 +369,12 @@ namespace SharpNet.Datasets
             }
             return new MappedDataSet(this, elementIdToOriginalElementId);
         }
-
         //public DataSet Shuffle(Random r)
         //{
         //    var elementIdToOriginalElementId = Enumerable.Range(0, Count).ToList();
         //    Utils.Shuffle(elementIdToOriginalElementId, r);
         //    return new MappedDataSet(this, elementIdToOriginalElementId);
         //}
-
         /// <summary>
         /// return a data set keeping only 'percentageToKeep' elements of the current data set
         /// </summary>
@@ -451,9 +384,7 @@ namespace SharpNet.Datasets
         {
             return SubDataSet(_ => _rands[0].NextDouble() < percentageToKeep);
         }
-
         public virtual double PercentageToUseForLossAndAccuracyFastEstimate => 0.1;
-
         public DataSet SubDataSet(Func<int, bool> elementIdInOriginalDataSetToIsIncludedInSubDataSet)
         {
             var subElementIdToOriginalElementId = new List<int>();
@@ -470,9 +401,6 @@ namespace SharpNet.Datasets
             }
             return new MappedDataSet(this, subElementIdToOriginalElementId);
         }
-
-
-
         /// <summary>
         /// returns the ID associated with the row 'Y_row_InTargetFormat' in the
         /// prediction file in target format
@@ -488,55 +416,6 @@ namespace SharpNet.Datasets
             return Y_row_InTargetFormat.ToString();
         }
         /// <summary>
-        /// retrieve the category associated with a specific element
-        /// </summary>
-        /// <param name="elementId">the id of the element, int the range [0, Count-1] </param>
-        /// <returns>the associated category id, or -1 if the category is not known</returns>
-        public abstract int ElementIdToCategoryIndex(int elementId);
-        public virtual string ElementIdToPathIfAny(int elementId)
-        {
-            return "";
-        }
-        
-        #region Dispose pattern
-        public void Dispose()
-        {
-            Dispose(true);
-            GC.SuppressFinalize(this);
-        }
-        // ReSharper disable once RedundantDefaultMemberInitializer
-        public bool Disposed { get; protected set; } = false;
-        protected virtual void Dispose(bool disposing)
-        {
-            if (Disposed)
-            {
-                return;
-            }
-            Disposed = true;
-            //Release Unmanaged Resources
-            if (disposing)
-            {
-                //Release Managed Resources
-                all_xOriginalNotAugmentedMiniBatch.ForEach(t => t.Dispose());
-                all_xOriginalNotAugmentedMiniBatch.Clear();
-                all_xDataAugmentedMiniBatch.ForEach(t => t.Dispose());
-                all_xDataAugmentedMiniBatch.Clear();
-                all_xBufferForDataAugmentedMiniBatch.ForEach(t => t.Dispose());
-                all_xBufferForDataAugmentedMiniBatch.Clear();
-                yDataAugmentedMiniBatch?.Dispose();
-            }
-            StopBackgroundThreadToLoadNextMiniBatchIfNeeded();
-        }
-
-
-     
-        ~DataSet()
-        {
-            Dispose(false);
-        }
-        #endregion
-
-        /// <summary>
         /// the length of the returned list is:
         ///     2 for Encoder Decoder (first is the shape of the network input, second is the shape of the decoder input)
         ///     1 for all other kind of networks (with the shape of the network input)
@@ -547,17 +426,14 @@ namespace SharpNet.Datasets
         {
             return new List<int[]> {shapeForFirstLayer};
         }
-
         // ReSharper disable once MemberCanBeMadeStatic.Global
         public int TypeSize => 4; //float size
         public override string ToString() {return Name;}
-
         public ITrainingAndTestDataset SplitIntoTrainingAndValidation(double percentageInTrainingSet, bool shuffleDatasetBeforeSplit, bool stratifiedDatasetForSplit)
         {
             int countInTrainingSet = (int)(percentageInTrainingSet * Count+0.1);
             return IntSplitIntoTrainingAndValidation(countInTrainingSet, shuffleDatasetBeforeSplit, stratifiedDatasetForSplit);
         }
-
         /// <summary>
         /// 
         /// </summary>
@@ -595,7 +471,6 @@ namespace SharpNet.Datasets
             var validation = SubDataSet(id => idsInValidation.Contains(id));
             return new TrainingAndTestDataset(training, validation, Name);
         }
-
         public static bool AreCompatible_X_Y(Tensor X, Tensor Y)
         {
             if (X == null && Y == null)
@@ -607,14 +482,6 @@ namespace SharpNet.Datasets
                                && (X.UseGPU == Y.UseGPU)
                                && (X.Shape[0] == Y.Shape[0]); //same number of tests
         }
-        ///// <summary>
-        ///// Y shape for
-        /////     regression:                 (_, 1)
-        /////     binary classification:      (_, 1)  where each element is a probability in [0, 1] range
-        /////     multi class classification  (_, NumClasses) with each element being the probability of belonging to this class
-        ///// </summary>
-        ////public abstract CpuTensor<float> Y { get; }
-
         /// <summary>
         /// Y_InModelFormat shape for
         ///     regression:                 (_, 1)
@@ -627,6 +494,177 @@ namespace SharpNet.Datasets
             var y = LoadFullY();
             return y == null ? null : DataFrame.New(y);
         }
+        public Random GetRandomForIndexInMiniBatch(int indexInMiniBatch)
+        {
+            var rand = _rands[indexInMiniBatch % _rands.Length];
+            return rand;
+        }
+
+        /// <summary>
+        /// true if the DataSet can ve saved in CSV format
+        /// false if it is not possible
+        /// </summary>
+        public virtual bool CanBeSavedInCSV => true;
+        /// <summary>
+        /// true if we should use the row index as the id of the row
+        /// false if you should actualy retrieved the Id of the row
+        /// </summary>
+        public virtual bool UseRowIndexAsId => false;
+        /// <summary>
+        /// save the dataset in directory 'directory' in 'LightGBM' format.
+        /// if addTargetColumnAsFirstColumn == true:
+        ///     first column is the label 'y' (to predict)
+        ///     all other columns are the features
+        /// else
+        ///     save only 'x' (feature) tensor
+        /// </summary>
+        /// <param name="directory">the directory where to save to dataset</param>
+        /// <param name="addTargetColumnAsFirstColumn"></param>
+        /// <param name="includeIdColumns"></param>
+        /// <param name="overwriteIfExists"></param>
+        /// <returns>the path (directory+filename) where the dataset has been saved</returns>
+        public string to_csv_in_directory(string directory, bool addTargetColumnAsFirstColumn, bool includeIdColumns, bool overwriteIfExists)
+        {
+            if (!CanBeSavedInCSV)
+            {
+                return ""; //nothing to save
+            }
+            if (ColumnNames.Length == 0)
+            {
+                return ""; //nothing to save
+            }
+            var datasetPath = Path.Combine(directory, ComputeUniqueDatasetName(this, addTargetColumnAsFirstColumn, includeIdColumns) + ".csv");
+            to_csv(datasetPath, Separator, addTargetColumnAsFirstColumn, includeIdColumns, overwriteIfExists);
+            return datasetPath;
+        }
+        /// <summary>
+        /// save the dataset in directory 'directory' in 'libsvm' format.
+        /// </summary>
+        /// <param name="directory">the directory where to save to dataset</param>
+        /// <param name="overwriteIfExists"></param>
+        /// <returns>the path (directory+filename) where the dataset has been saved</returns>
+        public virtual string to_libsvm_in_directory(string directory, bool overwriteIfExists)
+        {
+            if (ColumnNames.Length == 0)
+            {
+                return ""; //nothing to save
+            }
+            var datasetPath = Path.Combine(directory, ComputeUniqueDatasetName(this, true, false) + ".libsvm.txt");
+            to_libsvm(datasetPath, Separator, overwriteIfExists);
+            return datasetPath;
+        }
+        public virtual List<TrainingAndTestDataset> KFoldSplit(int kfold, int countMustBeMultipleOf)
+        {
+            var validationIntervalForKfold = KFoldModel.KFoldIntervals(kfold, Count, countMustBeMultipleOf);
+            List<TrainingAndTestDataset> res = new();
+            for (var index = 0; index < validationIntervalForKfold.Count; index++)
+            {
+                var intervalForValidation = validationIntervalForKfold[index];
+                var training = SubDataSet(id => id < intervalForValidation.Item1 || id > intervalForValidation.Item2);
+                var test = SubDataSet(id => id >= intervalForValidation.Item1 && id <= intervalForValidation.Item2);
+                res.Add(new TrainingAndTestDataset(training, test, KFoldModel.KFoldModelNameEmbeddedModelName(Name, index)));
+            }
+            return res;
+        }
+
+        #region Dispose pattern
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+        // ReSharper disable once RedundantDefaultMemberInitializer
+        public bool Disposed { get; protected set; } = false;
+        protected virtual void Dispose(bool disposing)
+        {
+            if (Disposed)
+            {
+                return;
+            }
+            Disposed = true;
+            //Release Unmanaged Resources
+            if (disposing)
+            {
+                //Release Managed Resources
+                all_xOriginalNotAugmentedMiniBatch.ForEach(t => t.Dispose());
+                all_xOriginalNotAugmentedMiniBatch.Clear();
+                all_xDataAugmentedMiniBatch.ForEach(t => t.Dispose());
+                all_xDataAugmentedMiniBatch.Clear();
+                all_xBufferForDataAugmentedMiniBatch.ForEach(t => t.Dispose());
+                all_xBufferForDataAugmentedMiniBatch.Clear();
+                yDataAugmentedMiniBatch?.Dispose();
+            }
+            StopBackgroundThreadToLoadNextMiniBatchIfNeeded();
+        }
+        ~DataSet()
+        {
+            Dispose(false);
+        }
+        #endregion
+        #region Background Thread management
+        /// <summary>
+        /// true if we should use a separate thread to load the content of the next mini batch
+        /// while working on the current mini batch
+        /// </summary>
+        private Thread backgroundThreadToLoadNextMiniBatch = null;
+        private Tuple<bool, bool, int[], int, NetworkSample, List<int[]>, int[]> threadParameters;
+        private readonly AutoResetEvent backgroundThreadHasSomethingTodo = new(false);
+        private readonly AutoResetEvent backgroundThreadIsIdle = new(false);
+        private bool shouldStopBackgroundThread = false;
+        /// <summary>
+        /// number of elements actually loaded by the background thread
+        /// </summary>
+        private int elementsActuallyLoadedByBackgroundThread = 0;
+        private void BackgroundThreadToLoadNextMiniBatchMethod()
+        {
+            for (; ; )
+            {
+                //we signal that the thread is in Idle mode
+                backgroundThreadIsIdle.Set();
+                //we wait for the master thread to prepare something to do
+                backgroundThreadHasSomethingTodo.WaitOne();
+                if (shouldStopBackgroundThread)
+                {
+                    return;
+                }
+                Debug.Assert(threadParameters != null);
+                // ReSharper disable once PossibleNullReferenceException
+                elementsActuallyLoadedByBackgroundThread = LoadMiniBatchInCpu(threadParameters.Item1, threadParameters.Item2, threadParameters.Item3, threadParameters.Item4, threadParameters.Item5, threadParameters.Item6, threadParameters.Item7);
+                threadParameters = null;
+            }
+        }
+        public void StartBackgroundThreadToLoadNextMiniBatchIfNeeded()
+        {
+            if (!HasBackgroundThreadAlive)
+            {
+                //we start a background thread
+                shouldStopBackgroundThread = false;
+                backgroundThreadToLoadNextMiniBatch = new Thread(BackgroundThreadToLoadNextMiniBatchMethod);
+                backgroundThreadToLoadNextMiniBatch.Start();
+                Thread.Sleep(10);
+            }
+        }
+        private bool HasBackgroundThreadAlive => backgroundThreadToLoadNextMiniBatch != null && backgroundThreadToLoadNextMiniBatch.IsAlive;
+        public void StopBackgroundThreadToLoadNextMiniBatchIfNeeded()
+        {
+            if (HasBackgroundThreadAlive)
+            {
+                //we stop the background thread
+                threadParameters = null;
+                shouldStopBackgroundThread = true;
+                backgroundThreadIsIdle.WaitOne(1000);
+                backgroundThreadHasSomethingTodo.Set();
+                Thread.Sleep(10);
+                if (backgroundThreadToLoadNextMiniBatch.IsAlive)
+                {
+                    // ReSharper disable once InconsistentlySynchronizedField
+                    Log.Info("fail to stop BackgroundThread in " + Name);
+                }
+                backgroundThreadToLoadNextMiniBatch = null;
+            }
+        }
+        #endregion
+
 
         protected void UpdateStatus(ref int nbPerformed)
         {
@@ -638,6 +676,66 @@ namespace SharpNet.Datasets
                 Log.Info("Done: " + (100 * newNbPerformed) / Count + "%");
             }
         }
+        protected virtual int GetMaxElementsToLoad(int[] shuffledElementId, int firstIndexInShuffledElementId, int batchSize)
+        {
+            return Math.Min(batchSize, shuffledElementId.Length - firstIndexInShuffledElementId);
+        }
+        protected virtual DataFrame ExtractIdDataFrame(int rows)
+        {
+            if (string.IsNullOrEmpty(IdColumn))
+            {
+                return null; // can't extract id columns because the DataFrame doesn't contain any
+            }
+            var content = new string[rows];
+            for (int row = 0; row < rows; ++row)
+            {
+                content[row] = ID_Y_row_InTargetFormat(row);
+            }
+            return DataFrame.New(content, new[] { IdColumn });
+            //int columnIndexesOfId = Array.IndexOf(ColumnNames, IdColumn);
+            //int cols = ColumnNames.Length;
+            //using CpuTensor<float> singleRow = new(new[] { 1, cols });
+            //var singleRowAsSpan = singleRow.AsReadonlyFloatCpuContent;
+            //int nextIdx = 0;
+            //for (int row = 0; row < Count; ++row)
+            //{
+            //    LoadAt(row, 0, singleRow, null, false, false);
+            //    content[nextIdx++] = singleRowAsSpan[columnIndexesOfId];
+            //}
+            //return DataFrame.New(content, new string[] { IdColumn });
+        }
+        /// <summary>
+        /// return the mean of channel 'channel' of the original DataSet (before normalization)
+        /// </summary>
+        /// <param name="channel">the channel for which we want to extract the mean</param>
+        /// <returns>mean of channel 'channel'</returns>
+        protected double OriginalChannelMean(int channel)
+        {
+            Debug.Assert(IsNormalized);
+            return MeanAndVolatilityForEachChannel[channel].Item1;
+        }
+        /// <summary>
+        /// return the volatility of channel 'channel' of the original DataSet (before normalization)
+        /// </summary>
+        /// <param name="channel">the channel for which we want to extract the volatility</param>
+        /// <returns>volatility of channel 'channel'</returns>
+        protected double OriginalChannelVolatility(int channel)
+        {
+            Debug.Assert(IsNormalized);
+            return MeanAndVolatilityForEachChannel[channel].Item2;
+        }
+        protected bool IsRegressionProblem => Objective == Objective_enum.Regression;
+        protected virtual void LoadAt(int elementId, int indexInBuffer, [NotNull] List<CpuTensor<float>> xBuffers,
+            [CanBeNull] CpuTensor<float> yBuffer, bool withDataAugmentation, bool isTraining)
+        {
+            if (xBuffers != null && xBuffers.Count != 1)
+            {
+                throw new ArgumentException("only 1 InputLayer is supported, received " + xBuffers.Count);
+            }
+            LoadAt(elementId, indexInBuffer, xBuffers[0], yBuffer, withDataAugmentation, isTraining);
+        }
+
+
 
 
         /// <summary>
@@ -667,8 +765,8 @@ namespace SharpNet.Datasets
             //we'll first create mini batch input in a local CPU buffer, then copy them in xMiniBatch/yMiniBatch
             for (int x = 0; x < all_xMiniBatchShape.Count; ++x)
             {
-                foreach(var l in new[] { all_xOriginalNotAugmentedMiniBatch , all_xDataAugmentedMiniBatch , all_xBufferForDataAugmentedMiniBatch })
-                { 
+                foreach (var l in new[] { all_xOriginalNotAugmentedMiniBatch, all_xDataAugmentedMiniBatch, all_xBufferForDataAugmentedMiniBatch })
+                {
                     if (l.Count <= x)
                     {
                         l.Add(new CpuTensor<float>(all_xMiniBatchShape[x]));
@@ -683,8 +781,8 @@ namespace SharpNet.Datasets
             yDataAugmentedMiniBatch.ReshapeInPlace(yMiniBatchShape);
             yDataAugmentedMiniBatch.ZeroMemory();
 
-            int MiniBatchIdxToElementId(int miniBatchIdx) => shuffledElementId[ (firstIndexInShuffledElementId+miniBatchIdx)%shuffledElementId.Length ];
-            Parallel.For(0, miniBatchSize, indexInBuffer => LoadAt(MiniBatchIdxToElementId(indexInBuffer%maxElementsToLoad), indexInBuffer, all_xOriginalNotAugmentedMiniBatch, yDataAugmentedMiniBatch, withDataAugmentation, isTraining));
+            int MiniBatchIdxToElementId(int miniBatchIdx) => shuffledElementId[(firstIndexInShuffledElementId + miniBatchIdx) % shuffledElementId.Length];
+            Parallel.For(0, miniBatchSize, indexInBuffer => LoadAt(MiniBatchIdxToElementId(indexInBuffer % maxElementsToLoad), indexInBuffer, all_xOriginalNotAugmentedMiniBatch, yDataAugmentedMiniBatch, withDataAugmentation, isTraining));
 
             Debug.Assert(AreCompatible_X_Y(all_xDataAugmentedMiniBatch[0], yDataAugmentedMiniBatch));
             int MiniBatchIdxToCategoryIndex(int miniBatchIdx) => ElementIdToCategoryIndex(MiniBatchIdxToElementId(miniBatchIdx));
@@ -700,9 +798,9 @@ namespace SharpNet.Datasets
             {
                 //Data Augmentation for images
                 Debug.Assert(all_xMiniBatchShape.Count == 1);
-                int channels = all_xMiniBatchShape[0].Length >= 4 
-                        ?all_xMiniBatchShape[0][^3]
-                        :1;
+                int channels = all_xMiniBatchShape[0].Length >= 4
+                        ? all_xMiniBatchShape[0][^3]
+                        : 1;
                 int targetHeight = all_xMiniBatchShape[0][^2];
                 int targetWidth = all_xMiniBatchShape[0][^1];
                 Lazy<ImageStatistic> MiniBatchIdxToLazyImageStatistic(int miniBatchIdx) => new Lazy<ImageStatistic>(() => ElementIdToImageStatistic(MiniBatchIdxToElementId(miniBatchIdx), channels, targetHeight, targetWidth));
@@ -715,92 +813,6 @@ namespace SharpNet.Datasets
             alreadyComputedMiniBatchId = miniBatchId;
             return maxElementsToLoad;
         }
-
-        protected virtual int GetMaxElementsToLoad(int[] shuffledElementId, int firstIndexInShuffledElementId, int batchSize)
-        {
-            return Math.Min(batchSize, shuffledElementId.Length - firstIndexInShuffledElementId);
-        }
-
-        public Random GetRandomForIndexInMiniBatch(int indexInMiniBatch)
-        {
-            var rand = _rands[indexInMiniBatch % _rands.Length];
-            return rand;
-        }
-
-
-        /// <summary>
-        /// save the dataset in path 'path' in 'libsvm' format.
-        /// </summary>
-        /// <param name="path">the path where to save the dataset (it contains both the directory and the filename)</param>
-        /// <param name="overwriteIfExists">overwrite the file if it already exists</param>
-        /// <param name="separator"></param>
-        private void to_libsvm(string path, char separator, bool overwriteIfExists)
-        {
-            lock (Lock_to_csv)
-            {
-                if (File.Exists(path) && !overwriteIfExists)
-                {
-                    //Log.Debug($"No need to save dataset {Name} in path {path} : it already exists");
-                    return;
-                }
-
-                var sw = Stopwatch.StartNew();
-                Log.Debug($"Saving dataset {Name} in path {path}");
-
-                // ReSharper disable once PossibleNullReferenceException
-                var y = LoadFullY();
-                var yDataAsSpan = y != null ? y.AsFloatCpuSpan : null;
-
-                List<int> validIdxColumns = new();
-                for (var index = 0; index < ColumnNames.Length; index++)
-                {
-                    if (string.IsNullOrEmpty(IdColumn) || !Equals(ColumnNames[index], IdColumn))
-                    {
-                        validIdxColumns.Add(index);
-                    }
-                }
-
-                var sb = new StringBuilder();
-                using var singleRow = new CpuTensor<float>(new[] { 1, ColumnNames.Length });
-                var singleRowAsSpan = singleRow.AsReadonlyFloatCpuSpan;
-                for (int row = 0; row < Count; ++row)
-                {
-                    float yValue;
-                    if (yDataAsSpan == null) { yValue = AbstractSample.DEFAULT_VALUE; }
-                    else if (IsRegressionProblem) { yValue = yDataAsSpan[row]; }
-                    else { yValue = ElementIdToCategoryIndex(row); }
-                    sb.Append(yValue.ToString(CultureInfo.InvariantCulture)+" ");
-                    LoadAt(row, 0, singleRow, null, false, false);
-                    for (var index = 0; index < validIdxColumns.Count; index++)
-                    {
-                        var val = singleRowAsSpan[validIdxColumns[index]];
-                        if (!float.IsNaN(val) && !float.IsInfinity(val))
-                        {
-                            sb.Append($"{1 + index}:{val.ToString(CultureInfo.InvariantCulture)} ");
-                        }
-                    }
-
-                    sb.Append(Environment.NewLine);
-                }
-
-                File.WriteAllText(path, sb.ToString());
-                Log.Debug($"Dataset {Name} saved in path {path} in {Math.Round(sw.Elapsed.TotalSeconds, 1)}s)");
-            }
-
-        }
-
-        /// <summary>
-        /// true if the DataSet can ve saved in CSV format
-        /// false if it is not possible
-        /// </summary>
-        public virtual bool CanBeSavedInCSV => true;
-
-        /// <summary>
-        /// true if we should use the row index as the id of the row
-        /// false if you should actualy retrieved the Id of the row
-        /// </summary>
-        public virtual bool UseRowIndexAsId => false;
-
         /// <summary>
         /// save the dataset in path 'path' in 'LightGBM' format.
         /// if addTargetColumnAsFirstColumn == true:
@@ -877,7 +889,7 @@ namespace SharpNet.Datasets
                         float yValue;
                         if (yDataAsSpan == null) { yValue = AbstractSample.DEFAULT_VALUE; }
                         else if (IsRegressionProblem) { yValue = yDataAsSpan[row]; }
-                        else  { yValue = ElementIdToCategoryIndex(row); }
+                        else { yValue = ElementIdToCategoryIndex(row); }
                         floatTensorSpan[idx++] = yValue;
                     }
                     LoadAt(row, 0, singleRow, null, false, false);
@@ -892,68 +904,6 @@ namespace SharpNet.Datasets
                 Log.Debug($"Dataset {Name} saved in path {path} in {Math.Round(sw.Elapsed.TotalSeconds, 1)}s (addTargetColumnAsFirstColumn =  {addTargetColumnAsFirstColumn})");
             }
         }
-
-        /// <summary>
-        /// save the dataset in directory 'directory' in 'LightGBM' format.
-        /// if addTargetColumnAsFirstColumn == true:
-        ///     first column is the label 'y' (to predict)
-        ///     all other columns are the features
-        /// else
-        ///     save only 'x' (feature) tensor
-        /// </summary>
-        /// <param name="directory">the directory where to save to dataset</param>
-        /// <param name="addTargetColumnAsFirstColumn"></param>
-        /// <param name="includeIdColumns"></param>
-        /// <param name="overwriteIfExists"></param>
-        /// <returns>the path (directory+filename) where the dataset has been saved</returns>
-        public string to_csv_in_directory(string directory, bool addTargetColumnAsFirstColumn, bool includeIdColumns, bool overwriteIfExists)
-        {
-            if (!CanBeSavedInCSV)
-            {
-                return ""; //nothing to save
-            }
-            if (ColumnNames.Length == 0)
-            {
-                return ""; //nothing to save
-            }
-            var datasetPath = Path.Combine(directory, ComputeUniqueDatasetName(this, addTargetColumnAsFirstColumn, includeIdColumns) + ".csv");
-            to_csv(datasetPath, Separator, addTargetColumnAsFirstColumn, includeIdColumns, overwriteIfExists);
-            return datasetPath;
-        }
-
-        /// <summary>
-        /// save the dataset in directory 'directory' in 'libsvm' format.
-        /// </summary>
-        /// <param name="directory">the directory where to save to dataset</param>
-        /// <param name="overwriteIfExists"></param>
-        /// <returns>the path (directory+filename) where the dataset has been saved</returns>
-        public virtual string to_libsvm_in_directory(string directory, bool overwriteIfExists)
-        {
-            if (ColumnNames.Length == 0)
-            {
-                return ""; //nothing to save
-            }
-            var datasetPath = Path.Combine(directory, ComputeUniqueDatasetName(this, true, false) + ".libsvm.txt");
-            to_libsvm(datasetPath, Separator, overwriteIfExists);
-            return datasetPath;
-        }
-
-      
-        public virtual List<TrainingAndTestDataset> KFoldSplit(int kfold, int countMustBeMultipleOf)
-        {
-            var validationIntervalForKfold = KFoldModel.KFoldIntervals(kfold, Count, countMustBeMultipleOf);
-            List<TrainingAndTestDataset> res = new();
-            for (var index = 0; index < validationIntervalForKfold.Count; index++)
-            {
-                var intervalForValidation = validationIntervalForKfold[index];
-                var training = SubDataSet(id => id < intervalForValidation.Item1 || id > intervalForValidation.Item2);
-                var test = SubDataSet(id => id >= intervalForValidation.Item1 && id <= intervalForValidation.Item2);
-                res.Add(new TrainingAndTestDataset(training, test, KFoldModel.KFoldModelNameEmbeddedModelName(Name, index)));
-            }
-            return res;
-        }
-
-
         private static readonly object Lock_to_csv = new();
         private static long ComputeMiniBatchHashId(int[] shuffledElementId, int firstIndexInShuffledElementId, int miniBatchSize)
         {
@@ -1015,72 +965,69 @@ namespace SharpNet.Datasets
             }
             return desc;
         }
-
-        #region Background Thread management
         /// <summary>
-        /// true if we should use a separate thread to load the content of the next mini batch
-        /// while working on the current mini batch
+        /// save the dataset in path 'path' in 'libsvm' format.
         /// </summary>
-        private Thread backgroundThreadToLoadNextMiniBatch = null;
-        private Tuple<bool, bool, int[], int, NetworkSample, List<int[]>, int[]> threadParameters;
-        private readonly AutoResetEvent backgroundThreadHasSomethingTodo = new(false);
-        private readonly AutoResetEvent backgroundThreadIsIdle = new(false);
-        private bool shouldStopBackgroundThread = false;
-        /// <summary>
-        /// number of elements actually loaded by the background thread
-        /// </summary>
-        private int elementsActuallyLoadedByBackgroundThread = 0;
-        private void BackgroundThreadToLoadNextMiniBatchMethod()
+        /// <param name="path">the path where to save the dataset (it contains both the directory and the filename)</param>
+        /// <param name="overwriteIfExists">overwrite the file if it already exists</param>
+        /// <param name="separator"></param>
+        private void to_libsvm(string path, char separator, bool overwriteIfExists)
         {
-            for (; ; )
+            lock (Lock_to_csv)
             {
-                //we signal that the thread is in Idle mode
-                backgroundThreadIsIdle.Set();
-                //we wait for the master thread to prepare something to do
-                backgroundThreadHasSomethingTodo.WaitOne();
-                if (shouldStopBackgroundThread)
+                if (File.Exists(path) && !overwriteIfExists)
                 {
+                    //Log.Debug($"No need to save dataset {Name} in path {path} : it already exists");
                     return;
                 }
-                Debug.Assert(threadParameters != null);
+
+                var sw = Stopwatch.StartNew();
+                Log.Debug($"Saving dataset {Name} in path {path}");
+
                 // ReSharper disable once PossibleNullReferenceException
-                elementsActuallyLoadedByBackgroundThread = LoadMiniBatchInCpu(threadParameters.Item1, threadParameters.Item2, threadParameters.Item3, threadParameters.Item4, threadParameters.Item5, threadParameters.Item6, threadParameters.Item7);
-                threadParameters = null;
-            }
-        }
-        public void StartBackgroundThreadToLoadNextMiniBatchIfNeeded()
-        {
-            if (!HasBackgroundThreadAlive)
-            {
-                //we start a background thread
-                shouldStopBackgroundThread = false;
-                backgroundThreadToLoadNextMiniBatch = new Thread(BackgroundThreadToLoadNextMiniBatchMethod);
-                backgroundThreadToLoadNextMiniBatch.Start();
-                Thread.Sleep(10);
-            }
-        }
+                var y = LoadFullY();
+                var yDataAsSpan = y != null ? y.AsFloatCpuSpan : null;
 
-
-        private bool HasBackgroundThreadAlive => backgroundThreadToLoadNextMiniBatch != null && backgroundThreadToLoadNextMiniBatch.IsAlive;
-
-        public void StopBackgroundThreadToLoadNextMiniBatchIfNeeded()
-        {
-            if (HasBackgroundThreadAlive)
-            {
-                //we stop the background thread
-                threadParameters = null;
-                shouldStopBackgroundThread = true;
-                backgroundThreadIsIdle.WaitOne(1000);
-                backgroundThreadHasSomethingTodo.Set();
-                Thread.Sleep(10);
-                if (backgroundThreadToLoadNextMiniBatch.IsAlive)
+                List<int> validIdxColumns = new();
+                for (var index = 0; index < ColumnNames.Length; index++)
                 {
-                    // ReSharper disable once InconsistentlySynchronizedField
-                    Log.Info("fail to stop BackgroundThread in " + Name);
+                    if (string.IsNullOrEmpty(IdColumn) || !Equals(ColumnNames[index], IdColumn))
+                    {
+                        validIdxColumns.Add(index);
+                    }
                 }
-                backgroundThreadToLoadNextMiniBatch = null;
+
+                var sb = new StringBuilder();
+                using var singleRow = new CpuTensor<float>(new[] { 1, ColumnNames.Length });
+                var singleRowAsSpan = singleRow.AsReadonlyFloatCpuSpan;
+                for (int row = 0; row < Count; ++row)
+                {
+                    float yValue;
+                    if (yDataAsSpan == null) { yValue = AbstractSample.DEFAULT_VALUE; }
+                    else if (IsRegressionProblem) { yValue = yDataAsSpan[row]; }
+                    else { yValue = ElementIdToCategoryIndex(row); }
+                    sb.Append(yValue.ToString(CultureInfo.InvariantCulture) + " ");
+                    LoadAt(row, 0, singleRow, null, false, false);
+                    for (var index = 0; index < validIdxColumns.Count; index++)
+                    {
+                        var val = singleRowAsSpan[validIdxColumns[index]];
+                        if (!float.IsNaN(val) && !float.IsInfinity(val))
+                        {
+                            sb.Append($"{1 + index}:{val.ToString(CultureInfo.InvariantCulture)} ");
+                        }
+                    }
+
+                    sb.Append(Environment.NewLine);
+                }
+
+                File.WriteAllText(path, sb.ToString());
+                Log.Debug($"Dataset {Name} saved in path {path} in {Math.Round(sw.Elapsed.TotalSeconds, 1)}s)");
             }
+
         }
-        #endregion
+        /// <summary>
+        /// true if the current data set is normalized (with mean=0 and volatility=1 in each channel)
+        /// </summary>
+        private bool IsNormalized => MeanAndVolatilityForEachChannel != null && MeanAndVolatilityForEachChannel.Count != 0;
     }
 }

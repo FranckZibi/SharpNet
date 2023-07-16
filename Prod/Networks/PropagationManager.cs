@@ -167,10 +167,10 @@ namespace SharpNet.Networks
             {
                 case EvaluationMetricEnum.BinaryCrossentropy:
                     Debug.Assert(_layers.Last().IsSigmoidActivationLayer());
-                    //we compute: _dyPredicted = (1.0/categoryCount) * (yPredicted - yExpected)
+                    //we compute: _dyPredicted = (1.0/numClass) * (yPredicted - yExpected)
                     yPredicted.CopyTo(dyPredicted);
-                    var categoryCount = yPredicted.Shape[1];
-                    var multiplier = 1f / (categoryCount);
+                    var numClass = yPredicted.Shape[1];
+                    var multiplier = 1f / (numClass);
                     dyPredicted.AddTensor(-multiplier, yExpected, multiplier);
                     break;
                 case EvaluationMetricEnum.CategoricalCrossentropy:

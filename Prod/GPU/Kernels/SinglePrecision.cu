@@ -666,20 +666,20 @@
 		}
 	}
 
-	__global__ void BinaryCrossentropyLossBuffer(int N, int categoryCount, float* lossBuffer, const float* __restrict yExpectedOneHot, const float* __restrict yPredicted)
+	__global__ void BinaryCrossentropyLossBuffer(int N, int numClass, float* lossBuffer, const float* __restrict yExpectedOneHot, const float* __restrict yPredicted)
 	{
 		int i = blockIdx.x * blockDim.x + threadIdx.x;
 		if (i < N) {
 			float loss = 0.0f;
-			int startIndex = i * categoryCount;
-			int endIndexExcluded = startIndex + categoryCount;
+			int startIndex = i * numClass;
+			int endIndexExcluded = startIndex + numClass;
 			for (int j = startIndex; j < endIndexExcluded; ++j)
 			{
 				float predicted = yPredicted[j];
 				float expected = yExpectedOneHot[j];
 				//if ((predicted>0.01)&&(predicted<0.99f))
 				if ((predicted > 0.0f) && (predicted < 1.0f))
-					loss -= (expected * logf(predicted) + (1.0f - expected) * logf(1.0f - predicted)) / categoryCount;
+					loss -= (expected * logf(predicted) + (1.0f - expected) * logf(1.0f - predicted)) / numClass;
 			}
 			lossBuffer[i] = loss;
 		}

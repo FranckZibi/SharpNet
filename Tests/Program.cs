@@ -269,7 +269,7 @@ namespace SharpNetTests
         private static void Train_CIFAR10_WRN(WideResNetNetworkSample p, int WRN_depth, int WRN_k)
         {
             using var cifar10 = new CIFAR10DataSet();
-            using var network = p.WRN(DenseNetNetworkSample.Cifar10WorkingDirectory, WRN_depth, WRN_k, CIFAR10DataSet.Shape_CHW, CIFAR10DataSet.CategoryCount);
+            using var network = p.WRN(DenseNetNetworkSample.Cifar10WorkingDirectory, WRN_depth, WRN_k, CIFAR10DataSet.Shape_CHW, CIFAR10DataSet.NumClass);
             network.Fit(cifar10.Training, cifar10.Test);
         }
         #endregion
@@ -328,7 +328,7 @@ namespace SharpNetTests
         private static void Train_CIFAR100_WRN(WideResNetNetworkSample p, int WRN_depth, int WRN_k)
         {
             using (var cifar100 = new CIFAR100DataSet())
-            using (var network = p.WRN(DenseNetNetworkSample.Cifar100WorkingDirectory, WRN_depth, WRN_k, CIFAR100DataSet.Shape_CHW, CIFAR100DataSet.CategoryCount))
+            using (var network = p.WRN(DenseNetNetworkSample.Cifar100WorkingDirectory, WRN_depth, WRN_k, CIFAR100DataSet.Shape_CHW, CIFAR100DataSet.NumClass))
             {
                 network.Fit(cifar100.Training, cifar100.Test);
             }
@@ -361,7 +361,7 @@ namespace SharpNetTests
         private static void Train_SVHN_WRN(WideResNetNetworkSample p, bool loadExtraFileForTraining, int WRN_depth, int WRN_k)
         {
             using var svhn = new SvhnDataset(loadExtraFileForTraining);
-            using var network = p.WRN(DenseNetNetworkSample.SVHNWorkingDirectory, WRN_depth, WRN_k, SvhnDataset.Shape_CHW, SvhnDataset.CategoryCount);
+            using var network = p.WRN(DenseNetNetworkSample.SVHNWorkingDirectory, WRN_depth, WRN_k, SvhnDataset.Shape_CHW, SvhnDataset.NumClass);
             //using var network = Network.ValueOf(@"C:\Users\Franck\AppData\Local\SharpNet\SVHN\WRN-16-10_30Epochs_MultiGPU_20200501_1147_30.txt");
             network.Fit(svhn.Training, svhn.Test);
         }

@@ -2,13 +2,10 @@
 using SharpNet.Pictures;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
 using JetBrains.Annotations;
-
-// ReSharper disable UnusedMember.Local
 
 namespace SharpNet.Datasets
 {
@@ -23,7 +20,7 @@ namespace SharpNet.Datasets
         ///     each element is a single channel of the target element id
         ///     we'll need to stack all those channels to build the element id
         /// </summary>
-        private readonly List<List<string>> _elementIdToPaths = new List<List<string>>();
+        protected readonly List<List<string>> _elementIdToPaths = new List<List<string>>();
         private readonly List<int> _elementIdToCategoryIndex;
         private readonly Random _rand = new Random(0);
         [NotNull] private CpuTensor<float> Y_DirectoryDataSet { get; }
@@ -32,7 +29,7 @@ namespace SharpNet.Datasets
 
         public static DirectoryDataSet FromFiles(
             List<string> picturePaths,
-            int categoryCount,
+            int numClass,
             List<Tuple<float, float>> meanAndVolatilityForEachChannel,
             ResizeStrategyEnum resizeStrategy)
         {
@@ -51,11 +48,12 @@ namespace SharpNet.Datasets
                 null,
                 "FromFiles", 
                 Objective_enum.Classification,
-                3, 
-                Enumerable.Range(0, categoryCount).Select(i=>i.ToString()).ToArray(),
+                3,
+                numClass,
                 meanAndVolatilityForEachChannel,
                 resizeStrategy,
                 null,
+                null, //idColumn
                 rowInTargetFormatPredictionToID.ToArray());
         }
 
@@ -67,19 +65,20 @@ namespace SharpNet.Datasets
             string name,
             Objective_enum objective,
             int channels,
-            string[] categoryDescriptions,
+            int numClass,
             List<Tuple<float, float>> meanAndVolatilityForEachChannel,
             ResizeStrategyEnum resizeStrategy,
             string[] featureNames,
-            string[] elementIdToID)
+            string idColumn,
+            string[] y_IDs)
             : base(name,
                 objective, 
                 meanAndVolatilityForEachChannel, 
                 resizeStrategy,
                 featureNames?? new string[0],
                 new string[0],
-                "",
-                elementIdToID,
+                idColumn,
+                y_IDs,
                 ',')
         {
             _elementIdToPaths.AddRange(elementIdToPaths);
@@ -98,8 +97,7 @@ namespace SharpNet.Datasets
             }
             else
             {
-                Debug.Assert(categoryDescriptions != null);
-                Y_DirectoryDataSet = CpuTensor<float>.CreateOneHotTensor(ElementIdToCategoryIndex, Count, categoryDescriptions.Length);
+                Y_DirectoryDataSet = CpuTensor<float>.CreateOneHotTensor(ElementIdToCategoryIndex, Count, numClass);
             }
         }
         #endregion
@@ -157,12 +155,6 @@ namespace SharpNet.Datasets
         {
             return _elementIdToCategoryIndex[elementId];
         }
-        public override string ElementIdToPathIfAny(int elementId)
-        {
-            return _elementIdToPaths[elementId][0];
-        }
-
-
         // ReSharper disable once UnusedMethodReturnValue.Local
         private List<Tuple<float, float>> ComputeMeanAndVolatilityForEachChannel(int channels)
         {

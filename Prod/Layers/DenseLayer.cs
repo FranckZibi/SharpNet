@@ -302,7 +302,7 @@ namespace SharpNet.Layers
         }
         public static DenseLayer Deserialize(IDictionary<string, object> serialized, Network network)
         {
-            var units = serialized.ContainsKey(nameof(Units)) ? (int)serialized[nameof(Units)] : (int)serialized["CategoryCount"];
+            var units = serialized.ContainsKey(nameof(Units)) ? (int)serialized[nameof(Units)] : (int)serialized["NumClass"];
             var flattenInputTensorOnLastDimension = serialized.ContainsKey(nameof(_flattenInputTensorOnLastDimension)) && (bool)serialized[nameof(_flattenInputTensorOnLastDimension)];
             return new DenseLayer(
                 units,

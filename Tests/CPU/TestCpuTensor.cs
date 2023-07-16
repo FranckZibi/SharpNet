@@ -837,13 +837,13 @@ namespace SharpNetTests.CPU
         public static CpuTensor<float> RandomTwoHotTensor(int[] shape, Random rand)
         {
             var result = new CpuTensor<float>(shape);
-            int categoryCount = result.Shape[1];
+            int numClass = result.Shape[1];
             for (int row = 0; row < result.Shape[0]; ++row)
             {
-                int indexFirstCategory = rand.Next(categoryCount);
+                int indexFirstCategory = rand.Next(numClass);
                 var expectedFirstCategory = (float)rand.NextDouble();
                 result.Set(row, indexFirstCategory, expectedFirstCategory);
-                int indexSecondCategory = (indexFirstCategory+7)%categoryCount;
+                int indexSecondCategory = (indexFirstCategory+7)%numClass;
                 var expectedSecondCategory = 1f-expectedFirstCategory;
                 result.Set(row, indexSecondCategory, expectedSecondCategory);
             }

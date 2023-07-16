@@ -9,9 +9,6 @@ namespace SharpNet.Datasets
 {
     public class ImdbTrainingAndTestDataset : AbstractTrainingAndTestDataset
     {
-        //private static readonly string[] CategoryIndexToDescription = new[] { "negative", "positive"};
-        //public static int CategoryCount => CategoryIndexToDescription.Length;
-
         // ReSharper disable once CollectionNeverQueried.Local
         private readonly IDictionary<string, int> _wordIndex = new Dictionary<string, int>();
 

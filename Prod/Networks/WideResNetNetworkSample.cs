@@ -180,18 +180,18 @@ public class WideResNetNetworkSample : NetworkSample
     /// <param name="depth">total number of convolutions in the network</param>
     /// <param name="k">widening parameter</param>
     /// <param name="inputShape_CHW">input shape of a single element in format (channels, height, width)</param>
-    /// <param name="categoryCount">number of distinct categoryCount</param>
+    /// <param name="numClass">number of distinct numClass</param>
     /// <returns></returns>
-    public Network WRN(string workingDirectory, int depth, int k, int[] inputShape_CHW, int categoryCount)
+    public Network WRN(string workingDirectory, int depth, int k, int[] inputShape_CHW, int numClass)
     {
         // ReSharper disable once IntroduceOptionalParameters.Global
-        return WRN(workingDirectory, depth, k, inputShape_CHW, categoryCount, false);
+        return WRN(workingDirectory, depth, k, inputShape_CHW, numClass, false);
     }
-    public Network WRN_ImageNet(string workingDirectory, int depth, int k, int[] inputShape_CHW, int categoryCount)
+    public Network WRN_ImageNet(string workingDirectory, int depth, int k, int[] inputShape_CHW, int numClass)
     {
-        return WRN(workingDirectory, depth, k, inputShape_CHW, categoryCount, true);
+        return WRN(workingDirectory, depth, k, inputShape_CHW, numClass, true);
     }
-    public Network WRN(string workingDirectory, int depth, int k, int[] inputShape_CHW, int categoryCount, bool reduceInputSize)
+    public Network WRN(string workingDirectory, int depth, int k, int[] inputShape_CHW, int numClass, bool reduceInputSize)
     {
         int convolutionsCountByStage = (depth - 1) / 3;
         int residualBlocksCountByStage = (convolutionsCountByStage - 1) / 2;
@@ -262,13 +262,13 @@ public class WideResNetNetworkSample : NetworkSample
 
         if (WRN_DropOutAfterDenseLayer > 0)
         {
-            network.Dense(categoryCount, config.lambdaL2Regularization, false)
+            network.Dense(numClass, config.lambdaL2Regularization, false)
                 .Dropout(WRN_DropOutAfterDenseLayer)
                 .Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
         }
         else
         {
-            network.Dense(categoryCount, config.lambdaL2Regularization, false)
+            network.Dense(numClass, config.lambdaL2Regularization, false)
                 .Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
         }
         return network;

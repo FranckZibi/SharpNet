@@ -33,13 +33,13 @@ namespace SharpNetTests.Datasets
             }
         }
 
-        private static DataSet GetRandomDataSet(CpuTensor<byte> tensorX, int categoryCount, Random rand)
+        private static DataSet GetRandomDataSet(CpuTensor<byte> tensorX, int numClass, Random rand)
         {
             var tensorY = TestCpuTensor.RandomByteTensor(new[] { tensorX.Shape[0], 1 }, rand, 0, 1);
 
             var meanAndVolatilityForEachChannel = tensorX.ComputeMeanAndVolatilityOfEachChannel(t => t);
             var x = DataSet.ToXWorkingSet(tensorX, meanAndVolatilityForEachChannel);
-            var y = DataSet.ToYWorkingSet(tensorY, categoryCount, categoryByte=>categoryByte);
+            var y = DataSet.ToYWorkingSet(tensorY, numClass, categoryByte=>categoryByte);
             return new InMemoryDataSet(x, y, "TestAbstractDataSet", Objective_enum.Classification, meanAndVolatilityForEachChannel);
         }
     }

@@ -1856,14 +1856,14 @@ namespace SharpNet.CPU
         {
             Debug.Assert(yExpected.SameShape(yPredicted));
             maxIndexPredicted = 0;
-            var categoryCount = yExpected.Shape[1];
-            if (categoryCount == 1)
+            var numClass = yExpected.Shape[1];
+            if (numClass == 1)
             {
                 var error = Math.Abs(yExpected.Get(row, 0) - yPredicted.Get(row, 0));
                 return (error < 0.5) ? 1 : 0;
             }
             int maxIndexExpected = 0;
-            for (int j = 1; j < categoryCount; ++j)
+            for (int j = 1; j < numClass; ++j)
             {
                 if (yPredicted.Get(row, j) > yPredicted.Get(row, maxIndexPredicted))
                 {
@@ -2420,16 +2420,16 @@ namespace SharpNet.CPU
             return new CpuTensor<T>(targetShape, targetContent);
         }
 
-        public static CpuTensor<float> CreateOneHotTensor(Func<int, int> elementIdToCategoryIndex, int elementCount, int categoryCount)
+        public static CpuTensor<float> CreateOneHotTensor(Func<int, int> elementIdToCategoryIndex, int elementCount, int numClass)
         {
-            var result = new CpuTensor<float>(new[] { elementCount, categoryCount });
+            var result = new CpuTensor<float>(new[] { elementCount, numClass });
             var yContent = result.SpanContent;
             for (int elementId = 0; elementId < elementCount; ++elementId)
             {
                 var categoryIndex = elementIdToCategoryIndex(elementId);
                 if (categoryIndex >= 0)
                 {
-                    yContent[elementId * categoryCount + categoryIndex] = 1f;
+                    yContent[elementId * numClass + categoryIndex] = 1f;
                 }
             }
             return result;

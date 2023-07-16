@@ -35,7 +35,7 @@ namespace SharpNet.Datasets
             var annotationsDirectory = Path.Combine(NetworkSample.DefaultDataDirectory, vocDevKitDirectory, subDirectory, "Annotations");
             var dataDirectory = Path.Combine(NetworkSample.DefaultDataDirectory, vocDevKitDirectory, subDirectory, "JPEGImages");
             var elementIdToCategoryIndex = new List<int>();
-            var elementIdToId = new List<string>();
+            var y_IDs = new List<string>();
             var elementIdToPaths = new List<List<string>>();
             _annotations  = new List<PascalVOCImageDescription>();
             var missingAnnotations = new List<string>();
@@ -72,14 +72,14 @@ namespace SharpNet.Datasets
                     continue;
                 }
                 elementIdToPaths.Add(new List<string> { allFiles[i].FullName });
-                elementIdToId.Add(Path.GetFileNameWithoutExtension(allFiles[i].Name));
+                y_IDs.Add(Path.GetFileNameWithoutExtension(allFiles[i].Name));
                 _annotations.Add(pascalVOCImageDescriptionsArray[i]);
                 elementIdToCategoryIndex.Add(-1); //the category index of each object in the image can be found in the 'annotation' above
             }
 
             _directoryDataSet = new DirectoryDataSet(
                     elementIdToPaths, elementIdToCategoryIndex, null
-                    , subDirectory, Objective_enum.Classification, 3, CategoryIndexToDescription, meanAndVolatilityOfEachChannel, ResizeStrategyEnum.ResizeToTargetSize, null, elementIdToId.ToArray());
+                    , subDirectory, Objective_enum.Classification, 3, CategoryIndexToDescription.Length, meanAndVolatilityOfEachChannel, ResizeStrategyEnum.ResizeToTargetSize, null, null, y_IDs.ToArray());
         }
 
         public static PascalVOCDataSet PascalVOC2007()

@@ -348,7 +348,7 @@ namespace SharpNet.Networks
             if (DataAugmentationType == ImageDataGenerator.DataAugmentationEnum.NO_AUGMENTATION)
             {
                 ZoomRange = RotationRangeInDegrees = AlphaCutMix = AlphaMixup = CutoutPatchPercentage = RowsCutoutPatchPercentage = ColumnsCutoutPatchPercentage = FillModeConstantVal = AlphaMixup = AlphaCutMix = WidthShiftRangeInPercentage = HeightShiftRangeInPercentage = 0;
-                HorizontalFlip = VerticalFlip = Rotate180Degrees= false;
+                HorizontalFlip = VerticalFlip = Rotate180Degrees= Rotate90Degrees = false;
             }
 
             if (AlphaMixup>0 && AlphaCutMix>0)
@@ -556,6 +556,10 @@ namespace SharpNet.Networks
         /// randomly rotate the image by 180°
         /// </summary>
         public bool Rotate180Degrees = false;
+        /// <summary>
+        /// randomly rotate the image by 90°
+        /// </summary>
+        public bool Rotate90Degrees = false;
 
         /// <summary>
         /// set mode for filling points outside the input boundaries

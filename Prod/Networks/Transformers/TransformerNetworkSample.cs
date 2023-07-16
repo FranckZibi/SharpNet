@@ -177,7 +177,7 @@ public class TransformerNetworkSample : NetworkSample
     //    decoder_add_layer_norm_after_mha = true;
     //    return this;
     //}
-    private void AddTransformers(Network network, int categoryCount, int layerIndexInputEmbedding, int layerIndexOutputEmbedding)
+    private void AddTransformers(Network network, int numClass, int layerIndexInputEmbedding, int layerIndexOutputEmbedding)
     {
         AddEncoders(network, layerIndexInputEmbedding);
         AddDecoders(network, layerIndexOutputEmbedding, network.LastLayerIndex);
@@ -195,7 +195,7 @@ public class TransformerNetworkSample : NetworkSample
             network.GlobalMaxPooling("max_pool");
         }
 
-        network.Dense(categoryCount, network.Sample.lambdaL2Regularization, true, "probs");
+        network.Dense(numClass, network.Sample.lambdaL2Regularization, true, "probs");
 
         if (output_shape_must_be_scalar)
         {

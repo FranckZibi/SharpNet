@@ -30,7 +30,7 @@ namespace SharpNet.Datasets
     public class CIFAR10DataSet : AbstractTrainingAndTestDataset
     {
         private static readonly string[] CategoryIndexToDescription = { "airplane", "automobile", "bird", "cat", "deer", "dog", "frog", "horse", "ship", "truck" };
-        public static int CategoryCount => CategoryIndexToDescription.Length;
+        public static int NumClass => CategoryIndexToDescription.Length;
 
         public override DataSet Training { get; }
         public override DataSet Test { get; }
@@ -54,7 +54,7 @@ namespace SharpNet.Datasets
             //var meanAndVolatilityOfEachChannelInTrainingSet = xTrainingSet.ComputeMeanAndVolatilityOfEachChannel(x=>(double)x);
             var meanAndVolatilityOfEachChannelInTrainingSet = new List<Tuple<float, float>> { Tuple.Create(125.306918046875f, 62.9932192781369f), Tuple.Create(122.950394140625f, 62.0887076400142f), Tuple.Create(113.865383183594f, 66.7048996406309f) };
             var xTrain = DataSet.ToXWorkingSet(xTrainingSet, meanAndVolatilityOfEachChannelInTrainingSet);
-            var yTrain = DataSet.ToYWorkingSet(yTrainingSet, CategoryCount, CategoryByteToCategoryIndex);
+            var yTrain = DataSet.ToYWorkingSet(yTrainingSet, NumClass, CategoryByteToCategoryIndex);
 
             DataSet.AreCompatible_X_Y(xTrain, yTrain);
 
@@ -64,7 +64,7 @@ namespace SharpNet.Datasets
             LoaAllFileAt(Path.Combine(path, "test_batch.bin"), xTestSet, yTestSet, 0);
             //We normalize the test set with 0 mean / 1 volatility (coming from the training set)
             var xTest = DataSet.ToXWorkingSet(xTestSet, meanAndVolatilityOfEachChannelInTrainingSet);
-            var yTest = DataSet.ToYWorkingSet(yTestSet, CategoryCount, CategoryByteToCategoryIndex);
+            var yTest = DataSet.ToYWorkingSet(yTestSet, NumClass, CategoryByteToCategoryIndex);
 
             DataSet.AreCompatible_X_Y(xTest, yTest);
 

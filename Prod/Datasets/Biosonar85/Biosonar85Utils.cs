@@ -1,5 +1,7 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using JetBrains.Annotations;
 using log4net;
 using SharpNet.CPU;
@@ -8,6 +10,7 @@ using SharpNet.GPU;
 using SharpNet.HPO;
 using SharpNet.HyperParameters;
 using SharpNet.MathTools;
+using SharpNet.Networks;
 using SharpNet.Networks.Transformers;
 using static SharpNet.Networks.NetworkSample;
 
@@ -69,28 +72,64 @@ public static class Biosonar85Utils
         //var bin_file = Path.Combine(DataDirectory, "Y_train_ofTdMHi.csv.bin");
         //var tensor = CpuTensor<float>.LoadFromBinFile(bin_file, new[] { -1, 101, 64});
 
-        //ChallengeTools.Retrain(Path.Combine(WorkingDirectory, "Dump"), "0908F47370", null, percentageInTraining:0.8, retrainOnFullDataset:false, useAllAvailableCores:true);return;
+        ChallengeTools.Retrain(Path.Combine(WorkingDirectory, "Dump"), "9EC4521F47", null, percentageInTraining:0.799, retrainOnFullDataset:false, useAllAvailableCores:true);return;
 
-        Launch_HPO_Transformers(30); return;
-        //Launch_HPO(1);return;
+        //Launch_HPO_PngDirectory(10); return;
+        //Launch_HPO_Transformers(2); return;
+        //Launch_HPO(10);return;
     }
 
 
 
-    public static (int[] shape, int n_fft, int hop_len) ProcessXFileName(string xPath)
+    public static (int[] shape, int n_fft, int hop_len, int f_min, int f_max, int top_db) ProcessXFileName(string xPath)
     {
         var xSplitted = Path.GetFileNameWithoutExtension(xPath).Split("_");
-        //var xShape = new [] { int.Parse(xSplitted[^5]), 1, int.Parse(xSplitted[^4]), int.Parse(xSplitted[^3]) };
-        var xShape = new[] { int.Parse(xSplitted[^5]), int.Parse(xSplitted[^4]), int.Parse(xSplitted[^3]) };
-        var n_fft = int.Parse(xSplitted[^2]);
-        var hop_len = int.Parse(xSplitted[^1]);
-        return (xShape, n_fft, hop_len);
+        var xShape = new[] { int.Parse(xSplitted[^8]), int.Parse(xSplitted[^7]), int.Parse(xSplitted[^6]) };
+        var n_fft = int.Parse(xSplitted[^5]);
+        var hop_len = int.Parse(xSplitted[^4]);
+        var f_min = int.Parse(xSplitted[^3]);
+        var f_max = int.Parse(xSplitted[^2]);
+        var top_db = int.Parse(xSplitted[^1]);
+        return (xShape, n_fft, hop_len, f_min, f_max, top_db);
     }
 
-    public static InMemoryDataSet Load(string xFileName, [CanBeNull] string yFileNameIfAny, string csvFileName)
+
+
+    public static DirectoryDataSet LoadPng(string pngDirectory, string csvPath, bool hasLabels, List<Tuple<float, float>> meanAndVolatilityForEachChannel)
+    {
+        const int numClass = 1;
+        var df = DataFrame.read_csv(csvPath, columnNameToType: (s => s == "id" ? typeof(string) : typeof(float)));
+        var y_IDs = df.StringColumnContent("id");
+        var elementIdToPaths = new List<List<string>>();
+        foreach (var wavFilename in y_IDs)
+        {
+            elementIdToPaths.Add(new List<string> { Path.Combine(pngDirectory, wavFilename.Replace("wav", "png")) });
+        }
+        var elementIdToCategoryIndex = Enumerable.Repeat(0, y_IDs.Length).ToList();
+        var labels = hasLabels ? df.FloatColumnContent("pos_label") : new float[y_IDs.Length];
+        var expectedYIfAny = new CpuTensor<float>(new[] { y_IDs.Length, numClass }, labels);
+
+        var dataset = new Biosonar85DirectoryDataSet(
+            elementIdToPaths,
+            elementIdToCategoryIndex,
+            expectedYIfAny,
+            NAME,
+            Objective_enum.Classification,
+            1, // channels
+            numClass,
+            meanAndVolatilityForEachChannel,
+            ResizeStrategyEnum.None,
+            new string[0], //featureNames
+            y_IDs
+        );
+        return dataset;
+    }
+
+
+    public static InMemoryDataSet Load(string xFileName, [CanBeNull] string yFileNameIfAny, string csvPath)
     {
         var xPath = Path.Join(DataDirectory, xFileName);
-        (int[] xShape, int _, int _) = ProcessXFileName(xPath);
+        (int[] xShape, int _, int _, int _, int _, int _) = ProcessXFileName(xPath);
 
         var xTensor = CpuTensor<float>.LoadFromBinFile(xPath, xShape);
         var yTensor = string.IsNullOrEmpty(yFileNameIfAny)
@@ -105,7 +144,7 @@ public static class Biosonar85Utils
         Log.Info($"Stats for {xFileName} after standardization: {xAcc}");
 
 
-        var yID = DataFrame.read_string_csv(Path.Join(DataDirectory, csvFileName)).StringColumnContent("id");
+        var yID = DataFrame.read_string_csv(csvPath).StringColumnContent("id");
 
         var dataset = new InMemoryDataSet(
             xTensor,
@@ -143,12 +182,13 @@ public static class Biosonar85Utils
             { "OptimizerType", new[] { "AdamW"} },
             //{ "OptimizerType", new[] { "SGD"} },
             //{ "AdamW_L2Regularization", new[]{0.005f , 0.01f } }, //0.005 or 0.01
-            //{ "AdamW_L2Regularization", AbstractHyperParameterSearchSpace.Range(0.005f,0.01f) },
+            //{ "AdamW_L2Regularization", AbstractHyperParameterSearchSpace.Range(0.0005f,0.05f) },
             { "AdamW_L2Regularization", 0.005 },
 
             //Dataset
+
             { "ShuffleDatasetBeforeSplit", true},
-            { "UseTransformers", true},
+            { "InputDataType", nameof(Biosonar85DatasetSample.InputDataTypeEnum.TRANSFORMERS_3D)},
 
             {"embedding_dim", 64},
             {"input_is_already_embedded", true },
@@ -173,20 +213,19 @@ public static class Biosonar85Utils
 
             // DataAugmentation
             { "DataAugmentationType", nameof(ImageDataGenerator.DataAugmentationEnum.DEFAULT) },
-            { "AlphaCutMix", new[] { /*0, 0.25, 0.5,*/ 1.0} }, //must be > 0
+            { "AlphaCutMix", AbstractHyperParameterSearchSpace.Range(0,1.0f) }, //must be > 0
             { "AlphaMixup", new[] { 0 /*, 0.25*/} }, // must be 0
-            //{ "CutoutPatchPercentage", new[] {0, 0.25} },
-            //{ "RowsCutoutPatchPercentage", new[] {0, 0.25, 0.5} },
-            //{ "ColumnsCutoutPatchPercentage", new[] {0, 0.25, 0.5 } },
+            { "CutoutPatchPercentage", AbstractHyperParameterSearchSpace.Range(0, 0.1f) },
+            { "RowsCutoutPatchPercentage", AbstractHyperParameterSearchSpace.Range(0,0.1f) },
+            { "ColumnsCutoutPatchPercentage", AbstractHyperParameterSearchSpace.Range(0,0.1f) },
             //{ "HorizontalFlip",new[]{true,false } },
             //{ "VerticalFlip",new[]{true,false } },
             //{ "Rotate180Degrees",new[]{true,false } },
-            //{ "FillMode",new[]{ nameof(ImageDataGenerator.FillModeEnum.Reflect), nameof(ImageDataGenerator.FillModeEnum.Nearest), nameof(ImageDataGenerator.FillModeEnum.Modulo) } },
-            { "FillMode",nameof(ImageDataGenerator.FillModeEnum.Modulo) },
-            //{ "WidthShiftRangeInPercentage", new[] { 0.0 , 0.25 } },
-            //{ "HeightShiftRangeInPercentage", new[] { 0.0 , 0.01,0.05,0.1, 0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9 } },
-            //{ "HeightShiftRangeInPercentage", AbstractHyperParameterSearchSpace.Range(0,1.0f) },
-            //{ "ZoomRange", new[] { 0.0 , 0.05 } },
+            { "FillMode",new[]{ nameof(ImageDataGenerator.FillModeEnum.Reflect), nameof(ImageDataGenerator.FillModeEnum.Nearest), nameof(ImageDataGenerator.FillModeEnum.Modulo) } },
+            //{ "FillMode",nameof(ImageDataGenerator.FillModeEnum.Modulo) },
+            { "WidthShiftRangeInPercentage", AbstractHyperParameterSearchSpace.Range(0,0.1f) },
+            { "HeightShiftRangeInPercentage", AbstractHyperParameterSearchSpace.Range(0,0.1f) },
+            //{ "ZoomRange", new[] { 0.0 , 0.05,0.1 } },
             
             
             
@@ -194,6 +233,7 @@ public static class Biosonar85Utils
             //{ "InitialLearningRate", AbstractHyperParameterSearchSpace.Range(0.01f,0.2f,AbstractHyperParameterSearchSpace.range_type.normal)}, 
             //{ "InitialLearningRate", AbstractHyperParameterSearchSpace.Range(0.02f,0.05f)}, //0.02 to 0.05
             { "InitialLearningRate", 0.02},
+            //{ "InitialLearningRate", AbstractHyperParameterSearchSpace.Range(0.002f,0.2f)}, //0.02 to 0.05
             // Learning Rate Scheduler
             //{ "LearningRateSchedulerType", new[] { "OneCycle" } },
             { "LearningRateSchedulerType", "CyclicCosineAnnealing" },
@@ -210,6 +250,7 @@ public static class Biosonar85Utils
     {
         Utils.ConfigureGlobalLog4netProperties(WorkingDirectory, "log");
         Utils.ConfigureThreadLog4netProperties(WorkingDirectory, "log");
+
         var searchSpace = new Dictionary<string, object>
         {
             //{"KFold", 2},
@@ -230,6 +271,7 @@ public static class Biosonar85Utils
 
             //Dataset
             { "ShuffleDatasetBeforeSplit", true},
+            { "InputDataType", nameof(Biosonar85DatasetSample.InputDataTypeEnum.NETWORK_4D)},
 
 
             //{ "Use_MaxPooling", new[]{true,false}},
@@ -274,5 +316,113 @@ public static class Biosonar85Utils
         IScore bestScoreSoFar = null;
         const bool retrainOnFullDatasetIfBetterModelFound = false;
         hpo.Process(t => SampleUtils.TrainWithHyperParameters((ModelAndDatasetPredictionsSample)t, WorkingDirectory, retrainOnFullDatasetIfBetterModelFound, ref bestScoreSoFar), maxAllowedSecondsForAllComputation);
+    }
+
+    public static void Launch_HPO_PngDirectory(int numEpochs = 10, int maxAllowedSecondsForAllComputation = 0)
+    {
+        Utils.ConfigureGlobalLog4netProperties(WorkingDirectory, "log");
+        Utils.ConfigureThreadLog4netProperties(WorkingDirectory, "log");
+
+        var searchSpace = new Dictionary<string, object>
+        {
+            //related to Dataset 
+            //{"KFold", 2},
+            { "PercentageInTraining", 0.8}, //will be automatically set to 1 if KFold is enabled
+            { "ShuffleDatasetBeforeSplit", true},
+            { "InputDataType", nameof(Biosonar85DatasetSample.InputDataTypeEnum.PNG_1CHANNEL)},
+
+            //related to model
+            { "LossFunction", nameof(EvaluationMetricEnum.BinaryCrossentropy)},
+            { "RankingEvaluationMetric", nameof(EvaluationMetricEnum.AUC)},
+            { "BatchSize", new[] {128} },
+            { "NumEpochs", new[] { numEpochs } },
+            { "ShuffleDatasetBeforeEachEpoch", true},
+            // Optimizer 
+            //{ "OptimizerType", new[] { "AdamW"} },
+            //{ "SGD_usenesterov", new[] { true, false } },
+            //{ "lambdaL2Regularization", new[] { 0.0005, 0.001, 0.00005 } },
+            { "lambdaL2Regularization", new[] { 0.0005 /*, 0.001, 0.00005*/ } },
+            { "DefaultMobileBlocksDescriptionCount", 4},
+            
+            // Learning Rate
+            { "InitialLearningRate", new []{0.005, 0.01}},
+            
+
+            // Learning Rate Scheduler
+            //{ "LearningRateSchedulerType", new[] { "OneCycle" } },
+            //{ "LearningRateSchedulerType", "CyclicCosineAnnealing" },
+            {"LastActivationLayer", nameof(cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID)},
+
+            // DataAugmentation
+            { "DataAugmentationType", nameof(ImageDataGenerator.DataAugmentationEnum.DEFAULT) },
+            { "AlphaCutMix", new[] { 0.0, 0.5, 1.0} }, //must be > 0
+            { "AlphaMixup", new[] { 0.0, 0.5, 1.0} }, // must be 0 ?
+            { "CutoutPatchPercentage", new[] { 0 , 0.1} },
+            { "RowsCutoutPatchPercentage", new[] { 0 , 0.1} },
+            //{ "ColumnsCutoutPatchPercentage", new[] { 0 , 0.1} },
+            //{ "HorizontalFlip",new[]{true,false } },
+            //{ "VerticalFlip",new[]{true,false } },
+            //{ "Rotate180Degrees",new[]{true,false } },
+            { "FillMode",new[]{ nameof(ImageDataGenerator.FillModeEnum.Reflect), nameof(ImageDataGenerator.FillModeEnum.Modulo) } },
+            { "WidthShiftRangeInPercentage", new[] { 0, 0.1, 0.2 } },
+            { "HeightShiftRangeInPercentage", new[] { 0, 0.1, 0.2} },
+
+
+
+
+    // DataAugmentation
+    //{ "HorizontalFlip", new[] { true /*, false*/} }, //true
+    //{ "VerticalFlip", new[] { false /*, true*/} }, //false
+    //{ "AlphaMixup", new[] { 0.0 /*, 0.5, 1.0*/ } }, //0.0
+    //{ "AlphaCutMix", new[] { 1.0, 2.0 } }, //0.0
+    //{ "CutoutPatchPercentage", new[] { 0.0, 0.15, 0.3} },
+    //{ "RotationRangeInDegrees", new[] { 0.0, 5.0, 10.0} },
+    //{ "ZoomRange", new[] { 0.05} },
+    //{ "EqualizeOperationProbability", new[] { 0.0, 0.2} },
+    //{ "AutoContrastOperationProbability", new[] { 1.0} },
+
+};
+
+        var hpo = new BayesianSearchHPO(searchSpace, () => ModelAndDatasetPredictionsSample.New(DefaultEfficientNetNetworkSample(), new Biosonar85DatasetSample()), WorkingDirectory);
+        IScore bestScoreSoFar = null;
+        const bool retrainOnFullDatasetIfBetterModelFound = false;
+        hpo.Process(t => SampleUtils.TrainWithHyperParameters((ModelAndDatasetPredictionsSample)t, WorkingDirectory, retrainOnFullDatasetIfBetterModelFound, ref bestScoreSoFar), maxAllowedSecondsForAllComputation);
+    }
+
+
+
+    /// <summary>
+    /// The default EfficientNet Hyper-Parameters for CIFAR10
+    /// </summary>
+    /// <returns></returns>
+    public static EfficientNetNetworkSample DefaultEfficientNetNetworkSample()
+    {
+        var config = (EfficientNetNetworkSample)new EfficientNetNetworkSample()
+        {
+            LossFunction = EvaluationMetricEnum.BinaryCrossentropy,
+            RankingEvaluationMetric = EvaluationMetricEnum.AUC,
+            CompatibilityMode = NetworkSample.CompatibilityModeEnum.TensorFlow,
+            lambdaL2Regularization = 0.0005,
+            //!D WorkingDirectory = Path.Combine(NetworkSample.DefaultWorkingDirectory, CIFAR10DataSet.NAME),
+            NumEpochs = 10,
+            BatchSize = 64,
+            InitialLearningRate = 0.01,
+
+
+            //Data augmentation
+            DataAugmentationType = ImageDataGenerator.DataAugmentationEnum.DEFAULT,
+            WidthShiftRangeInPercentage = 0.0,
+            HeightShiftRangeInPercentage = 0.0,
+            HorizontalFlip = false,
+            VerticalFlip = false,
+            FillMode = ImageDataGenerator.FillModeEnum.Reflect,
+            AlphaMixup = 0.0,
+            AlphaCutMix = 0.0,
+            CutoutPatchPercentage = 0.0
+        }
+            .WithSGD(0.9, false)
+            .WithCyclicCosineAnnealingLearningRateScheduler(10, 2);
+        return config;
+
     }
 }

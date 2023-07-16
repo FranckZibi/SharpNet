@@ -128,5 +128,23 @@ namespace SharpNetTests.DataAugmentation.Operations
             Array.Reverse(expected);
             OperationTests.Check(new Rotate180Degrees(inputShape[2], inputShape[3]), input, inputShape, expected, null, ImageDataGenerator.FillModeEnum.Nearest);
         }
+
+        [Test]
+        public void TestRotate90Degrees()
+        {
+            //single element
+            var input = new[] { 12f };
+            var inputShape = new[] { 1, 1, 1, 1 };
+            var expected = new[] { 12f };
+            OperationTests.Check(new Rotate90Degrees(inputShape[2], inputShape[3]), input, inputShape, expected, null, ImageDataGenerator.FillModeEnum.Nearest);
+
+          
+            // 4x4 matrix
+            input = Enumerable.Range(0, 16).Select(x => (float)x).ToArray();
+            inputShape = new[] { 1, 1, 4, 4 };
+            expected = new[] { 12f, 8, 4, 0, 13, 9, 5, 1, 14, 10, 6, 2, 15, 11, 7, 3 };
+            Array.Reverse(expected);
+            OperationTests.Check(new Rotate90Degrees(inputShape[2], inputShape[3]), input, inputShape, expected, null, ImageDataGenerator.FillModeEnum.Nearest);
+        }
     }
 }

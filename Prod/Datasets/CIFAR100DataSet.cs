@@ -52,7 +52,7 @@ namespace SharpNet.Datasets
             "bicycle", "bus", "motorcycle", "pickup truck", "train",
             "lawn-mower", "rocket", "streetcar", "tank", "tractor" };
 
-        public static int CategoryCount => CategoryIndexToDescription.Length;
+        public static int NumClass => CategoryIndexToDescription.Length;
 
         //private readonly string[] SuperclassIdToDescription = new[]
         //{
@@ -95,7 +95,7 @@ namespace SharpNet.Datasets
             //We normalize the input with 0 mean / 1 volatility
             var meanAndVolatilityOfEachChannelInTrainingSet = new List<Tuple<float, float>>{Tuple.Create(129.304165605469f, 68.1702428992064f),Tuple.Create(124.069962695312f, 65.3918080438575f),Tuple.Create(112.434050058594f, 70.4183701880494f)};
             var xTrain = DataSet.ToXWorkingSet(xTrainingSet, meanAndVolatilityOfEachChannelInTrainingSet);
-            var yTrain = DataSet.ToYWorkingSet(yTrainingSet, CategoryCount, CategoryByteToCategoryIndex);
+            var yTrain = DataSet.ToYWorkingSet(yTrainingSet, NumClass, CategoryByteToCategoryIndex);
 
             DataSet.AreCompatible_X_Y(xTrain, yTrain);
 
@@ -105,7 +105,7 @@ namespace SharpNet.Datasets
             Load(Path.Combine(path, "test.bin"), xTestSet, yTestSet);
             //We normalize the test set with 0 mean / 1 volatility (coming from the training set)
             var xTest = DataSet.ToXWorkingSet(xTestSet, meanAndVolatilityOfEachChannelInTrainingSet);
-            var yTest = DataSet.ToYWorkingSet(yTestSet, CategoryCount, CategoryByteToCategoryIndex);
+            var yTest = DataSet.ToYWorkingSet(yTestSet, NumClass, CategoryByteToCategoryIndex);
 
             DataSet.AreCompatible_X_Y(xTest, yTest);
             //Uncomment the following line to take only the first elements

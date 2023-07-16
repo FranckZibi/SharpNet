@@ -32,6 +32,24 @@ namespace SharpNet.DataAugmentation.Operations
         public override void UpdateY(CpuTensor<float> yMiniBatch, int indexInMiniBatch, Func<int, int> indexInMiniBatchToCategoryIndex)
         {
             // We need to update the expected y using Mixup lambda
+
+
+            //special case: when the y tensor is of shape (batchSizae, 1)
+            if (yMiniBatch.Shape.Length == 2 && yMiniBatch.Shape[1] == 1)
+            {
+                var originalValue = yMiniBatch.Get(indexInMiniBatch, 0);
+                var mixupValue = yMiniBatch.Get(_indexInMiniBatchForMixup, 0);
+                if (originalValue != mixupValue)
+                {
+                    // We need to update the expected y value at 'indexInMiniBatch':
+                    // the udpated y value is:
+                    //      '_mixupLambda' * y value of the element at 'indexInMiniBatch'
+                    //      +'1-_mixupLambda' * y value of the element at '_indexInMiniBatchForMixup'
+                    yMiniBatch.Set(indexInMiniBatch, 0, _mixupLambda * originalValue + (1 - _mixupLambda) * mixupValue   );
+                }
+                return;
+            }
+
             // the associated y is:
             //        'mixupLambda' % of the category of the element at 'indexInMiniBatch'
             //      '1-mixupLambda' % of the category of the element at 'indexInMiniBatchForMixup'

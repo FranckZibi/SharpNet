@@ -9,21 +9,21 @@ namespace SharpNet.Networks
     {
         /// <summary>
         /// set the number of output categories of the current network by updating the head layers (Dense+Activation layers)
-        /// if the number of output categories is already 'newCategoryCount'
+        /// if the number of output categories is already 'newNumClass'
         ///     does nothing at all
         /// else
         ///     update the last Dense Layers (resetting all its weights) to match the required number of categories
         /// </summary>
-        /// <param name="newCategoryCount">the target number of categories</param>
-        public void SetCategoryCount(int newCategoryCount)
+        /// <param name="newNumClass">the target number of categories</param>
+        public void SetNumClass(int newNumClass)
         {
-            LogInfo("setting number of output categoryCount to " + newCategoryCount);
+            LogInfo("setting number of output numClass to " + newNumClass);
             if (Layers.Count >= 2 && Layers[Layers.Count - 1] is ActivationLayer && Layers[Layers.Count - 2] is DenseLayer)
             {
                 var denseLayer = (DenseLayer) Layers[Layers.Count - 2];
-                if (denseLayer.Units == newCategoryCount)
+                if (denseLayer.Units == newNumClass)
                 {
-                    LogInfo("no need to set the CategoryCount to " + newCategoryCount);
+                    LogInfo("no need to set the NumClass to " + newNumClass);
                     return; //already at target category count
                 }
 
@@ -39,8 +39,8 @@ namespace SharpNet.Networks
                 RemoveAndDisposeLastLayer();
 
                 //We add a new DenseLayer (with weight reseted)
-                LogInfo("Resetting weights of layer " + denseLayerName + " to have " + newCategoryCount + " categories");
-                Dense(newCategoryCount, lambdaL2Regularization, false, denseLayerName);
+                LogInfo("Resetting weights of layer " + denseLayerName + " to have " + newNumClass + " categories");
+                Dense(newNumClass, lambdaL2Regularization, false, denseLayerName);
 
                 //we put back the ActivationLayer
                 Activation(activationFunctionType, activationLayerName);

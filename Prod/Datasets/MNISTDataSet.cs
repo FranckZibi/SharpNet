@@ -11,7 +11,7 @@ namespace SharpNet.Datasets
     public class MnistDataset : AbstractTrainingAndTestDataset
     {
         private static readonly string[] CategoryIndexToDescription = new[] { "0", "1", "2", "3", "4", "5", "6", "7", "8", "9" };
-        public static int CategoryCount => CategoryIndexToDescription.Length;
+        public static int NumClass => CategoryIndexToDescription.Length;
 
         public override DataSet Training { get; }
         public override DataSet Test { get; }

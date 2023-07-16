@@ -162,7 +162,7 @@ public class EfficientNetNetworkSample : NetworkSample
     ///       - `max`
     ///                 means that global max pooling will be applied
     /// </param>
-    /// <param name="categoryCount">optional number of classes to classify images  into, only to be specified if `includeTop` is True, and if no `weights` argument is specified</param>
+    /// <param name="numClass">optional number of classes to classify images  into, only to be specified if `includeTop` is True, and if no `weights` argument is specified</param>
     /// <returns></returns>
     private Network EfficientNet(
         float widthCoefficient,
@@ -179,7 +179,7 @@ public class EfficientNetNetworkSample : NetworkSample
         string weights,
         int[] inputShape_CHW,
         POOLING_BEFORE_DENSE_LAYER pooling,
-        int categoryCount //= 1000
+        int numClass //= 1000
     )
     {
         return EfficientNet(
@@ -195,7 +195,7 @@ public class EfficientNetNetworkSample : NetworkSample
             weights,
             inputShape_CHW,
             pooling,
-            categoryCount
+            numClass
             );
     }
 
@@ -213,7 +213,7 @@ public class EfficientNetNetworkSample : NetworkSample
             string weights,
             int[] inputShape_CHW,
             POOLING_BEFORE_DENSE_LAYER pooling,
-            int categoryCount //= 1000
+            int numClass //= 1000
         )
     {
         if (network.Layers.Count != 0)
@@ -273,7 +273,7 @@ public class EfficientNetNetworkSample : NetworkSample
             }
 
             network.Flatten();
-            network.Dense(categoryCount, config.lambdaL2Regularization, false, "probs");
+            network.Dense(numClass, config.lambdaL2Regularization, false, "probs");
             network.Activation(LastActivationLayer);
         }
         else
@@ -291,9 +291,9 @@ public class EfficientNetNetworkSample : NetworkSample
         //We load weights if needed
         if (0 == string.Compare(weights, "imagenet", StringComparison.OrdinalIgnoreCase))
         {
-            if (categoryCount != 1000)
+            if (numClass != 1000)
             {
-                throw new ArgumentException("categoryCount must be 1000 for " + weights);
+                throw new ArgumentException("numClass must be 1000 for " + weights);
             }
             var modelPath = GetKerasModelPath(network.ModelName + "_weights_tf_dim_ordering_tf_kernels_autoaugment.h5");
             if (!File.Exists(modelPath))
@@ -367,7 +367,7 @@ public class EfficientNetNetworkSample : NetworkSample
     /// if weight is provided (ex: imagenet):
     ///      will load the weight from the provided source,
     ///      and will set the network category count to 10
-    ///      (resetting the last Dense layer weights if required to have 10 output categoryCount)
+    ///      (resetting the last Dense layer weights if required to have 10 output numClass)
     /// </summary>
     /// <param name="weight"></param>
     /// <param name="inputShape_CHW"></param>
@@ -375,8 +375,8 @@ public class EfficientNetNetworkSample : NetworkSample
     public Network EfficientNetB0_CIFAR10(string weight, int[] inputShape_CHW)
     {
         var net = EfficientNetB0(DenseNetNetworkSample.Cifar10WorkingDirectory, true, weight, inputShape_CHW);
-        Model.Log.Info("setting number of output categoryCount to 10");
-        net.SetCategoryCount(10);
+        Model.Log.Info("setting number of output numClass to 10");
+        net.SetNumClass(10);
         return net;
     }
 
@@ -400,7 +400,7 @@ public class EfficientNetNetworkSample : NetworkSample
         bool includeTop, //= True,
         string weights, //= 'imagenet',
         int[] inputShape_CHW, //= None,
-        int categoryCount = 1000,
+        int numClass = 1000,
         POOLING_BEFORE_DENSE_LAYER pooling = POOLING_BEFORE_DENSE_LAYER.NONE)
     {
         return EfficientNetB0(
@@ -409,7 +409,7 @@ public class EfficientNetNetworkSample : NetworkSample
             includeTop,
             weights,
             inputShape_CHW,
-            categoryCount,
+            numClass,
             pooling);
     }
 
@@ -419,10 +419,10 @@ public class EfficientNetNetworkSample : NetworkSample
             bool includeTop, //= True,
             string weights, //= 'imagenet',
             int[] inputShape_CHW, //= None,
-            int categoryCount = 1000,
+            int numClass = 1000,
             POOLING_BEFORE_DENSE_LAYER pooling = POOLING_BEFORE_DENSE_LAYER.NONE)
         {
-            return EfficientNet(1.0f, 1.0f, 224, 0.2f, 0.2f, 8, blocks, network, includeTop, weights, inputShape_CHW, pooling, categoryCount);
+            return EfficientNet(1.0f, 1.0f, 224, 0.2f, 0.2f, 8, blocks, network, includeTop, weights, inputShape_CHW, pooling, numClass);
     }
 
     public Network EfficientNetB1(
@@ -431,11 +431,11 @@ public class EfficientNetNetworkSample : NetworkSample
         string weights, //= 'imagenet',
         int[] inputShape_CHW, //= None,
         POOLING_BEFORE_DENSE_LAYER pooling, //= None,
-        int categoryCount //= 1000
+        int numClass //= 1000
     )
     {
         return EfficientNet(1.0f, 1.0f, 224, 0.2f,
-            0.2f, 8, MobileBlocksDescription.Default(), workingDirectory, "efficientnet-b1", includeTop, weights, inputShape_CHW, pooling, categoryCount);
+            0.2f, 8, MobileBlocksDescription.Default(), workingDirectory, "efficientnet-b1", includeTop, weights, inputShape_CHW, pooling, numClass);
     }
 
     public Network EfficientNetB2(
@@ -444,11 +444,11 @@ public class EfficientNetNetworkSample : NetworkSample
         string weights, //= 'imagenet',
         int[] inputShape_CHW, //= None,
         POOLING_BEFORE_DENSE_LAYER pooling, //= None,
-        int categoryCount //= 1000
+        int numClass //= 1000
     )
     {
         return EfficientNet(1.1f, 1.2f, 260, 0.3f,
-            0.2f, 8, MobileBlocksDescription.Default(), workingDirectory, "efficientnet-b2", includeTop, weights, inputShape_CHW, pooling, categoryCount);
+            0.2f, 8, MobileBlocksDescription.Default(), workingDirectory, "efficientnet-b2", includeTop, weights, inputShape_CHW, pooling, numClass);
     }
 
     public Network EfficientNetB3(
@@ -457,11 +457,11 @@ public class EfficientNetNetworkSample : NetworkSample
         string weights, //= 'imagenet',
         int[] inputShape_CHW, //= None,
         POOLING_BEFORE_DENSE_LAYER pooling, //= None,
-        int categoryCount //= 1000
+        int numClass //= 1000
     )
     {
         return EfficientNet(1.2f, 1.4f, 300, 0.3f,
-            0.2f, 8, MobileBlocksDescription.Default(), workingDirectory, "efficientnet-b3", includeTop, weights, inputShape_CHW, pooling, categoryCount);
+            0.2f, 8, MobileBlocksDescription.Default(), workingDirectory, "efficientnet-b3", includeTop, weights, inputShape_CHW, pooling, numClass);
     }
 
     public Network EfficientNetB4(
@@ -470,11 +470,11 @@ public class EfficientNetNetworkSample : NetworkSample
         string weights, //= 'imagenet',
         int[] inputShape_CHW, //= None,
         POOLING_BEFORE_DENSE_LAYER pooling, //= None,
-        int categoryCount //= 1000
+        int numClass //= 1000
     )
     {
         return EfficientNet(1.4f, 1.8f, 380, 0.4f,
-            0.2f, 8, MobileBlocksDescription.Default(), workingDirectory, "efficientnet-b4", includeTop, weights, inputShape_CHW, pooling, categoryCount);
+            0.2f, 8, MobileBlocksDescription.Default(), workingDirectory, "efficientnet-b4", includeTop, weights, inputShape_CHW, pooling, numClass);
     }
 
     public Network EfficientNetB5(
@@ -483,11 +483,11 @@ public class EfficientNetNetworkSample : NetworkSample
         string weights, //= 'imagenet',
         int[] inputShape_CHW, //= None,
         POOLING_BEFORE_DENSE_LAYER pooling, //= None,
-        int categoryCount //= 1000
+        int numClass //= 1000
     )
     {
         return EfficientNet(1.6f, 2.2f, 456, 0.4f,
-            0.2f, 8, MobileBlocksDescription.Default(), workingDirectory, "efficientnet-b5", includeTop, weights, inputShape_CHW, pooling, categoryCount);
+            0.2f, 8, MobileBlocksDescription.Default(), workingDirectory, "efficientnet-b5", includeTop, weights, inputShape_CHW, pooling, numClass);
     }
 
     public Network EfficientNetB6(
@@ -496,11 +496,11 @@ public class EfficientNetNetworkSample : NetworkSample
         string weights, //= 'imagenet',
         int[] inputShape_CHW, //= None,
         POOLING_BEFORE_DENSE_LAYER pooling, //= None,
-        int categoryCount //= 1000
+        int numClass //= 1000
     )
     {
         return EfficientNet(1.8f, 2.6f, 528, 0.5f,
-            0.2f, 8, MobileBlocksDescription.Default(), workingDirectory, "efficientnet-b6", includeTop, weights, inputShape_CHW, pooling, categoryCount);
+            0.2f, 8, MobileBlocksDescription.Default(), workingDirectory, "efficientnet-b6", includeTop, weights, inputShape_CHW, pooling, numClass);
     }
 
     public Network EfficientNetB7(
@@ -509,11 +509,11 @@ public class EfficientNetNetworkSample : NetworkSample
         string weights, //= 'imagenet',
         int[] inputShape_CHW, //= None,
         POOLING_BEFORE_DENSE_LAYER pooling, //= None,
-        int categoryCount //= 1000
+        int numClass //= 1000
     )
     {
         return EfficientNet(2.0f, 3.1f, 600, 0.5f,
-            0.2f, 8, MobileBlocksDescription.Default(), workingDirectory, "efficientnet-b7", includeTop, weights, inputShape_CHW, pooling, categoryCount);
+            0.2f, 8, MobileBlocksDescription.Default(), workingDirectory, "efficientnet-b7", includeTop, weights, inputShape_CHW, pooling, numClass);
     }
 
     public Network EfficientNetL2(
@@ -522,11 +522,11 @@ public class EfficientNetNetworkSample : NetworkSample
         string weights, //= 'imagenet',
         int[] inputShape_CHW, //= None,
         POOLING_BEFORE_DENSE_LAYER pooling, //= None,
-        int categoryCount //= 1000
+        int numClass //= 1000
     )
     {
         return EfficientNet(4.3f, 5.3f, 800, 0.5f,
-            0.2f, 8, MobileBlocksDescription.Default(), workingDirectory, "efficientnet-l2", includeTop, weights, inputShape_CHW, pooling, categoryCount);
+            0.2f, 8, MobileBlocksDescription.Default(), workingDirectory, "efficientnet-l2", includeTop, weights, inputShape_CHW, pooling, numClass);
     }
 
     //public static EfficientNetNetworkSample ValueOfEfficientNetSample(string workingDirectory, string modelName)

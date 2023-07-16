@@ -39,10 +39,6 @@ public sealed class MappedDataSet : WrappedDataSet
     {
         return _original.ElementIdToCategoryIndex(_elementIdToOriginalElementId[elementId]);
     }
-    public override string ElementIdToPathIfAny(int elementId)
-    {
-        return _original.ElementIdToPathIfAny(_elementIdToOriginalElementId[elementId]);
-    }
     public override string ID_Y_row_InTargetFormat(int Y_row_InTargetFormat)
     {
         if (_original.Y_IDs != null && _original.Y_IDs.Length != _original.Count)

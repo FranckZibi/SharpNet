@@ -83,24 +83,11 @@ public abstract class AbstractDatasetSample : AbstractSample, IDisposable
     #region public properties
 
     public string Name { get; }
-    public abstract string[] CategoricalFeatures { get; }
-
 
     public virtual bool PredictionsMustBeOrderedByIdColumn => false;
-    /// <summary>
-    /// feature used to identify a row in the dataset
-    /// such features should be ignored during the training
-    /// </summary>
-    public abstract string IdColumn { get; }
 
     // ReSharper disable once AutoPropertyCanBeMadeGetOnly.Local
     protected DatasetEncoder DatasetEncoder { get; set; }
-
-    /// <summary>
-    /// list of target feature names (usually a single element)
-    /// </summary>
-    /// <returns>list of target feature names </returns>
-    public abstract string[] TargetLabels { get; }
 
     private int[] _cacheInputShape_CHW = null;
     protected string[] _cacheColumns = null;
@@ -185,6 +172,29 @@ public abstract class AbstractDatasetSample : AbstractSample, IDisposable
     }
     #endregion
 
+
+    #region abstract methods that must be implemetned
+    /// <summary>
+    /// feature used to identify a row in the dataset
+    /// such features should be ignored during the training
+    /// </summary>
+    public abstract string IdColumn { get; }
+    /// <summary>
+    /// </summary>
+    /// <returns>list of target feature names </returns>
+    public abstract string[] TargetLabels { get; }
+    public abstract string[] CategoricalFeatures { get; }
+    public abstract int NumClass { get; }
+    // new string[0] for regression problems
+    public abstract string[] TargetLabelDistinctValues { get; }
+    public abstract Objective_enum GetObjective();
+    public abstract DataSet TestDataset();
+    /// <summary>
+    /// returns the full train and validation dataset
+    /// </summary>
+    /// <returns></returns>
+    public abstract DataSet FullTrainingAndValidation();
+    #endregion
 
     protected virtual int EmbeddingForColumn(string columnName, int defaultEmbeddingDim)
     {
@@ -325,11 +335,6 @@ public abstract class AbstractDatasetSample : AbstractSample, IDisposable
     }
 
 
-    public abstract int NumClass { get; }
-    // new string[0] for regression problems
-    public abstract string[] TargetLabelDistinctValues { get; }
-    public abstract Objective_enum GetObjective();
-    
     public IScore ComputeRankingEvaluationMetric(DataFrame y_true_InTargetFormat, DataFrame y_pred_InTargetFormat, EvaluationMetricEnum rankingEvaluationMetric)
     {
         AssertNoIdColumns(y_true_InTargetFormat);
@@ -375,13 +380,6 @@ public abstract class AbstractDatasetSample : AbstractSample, IDisposable
     }
    
     public virtual IScore MinimumScoreToSaveModel => null;
-
-    public abstract DataSet TestDataset();
-    /// <summary>
-    /// returns the full train and validation dataset
-    /// </summary>
-    /// <returns></returns>
-    public abstract DataSet FullTrainingAndValidation();
 
     public virtual ITrainingAndTestDataset SplitIntoTrainingAndValidation()
     {

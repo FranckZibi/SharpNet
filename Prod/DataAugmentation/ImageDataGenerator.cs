@@ -61,21 +61,25 @@ namespace SharpNet.DataAugmentation
                     Debug.Assert(_sample.HorizontalFlip == true);
                     Debug.Assert(_sample.VerticalFlip == false);
                     Debug.Assert(_sample.Rotate180Degrees == false);
+                    Debug.Assert(_sample.Rotate90Degrees == false);
                     return new AutoAugment(indexInMiniBatch, xOriginalMiniBatch, meanAndVolatilityForEachChannel, indexInOriginalMiniBatchToImageStatistic(indexInMiniBatch), rand, 0, 0, 0.5, 0, 0, _sample.HorizontalFlip, _sample.VerticalFlip, _sample.Rotate180Degrees).GetSubPolicyCifar10();
                 case DataAugmentationEnum.AUTO_AUGMENT_CIFAR10_CUTOUT_CUTMIX_MIXUP:
                     Debug.Assert(_sample.HorizontalFlip == true);
                     Debug.Assert(_sample.VerticalFlip == false);
                     Debug.Assert(_sample.Rotate180Degrees == false);
+                    Debug.Assert(_sample.Rotate90Degrees == false);
                     return new AutoAugment(indexInMiniBatch, xOriginalMiniBatch, meanAndVolatilityForEachChannel, indexInOriginalMiniBatchToImageStatistic(indexInMiniBatch), rand, _sample.WidthShiftRangeInPercentage, _sample.HeightShiftRangeInPercentage, _sample.CutoutPatchPercentage, _sample.AlphaCutMix, _sample.AlphaMixup, _sample.HorizontalFlip, _sample.VerticalFlip, _sample.Rotate180Degrees).GetSubPolicyCifar10();
                 case DataAugmentationEnum.AUTO_AUGMENT_CIFAR10_AND_MANDATORY_CUTMIX:
                     Debug.Assert(_sample.HorizontalFlip == true);
                     Debug.Assert(_sample.VerticalFlip == false);
                     Debug.Assert(_sample.Rotate180Degrees == false);
+                    Debug.Assert(_sample.Rotate90Degrees == false);
                     return new AutoAugment(indexInMiniBatch, xOriginalMiniBatch, meanAndVolatilityForEachChannel, indexInOriginalMiniBatchToImageStatistic(indexInMiniBatch), rand, 0, 0, 0, 1.0, 0, _sample.HorizontalFlip, _sample.VerticalFlip, _sample.Rotate180Degrees).GetSubPolicyCifar10();
                 case DataAugmentationEnum.AUTO_AUGMENT_CIFAR10_AND_MANDATORY_MIXUP:
                     Debug.Assert(_sample.HorizontalFlip == true);
                     Debug.Assert(_sample.VerticalFlip == false);
                     Debug.Assert(_sample.Rotate180Degrees == false);
+                    Debug.Assert(_sample.Rotate90Degrees == false);
                     return new AutoAugment(indexInMiniBatch, xOriginalMiniBatch, meanAndVolatilityForEachChannel, indexInOriginalMiniBatchToImageStatistic(indexInMiniBatch), rand, 0, 0, 0, 0, 1.0, _sample.HorizontalFlip, _sample.VerticalFlip, _sample.Rotate180Degrees).GetSubPolicyCifar10();
                 case DataAugmentationEnum.AUTO_AUGMENT_IMAGENET:
                     //Debug.Assert(_config.HorizontalFlip == true);
@@ -143,6 +147,11 @@ namespace SharpNet.DataAugmentation
             if (rotate180Degrees)
             {
                 result.Add(new Rotate180Degrees(nbRows, nbCols));
+            }
+            var rotate90Degrees = _sample.Rotate90Degrees && rand.Next(2) == 0;
+            if (rotate90Degrees)
+            {
+                result.Add(new Rotate90Degrees(nbRows, nbCols));
             }
             if (IsEnabled(_sample.EqualizeOperationProbability, rand))
             {

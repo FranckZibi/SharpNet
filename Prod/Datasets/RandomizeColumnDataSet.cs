@@ -86,8 +86,6 @@ public sealed class RandomizeColumnDataSet : DataSet
 
     public override int Count => _original.Count;
     public override int ElementIdToCategoryIndex(int elementId) { return _original.ElementIdToCategoryIndex(elementId); }
-    public override string ElementIdToPathIfAny(int elementId) { return _original.ElementIdToPathIfAny(elementId); }
-
     #region Dispose pattern
     protected override void Dispose(bool disposing)
     {

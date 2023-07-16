@@ -69,27 +69,27 @@ namespace SharpNet.Networks
 
         //implementation described in: https://arxiv.org/pdf/1512.03385.pdf
         #region ResNet V1
-        public Network ResNet18_V1(int[] xShape, int categoryCount)
+        public Network ResNet18_V1(int[] xShape, int numClass)
         {
-            return ResNetV1(nameof(ResNet18_V1), new[] { 2, 2, 2, 2 }, false, xShape, categoryCount);
+            return ResNetV1(nameof(ResNet18_V1), new[] { 2, 2, 2, 2 }, false, xShape, numClass);
         }
-        public Network ResNet34_V1(int[] xShape, int categoryCount)
+        public Network ResNet34_V1(int[] xShape, int numClass)
         {
-            return ResNetV1(nameof(ResNet34_V1), new[] { 3, 4, 6, 3 }, false, xShape, categoryCount);
+            return ResNetV1(nameof(ResNet34_V1), new[] { 3, 4, 6, 3 }, false, xShape, numClass);
         }
-        public Network ResNet50_V1(int[] xShape, int categoryCount)
+        public Network ResNet50_V1(int[] xShape, int numClass)
         {
-            return ResNetV1(nameof(ResNet50_V1), new[] { 3, 4, 6, 3 }, true, xShape, categoryCount);
+            return ResNetV1(nameof(ResNet50_V1), new[] { 3, 4, 6, 3 }, true, xShape, numClass);
         }
-        public Network ResNet101_V1(int[] xShape, int categoryCount)
+        public Network ResNet101_V1(int[] xShape, int numClass)
         {
-            return ResNetV1(nameof(ResNet101_V1), new[] { 3, 4, 23, 3 }, true, xShape, categoryCount);
+            return ResNetV1(nameof(ResNet101_V1), new[] { 3, 4, 23, 3 }, true, xShape, numClass);
         }
-        public Network ResNet152_V1(int[] xShape, int categoryCount)
+        public Network ResNet152_V1(int[] xShape, int numClass)
         {
-            return ResNetV1(nameof(ResNet152_V1), new[] { 3, 8, 36, 3 }, true, xShape, categoryCount);
+            return ResNetV1(nameof(ResNet152_V1), new[] { 3, 8, 36, 3 }, true, xShape, numClass);
         }
-        private Network ResNetV1(string networkName, int[] nbResBlocks, bool useBottleNeck, int[] xShape, int categoryCount)
+        private Network ResNetV1(string networkName, int[] nbResBlocks, bool useBottleNeck, int[] xShape, int numClass)
         {
             var network = BuildNetworkWithoutLayers(DenseNetNetworkSample.Cifar10WorkingDirectory, networkName);
             var config = network.Sample;
@@ -126,7 +126,7 @@ namespace SharpNet.Networks
                 stageC *= 2;
             }
             network.GlobalAvgPooling();
-            network.Dense(categoryCount, config.lambdaL2Regularization, false)
+            network.Dense(numClass, config.lambdaL2Regularization, false)
                 .Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
             return network;
         }
@@ -166,7 +166,7 @@ namespace SharpNet.Networks
                 stageC *= 2;
             }
             network.AvgPooling(8, 8, 8, 8);
-            network.Dense(CIFAR10DataSet.CategoryCount, config.lambdaL2Regularization, false)
+            network.Dense(CIFAR10DataSet.NumClass, config.lambdaL2Regularization, false)
                 .Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
             return network;
         }
@@ -216,7 +216,7 @@ namespace SharpNet.Networks
             }
             network.BatchNorm(0.99, 1e-5).Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU);
             network.AvgPooling(8, 8, 8, 8);
-            network.Dense(CIFAR10DataSet.CategoryCount, config.lambdaL2Regularization, false)
+            network.Dense(CIFAR10DataSet.NumClass, config.lambdaL2Regularization, false)
                 .Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
             return network;
         }

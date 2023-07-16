@@ -64,9 +64,7 @@ public class EffiSciences95DirectoryDataSet : DirectoryDataSet
             boxes,
             elementIdToPaths,
             elementIdToId,
-            elementIdToCategoryIndex,
-            null
-        );
+            elementIdToCategoryIndex);
     }
 
     private static readonly List<Tuple<float, float>> PrecomputedMeanAndVolatilityForEachChannel = new()
@@ -80,21 +78,21 @@ public class EffiSciences95DirectoryDataSet : DirectoryDataSet
         EffiSciences95DatasetSample datasetSample,
         List<EffiSciences95Row> boxes,
         List<List<string>> elementIdToPaths,
-        List<string> elementIdToID,
-        List<int> elementIdToCategoryIndex,
-        CpuTensor<float> expectedYIfAny
+        List<string> y_IDs,
+        List<int> elementIdToCategoryIndex
     )
         : base(elementIdToPaths, 
             elementIdToCategoryIndex, 
-            expectedYIfAny,
+            null,
             EffiSciences95Utils.NAME, 
             Objective_enum.Classification, 
             3,
-            new []{"old", "young"},
+            2,
             PrecomputedMeanAndVolatilityForEachChannel,
             ResizeStrategyEnum.None, 
             null,
-            elementIdToID.ToArray())
+            null, //idColumn
+            y_IDs.ToArray())
     {
         _datasetSample = datasetSample;
         _boxes = boxes;
