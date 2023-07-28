@@ -391,17 +391,6 @@
 		}
 	}
 
-	__global__ void SwishGradient(int N, const float* __restrict Y, const float* __restrict dY, const float* __restrict X, float *dX) 
-	{
-		int row = blockIdx.x * blockDim.x + threadIdx.x;
-		if (row < N) {
-			float x = X[row];
-		    float sigmoid_x = (fabs(x) < 0.0001f) ? 0.5f : Y[row] / x;
-            dX[row] = dY[row] * (sigmoid_x + x * sigmoid_x * (1 - sigmoid_x));
-		}
-	}
-
-
 	__global__ void ComputeLn(int N, const float* __restrict X, float* Y)
 	{
 		int row = blockIdx.x * blockDim.x + threadIdx.x;

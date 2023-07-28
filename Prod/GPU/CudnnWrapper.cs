@@ -266,14 +266,14 @@ namespace SharpNet.GPU
 
     public enum cudnnActivationMode_t
     {
-        CUDNN_ACTIVATION_SIGMOID,       //Selects the sigmoid function.
-        CUDNN_ACTIVATION_RELU,          //Selects the rectified linear function.
-        CUDNN_ACTIVATION_TANH,          //Selects the hyperbolic tangent function.
-        CUDNN_ACTIVATION_CLIPPED_RELU,  //Selects the clipped rectified linear function
-        CUDNN_ACTIVATION_ELU,           //Selects the exponential linear function
-        CUDNN_ACTIVATION_IDENTITY,
+        CUDNN_ACTIVATION_SIGMOID = 0,       //Selects the sigmoid function.
+        CUDNN_ACTIVATION_RELU = 1,          //Selects the rectified linear function.
+        CUDNN_ACTIVATION_TANH = 2,          //Selects the hyperbolic tangent function.
+        CUDNN_ACTIVATION_CLIPPED_RELU = 3,  //Selects the clipped rectified linear function
+        CUDNN_ACTIVATION_ELU = 4,           //Selects the exponential linear function
+        CUDNN_ACTIVATION_IDENTITY = 5,
+        CUDNN_ACTIVATION_SWISH = 6,         //Selects the swish function ( f(x) = x*sigmoid(x) , see https://arxiv.org/abs/1710.05941)
         CUDNN_ACTIVATION_SOFTMAX = 1000,
-        CUDNN_ACTIVATION_SWISH = 1001,     //Selects the swish function ( f(x) = x*sigmoid(x) , see https://arxiv.org/abs/1710.05941)
         CUDNN_ACTIVATION_LEAKY_RELU = 1002,     //Leaky Relu (requires an additional alpha coefficient)
         CUDNN_ACTIVATION_SOFTMAX_WITH_HIERARCHY = 1003,     //Softmax with hierarchical categories
         CUDNN_ACTIVATION_LN = 1004, //Natural Log 
@@ -702,6 +702,16 @@ namespace SharpNet.GPU
             cudnnActivationMode_t mode,
             cudnnNanPropagation_t reluNanOpt,
             double coef);
+
+        [DllImport(DLL_NAME)]
+        public static extern cudnnStatus_t cudnnSetActivationDescriptorSwishBeta(
+            cudnnActivationDescriptor_t activationDesc,
+            double swish_beta);
+
+        [DllImport(DLL_NAME)]
+        public static extern cudnnStatus_t cudnnGetActivationDescriptorSwishBeta(
+                cudnnActivationDescriptor_t activationDesc,
+                out double swish_beta);
 
         [DllImport(DLL_NAME)]
         public static extern cudnnStatus_t cudnnActivationForward(

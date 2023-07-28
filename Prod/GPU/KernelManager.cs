@@ -61,7 +61,6 @@ namespace SharpNet.GPU
                     "MultiplyEachRowIntoSingleValue",
                     "Split",
                     "Split3",
-                    "SwishGradient",
                     "Sum",
                     "UpdateAdamOptimizer",
                     "UpSampling2D",

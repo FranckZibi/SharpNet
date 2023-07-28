@@ -348,11 +348,6 @@ namespace SharpNet.GPU
                     var alphaActivation = activationParameter.ContentAsFloatArray()[0];
                     y.AddTensor(alphaActivation, x, 1- alphaActivation);
                     break;
-                case cudnnActivationMode_t.CUDNN_ACTIVATION_SWISH:
-                    // y = x * sigmoid(x) 
-                    ActivationForward(cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID, activationParameter, y);
-                    y.Update_Multiply_By_x(this);
-                    break;
                 default:
                     var activationDescriptor = ActivationDesc(activationType);
                     var res = CudnnWrapper.cudnnActivationForward(CudnnHandle, activationDescriptor, one, xDesc, x, zero, yDesc, y);
@@ -395,9 +390,6 @@ namespace SharpNet.GPU
                     CheckStatus(resLeakyRelu);
                     var alphaActivation = activationParameter.ContentAsFloatArray()[0];
                     dx.AddTensor(alphaActivation, dy, 1 - alphaActivation);
-                    return;
-                case cudnnActivationMode_t.CUDNN_ACTIVATION_SWISH:
-                    _wrapper.RunKernel("SwishGradient", dx.Count, new object[] { y, dy, x, dx });
                     return;
                 case cudnnActivationMode_t.CUDNN_ACTIVATION_LN:
                     _wrapper.RunKernel("LnGradient", dx.Count, new object[] { dy, x, dx });
