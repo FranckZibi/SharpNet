@@ -296,7 +296,7 @@ public static class CFM84Utils
 
             //related to model
             {"LossFunction", nameof(EvaluationMetricEnum.CategoricalCrossentropy)},
-            {"RankingEvaluationMetric", nameof(EvaluationMetricEnum.Accuracy)},
+            {"EvaluationMetrics", nameof(EvaluationMetricEnum.Accuracy)},
             // Optimizer 
             { "OptimizerType", new[] { "AdamW" } },
             //{ "OptimizerType", "SGD" },

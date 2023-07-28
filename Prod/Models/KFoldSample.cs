@@ -44,6 +44,10 @@ public class KFoldSample : AbstractModelSample
     #endregion
     public override EvaluationMetricEnum GetLoss() => EmbeddedModelLoss;
     public override EvaluationMetricEnum GetRankingEvaluationMetric() => EmbeddedModelRankingEvaluationMetric;
+    public override List<EvaluationMetricEnum> GetAllEvaluationMetrics()
+    {
+        return new List<EvaluationMetricEnum> { GetRankingEvaluationMetric() };
+    }
     public override void Use_All_Available_Cores()
     {
         Should_Use_All_Available_Cores = true;

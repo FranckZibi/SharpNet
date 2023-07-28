@@ -125,9 +125,18 @@ namespace SharpNet.Networks
         public int NumEpochs;
         public int BatchSize;
         public override EvaluationMetricEnum GetLoss() => LossFunction;
-        public override EvaluationMetricEnum GetRankingEvaluationMetric() => RankingEvaluationMetric;
+        public override EvaluationMetricEnum GetRankingEvaluationMetric()
+        {
+            var metrics = GetAllEvaluationMetrics();
+            return metrics.Count != 0 ? metrics[0] : EvaluationMetricEnum.DEFAULT_VALUE;
+        }
+        public override List<EvaluationMetricEnum> GetAllEvaluationMetrics()
+        {
+            return EvaluationMetrics;
+        }
         public EvaluationMetricEnum LossFunction = EvaluationMetricEnum.DEFAULT_VALUE;
-        public EvaluationMetricEnum RankingEvaluationMetric = EvaluationMetricEnum.DEFAULT_VALUE;
+        public List<EvaluationMetricEnum> EvaluationMetrics = new();
+
         public CompatibilityModeEnum CompatibilityMode = CompatibilityModeEnum.SharpNet;
         public string DataSetName;
         /// <summary>
@@ -364,14 +373,17 @@ namespace SharpNet.Networks
                 }
             }
 
+            if (AlphaCutMix == 0) {UseMaxCutMix = false;}            
+            if (AlphaMixup == 0) {UseMaxMixup = false;}
+
+
             if (LossFunction == EvaluationMetricEnum.DEFAULT_VALUE)
             {
                 return false;
             }
-
-            if (RankingEvaluationMetric == EvaluationMetricEnum.DEFAULT_VALUE)
+            if (EvaluationMetrics.Count == 0)
             {
-                RankingEvaluationMetric = GetLoss();
+                EvaluationMetrics = new List<EvaluationMetricEnum> { GetLoss() };
             }
 
             return true;
@@ -641,12 +653,18 @@ namespace SharpNet.Networks
         /// </summary>
         public double AlphaCutMix = 0.0;
 
+        public bool UseMaxCutMix = false;
+
         /// <summary>
         /// The alpha coefficient used to compute lambda in Mixup
         /// A value less or equal to 0.0 wil disable Mixup (see: https://arxiv.org/pdf/1710.09412.pdf)
         /// A value of 1.0 will use a uniform random distribution in [0,1] for lambda
         /// </summary>
         public double AlphaMixup = 0.0;
+
+        public bool UseMaxMixup = false;
+        
+        public bool MixOnlySameCategory = false;
 
         /// <summary>
         /// rotation range in degrees, in [0,180] range.

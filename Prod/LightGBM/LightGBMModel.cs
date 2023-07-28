@@ -232,10 +232,10 @@ namespace SharpNet.LightGBM
             }
             return (predictionsDf, datasetPath);
         }
-        public override void Save(string workingDirectory, string modelName)
+        public override List<string> Save(string workingDirectory, string modelName)
         {
             //No need to save model : it is already saved
-            LightGbmSample.Save(workingDirectory, modelName);
+            return LightGbmSample.Save(workingDirectory, modelName);
         }
 
         public override int GetNumEpochs()

@@ -36,6 +36,11 @@ public class SVMSample : AbstractModelSample
         }
     }
     public override EvaluationMetricEnum GetRankingEvaluationMetric() => GetLoss();
+    public override List<EvaluationMetricEnum> GetAllEvaluationMetrics()
+    {
+        return new List<EvaluationMetricEnum> { GetRankingEvaluationMetric() };
+    }
+
     public override bool FixErrors()
     {
         return true;

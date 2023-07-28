@@ -589,7 +589,6 @@ namespace SharpNet.Networks
             Fit(DataSet trainingDataset, DataSet validationDatasetIfAny)
         {
             //FindBestLearningRate(trainingDataset, 1e-8, 10.0, Sample.BatchSize);
-
             if (ModelSample.GetLoss() == EvaluationMetricEnum.DEFAULT_VALUE)
             {
                 throw new ArgumentException("Loss Function not set");
@@ -598,8 +597,8 @@ namespace SharpNet.Networks
             int numEpochs = Sample.NumEpochs;
             var learningRateComputer = Sample.GetLearningRateComputer();
 
-            IDictionary<EvaluationMetricEnum, double> trainingMetrics = null;
-            IDictionary<EvaluationMetricEnum, double> validationMetrics = null;
+            List<KeyValuePair<EvaluationMetricEnum, double>> trainingMetrics = null;
+            List<KeyValuePair<EvaluationMetricEnum, double>> validationMetrics = null;
             try
             {
                 Debug.Assert(Sample.TypeSize == trainingDataset.TypeSize);
@@ -629,7 +628,12 @@ namespace SharpNet.Networks
                 StopTimer("Fit_Prepare", ForwardPropagationTrainingTime);
 
 
-                var lastAutoSaveTime = DateTime.Now; //last time we saved the network
+
+                //each time we save the networks, we update this dictionary with:
+                //  - the timestamp when we saved the network (key of the dictionary)
+                //  - the file used to save the network
+                Dictionary<DateTime, List<string>> savedNetworks = new();
+
                 for (;;)
                 {
                     int epoch = EpochData.Count + 1;
@@ -643,18 +647,18 @@ namespace SharpNet.Networks
                     var lrMultiplicativeFactorFromReduceLrOnPlateau = learningRateComputer.MultiplicativeFactorFromReduceLrOnPlateau(EpochData, Sample.GetLoss());
                     if (learningRateComputer.ShouldReduceLrOnPlateau(EpochData, Sample.GetLoss()))
                     {
-                        LogInfo("Reducing learningRate because of plateau at epoch " + epoch + " (new multiplicative coeff:"+ lrMultiplicativeFactorFromReduceLrOnPlateau+")");
+                        LogInfo("Reducing learningRate because of plateau at epoch " + epoch + " (new multiplicative coeff:" + lrMultiplicativeFactorFromReduceLrOnPlateau + ")");
                     }
 
                     #region Mini Batch gradient descent
                     var learningRateAtEpochStart = learningRateComputer.LearningRate(epoch, 0, lrMultiplicativeFactorFromReduceLrOnPlateau);
-                    (_, trainingMetrics) = MiniBatchGradientDescentForSingleEpoch(trainingDataset, miniBatchSizeForAllWorkers, learningRateComputer, null, returnPredictionsForFullDataset:false, computeMetricsForFullDataset:true);
+                    (_, trainingMetrics) = MiniBatchGradientDescentForSingleEpoch(trainingDataset, miniBatchSizeForAllWorkers, learningRateComputer, null, returnPredictionsForFullDataset: false, computeMetricsForFullDataset: true);
                     #endregion
 
                     //We display stats about the just finished epoch
                     if (Sample.DisplayTensorContentStats)
                     {
-                        LogDebug("End of Epoch:" + epoch + " Tensor Content stats" + Environment.NewLine+ContentStats()+Environment.NewLine);
+                        LogDebug("End of Epoch:" + epoch + " Tensor Content stats" + Environment.NewLine + ContentStats() + Environment.NewLine);
                     }
 
                     StartTimer("Fit_LossAndAccuracy", ForwardPropagationTrainingTime);
@@ -672,7 +676,7 @@ namespace SharpNet.Networks
                             var percentageToUseInTestDataSet = validationDatasetIfAny.PercentageToUseForLossAndAccuracyFastEstimate;
                             //we'll compute loss and accuracy using only 'percentageToUsForLossAndAccuracyFastEstimate' of the test data set
                             if (percentageToUseInTestDataSet > 1e-6)
-                            { 
+                            {
                                 using var subDataSet = validationDatasetIfAny.SubDataSet(percentageToUseInTestDataSet);
                                 validationMetrics = ComputeMetricsForTestDataSet(miniBatchSizeForAllWorkers, subDataSet);
                                 lossAndAccuracyMsg += " - " + MetricsToString(validationMetrics, "estimate_val_");
@@ -684,8 +688,8 @@ namespace SharpNet.Networks
                     double secondsForEpoch = swEpoch.Elapsed.TotalSeconds;
                     double nbStepsByEpoch = ((double)trainingDataset.Count) / miniBatchSizeForAllWorkers;
                     var msByStep = (1000 * secondsForEpoch) / nbStepsByEpoch;
-                    LogInfo("Epoch " + epoch + "/" + numEpochs + " - " + Math.Round(secondsForEpoch, 0) + "s " + Math.Round(msByStep, 0) + "ms/step - lr: "+Math.Round(learningRateAtEpochStart, 8)+" - "+lossAndAccuracyMsg+" - "+ ModelName);
-                    LogInfo(MemoryInfo());
+                    LogInfo("Epoch " + epoch + "/" + numEpochs + " - " + Math.Round(secondsForEpoch, 0) + "s " + Math.Round(msByStep, 0) + "ms/step - lr: " + Math.Round(learningRateAtEpochStart, 8) + " - " + lossAndAccuracyMsg + " - " + ModelName);
+                    LogDebug(MemoryInfo());
                     //if it is the last epoch, we'll save Layer KPI
                     if (epoch == numEpochs)
                     {
@@ -697,18 +701,12 @@ namespace SharpNet.Networks
                     EpochData.Add(currentEpochData);
                     #endregion
 
-                    #region we save the network in a file if necessary
-                    if (   //if we have finished training
-                           (Sample.AutoSaveIntervalInMinutes >= 0 &&  epoch == numEpochs && numEpochs > 10)
-                            //or if we should save the network every 'Config.AutoSaveIntervalInMinutes' minutes
-                        || (Sample.AutoSaveIntervalInMinutes>=0 && (DateTime.Now - lastAutoSaveTime).TotalMinutes > Sample.AutoSaveIntervalInMinutes)
-                        || learningRateComputer.ShouldCreateSnapshotForEpoch(epoch)
-                        || trainingDataset.ShouldCreateSnapshotForEpoch(epoch, this)
-                        || (Sample.AutoSaveIntervalInMinutes >= 0 && ShouldStopTrainingBecauseOfEarlyStopping(EpochData, Sample.EarlyStoppingRounds, Sample.GetLoss()))
+                    #region we save the network in disk if necessary
+                    if (ShouldSaveNetwork(trainingDataset, numEpochs, learningRateComputer, savedNetworks, epoch)
                     )
                     {
-                        trainingDataset.Save(this, WorkingDirectory, ModelName);
-                        lastAutoSaveTime = DateTime.Now;
+                        var savedPaths = trainingDataset.Save(this, WorkingDirectory, ModelName);
+                        savedNetworks[DateTime.Now] = savedPaths;
                     }
                     #endregion
 
@@ -774,21 +772,21 @@ namespace SharpNet.Networks
 
             var lossMetric = Sample.GetLoss();
             var rankingMetric = Sample.GetRankingEvaluationMetric();
-            if (trainingMetrics != null && trainingMetrics.ContainsKey(lossMetric))
+            if (trainingMetrics != null && TryGet(trainingMetrics, lossMetric, out var metricValue) )
             {
-                trainLossIfAvailable = new Score((float)trainingMetrics[lossMetric], lossMetric);
+                trainLossIfAvailable = new Score((float)metricValue, lossMetric);
             }
-            if (trainingMetrics != null && trainingMetrics.ContainsKey(rankingMetric))
+            if (trainingMetrics != null && TryGet(trainingMetrics, rankingMetric, out metricValue))
             {
-                trainRankingMetricIfAvailable = new Score((float)trainingMetrics[rankingMetric], rankingMetric);
+                trainRankingMetricIfAvailable = new Score((float)metricValue, rankingMetric);
             }
-            if (validationMetrics != null && validationMetrics.ContainsKey(lossMetric))
+            if (validationMetrics != null && TryGet(validationMetrics, lossMetric, out metricValue))
             {
-                validationLossIfAvailable = new Score((float)validationMetrics[lossMetric], lossMetric);
+                validationLossIfAvailable = new Score((float)metricValue, lossMetric);
             }
-            if (validationMetrics != null && validationMetrics.ContainsKey(rankingMetric))
+            if (validationMetrics != null && TryGet(validationMetrics, rankingMetric, out metricValue))
             {
-                validationRankingMetricIfAvailable = new Score((float)validationMetrics[rankingMetric], rankingMetric);
+                validationRankingMetricIfAvailable = new Score((float)metricValue, rankingMetric);
             }
 
             return (null, null, null, null, null, null,
@@ -798,6 +796,33 @@ namespace SharpNet.Networks
                 validationRankingMetricIfAvailable);
         }
 
+        private bool ShouldSaveNetwork(DataSet trainingDataset, int numEpochs, ILearningRateComputer learningRateComputer, Dictionary<DateTime, List<string>> savedNetworks, int epoch)
+        {
+            if (Sample.AutoSaveIntervalInMinutes < 0)
+            {
+                return false;
+            }
+            return   //if we have finished training
+                     (epoch == numEpochs && numEpochs > 10)
+                     //or if we should save the network every 'Config.AutoSaveIntervalInMinutes' minutes
+                     || (savedNetworks.Count>0 && (DateTime.Now - savedNetworks.Keys.Max()).TotalMinutes > Sample.AutoSaveIntervalInMinutes)
+                     || learningRateComputer.ShouldCreateSnapshotForEpoch(epoch)
+                     || ShouldStopTrainingBecauseOfEarlyStopping(EpochData, Sample.EarlyStoppingRounds, Sample.GetLoss());
+        }
+
+        private static bool TryGet(List<KeyValuePair<EvaluationMetricEnum, double>> availableMetrics, EvaluationMetricEnum metric, out double metricValue)
+        {
+            foreach(var a in availableMetrics)
+            {
+                if (a.Key == metric)
+                {
+                    metricValue = a.Value;
+                    return true;
+                }
+            }
+            metricValue = double.NaN;
+            return false;
+        }
 
         /// <summary>
         /// if the validation loss has degraded for several consecutive epochs  (at least 'earlyStoppingRounds')
@@ -840,7 +865,7 @@ namespace SharpNet.Networks
         }
 
         #region compute Loss and Accuracy
-        public IDictionary<EvaluationMetricEnum, double> ComputeMetricsForTestDataSet(int miniBatchSize, DataSet testDataSet)
+        public List<KeyValuePair<EvaluationMetricEnum, double>> ComputeMetricsForTestDataSet(int miniBatchSize, DataSet testDataSet)
         {
             //We perform a mini batch gradient descent in Testing mode:
             //  there will be no shuffling/data augmentation.
@@ -956,7 +981,7 @@ namespace SharpNet.Networks
         /// <param name="computeMetricsForFullDataset"></param>
         /// <param name="returnPredictionsForFullDataset"></param>
         /// <returns>observed output associated with the input 'x'</returns>
-        public (Tensor yPredictions, IDictionary<EvaluationMetricEnum, double> metrics) MiniBatchGradientDescentForSingleEpoch(DataSet dataSet, int miniBatchSizeForAllWorkers, ILearningRateComputer learningRateComputerIfTraining = null, Action<Tensor, Tensor> CallBackAfterEachMiniBatch = null, bool returnPredictionsForFullDataset = true, bool computeMetricsForFullDataset = false)
+        public (Tensor yPredictions, List<KeyValuePair<EvaluationMetricEnum, double>> metrics) MiniBatchGradientDescentForSingleEpoch(DataSet dataSet, int miniBatchSizeForAllWorkers, ILearningRateComputer learningRateComputerIfTraining = null, Action<Tensor, Tensor> CallBackAfterEachMiniBatch = null, bool returnPredictionsForFullDataset = true, bool computeMetricsForFullDataset = false)
         {
             Debug.Assert(IsMaster);
             Debug.Assert(miniBatchSizeForAllWorkers >= 1);

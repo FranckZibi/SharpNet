@@ -36,6 +36,13 @@ namespace SharpNet.HPO
                     }
                     var sample = CreateDefaultSample();
                     sample.Set(Utils.FromString2String_to_String2Object(searchSpaceHyperParameters));
+
+                    //we try to fix inconsistencies in the sample
+                    if (!sample.FixErrors())
+                    {
+                        continue; //we failed to fix the inconsistencies in the sample : we have to discard it 
+                    }
+
                     //we ensure that we have not already processed this search space
                     lock (_processedSpaces)
                     {
@@ -44,11 +51,9 @@ namespace SharpNet.HPO
                             continue; //already processed before
                         }
                     }
-                    if (sample.FixErrors())
-                    {
-                        var sampleDescription = ToSampleDescription(searchSpaceHyperParameters, sample);
-                        return (sample, _nextSampleId++, sampleDescription);
-                    }
+
+                    var sampleDescription = ToSampleDescription(searchSpaceHyperParameters, sample);
+                    return (sample, _nextSampleId++, sampleDescription);
                 }
                 return (null,-1, "");
             }

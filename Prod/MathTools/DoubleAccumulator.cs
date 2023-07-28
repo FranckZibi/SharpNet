@@ -32,6 +32,13 @@ namespace SharpNet.MathTools
                 Add(e);
             }
         }
+        public void Add(Span<float> span)
+        {
+            foreach (var e in span)
+            {
+                Add(e);
+            }
+        }
         public void Add(IEnumerable<double> list)
         {
             foreach (var e in list)

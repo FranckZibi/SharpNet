@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using JetBrains.Annotations;
+using Newtonsoft.Json.Linq;
 using SharpNet.Data;
 using SharpNet.MathTools;
 
@@ -92,9 +93,9 @@ public class EvaluationMetricAccumulatorForSingleEpoch : IDisposable
     }
 
 
-    public Dictionary<EvaluationMetricEnum, double> Metrics()
+    public List<KeyValuePair<EvaluationMetricEnum, double>>  Metrics()
     {
-        Dictionary<EvaluationMetricEnum, double> res = new();
+        List<KeyValuePair<EvaluationMetricEnum, double>> res = new();
 
         if (_metrics.Any(RequireFullYToCompute))
         {
@@ -104,7 +105,7 @@ public class EvaluationMetricAccumulatorForSingleEpoch : IDisposable
             foreach (var metric in _metrics)
             {
                 _memoryPool.GetFloatTensor(ref buffer, _full_y_pred.ComputeMetricBufferShape(metric));
-                res[metric] = buffer.ComputeEvaluationMetric(_full_y_true, _full_y_pred, metric);
+                res.Add(KeyValuePair.Create(metric, buffer.ComputeEvaluationMetric(_full_y_true, _full_y_pred, metric)));
             }
             _memoryPool.FreeFloatTensor(buffer);
         }
@@ -112,10 +113,9 @@ public class EvaluationMetricAccumulatorForSingleEpoch : IDisposable
         {
             foreach (var metric in _metrics)
             {
-                res[metric] = _currentAccumulatedMetrics[metric].Average;
+                res.Add(KeyValuePair.Create(metric, _currentAccumulatedMetrics[metric].Average));
             }
         }
-
         return res;
     }
 

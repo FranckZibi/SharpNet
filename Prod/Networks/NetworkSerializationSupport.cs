@@ -88,7 +88,7 @@ namespace SharpNet.Networks
         /// save network the parameters in h5 file 'parametersFilePath'
         /// if it already exist, it will be removed first
         /// </summary>
-        private void SaveParameters(string workingDirectory, string modelName)
+        private List<string> SaveParameters(string workingDirectory, string modelName)
         {
             var swSaveParametersTime = Stopwatch.StartNew();
 
@@ -110,6 +110,7 @@ namespace SharpNet.Networks
                 }
             }
             LogInfo("Network Parameters '" + ModelName + "' saved in " + parametersFilePath + " in " + Math.Round(swSaveParametersTime.Elapsed.TotalSeconds, 1) + "s");
+            return new List<string> { parametersFilePath };
         }
 
         /// <summary>
@@ -165,16 +166,18 @@ namespace SharpNet.Networks
         /// </summary>
         /// <param name="workingDirectory"></param>
         /// <param name="modelName"></param>
-        private void SaveModel(string workingDirectory, string modelName)
+        private List<string> SaveModel(string workingDirectory, string modelName)
         {
             var swSaveModelTime = Stopwatch.StartNew();
+            var res = new List<string>();
+
+            res.AddRange(ModelSample.Save(workingDirectory, modelName));
 
             var modelFilePath = ToModelFilePath(workingDirectory, modelName);
             if (File.Exists(modelFilePath))
             {
                 File.Delete(modelFilePath);
             }
-            ModelSample.Save(workingDirectory, modelName);
             var firstLine = new Serializer()
                 .Add(nameof(ModelName), ModelName)
                 .Add(nameof(EpochData), EpochData.ToArray())
@@ -184,13 +187,18 @@ namespace SharpNet.Networks
             {
                 File.AppendAllLines(modelFilePath, new[] { l.Serialize() });
             }
+            res.Add(modelFilePath);
+
             LogInfo("Network Model '" + ModelName + "' saved in " + modelFilePath + " in " + Math.Round(swSaveModelTime.Elapsed.TotalSeconds, 1) + "s");
+            return res;
         }
 
-        public override void Save(string workingDirectory, string modelName)
+        public override List<string> Save(string workingDirectory, string modelName)
         {
-            SaveModel(workingDirectory, modelName);
-            SaveParameters(workingDirectory, modelName);
+            List<string> res = new();
+            res.AddRange(SaveModel(workingDirectory, modelName));
+            res.AddRange(SaveParameters(workingDirectory, modelName));
+            return res;
         }
     }
 }

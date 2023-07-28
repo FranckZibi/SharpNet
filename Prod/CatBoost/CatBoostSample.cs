@@ -374,6 +374,11 @@ public class CatBoostSample : AbstractModelSample
         }
     }
 
+    public override List<EvaluationMetricEnum> GetAllEvaluationMetrics()
+    {
+        return new List<EvaluationMetricEnum> { GetRankingEvaluationMetric() };
+    }
+
     private void SetRankingEvaluationMetric(EvaluationMetricEnum rankingEvaluationMetric)
     {
         switch (rankingEvaluationMetric)

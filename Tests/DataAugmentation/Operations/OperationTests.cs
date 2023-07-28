@@ -63,6 +63,7 @@ namespace SharpNetTests.DataAugmentation.Operations
                 xDataAugmentedMiniBatch,
                 null,
                 null,
+                null,
                 ImageDataGenerator.FillModeEnum.Nearest,
                 xBufferForDataAugmentedMiniBatch);
 
@@ -85,13 +86,20 @@ namespace SharpNetTests.DataAugmentation.Operations
             var xDataAugmentedMiniBatch = new CpuTensor<float>(inputShape);
             var xBufferForDataAugmentedMiniBatch = new CpuTensor<float>(inputShape);
 
-            yOriginal = (CpuTensor<float>)yOriginal?.Clone();
+            CpuTensor<float> yDataAugmentedMiniBatch = null;
+            if (yOriginal != null)
+            {
+                yOriginal = (CpuTensor<float>)yOriginal.Clone();
+                yDataAugmentedMiniBatch = new CpuTensor<float>(yOriginal.Shape);
+                yOriginal.CopyTo(yDataAugmentedMiniBatch);
+            }
             SubPolicy.Apply(
                 subPolicy,
                 0,
                 xOriginalMiniBatch,
                 xDataAugmentedMiniBatch,
                 yOriginal,
+                yDataAugmentedMiniBatch,
                 indexInMiniBatchToCategoryIndex,
                 _fillMode,
                 xBufferForDataAugmentedMiniBatch);

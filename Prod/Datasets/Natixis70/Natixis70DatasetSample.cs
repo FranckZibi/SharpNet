@@ -635,7 +635,7 @@ public class Natixis70DatasetSample : AbstractDatasetSample
             
             //related to model
             { "LossFunction", nameof(EvaluationMetricEnum.Rmse)},
-            //{ "RankingEvaluationMetric", nameof(EvaluationMetricEnum.Rmse)},
+            //{ "EvaluationMetrics", nameof(EvaluationMetricEnum.Rmse)},
             // Optimizer 
             {"OptimizerType", "AdamW"},
             //{"AdamW_L2Regularization", AbstractHyperParameterSearchSpace.Range(0.003f, 0.01f)},

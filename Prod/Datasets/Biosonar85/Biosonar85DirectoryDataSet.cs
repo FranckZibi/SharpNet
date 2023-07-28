@@ -2,6 +2,8 @@
 using System;
 using System.Collections.Generic;
 using SharpNet.Pictures;
+using SharpNet.MathTools;
+using System.Threading.Channels;
 
 namespace SharpNet.Datasets.Biosonar85
 {
@@ -16,6 +18,46 @@ namespace SharpNet.Datasets.Biosonar85
         }
 
         private object lockObject = new object();
+
+
+        public override void LoadAt(int elementId, int indexInBuffer, CpuTensor<float> xBuffer, CpuTensor<float> yBuffer, bool withDataAugmentation, bool isTraining)
+        {
+            if (xBuffer != null)
+            {
+                int channels = xBuffer.Shape[1];
+                int targetHeight = xBuffer.Shape[2];
+                int targetWidth = xBuffer.Shape[3];
+
+                BitmapContent data = OriginalElementContent(elementId, channels, targetHeight, targetWidth, withDataAugmentation, isTraining);
+                if (data == null)
+                {
+                    return;
+                }
+
+                Span<float> xBufferContent = xBuffer.RowSpanSlice(indexInBuffer, 1);
+                int nextXBufferContentIndex = 0;
+                for (int channel = 0; channel < data.GetChannels(); ++channel)
+                {
+                    var channelSpan = data.RowSpanSlice(channel, 1);
+                    var acc = new DoubleAccumulator();
+                    foreach(var b in channelSpan)
+                    {
+                        acc.Add(b);
+                    }
+                    var channelMean = (float)acc.Average;
+                    var channelVolatility = (float)acc.Volatility;
+                    for(int i=0;i<channelSpan.Length;++i)
+                    {
+                        xBufferContent[nextXBufferContentIndex++] = (channelSpan[i] - channelMean) / channelVolatility;
+                    }
+                }
+            }
+
+            if (yBuffer != null)
+            {
+                Y_DirectoryDataSet.CopyTo(Y_DirectoryDataSet.Idx(elementId), yBuffer, yBuffer.Idx(indexInBuffer), yBuffer.MultDim0);
+            }
+        }
 
         public override BitmapContent OriginalElementContent(int elementId, int channels, int targetHeight, int targetWidth, bool withDataAugmentation, bool isTraining)
         {

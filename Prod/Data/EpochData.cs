@@ -37,7 +37,7 @@ namespace SharpNet.Data
                 ToDictionary(validationLoss, validationAccuracy, loss)) 
         {
         }
-        public EpochData(int index, double learningRateAtEpochStart, double learningRateMultiplicativeFactorFromReduceLROnPlateau, double secondsForEpoch, IDictionary<EvaluationMetricEnum, double> trainingMetrics, IDictionary<EvaluationMetricEnum, double> validationMetrics)
+        public EpochData(int index, double learningRateAtEpochStart, double learningRateMultiplicativeFactorFromReduceLROnPlateau, double secondsForEpoch, IEnumerable<KeyValuePair<EvaluationMetricEnum, double>> trainingMetrics, IEnumerable<KeyValuePair<EvaluationMetricEnum, double>> validationMetrics)
         {
             _index = index;
             LearningRateAtEpochStart = learningRateAtEpochStart;

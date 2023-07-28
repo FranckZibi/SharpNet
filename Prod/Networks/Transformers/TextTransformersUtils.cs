@@ -142,7 +142,7 @@ public static class TextTransformersUtils
 
             //related to model
             {"LossFunction", nameof(EvaluationMetricEnum.SparseCategoricalCrossentropy)},
-            {"RankingEvaluationMetric", nameof(EvaluationMetricEnum.SparseAccuracy)},
+            {"EvaluationMetrics", nameof(EvaluationMetricEnum.SparseAccuracy)},
             {"CompatibilityMode", "TensorFlow"},
             {"max_length", new[]{256 } },
             {"embedding_dim", new[]{384} },

@@ -34,12 +34,15 @@ public abstract class MultiSamples : ISample
         Array.ForEach(Samples, s => s.FillSearchSpaceWithDefaultValues(hyperParameterSearchSpace));
     }
 
-    public virtual void Save(string workingDirectory, string modelName)
+    public virtual List<string> Save(string workingDirectory, string modelName)
     {
+        List<string> res = new();
         for (int sampleIndex = 0; sampleIndex < Samples.Length; ++sampleIndex)
         {
-            Samples[sampleIndex].Save(workingDirectory, SampleIndexToSampleName(modelName, sampleIndex));
+            var newFiles = Samples[sampleIndex].Save(workingDirectory, SampleIndexToSampleName(modelName, sampleIndex));
+            res.AddRange(newFiles);
         }
+        return res;
     }
     public virtual List<string> SampleFiles(string workingDirectory, string modelName)
     {

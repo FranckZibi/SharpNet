@@ -1051,7 +1051,7 @@ namespace SharpNetTests.NonReg
                         new NetworkSample
                         {
                             LossFunction = EvaluationMetricEnum.Mse,
-                            RankingEvaluationMetric = EvaluationMetricEnum.Mae,
+                            EvaluationMetrics = new List<EvaluationMetricEnum> { EvaluationMetricEnum.Mae },
                             ShuffleDatasetBeforeEachEpoch = false,
                             CompatibilityMode = NetworkSample.CompatibilityModeEnum.TensorFlow,
                             ResourceIds = new List<int> { deviceId }
@@ -1162,7 +1162,7 @@ namespace SharpNetTests.NonReg
                         new NetworkSample
                         {
                             LossFunction = EvaluationMetricEnum.Huber,
-                            RankingEvaluationMetric = EvaluationMetricEnum.Mae,
+                            EvaluationMetrics = new List<EvaluationMetricEnum> { EvaluationMetricEnum.Mae },
                             ShuffleDatasetBeforeEachEpoch = false,
                             CompatibilityMode = NetworkSample.CompatibilityModeEnum.TensorFlow,
                             ResourceIds = new List<int> { deviceId }
@@ -1287,7 +1287,7 @@ namespace SharpNetTests.NonReg
                 new NetworkSample
                     {
                         LossFunction = EvaluationMetricEnum.Mse,
-                        RankingEvaluationMetric = EvaluationMetricEnum.Mae,
+                        EvaluationMetrics = new List<EvaluationMetricEnum> { EvaluationMetricEnum.Mae },
                         ShuffleDatasetBeforeEachEpoch = shuffle,
                         CompatibilityMode = NetworkSample.CompatibilityModeEnum.TensorFlow,
                         ResourceIds = new List<int> { deviceId }
@@ -1371,7 +1371,7 @@ namespace SharpNetTests.NonReg
                         new NetworkSample
                         {
                             LossFunction = EvaluationMetricEnum.BinaryCrossentropy,
-                            RankingEvaluationMetric = EvaluationMetricEnum.Accuracy,
+                            EvaluationMetrics =  new List<EvaluationMetricEnum> { EvaluationMetricEnum.Accuracy },
                             ShuffleDatasetBeforeEachEpoch = shuffle,
                             CompatibilityMode = NetworkSample.CompatibilityModeEnum.TensorFlow,
                             ResourceIds = new List<int> { deviceId }

@@ -13,7 +13,8 @@ namespace SharpNet.DataAugmentation
             int indexInMiniBatch,
             CpuTensor<float> xOriginalMiniBatch,
             CpuTensor<float> xDataAugmentedMiniBatch,
-            CpuTensor<float> yDataAugmentedMiniBatch,
+            CpuTensor<float> yOriginalMiniBatch,
+            CpuTensor<float> yDataAugmentedMiniBatch,            
             Func<int, int> indexInOriginalMiniBatchToCategoryIndex,
             ImageDataGenerator.FillModeEnum fillMode,
             CpuTensor<float> xBufferForDataAugmentedMiniBatch)
@@ -88,7 +89,7 @@ namespace SharpNet.DataAugmentation
                 }
                 (previous, next) = (next, previous);
             }
-            subPolicy.ForEach(x => x.UpdateY(yDataAugmentedMiniBatch, indexInMiniBatch, indexInOriginalMiniBatchToCategoryIndex));
+            subPolicy.ForEach(x => x.UpdateY(yOriginalMiniBatch, yDataAugmentedMiniBatch, indexInMiniBatch, indexInOriginalMiniBatchToCategoryIndex));
         }
 
         /// <summary>

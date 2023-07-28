@@ -249,10 +249,10 @@ namespace SharpNet.CatBoost
             }
             return (predictionsDf, datasetPath);
         }
-        public override void Save(string workingDirectory, string modelName)
+        public override List<string> Save(string workingDirectory, string modelName)
         {
             //No need to save model : it is already saved in json format
-            CatBoostSample.Save(workingDirectory, modelName);
+            return CatBoostSample.Save(workingDirectory, modelName);
         }
         public override int GetNumEpochs()
         {

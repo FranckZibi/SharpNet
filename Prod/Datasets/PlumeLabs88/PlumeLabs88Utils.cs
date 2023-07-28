@@ -332,7 +332,7 @@ public static class PlumeLabs88Utils
 
             //related to model
             { "LossFunction", nameof(EvaluationMetricEnum.Mse)},
-            { "RankingEvaluationMetric", nameof(EvaluationMetricEnum.Mse)},
+            { "EvaluationMetrics", nameof(EvaluationMetricEnum.Mse)},
             //{ "KFold", 2},
             //{ "PercentageInTraining", 0.9}, //will be automatically set to 1 if KFold is enabled
             { "PercentageInTraining", 0.9}, //will be automatically set to 1 if KFold is enabled

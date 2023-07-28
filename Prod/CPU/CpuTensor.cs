@@ -3395,14 +3395,13 @@ namespace SharpNet.CPU
 
         public static CpuTensor<float> LoadFromBinFile(string bin_file, int[] shape)
         {
-            int elementCountInfile = (int)Utils.FileLength(bin_file) / sizeof(float);
-            shape = Tensor.FillMinusOneIfAny(new[] { elementCountInfile }, shape);
-            int elementCount = Utils.Product(shape);
+            long elementCountInfile = Utils.FileLength(bin_file) / sizeof(float);
+            shape = Tensor.FillMinusOneIfAny(new[] { (int)elementCountInfile }, shape);
+            long elementCount = Utils.LongProduct(shape);
             if (elementCountInfile != elementCount)
             {
                 throw new ArgumentException("");
             }
-
             float[] buffer = new float[elementCount];
             using var fs = new FileStream(bin_file, FileMode.Open, FileAccess.Read);
             using var r = new BinaryReader(fs);

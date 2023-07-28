@@ -426,12 +426,14 @@ public sealed class ModelAndDatasetPredictions : IDisposable
         Save(workingDirectory, Model.ModelName);
     }
 
-    public void Save(string workingDirectory, string modelName)
+    public List<string> Save(string workingDirectory, string modelName)
     {
+        var res = new List<string>();
         var start = Stopwatch.StartNew();
-        ModelAndDatasetPredictionsSample.Save(workingDirectory, modelName);
-        Model.Save(workingDirectory, modelName);
+        res.AddRange(ModelAndDatasetPredictionsSample.Save(workingDirectory, modelName));
+        res.AddRange(Model.Save(workingDirectory, modelName));
         ISample.Log.Debug($"{nameof(ModelAndDatasetPredictionsSample)}.Save took '{start.Elapsed.TotalSeconds}'s");
+        return res;
     }
 
     //private string Name => Model.ModelName;

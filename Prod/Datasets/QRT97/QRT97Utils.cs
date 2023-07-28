@@ -287,7 +287,7 @@ public static class QRT97Utils
             
            //related to model
            { "LossFunction", nameof(EvaluationMetricEnum.Mae)},
-           { "RankingEvaluationMetric", nameof(EvaluationMetricEnum.SpearmanCorrelation)},
+           { "EvaluationMetrics", nameof(EvaluationMetricEnum.SpearmanCorrelation)},
             {"fillna_with_0", true},  //NaN are not supported in Neural Networks
             // Optimizer 
             { "OptimizerType", new[] { "AdamW" } },

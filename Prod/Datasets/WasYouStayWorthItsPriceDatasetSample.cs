@@ -107,7 +107,7 @@ public class WasYouStayWorthItsPriceDatasetSample : AbstractDatasetSample
 
             //related to model
             { "LossFunction", nameof(EvaluationMetricEnum.CategoricalCrossentropy)},
-            { "RankingEvaluationMetric", nameof(EvaluationMetricEnum.F1Micro)},
+            { "EvaluationMetrics", nameof(EvaluationMetricEnum.F1Micro)},
             {"InitialLearningRate", AbstractHyperParameterSearchSpace.Range(0.003f, 0.2f, AbstractHyperParameterSearchSpace.range_type.normal)},
             // Optimizer 
             {"OptimizerType", "AdamW"},

@@ -68,7 +68,7 @@ public class InMemoryDataSet : DataSet
             Debug.Assert(indexInBuffer >= 0 &&  indexInBuffer < xBuffer.Shape[0]);
             //same number of channels / same height  / same width
             //only the first dimension (batch size) can be different
-            Debug.Assert(_x.SameShapeExceptFirstDimension(xBuffer));
+            Debug.Assert(_x.MultDim0 == xBuffer.MultDim0);
             _x.CopyTo(_x.Idx(elementId), xBuffer, xBuffer.Idx(indexInBuffer), xBuffer.MultDim0);
         }
         if (yBuffer != null)

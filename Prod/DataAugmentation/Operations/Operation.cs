@@ -39,7 +39,7 @@ namespace SharpNet.DataAugmentation.Operations
             return xInputMiniBatch.Get(indexInMiniBatch, channel, rowInput, colInput);
         }
 
-        public virtual void UpdateY(CpuTensor<float> yMiniBatch, int indexInMiniBatch, Func<int, int> indexInMiniBatchToCategoryIndex)
+        public virtual void UpdateY(CpuTensor<float> yOriginalMiniBatch, CpuTensor<float> yDataAugmentedMiniBatch, int indexInMiniBatch, Func<int, int> indexInMiniBatchToCategoryIndex)
         {
         }
 
@@ -65,6 +65,39 @@ namespace SharpNet.DataAugmentation.Operations
         public static float GetGreyScale(float r, float g, float b)
         {
             return r * 0.299f + g * 0.587f + b * 0.114f;
+        }
+
+        public static int GetIndexToMixWith(bool mixOnlySameCategory, int indexInMiniBatch, int miniBatchSize, CpuTensor<float> yOriginalMiniBatch, Random rand)
+        {
+            int indexToMixWith = (indexInMiniBatch + 2) % miniBatchSize;
+            if (!mixOnlySameCategory || yOriginalMiniBatch == null)
+            {
+                return indexToMixWith;
+            }
+            var indexInMiniBatchYContent = yOriginalMiniBatch.RowSpanSlice(indexInMiniBatch, 0);
+            for (int nbTries = 0; nbTries < 10; ++nbTries)
+            {
+                var randomIndex = rand.Next(miniBatchSize);
+                if (randomIndex != indexInMiniBatch)
+                {
+                    var randomIndexYContent = yOriginalMiniBatch.RowSpanSlice(randomIndex, 0);
+                    bool sameYContent = true;
+                    for (int j=0;j< randomIndexYContent.Length;++j)
+                    {
+                        if (Math.Abs(indexInMiniBatchYContent[j]- randomIndexYContent[j])>1e-6)
+                        {
+                            sameYContent = false;
+                            break;
+                        }
+                    }
+                    if (sameYContent)
+                    {
+                        return randomIndex;
+                    }
+                }
+
+            }
+            return -1; //fail to find another entry with the same content
         }
     }
 }

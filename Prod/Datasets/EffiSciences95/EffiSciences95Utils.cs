@@ -157,7 +157,7 @@ public static class EffiSciences95Utils
 
             //related to model
             { "LossFunction", nameof(EvaluationMetricEnum.CategoricalCrossentropy)},
-            { "RankingEvaluationMetric", nameof(EvaluationMetricEnum.Accuracy)},
+            { "EvaluationMetrics", nameof(EvaluationMetricEnum.Accuracy)},
             { "BatchSize", new[] {64 /*, 96*/} },
             { "NumEpochs", new[] { numEpochs } },
             // Optimizer 

@@ -10,6 +10,7 @@ using SharpNet.Datasets;
 using SharpNet.HPO;
 using SharpNet.HyperParameters;
 using SharpNet.Models;
+using System.Linq;
 
 namespace SharpNet.LightGBM;
 
@@ -41,6 +42,10 @@ public class LightGBMSample : AbstractModelSample
 
     public override EvaluationMetricEnum GetRankingEvaluationMetric()
     {
+        return GetAllEvaluationMetrics()[0];
+    }
+    public static EvaluationMetricEnum ToEvaluationMetricEnum(string metric)
+    {
         if (string.IsNullOrEmpty(metric))
         {
             return EvaluationMetricEnum.DEFAULT_VALUE;
@@ -66,6 +71,15 @@ public class LightGBMSample : AbstractModelSample
                 throw new NotImplementedException($"can't manage metric {metric}");
         }
     }
+    public override List<EvaluationMetricEnum> GetAllEvaluationMetrics()
+    {
+        if (string.IsNullOrEmpty(metric))
+        {
+            return new List<EvaluationMetricEnum> { EvaluationMetricEnum.DEFAULT_VALUE };
+        }
+        return metric.Split(',').Select(ToEvaluationMetricEnum).ToList();
+    }
+
 
     public override bool FixErrors()
     {

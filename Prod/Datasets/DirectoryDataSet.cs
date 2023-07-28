@@ -23,7 +23,7 @@ namespace SharpNet.Datasets
         protected readonly List<List<string>> _elementIdToPaths = new List<List<string>>();
         private readonly List<int> _elementIdToCategoryIndex;
         private readonly Random _rand = new Random(0);
-        [NotNull] private CpuTensor<float> Y_DirectoryDataSet { get; }
+        [NotNull] protected CpuTensor<float> Y_DirectoryDataSet { get; }
         #endregion
 
 

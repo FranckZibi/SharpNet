@@ -35,6 +35,7 @@ namespace SharpNet.Datasets
         /// a temporary buffer used to construct the data augmented pictures
         /// </summary>
         private readonly List<CpuTensor<float>> all_xBufferForDataAugmentedMiniBatch = new List<CpuTensor<float>>();
+        private readonly CpuTensor<float> yOriginalMiniBatch = new(new[] { 1 });
         private readonly CpuTensor<float> yDataAugmentedMiniBatch = new(new[] { 1 });
         /// <summary>
         /// the miniBatch Id associated with the above xBufferMiniBatchCpu & yBufferMiniBatchCpu tensors
@@ -344,16 +345,17 @@ namespace SharpNet.Datasets
             }
             return DataFrame.MergeHorizontally(ExtractIdDataFrame(df.Shape[0]), df);
         }
+
         /// <summary>
-        /// check if we should save the network for the current epoch
+        /// save the model and return all the files used to save the model
         /// </summary>
-        public virtual bool ShouldCreateSnapshotForEpoch(int epoch, Network network)
+        /// <param name="model"></param>
+        /// <param name="workingDirectory"></param>
+        /// <param name="modelName"></param>
+        /// <returns></returns>
+        public virtual List<string> Save(Model model, string workingDirectory, string modelName)
         {
-            return false;
-        }
-        public virtual void Save(Model model, string workingDirectory, string modelName)
-        {
-            model.Save(workingDirectory, modelName);
+            return model.Save(workingDirectory, modelName);
         }
         // ReSharper disable once UnusedMember.Global
         public DataSet Resize(int targetSize, bool shuffle)
@@ -778,11 +780,15 @@ namespace SharpNet.Datasets
                 }
             }
 
-            yDataAugmentedMiniBatch.ReshapeInPlace(yMiniBatchShape);
-            yDataAugmentedMiniBatch.ZeroMemory();
+            yOriginalMiniBatch.ReshapeInPlace(yMiniBatchShape);
+            yOriginalMiniBatch.ZeroMemory();
 
             int MiniBatchIdxToElementId(int miniBatchIdx) => shuffledElementId[(firstIndexInShuffledElementId + miniBatchIdx) % shuffledElementId.Length];
-            Parallel.For(0, miniBatchSize, indexInBuffer => LoadAt(MiniBatchIdxToElementId(indexInBuffer % maxElementsToLoad), indexInBuffer, all_xOriginalNotAugmentedMiniBatch, yDataAugmentedMiniBatch, withDataAugmentation, isTraining));
+            Parallel.For(0, miniBatchSize, indexInBuffer => LoadAt(MiniBatchIdxToElementId(indexInBuffer % maxElementsToLoad), indexInBuffer, all_xOriginalNotAugmentedMiniBatch, yOriginalMiniBatch, withDataAugmentation, isTraining));
+            Debug.Assert(AreCompatible_X_Y(all_xOriginalNotAugmentedMiniBatch[0], yOriginalMiniBatch));
+
+            yDataAugmentedMiniBatch.ReshapeInPlace(yOriginalMiniBatch.Shape);
+            yOriginalMiniBatch.CopyTo(yDataAugmentedMiniBatch);
 
             Debug.Assert(AreCompatible_X_Y(all_xDataAugmentedMiniBatch[0], yDataAugmentedMiniBatch));
             int MiniBatchIdxToCategoryIndex(int miniBatchIdx) => ElementIdToCategoryIndex(MiniBatchIdxToElementId(miniBatchIdx));
@@ -805,7 +811,7 @@ namespace SharpNet.Datasets
                 int targetWidth = all_xMiniBatchShape[0][^1];
                 Lazy<ImageStatistic> MiniBatchIdxToLazyImageStatistic(int miniBatchIdx) => new Lazy<ImageStatistic>(() => ElementIdToImageStatistic(MiniBatchIdxToElementId(miniBatchIdx), channels, targetHeight, targetWidth));
                 var imageDataGenerator = new ImageDataGenerator(dataAugmentationSample);
-                Parallel.For(0, miniBatchSize, indexInMiniBatch => imageDataGenerator.DataAugmentationForMiniBatch(indexInMiniBatch % maxElementsToLoad, all_xOriginalNotAugmentedMiniBatch[0], all_xDataAugmentedMiniBatch[0], yDataAugmentedMiniBatch, MiniBatchIdxToCategoryIndex, MiniBatchIdxToLazyImageStatistic, MeanAndVolatilityForEachChannel, GetRandomForIndexInMiniBatch(indexInMiniBatch), all_xBufferForDataAugmentedMiniBatch[0]));
+                Parallel.For(0, miniBatchSize, indexInMiniBatch => imageDataGenerator.DataAugmentationForMiniBatch(indexInMiniBatch % maxElementsToLoad, all_xOriginalNotAugmentedMiniBatch[0], all_xDataAugmentedMiniBatch[0], yOriginalMiniBatch, yDataAugmentedMiniBatch, MiniBatchIdxToCategoryIndex, MiniBatchIdxToLazyImageStatistic, MeanAndVolatilityForEachChannel, GetRandomForIndexInMiniBatch(indexInMiniBatch), all_xBufferForDataAugmentedMiniBatch[0]));
             }
 
             //TODO: ensure that there is no NaN or Infinite in xDataAugmentedMiniBatch and yDataAugmentedMiniBatch

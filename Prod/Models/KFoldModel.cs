@@ -286,13 +286,15 @@ public class KFoldModel : Model
         }
         return (DataFrame.New(res, columnNames), "");
     }
-    public override void Save(string workingDirectory, string modelName)
+    public override List<string> Save(string workingDirectory, string modelName)
     {
-        ModelSample.Save(workingDirectory, modelName);
+        var res = ModelSample.Save(workingDirectory, modelName);
         foreach (var embeddedModel in _embeddedModels)
         {
-            embeddedModel.Save(workingDirectory, embeddedModel.ModelName);
+            var newFiles = embeddedModel.Save(workingDirectory, embeddedModel.ModelName);
+            res.AddRange(newFiles);    
         }
+        return res;
     }
     public override List<string> AllFiles()
     {

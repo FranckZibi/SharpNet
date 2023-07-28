@@ -155,6 +155,25 @@ namespace SharpNet
             result[0] = newCount;
             return result;
         }
+        public static long LongProduct(int[] data)
+        {
+            return LongProduct(data.Select(i=>(long)i).ToArray());
+        }
+        public static long LongProduct(long[] data)
+        {
+            if ((data == null) || (data.Length == 0))
+            {
+                return 0;
+            }
+
+            long result = data[0];
+            for (int i = 1; i < data.Length; ++i)
+            {
+                result *= data[i];
+            }
+
+            return result;
+        }
         public static int Product(int[] data)
         {
             if ((data == null) || (data.Length == 0))

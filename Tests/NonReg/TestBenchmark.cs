@@ -108,10 +108,13 @@ namespace SharpNetTests.NonReg
             var xOriginalNotAugmentedMiniBatchCpu = new CpuTensor<float>(xMiniBatchShape);
             var xBufferMiniBatchCpu = new CpuTensor<float>(xMiniBatchShape);
             var xBufferForDataAugmentedMiniBatch = new CpuTensor<float>(xMiniBatchShape);
-            var yBufferMiniBatchCpu = new CpuTensor<float>(yMiniBatchShape);
+            var yOriginalBufferMiniBatchCpu = new CpuTensor<float>(yMiniBatchShape);
+            yOriginalBufferMiniBatchCpu.ZeroMemory();
+            var yDataAugmentedBufferMiniBatchCpu = new CpuTensor<float>(yOriginalBufferMiniBatchCpu.Shape);
+            yDataAugmentedBufferMiniBatchCpu.ZeroMemory();
+
             var imageDataGenerator = new ImageDataGenerator(p);
-            
-            yBufferMiniBatchCpu.ZeroMemory();
+
             var swLoad = new Stopwatch();
             var swDA = new Stopwatch();
 
@@ -124,26 +127,29 @@ namespace SharpNetTests.NonReg
 
                 if (useMultiThreading)
                 {
-                    Parallel.For(0, miniBatchSize, indexInBuffer => dataset.LoadAt(MiniBatchIdxToElementId(indexInBuffer), indexInBuffer, xOriginalNotAugmentedMiniBatchCpu, yBufferMiniBatchCpu, false, false));
+                    Parallel.For(0, miniBatchSize, indexInBuffer => dataset.LoadAt(MiniBatchIdxToElementId(indexInBuffer), indexInBuffer, xOriginalNotAugmentedMiniBatchCpu, yOriginalBufferMiniBatchCpu, false, false));
                 }
                 else
                 {
                     for (int indexInMiniBatch = 0; indexInMiniBatch < miniBatchSize; ++indexInMiniBatch)
                     {
-                        dataset.LoadAt(MiniBatchIdxToElementId(indexInMiniBatch), indexInMiniBatch, xOriginalNotAugmentedMiniBatchCpu, yBufferMiniBatchCpu, false, false);
+                        dataset.LoadAt(MiniBatchIdxToElementId(indexInMiniBatch), indexInMiniBatch, xOriginalNotAugmentedMiniBatchCpu, yOriginalBufferMiniBatchCpu, false, false);
                     }
                 }
+                yOriginalBufferMiniBatchCpu.CopyTo(yDataAugmentedBufferMiniBatchCpu);
                 swLoad.Stop();
                 swDA.Start();
                 int MiniBatchIdxToCategoryIndex(int miniBatchIdx) => dataset.ElementIdToCategoryIndex(MiniBatchIdxToElementId(miniBatchIdx));
                 Lazy<ImageStatistic> MiniBatchIdxToImageStatistic(int miniBatchIdx) => new(() => dataset.ElementIdToImageStatistic(MiniBatchIdxToElementId(miniBatchIdx), channels, targetHeight, targetWidth));
+                var coinFlipForMiniBatch = Utils.RandomCoinFlip();   
                 if (useMultiThreading)
                 {
                     Parallel.For(0, miniBatchSize, indexInMiniBatch => imageDataGenerator.DataAugmentationForMiniBatch(
                                                        indexInMiniBatch,
                                                        xOriginalNotAugmentedMiniBatchCpu,
                                                        xBufferMiniBatchCpu,
-                                                       yBufferMiniBatchCpu,
+                                                       yOriginalBufferMiniBatchCpu,
+                                                       yOriginalBufferMiniBatchCpu,
                                                        MiniBatchIdxToCategoryIndex,
                                                        MiniBatchIdxToImageStatistic,
                                                        dataset.MeanAndVolatilityForEachChannel,
@@ -154,7 +160,7 @@ namespace SharpNetTests.NonReg
                 {
                     for (int indexInMiniBatch = 0; indexInMiniBatch < miniBatchSize; ++indexInMiniBatch)
                     {
-                        imageDataGenerator.DataAugmentationForMiniBatch(indexInMiniBatch, xOriginalNotAugmentedMiniBatchCpu, xBufferMiniBatchCpu, yBufferMiniBatchCpu, MiniBatchIdxToCategoryIndex, MiniBatchIdxToImageStatistic, dataset.MeanAndVolatilityForEachChannel, dataset.GetRandomForIndexInMiniBatch(indexInMiniBatch), xBufferForDataAugmentedMiniBatch);
+                        imageDataGenerator.DataAugmentationForMiniBatch(indexInMiniBatch, xOriginalNotAugmentedMiniBatchCpu, xBufferMiniBatchCpu,  yOriginalBufferMiniBatchCpu, yDataAugmentedBufferMiniBatchCpu, MiniBatchIdxToCategoryIndex, MiniBatchIdxToImageStatistic, dataset.MeanAndVolatilityForEachChannel, dataset.GetRandomForIndexInMiniBatch(indexInMiniBatch), xBufferForDataAugmentedMiniBatch);
                     }
                 }
 
@@ -321,8 +327,8 @@ namespace SharpNetTests.NonReg
                 + "RELEASE;"
 #endif
                 +elapsedMs+";"
-                +lossAndAccuracy[EvaluationMetricEnum.CategoricalCrossentropy] +";"
-                +lossAndAccuracy[EvaluationMetricEnum.Accuracy]
+                +TestNetworkPropagation.GetMetricValue(lossAndAccuracy,EvaluationMetricEnum.CategoricalCrossentropy) +";"
+                +TestNetworkPropagation.GetMetricValue(lossAndAccuracy,EvaluationMetricEnum.Accuracy)
                 +Environment.NewLine
                 );
         }

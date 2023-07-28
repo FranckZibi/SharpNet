@@ -51,15 +51,19 @@ public abstract class AbstractModelSample : AbstractSample, IModelSample
         {
             Debug.Assert(GetLoss() != EvaluationMetricEnum.DEFAULT_VALUE);
             var res = new List<EvaluationMetricEnum> { GetLoss() };
-            if (GetRankingEvaluationMetric() != GetLoss() && GetRankingEvaluationMetric() != EvaluationMetricEnum.DEFAULT_VALUE)
+            foreach(var m in GetAllEvaluationMetrics())
             {
-                res.Add(GetRankingEvaluationMetric());
+                if (m != GetLoss() && m != EvaluationMetricEnum.DEFAULT_VALUE)
+                {
+                    res.Add(m);
+                }
             }
             return res;
         }
     }
 
     public abstract EvaluationMetricEnum GetRankingEvaluationMetric();
+    public abstract List<EvaluationMetricEnum> GetAllEvaluationMetrics();
     public abstract Model NewModel(AbstractDatasetSample datasetSample, string workingDirectory, string modelName);
     public abstract void Use_All_Available_Cores();
 

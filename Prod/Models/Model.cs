@@ -5,6 +5,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using log4net;
+using Newtonsoft.Json.Linq;
 using SharpNet.CPU;
 using SharpNet.Datasets;
 using SharpNet.HyperParameters;
@@ -98,11 +99,11 @@ public abstract class Model: IDisposable
         }
     }
 
-    public static string MetricsToString(IDictionary<EvaluationMetricEnum, double> metrics, string prefix)
+    public static string MetricsToString(IEnumerable<KeyValuePair<EvaluationMetricEnum, double>> metrics, string prefix)
     {
-        return string.Join(" - ", metrics.OrderBy(x => x.Key).Select(e => prefix + Utils.ToString(e.Key) + ": " + Math.Round(e.Value, 4))).ToLowerInvariant();
+        return string.Join(" - ", metrics.Select(e => prefix + Utils.ToString(e.Key) + ": " + Math.Round(e.Value, 4))).ToLowerInvariant();
     }
-    public static string TrainingAndValidationMetricsToString(IDictionary<EvaluationMetricEnum, double> trainingMetrics, IDictionary<EvaluationMetricEnum, double> validationMetrics)
+    public static string TrainingAndValidationMetricsToString(IEnumerable<KeyValuePair<EvaluationMetricEnum, double>> trainingMetrics, IEnumerable<KeyValuePair<EvaluationMetricEnum, double>> validationMetrics)
     {
         return MetricsToString(trainingMetrics, "") + " - " + MetricsToString(validationMetrics, "val_");
     }
@@ -188,7 +189,14 @@ public abstract class Model: IDisposable
 
     public abstract (DataFrame predictions, string datasetPath) PredictWithPath(DataSet dataset, bool removeAllTemporaryFilesAtEnd);
     
-    public abstract void Save(string workingDirectory, string modelName);
+
+    /// <summary>
+    /// save the model and return all the files needed to save the models
+    /// </summary>
+    /// <param name="workingDirectory"></param>
+    /// <param name="modelName"></param>
+    /// <returns></returns>
+    public abstract List<string> Save(string workingDirectory, string modelName);
     public virtual string DeviceName() => "";
     public virtual int GetNumEpochs() => -1;
     public virtual double GetLearningRate() => double.NaN;

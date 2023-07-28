@@ -46,10 +46,11 @@ public abstract class AbstractSample : ISample
         clonedInstance?.Set(ToDictionaryConfigContent(DefaultAcceptForConfigContent));
         return clonedInstance;
     }
-    public virtual void Save(string workingDirectory, string modelName)
+    public virtual List<string> Save(string workingDirectory, string modelName)
     {
         var path = ToPath(workingDirectory, modelName);
         Save(path);
+        return new List<string> { path };
     }
     public virtual bool MustUseGPU => false;
 
@@ -111,9 +112,9 @@ public abstract class AbstractSample : ISample
         {
             return false;
         }
-        if (hyperParameterType == typeof(string) || hyperParameterType == typeof(bool) || hyperParameterType.IsEnum)
+        if (hyperParameterType == typeof(string) || hyperParameterType == typeof(bool) || hyperParameterType.IsEnum || hyperParameterType.IsClass)
         {
-            return true;
+            return true;       
         }
         throw new ArgumentException($"can't determine if {hyperParameterName} ({hyperParameterType}) field of class {GetType()} is categorical");
     }

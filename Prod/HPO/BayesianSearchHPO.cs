@@ -320,6 +320,11 @@ public class BayesianSearchHPO : AbstractHpo
         Debug.Assert(idx == sampleAsFloatVector.Length);
         var sample = CreateDefaultSample();
         sample.Set(Utils.FromString2String_to_String2Object(searchSpaceHyperParameters));
+        //we try to fix inconsistencies in the sample
+        if (!sample.FixErrors())
+        {
+            return (null, ""); //we failed to fix the inconsistencies in the sample : we have to discard it 
+        }
         //we ensure that we have not already processed this search space
         lock (_processedSpaces)
         {
@@ -327,10 +332,6 @@ public class BayesianSearchHPO : AbstractHpo
             {
                 return (null, ""); //already processed before
             }
-        }
-        if (!sample.FixErrors())
-        {
-            return (null, "");
         }
         return (sample, ToSampleDescription(searchSpaceHyperParameters, sample));
     }

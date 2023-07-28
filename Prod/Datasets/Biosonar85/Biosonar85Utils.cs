@@ -6,6 +6,7 @@ using JetBrains.Annotations;
 using log4net;
 using SharpNet.CPU;
 using SharpNet.DataAugmentation;
+using SharpNet.DataAugmentation.Operations;
 using SharpNet.GPU;
 using SharpNet.HPO;
 using SharpNet.HyperParameters;
@@ -59,10 +60,16 @@ public static class Biosonar85Utils
     //}
 
     //const float x_train_mean = -37.149295f;       //for train dataset only 
-    const float x_train_mean = -37.076445f;         // for train+test dataset
+    public const float x_train_mean = -37.076445f;         // for train+test dataset
     
     //const float x_train_volatility = 14.906728f;  //for train dataset only 
-    const float x_train_volatility = 14.84446f;     // for train+test dataset
+    public const float x_train_volatility = 14.84446f;     // for train+test dataset
+
+
+    public const float x_train_mean_PNG_1CHANNEL_V2 = -57.210965f;    // for train dataset
+    public const float x_test_mean_PNG_1CHANNEL_V2 = -54.409614f;     // for test dataset
+    public const float x_train_volatility_PNG_1CHANNEL_V2 = 13.373847f;            // for train dataset
+    public const float x_test_volatility_PNG_1CHANNEL_V2 = 10.493092f;             // for test dataset
 
     public static void Run()
     {
@@ -72,13 +79,29 @@ public static class Biosonar85Utils
         //var bin_file = Path.Combine(DataDirectory, "Y_train_ofTdMHi.csv.bin");
         //var tensor = CpuTensor<float>.LoadFromBinFile(bin_file, new[] { -1, 101, 64});
 
-        ChallengeTools.Retrain(Path.Combine(WorkingDirectory, "Dump"), "9EC4521F47", null, percentageInTraining:0.799, retrainOnFullDataset:false, useAllAvailableCores:true);return;
+        ChallengeTools.Retrain(Path.Combine(WorkingDirectory, "Dump"), "569C5C14D2", null, percentageInTraining:0.8, retrainOnFullDataset:false, useAllAvailableCores:true);return;
 
-        //Launch_HPO_PngDirectory(10); return;
-        //Launch_HPO_Transformers(2); return;
+        //ComputeAverage_avg();return;
+
+        //Launch_HPO_Spectogram(10); return;
+        //Launch_HPO_Transformers(10); return;
         //Launch_HPO(10);return;
     }
 
+    public static void ComputeAverage_avg()
+    {
+        var dfs = new List<DataFrame>();
+        var path = @"\\RYZEN2700X-DEV\Challenges\Biosonar85\Submit\";
+        foreach (var file in new[]
+                 {
+                     @"7E45F84676_predict_test_0,9353867531264475.csv",
+                     @"569C5C14D2_predict_test_0.936063704706595.csv",
+                 })
+        {
+            dfs.Add(DataFrame.read_csv(Path.Combine(path, file), true, x => x == "id" ? typeof(string) : typeof(float)));
+        }
+        DataFrame.Average(dfs.ToArray()).to_csv(Path.Combine(path, "7E45F84676_569C5C14D2_avg.csv"));
+    }
 
 
     public static (int[] shape, int n_fft, int hop_len, int f_min, int f_max, int top_db) ProcessXFileName(string xPath)
@@ -107,6 +130,12 @@ public static class Biosonar85Utils
         }
         var elementIdToCategoryIndex = Enumerable.Repeat(0, y_IDs.Length).ToList();
         var labels = hasLabels ? df.FloatColumnContent("pos_label") : new float[y_IDs.Length];
+
+        //y_IDs = y_IDs.Take(128).ToArray();
+        //elementIdToCategoryIndex = elementIdToCategoryIndex.Take(y_IDs.Length).ToList();
+        //elementIdToPaths = elementIdToPaths.Take(y_IDs.Length).ToList();
+        //labels = labels.Take(y_IDs.Length).ToArray();
+
         var expectedYIfAny = new CpuTensor<float>(new[] { y_IDs.Length, numClass }, labels);
 
         var dataset = new Biosonar85DirectoryDataSet(
@@ -124,9 +153,8 @@ public static class Biosonar85Utils
         );
         return dataset;
     }
-
-
-    public static InMemoryDataSet Load(string xFileName, [CanBeNull] string yFileNameIfAny, string csvPath)
+   
+    public static InMemoryDataSet Load(string xFileName, [CanBeNull] string yFileNameIfAny, string csvPath, float mean = 0f, float stdDev = 1f)
     {
         var xPath = Path.Join(DataDirectory, xFileName);
         (int[] xShape, int _, int _, int _, int _, int _) = ProcessXFileName(xPath);
@@ -136,12 +164,18 @@ public static class Biosonar85Utils
             ?null //no Y available for Dataset
             :CpuTensor<float>.LoadFromBinFile(Path.Join(DataDirectory, yFileNameIfAny), new []{ xShape[0], 1 });
 
-        //We standardize the input
-        xTensor.LinearFunction(1f / x_train_volatility, xTensor, -x_train_mean / x_train_volatility);
 
-        var xAcc = new DoubleAccumulator();
-        xAcc.Add(xTensor.ContentAsFloatArray());
-        Log.Info($"Stats for {xFileName} after standardization: {xAcc}");
+        var xAccBefore = new DoubleAccumulator();
+        xAccBefore.Add(xTensor.SpanContent);
+        Log.Info($"Stats for {xFileName} before standardization: {xAccBefore}");
+
+        //We standardize the input
+        Log.Info($"Mean: {mean}, StdDev: {stdDev}");
+        xTensor.LinearFunction(1f / stdDev, xTensor, -mean / stdDev);
+
+        var xAccAfter = new DoubleAccumulator();
+        xAccAfter.Add(xTensor.SpanContent);
+        Log.Info($"Stats for {xFileName} after standardization: {xAccAfter}");
 
 
         var yID = DataFrame.read_string_csv(csvPath).StringColumnContent("id");
@@ -174,8 +208,8 @@ public static class Biosonar85Utils
             
             //related to model
             { "LossFunction", nameof(EvaluationMetricEnum.BinaryCrossentropy)},
-            { "RankingEvaluationMetric", nameof(EvaluationMetricEnum.AUC)},
-            { "BatchSize", new[] {256} },
+            { "EvaluationMetrics", nameof(EvaluationMetricEnum.Accuracy)+","+nameof(EvaluationMetricEnum.AUC)},
+            { "BatchSize", new[] {1024} },
             { "NumEpochs", new[] { numEpochs } },
             { "ShuffleDatasetBeforeEachEpoch", true},
             // Optimizer 
@@ -193,7 +227,7 @@ public static class Biosonar85Utils
             {"embedding_dim", 64},
             {"input_is_already_embedded", true },
 
-            {"encoder_num_transformer_blocks", new[]{2} }, //!D 2
+            {"encoder_num_transformer_blocks", new[]{4} }, //!D 2
             
             {"encoder_num_heads", new[]{8} },
 
@@ -213,18 +247,18 @@ public static class Biosonar85Utils
 
             // DataAugmentation
             { "DataAugmentationType", nameof(ImageDataGenerator.DataAugmentationEnum.DEFAULT) },
-            { "AlphaCutMix", AbstractHyperParameterSearchSpace.Range(0,1.0f) }, //must be > 0
-            { "AlphaMixup", new[] { 0 /*, 0.25*/} }, // must be 0
-            { "CutoutPatchPercentage", AbstractHyperParameterSearchSpace.Range(0, 0.1f) },
-            { "RowsCutoutPatchPercentage", AbstractHyperParameterSearchSpace.Range(0,0.1f) },
-            { "ColumnsCutoutPatchPercentage", AbstractHyperParameterSearchSpace.Range(0,0.1f) },
+            { "AlphaCutMix", new[] { 0, 0.5, 1.0} },
+            { "AlphaMixup", new[] { 0, 0.5, 1.0} },
+            { "CutoutPatchPercentage", new[] { 0, 0.1, 0.2} },
+            { "RowsCutoutPatchPercentage", new[] { 0, 0.1, 0.2} },
+            { "ColumnsCutoutPatchPercentage", new[] { 0, 0.1, 0.2} },
             //{ "HorizontalFlip",new[]{true,false } },
             //{ "VerticalFlip",new[]{true,false } },
             //{ "Rotate180Degrees",new[]{true,false } },
-            { "FillMode",new[]{ nameof(ImageDataGenerator.FillModeEnum.Reflect), nameof(ImageDataGenerator.FillModeEnum.Nearest), nameof(ImageDataGenerator.FillModeEnum.Modulo) } },
-            //{ "FillMode",nameof(ImageDataGenerator.FillModeEnum.Modulo) },
-            { "WidthShiftRangeInPercentage", AbstractHyperParameterSearchSpace.Range(0,0.1f) },
-            { "HeightShiftRangeInPercentage", AbstractHyperParameterSearchSpace.Range(0,0.1f) },
+            //{ "FillMode",new[]{ nameof(ImageDataGenerator.FillModeEnum.Reflect), nameof(ImageDataGenerator.FillModeEnum.Nearest), nameof(ImageDataGenerator.FillModeEnum.Modulo) } },
+            { "FillMode",nameof(ImageDataGenerator.FillModeEnum.Reflect) },
+            { "WidthShiftRangeInPercentage", new[] { 0, 0.1, 0.2} },
+            { "HeightShiftRangeInPercentage", new[] { 0, 0.1, 0.2 } },
             //{ "ZoomRange", new[] { 0.0 , 0.05,0.1 } },
             
             
@@ -232,7 +266,7 @@ public static class Biosonar85Utils
             // Learning Rate
             //{ "InitialLearningRate", AbstractHyperParameterSearchSpace.Range(0.01f,0.2f,AbstractHyperParameterSearchSpace.range_type.normal)}, 
             //{ "InitialLearningRate", AbstractHyperParameterSearchSpace.Range(0.02f,0.05f)}, //0.02 to 0.05
-            { "InitialLearningRate", 0.02},
+            { "InitialLearningRate", new[]{0.01, 0.05, 0.1 } },
             //{ "InitialLearningRate", AbstractHyperParameterSearchSpace.Range(0.002f,0.2f)}, //0.02 to 0.05
             // Learning Rate Scheduler
             //{ "LearningRateSchedulerType", new[] { "OneCycle" } },
@@ -258,7 +292,7 @@ public static class Biosonar85Utils
             
             //Related to model
             { "LossFunction", nameof(EvaluationMetricEnum.BinaryCrossentropy)},
-            { "RankingEvaluationMetric", nameof(EvaluationMetricEnum.AUC)},
+            { "EvaluationMetrics", nameof(EvaluationMetricEnum.AUC)},
             { "BatchSize", new[] {256} },
             { "NumEpochs", new[] { numEpochs } },
             { "ShuffleDatasetBeforeEachEpoch", true},
@@ -318,7 +352,7 @@ public static class Biosonar85Utils
         hpo.Process(t => SampleUtils.TrainWithHyperParameters((ModelAndDatasetPredictionsSample)t, WorkingDirectory, retrainOnFullDatasetIfBetterModelFound, ref bestScoreSoFar), maxAllowedSecondsForAllComputation);
     }
 
-    public static void Launch_HPO_PngDirectory(int numEpochs = 10, int maxAllowedSecondsForAllComputation = 0)
+    public static void Launch_HPO_Spectogram(int numEpochs = 10, int maxAllowedSecondsForAllComputation = 0)
     {
         Utils.ConfigureGlobalLog4netProperties(WorkingDirectory, "log");
         Utils.ConfigureThreadLog4netProperties(WorkingDirectory, "log");
@@ -329,59 +363,73 @@ public static class Biosonar85Utils
             //{"KFold", 2},
             { "PercentageInTraining", 0.8}, //will be automatically set to 1 if KFold is enabled
             { "ShuffleDatasetBeforeSplit", true},
-            { "InputDataType", nameof(Biosonar85DatasetSample.InputDataTypeEnum.PNG_1CHANNEL)},
+            //{ "InputDataType", nameof(Biosonar85DatasetSample.InputDataTypeEnum.PNG_1CHANNEL)},
+            { "InputDataType", nameof(Biosonar85DatasetSample.InputDataTypeEnum.PNG_1CHANNEL_V2)},
 
             //related to model
             { "LossFunction", nameof(EvaluationMetricEnum.BinaryCrossentropy)},
-            { "RankingEvaluationMetric", nameof(EvaluationMetricEnum.AUC)},
+            { "EvaluationMetrics", nameof(EvaluationMetricEnum.Accuracy)/*+","+nameof(EvaluationMetricEnum.AUC)*/},
             { "BatchSize", new[] {128} },
+            
             { "NumEpochs", new[] { numEpochs } },
+            
             { "ShuffleDatasetBeforeEachEpoch", true},
             // Optimizer 
-            //{ "OptimizerType", new[] { "AdamW"} },
+            { "OptimizerType", new[] { "AdamW" /*, "SGD"*/ } },
             //{ "SGD_usenesterov", new[] { true, false } },
-            //{ "lambdaL2Regularization", new[] { 0.0005, 0.001, 0.00005 } },
-            { "lambdaL2Regularization", new[] { 0.0005 /*, 0.001, 0.00005*/ } },
-            { "DefaultMobileBlocksDescriptionCount", 4},
-            
+            { "lambdaL2Regularization", new[] { 0.0005 /*, 0.001*/} },
+            { "AdamW_L2Regularization", new[] { /*0.005, 0.05,*/ 0.0005 } }, // to discard: 0.005, 0.05
+            //{ "DefaultMobileBlocksDescriptionCount", 4},
             // Learning Rate
-            { "InitialLearningRate", new []{0.005, 0.01}},
-            
-
+            //{ "InitialLearningRate", AbstractHyperParameterSearchSpace.Range(0.003f, 0.03f)},
+            { "InitialLearningRate", new[]{0.01,0.025 } },
             // Learning Rate Scheduler
             //{ "LearningRateSchedulerType", new[] { "OneCycle" } },
             //{ "LearningRateSchedulerType", "CyclicCosineAnnealing" },
-            {"LastActivationLayer", nameof(cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID)},
+            { "LastActivationLayer", nameof(cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID)},
+            { "LearningRateSchedulerType", "CyclicCosineAnnealing" },
+            //{"LearningRateSchedulerType", new[]{"OneCycle"/*, "CyclicCosineAnnealing"*/} },
+            {"DisableReduceLROnPlateau", true},
+            {"OneCycle_DividerForMinLearningRate", 20},
+            {"OneCycle_PercentInAnnealing", new[]{ 0.1, 0.4 } },
+            {"CyclicCosineAnnealing_nbEpochsInFirstRun", 10},
+            {"CyclicCosineAnnealing_nbEpochInNextRunMultiplier", 2},
+            {"CyclicCosineAnnealing_MinLearningRate", 1e-5},
+
 
             // DataAugmentation
             { "DataAugmentationType", nameof(ImageDataGenerator.DataAugmentationEnum.DEFAULT) },
-            { "AlphaCutMix", new[] { 0.0, 0.5, 1.0} }, //must be > 0
-            { "AlphaMixup", new[] { 0.0, 0.5, 1.0} }, // must be 0 ?
-            { "CutoutPatchPercentage", new[] { 0 , 0.1} },
-            { "RowsCutoutPatchPercentage", new[] { 0 , 0.1} },
-            //{ "ColumnsCutoutPatchPercentage", new[] { 0 , 0.1} },
-            //{ "HorizontalFlip",new[]{true,false } },
+            { "AlphaCutMix", new[] { 0.0,  1.0} },
+            { "AlphaMixup", new[] { 0.0, 1.0} },
+            //{ "UseMaxCutMix", new[] { true, false} },
+            //{ "UseMaxMixup", new[] { true, false} },
+            { "CutoutPatchPercentage", new[] {/* 0 ,*/ 0.1} }, //0
+            { "RowsCutoutPatchPercentage", new[] { 0 /*, 0.1, 0.2*/} }, //0 is better
+            { "ColumnsCutoutPatchPercentage", new[] { 0 /*, 0.1*/} }, // must be 0
+            { "HorizontalFlip",new[]{true,false } },
             //{ "VerticalFlip",new[]{true,false } },
             //{ "Rotate180Degrees",new[]{true,false } },
-            { "FillMode",new[]{ nameof(ImageDataGenerator.FillModeEnum.Reflect), nameof(ImageDataGenerator.FillModeEnum.Modulo) } },
-            { "WidthShiftRangeInPercentage", new[] { 0, 0.1, 0.2 } },
-            { "HeightShiftRangeInPercentage", new[] { 0, 0.1, 0.2} },
-
-
-
-
-    // DataAugmentation
-    //{ "HorizontalFlip", new[] { true /*, false*/} }, //true
-    //{ "VerticalFlip", new[] { false /*, true*/} }, //false
-    //{ "AlphaMixup", new[] { 0.0 /*, 0.5, 1.0*/ } }, //0.0
-    //{ "AlphaCutMix", new[] { 1.0, 2.0 } }, //0.0
-    //{ "CutoutPatchPercentage", new[] { 0.0, 0.15, 0.3} },
-    //{ "RotationRangeInDegrees", new[] { 0.0, 5.0, 10.0} },
-    //{ "ZoomRange", new[] { 0.05} },
-    //{ "EqualizeOperationProbability", new[] { 0.0, 0.2} },
-    //{ "AutoContrastOperationProbability", new[] { 1.0} },
+            { "FillMode",new[]{ nameof(ImageDataGenerator.FillModeEnum.Reflect) /*, nameof(ImageDataGenerator.FillModeEnum.Modulo)*/ } }, //Reflect
+            //{ "HeightShiftRangeInPercentage", AbstractHyperParameterSearchSpace.Range(0.05f, 0.30f) }, // must be > 0 , 0.1 seems good default
+            { "HeightShiftRangeInPercentage", 0.1},
+            { "WidthShiftRangeInPercentage", 0 }, //0
 
 };
+
+        //model: B6E9B1D5CE
+        /*
+        searchSpace["InitialLearningRate"] = 0.005;
+        searchSpace["lambdaL2Regularization"] = 0.0005;
+        searchSpace["RowsCutoutPatchPercentage"] = 0;
+        searchSpace["HeightShiftRangeInPercentage"] = 0.1;
+        searchSpace["AlphaCutMix"] = 0;
+        searchSpace["AlphaMixup"] = 1;
+        searchSpace["HorizontalFlip"] = false;
+        searchSpace["LearningRateSchedulerType"] = "OneCycle";
+        searchSpace["OptimizerType"] = "AdamW";
+        //searchSpace["AdamW_L2Regularization"] = 0.005;
+        */
+
 
         var hpo = new BayesianSearchHPO(searchSpace, () => ModelAndDatasetPredictionsSample.New(DefaultEfficientNetNetworkSample(), new Biosonar85DatasetSample()), WorkingDirectory);
         IScore bestScoreSoFar = null;
@@ -400,8 +448,8 @@ public static class Biosonar85Utils
         var config = (EfficientNetNetworkSample)new EfficientNetNetworkSample()
         {
             LossFunction = EvaluationMetricEnum.BinaryCrossentropy,
-            RankingEvaluationMetric = EvaluationMetricEnum.AUC,
-            CompatibilityMode = NetworkSample.CompatibilityModeEnum.TensorFlow,
+            EvaluationMetrics = new List<EvaluationMetricEnum> {EvaluationMetricEnum.AUC},
+            CompatibilityMode = CompatibilityModeEnum.TensorFlow,
             lambdaL2Regularization = 0.0005,
             //!D WorkingDirectory = Path.Combine(NetworkSample.DefaultWorkingDirectory, CIFAR10DataSet.NAME),
             NumEpochs = 10,
@@ -411,10 +459,6 @@ public static class Biosonar85Utils
 
             //Data augmentation
             DataAugmentationType = ImageDataGenerator.DataAugmentationEnum.DEFAULT,
-            WidthShiftRangeInPercentage = 0.0,
-            HeightShiftRangeInPercentage = 0.0,
-            HorizontalFlip = false,
-            VerticalFlip = false,
             FillMode = ImageDataGenerator.FillModeEnum.Reflect,
             AlphaMixup = 0.0,
             AlphaCutMix = 0.0,

@@ -109,10 +109,10 @@ namespace SharpNet.Svm
             }
             return (predictionsDf, datasetPath);
         }
-        public override void Save(string workingDirectory, string modelName)
+        public override List<string> Save(string workingDirectory, string modelName)
         {
             //No need to save model : it is already saved
-            SVMSample.Save(workingDirectory, modelName);
+            return SVMSample.Save(workingDirectory, modelName);
         }
      
         public override List<string> AllFiles()

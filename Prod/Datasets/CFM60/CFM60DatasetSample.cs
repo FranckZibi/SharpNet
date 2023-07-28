@@ -456,7 +456,7 @@ public class CFM60DatasetSample : DatasetSampleForTimeSeries
             
             //Related to model
             {"LossFunction", nameof(EvaluationMetricEnum.Mse)},
-            {"RankingEvaluationMetric", ""}, //same as loss function
+            {"EvaluationMetrics", ""}, //same as loss function
             {"ShuffleDatasetBeforeEachEpoch", true},
             {"CompatibilityMode", "TensorFlow"},
             {"BatchSize", 2048},

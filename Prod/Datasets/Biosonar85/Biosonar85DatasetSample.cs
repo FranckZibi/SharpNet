@@ -18,8 +18,12 @@ public class Biosonar85DatasetSample : AbstractDatasetSample
     public const string max_db = "250";
 
     private static string xTrainBin => "X_train_23168_101_64_1024_512_"+f_min+"_"+f_max+"_"+max_db+".bin";
+    private static string yTrainBin => "Y_train_23168_1_64_1024_512_" + f_min + "_" + f_max + "_" + max_db + ".bin";
     private static string xTestBin => "X_test_950_101_64_1024_512_" + f_min + "_" + f_max + "_" + max_db +".bin";
-    private static string yTrainBin => "Y_train_23168_1_64_1024_512_" + f_min + "_" + f_max + "_" + max_db+".bin";
+
+    private static string xTrainBinV2 => "X_train_23168_129_401_256_128_1000_150000_250.bin";
+    private static string yTrainBinV2 => "Y_train_23168_1_64_256_128_1000_150000_250.bin";
+    private static string xTestBinV2 => "X_test_950_129_401_256_128_1000_150000_250.bin";
 
     #region private fields
     //used for InputDataTypeEnum.TRANSFORMERS_3D && InputDataTypeEnum.NETWORK_4D
@@ -31,6 +35,9 @@ public class Biosonar85DatasetSample : AbstractDatasetSample
 
     private static DirectoryDataSet trainDataset_PNG_1CHANNEL;
     private static DirectoryDataSet testDataset_PNG_1CHANNEL;
+
+    private static InMemoryDataSet trainDataset_PNG_1CHANNEL_V2;
+    private static InMemoryDataSet testDataset_PNG_1CHANNEL_V2;
     #endregion
 
 
@@ -38,7 +45,7 @@ public class Biosonar85DatasetSample : AbstractDatasetSample
     private static readonly ILog Log = LogManager.GetLogger(typeof(Biosonar85DatasetSample));
     #endregion
 
-    public enum InputDataTypeEnum { PNG_1CHANNEL, TRANSFORMERS_3D, NETWORK_4D}
+    public enum InputDataTypeEnum { PNG_1CHANNEL, PNG_1CHANNEL_V2, TRANSFORMERS_3D, NETWORK_4D}
 
     #region HyperParameters
     public InputDataTypeEnum InputDataType;
@@ -140,7 +147,9 @@ public class Biosonar85DatasetSample : AbstractDatasetSample
             case InputDataTypeEnum.NETWORK_4D:
                 return new[] {1, 101, 64 };
             case InputDataTypeEnum.PNG_1CHANNEL:
-                return new[] {1, 129, 401};
+                return new[] { 1, 129, 401 };
+            case InputDataTypeEnum.PNG_1CHANNEL_V2:
+                return new[] { 1, 129, 401 };
             default:
                 throw new NotImplementedException($"{InputDataType}");
         }
@@ -157,29 +166,42 @@ public class Biosonar85DatasetSample : AbstractDatasetSample
                 case InputDataTypeEnum.TRANSFORMERS_3D:
                     if (trainDataset_TRANSFORMERS_3D == null)
                     {
-                        trainDataset_TRANSFORMERS_3D = Biosonar85Utils.Load(xTrainBin, yTrainBin, Y_train_path);
-                        testDataset_TRANSFORMERS_3D = Biosonar85Utils.Load(xTestBin, null, Y_test_path);
+                        
+
+                        trainDataset_TRANSFORMERS_3D = Biosonar85Utils.Load(xTrainBin, yTrainBin, Y_train_path, Biosonar85Utils.x_train_mean, Biosonar85Utils.x_train_volatility);
+                        testDataset_TRANSFORMERS_3D = Biosonar85Utils.Load(xTestBin, null, Y_test_path, Biosonar85Utils.x_train_mean, Biosonar85Utils.x_train_volatility);
+                        Log.Info($"Loading of raw files took {sw.Elapsed.Seconds}s");
                     }
-                    Log.Info($"Loading of raw files took {sw.Elapsed.Seconds}s");
                     return (trainDataset_TRANSFORMERS_3D, testDataset_TRANSFORMERS_3D);
                 case InputDataTypeEnum.NETWORK_4D:
                     if (trainDataset_NETWORK_4D == null)
                     {
-                        trainDataset_NETWORK_4D = Biosonar85Utils.Load(xTrainBin, yTrainBin, Y_train_path);
-                        testDataset_NETWORK_4D = Biosonar85Utils.Load(xTestBin, null, Y_test_path);
+                        trainDataset_NETWORK_4D = Biosonar85Utils.Load(xTrainBin, yTrainBin, Y_train_path, Biosonar85Utils.x_train_mean, Biosonar85Utils.x_train_volatility);
+                        testDataset_NETWORK_4D = Biosonar85Utils.Load(xTestBin, null, Y_test_path, Biosonar85Utils.x_train_mean, Biosonar85Utils.x_train_volatility);
                         trainDataset_NETWORK_4D.X.ReshapeInPlace(trainDataset_NETWORK_4D.X.Shape[0], 1, trainDataset_NETWORK_4D.X.Shape[2], trainDataset_NETWORK_4D.X.Shape[3]);
                         testDataset_NETWORK_4D.X.ReshapeInPlace(testDataset_NETWORK_4D.X.Shape[0], 1, testDataset_NETWORK_4D.X.Shape[2], testDataset_NETWORK_4D.X.Shape[3]);
+                        Log.Info($"Loading of raw files took {sw.Elapsed.Seconds}s");
                     }
-                    Log.Info($"Loading of raw files took {sw.Elapsed.Seconds}s");
                     return (trainDataset_NETWORK_4D, testDataset_NETWORK_4D);
                 case InputDataTypeEnum.PNG_1CHANNEL:
                     if (trainDataset_PNG_1CHANNEL == null)
                     {
-                        trainDataset_PNG_1CHANNEL = Biosonar85Utils.LoadPng(PNG_train_directory, Y_train_path, true, new List<Tuple<float, float>> { Tuple.Create(121.41582f, 38.465096f) });
-                        testDataset_PNG_1CHANNEL = Biosonar85Utils.LoadPng(PNG_test_directory, Y_test_path, false, new List<Tuple<float, float>> { Tuple.Create(115.38992f, 27.096777f) });
+                        var meanAndVolatilityForEachChannelTrain = new List<Tuple<float, float>> { Tuple.Create(121.41582f, 38.465096f) };
+                        trainDataset_PNG_1CHANNEL = Biosonar85Utils.LoadPng(PNG_train_directory, Y_train_path, true, meanAndVolatilityForEachChannelTrain);
+                        var meanAndVolatilityForEachChannelTest = new List<Tuple<float, float>> { Tuple.Create(115.38992f, 27.096777f) };
+                        meanAndVolatilityForEachChannelTest = meanAndVolatilityForEachChannelTrain;
+                        testDataset_PNG_1CHANNEL = Biosonar85Utils.LoadPng(PNG_test_directory, Y_test_path, false, meanAndVolatilityForEachChannelTest);
+                        Log.Info($"Loading of raw files took {sw.Elapsed.Seconds}s");
                     }
-                    Log.Info($"Loading of raw files took {sw.Elapsed.Seconds}s");
                     return (trainDataset_PNG_1CHANNEL, testDataset_PNG_1CHANNEL);
+                case InputDataTypeEnum.PNG_1CHANNEL_V2:
+                    if (trainDataset_PNG_1CHANNEL_V2 == null)
+                    {
+                        trainDataset_PNG_1CHANNEL_V2 = Biosonar85Utils.Load(xTrainBinV2, yTrainBinV2, Y_train_path, Biosonar85Utils.x_train_mean_PNG_1CHANNEL_V2, Biosonar85Utils.x_train_volatility_PNG_1CHANNEL_V2);
+                        testDataset_PNG_1CHANNEL_V2 = Biosonar85Utils.Load(xTestBinV2, null, Y_test_path, Biosonar85Utils.x_train_mean_PNG_1CHANNEL_V2, Biosonar85Utils.x_train_volatility_PNG_1CHANNEL_V2);
+                        Log.Info($"Loading of raw files took {sw.Elapsed.Seconds}s");
+                    }
+                    return (trainDataset_PNG_1CHANNEL_V2, testDataset_PNG_1CHANNEL_V2);
                 default:
                     throw new NotImplementedException($"{InputDataType}");
             }
@@ -190,23 +212,23 @@ public class Biosonar85DatasetSample : AbstractDatasetSample
     /// compute stats for train & test dataset
     /// </summary>
     // ReSharper disable once UnusedMember.Local
-    private static void ComputeStats()
-    {
-        var xTrainPath = Path.Join(Biosonar85Utils.DataDirectory, xTrainBin);
-        (int[] xTrainShape, var _, var _, var _, var _, var _) = Biosonar85Utils.ProcessXFileName(xTrainPath);
-        var xTrainTensor = CpuTensor<float>.LoadFromBinFile(xTrainPath, xTrainShape);
-        var xTrainAcc = new DoubleAccumulator();
-        xTrainAcc.Add(xTrainTensor.ContentAsFloatArray());
-        Log.Info($"Stats for {xTrainPath} before standardization: {xTrainAcc}");
+    //private static void ComputeStats()
+    //{
+    //    var xTrainPath = Path.Join(Biosonar85Utils.DataDirectory, xTrainBin);
+    //    (int[] xTrainShape, var _, var _, var _, var _, var _) = Biosonar85Utils.ProcessXFileName(xTrainPath);
+    //    var xTrainTensor = CpuTensor<float>.LoadFromBinFile(xTrainPath, xTrainShape);
+    //    var xTrainAcc = new DoubleAccumulator();
+    //    xTrainAcc.Add(xTrainTensor.SpanContent);
+    //    Log.Info($"Stats for {xTrainPath} before standardization: {xTrainAcc}");
 
-        var xTestPath = Path.Join(Biosonar85Utils.DataDirectory, xTestBin);
-        (int[] xTestShape, var _, var _, var _, var _, var _) = Biosonar85Utils.ProcessXFileName(xTestPath);
-        var xTestTensor = CpuTensor<float>.LoadFromBinFile(xTestPath, xTestShape);
-        var xTestAcc = new DoubleAccumulator();
-        xTestAcc.Add(xTestTensor.ContentAsFloatArray());
-        Log.Info($"Stats for {xTestPath} before standardization: {xTestAcc}");
+    //    var xTestPath = Path.Join(Biosonar85Utils.DataDirectory, xTestBin);
+    //    (int[] xTestShape, var _, var _, var _, var _, var _) = Biosonar85Utils.ProcessXFileName(xTestPath);
+    //    var xTestTensor = CpuTensor<float>.LoadFromBinFile(xTestPath, xTestShape);
+    //    var xTestAcc = new DoubleAccumulator();
+    //    xTestAcc.Add(xTestTensor.SpanContent);
+    //    Log.Info($"Stats for {xTestPath} before standardization: {xTestAcc}");
 
-        Log.Info($"Cumulative Stats Stats for : {DoubleAccumulator.Sum(xTrainAcc, xTestAcc)}");
-    }
+    //    Log.Info($"Cumulative Stats Stats for : {DoubleAccumulator.Sum(xTrainAcc, xTestAcc)}");
+    //}
 
 }

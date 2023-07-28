@@ -1181,7 +1181,7 @@ namespace SharpNetTests.NonReg
 
             var network = GetNetwork(EvaluationMetricEnum.Mse, resourceIds);
             network.Sample.WithSGD(momentum, false);
-            network.Sample.RankingEvaluationMetric = EvaluationMetricEnum.Mae;
+            network.Sample.EvaluationMetrics = new List<EvaluationMetricEnum> { EvaluationMetricEnum.Mae };
             network
                 .Input(X.Shape[1], X.Shape[2], X.Shape[3])
                 .Dense(3, 0.0, true)
@@ -1365,7 +1365,7 @@ namespace SharpNetTests.NonReg
             return TestNetwork.NewForTests(
                 new NetworkSample{ 
                     LossFunction = lossFunction,
-                    RankingEvaluationMetric = rankingEvaluationMetric,
+                    EvaluationMetrics = new List<EvaluationMetricEnum> { rankingEvaluationMetric },
                     ShuffleDatasetBeforeEachEpoch = false, 
                     ConvolutionAlgoPreference = GPUWrapper.ConvolutionAlgoPreference.FASTEST_DETERMINIST_NO_TRANSFORM, CompatibilityMode = NetworkSample.CompatibilityModeEnum.TensorFlow, 
                     ResourceIds = resourceIds.ToList()
@@ -1387,12 +1387,17 @@ namespace SharpNetTests.NonReg
             var observedMetrics = network.ComputeMetricsForTestDataSet(batchSize, dataSet);
             if (expectedLoss.HasValue)
             { 
-                Assert.AreEqual(expectedLoss.Value, observedMetrics[network.Sample.GetLoss()], epsilon, "expected loss: " + expectedLoss.Value + " but was: " + observedMetrics[network.Sample.GetLoss()]);
+                Assert.AreEqual(expectedLoss.Value, GetMetricValue(observedMetrics,network.Sample.GetLoss()), epsilon, "expected loss: " + expectedLoss.Value + " but was: " + GetMetricValue(observedMetrics, network.Sample.GetLoss()));
             }
             if (expectedAccuracy.HasValue)
             {
-                Assert.AreEqual(expectedAccuracy.Value, observedMetrics[EvaluationMetricEnum.Accuracy], epsilon, "expected accuracy: " + expectedAccuracy.Value + " but was: " + observedMetrics[EvaluationMetricEnum.Accuracy]);
+                Assert.AreEqual(expectedAccuracy.Value, GetMetricValue(observedMetrics, EvaluationMetricEnum.Accuracy), epsilon, "expected accuracy: " + expectedAccuracy.Value + " but was: " + GetMetricValue(observedMetrics, EvaluationMetricEnum.Accuracy));
             }
+        }
+
+        public static T GetMetricValue<T>(List<KeyValuePair<EvaluationMetricEnum, T>> availableMetrics, EvaluationMetricEnum metric)
+        {
+            return availableMetrics.Where(a => a.Key == metric).Single().Value;
         }
     }
 }

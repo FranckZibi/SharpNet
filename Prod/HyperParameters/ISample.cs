@@ -101,7 +101,7 @@ public interface ISample
         sample?.Set(Utils.FromString2String_to_String2Object(content));
         return sample;
     }
-    void Save(string workingDirectory, string modelName);
+    List<string> Save(string workingDirectory, string modelName);
     private static IDictionary<string, string> LoadTextConfig(string path)
     {
         if (!File.Exists(path))
