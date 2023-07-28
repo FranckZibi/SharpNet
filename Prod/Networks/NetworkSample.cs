@@ -373,10 +373,6 @@ namespace SharpNet.Networks
                 }
             }
 
-            if (AlphaCutMix == 0) {UseMaxCutMix = false;}            
-            if (AlphaMixup == 0) {UseMaxMixup = false;}
-
-
             if (LossFunction == EvaluationMetricEnum.DEFAULT_VALUE)
             {
                 return false;
@@ -653,18 +649,12 @@ namespace SharpNet.Networks
         /// </summary>
         public double AlphaCutMix = 0.0;
 
-        public bool UseMaxCutMix = false;
-
         /// <summary>
         /// The alpha coefficient used to compute lambda in Mixup
         /// A value less or equal to 0.0 wil disable Mixup (see: https://arxiv.org/pdf/1710.09412.pdf)
         /// A value of 1.0 will use a uniform random distribution in [0,1] for lambda
         /// </summary>
         public double AlphaMixup = 0.0;
-
-        public bool UseMaxMixup = false;
-        
-        public bool MixOnlySameCategory = false;
 
         /// <summary>
         /// rotation range in degrees, in [0,180] range.

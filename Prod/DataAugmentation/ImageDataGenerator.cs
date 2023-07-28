@@ -37,7 +37,6 @@ namespace SharpNet.DataAugmentation
 
         private List<Operation> GetSubPolicy(int indexInMiniBatch,
             CpuTensor<float> xOriginalMiniBatch,
-            CpuTensor<float> yOriginalMiniBatch,
             List<Tuple<float, float>> meanAndVolatilityForEachChannel,
             Func<int, Lazy<ImageStatistic>> indexInOriginalMiniBatchToImageStatistic,
             Random rand)
@@ -57,43 +56,43 @@ namespace SharpNet.DataAugmentation
             switch (_sample.DataAugmentationType)
             {
                 case DataAugmentationEnum.DEFAULT:
-                    return DefaultSubPolicy(indexInMiniBatch, xOriginalMiniBatch, yOriginalMiniBatch, meanAndVolatilityForEachChannel, indexInOriginalMiniBatchToImageStatistic, rand);
+                    return DefaultSubPolicy(indexInMiniBatch, xOriginalMiniBatch, meanAndVolatilityForEachChannel, indexInOriginalMiniBatchToImageStatistic, rand);
                 case DataAugmentationEnum.AUTO_AUGMENT_CIFAR10:
                     Debug.Assert(_sample.HorizontalFlip == true);
                     Debug.Assert(_sample.VerticalFlip == false);
                     Debug.Assert(_sample.Rotate180Degrees == false);
                     Debug.Assert(_sample.Rotate90Degrees == false);
-                    return new AutoAugment(indexInMiniBatch, xOriginalMiniBatch, yOriginalMiniBatch, meanAndVolatilityForEachChannel, indexInOriginalMiniBatchToImageStatistic(indexInMiniBatch), rand, 0, 0, 0.5, 0, 0, _sample.HorizontalFlip, _sample.VerticalFlip, _sample.Rotate180Degrees).GetSubPolicyCifar10();
+                    return new AutoAugment(indexInMiniBatch, xOriginalMiniBatch, meanAndVolatilityForEachChannel, indexInOriginalMiniBatchToImageStatistic(indexInMiniBatch), rand, 0, 0, 0.5, 0, 0, _sample.HorizontalFlip, _sample.VerticalFlip, _sample.Rotate180Degrees).GetSubPolicyCifar10();
                 case DataAugmentationEnum.AUTO_AUGMENT_CIFAR10_CUTOUT_CUTMIX_MIXUP:
                     Debug.Assert(_sample.HorizontalFlip == true);
                     Debug.Assert(_sample.VerticalFlip == false);
                     Debug.Assert(_sample.Rotate180Degrees == false);
                     Debug.Assert(_sample.Rotate90Degrees == false);
-                    return new AutoAugment(indexInMiniBatch, xOriginalMiniBatch, yOriginalMiniBatch, meanAndVolatilityForEachChannel, indexInOriginalMiniBatchToImageStatistic(indexInMiniBatch), rand, _sample.WidthShiftRangeInPercentage, _sample.HeightShiftRangeInPercentage, _sample.CutoutPatchPercentage, _sample.AlphaCutMix, _sample.AlphaMixup, _sample.HorizontalFlip, _sample.VerticalFlip, _sample.Rotate180Degrees).GetSubPolicyCifar10();
+                    return new AutoAugment(indexInMiniBatch, xOriginalMiniBatch, meanAndVolatilityForEachChannel, indexInOriginalMiniBatchToImageStatistic(indexInMiniBatch), rand, _sample.WidthShiftRangeInPercentage, _sample.HeightShiftRangeInPercentage, _sample.CutoutPatchPercentage, _sample.AlphaCutMix, _sample.AlphaMixup, _sample.HorizontalFlip, _sample.VerticalFlip, _sample.Rotate180Degrees).GetSubPolicyCifar10();
                 case DataAugmentationEnum.AUTO_AUGMENT_CIFAR10_AND_MANDATORY_CUTMIX:
                     Debug.Assert(_sample.HorizontalFlip == true);
                     Debug.Assert(_sample.VerticalFlip == false);
                     Debug.Assert(_sample.Rotate180Degrees == false);
                     Debug.Assert(_sample.Rotate90Degrees == false);
-                    return new AutoAugment(indexInMiniBatch, xOriginalMiniBatch, yOriginalMiniBatch, meanAndVolatilityForEachChannel, indexInOriginalMiniBatchToImageStatistic(indexInMiniBatch), rand, 0, 0, 0, 1.0, 0, _sample.HorizontalFlip, _sample.VerticalFlip, _sample.Rotate180Degrees).GetSubPolicyCifar10();
+                    return new AutoAugment(indexInMiniBatch, xOriginalMiniBatch, meanAndVolatilityForEachChannel, indexInOriginalMiniBatchToImageStatistic(indexInMiniBatch), rand, 0, 0, 0, 1.0, 0, _sample.HorizontalFlip, _sample.VerticalFlip, _sample.Rotate180Degrees).GetSubPolicyCifar10();
                 case DataAugmentationEnum.AUTO_AUGMENT_CIFAR10_AND_MANDATORY_MIXUP:
                     Debug.Assert(_sample.HorizontalFlip == true);
                     Debug.Assert(_sample.VerticalFlip == false);
                     Debug.Assert(_sample.Rotate180Degrees == false);
                     Debug.Assert(_sample.Rotate90Degrees == false);
-                    return new AutoAugment(indexInMiniBatch, xOriginalMiniBatch, yOriginalMiniBatch, meanAndVolatilityForEachChannel, indexInOriginalMiniBatchToImageStatistic(indexInMiniBatch), rand, 0, 0, 0, 0, 1.0, _sample.HorizontalFlip, _sample.VerticalFlip, _sample.Rotate180Degrees).GetSubPolicyCifar10();
+                    return new AutoAugment(indexInMiniBatch, xOriginalMiniBatch, meanAndVolatilityForEachChannel, indexInOriginalMiniBatchToImageStatistic(indexInMiniBatch), rand, 0, 0, 0, 0, 1.0, _sample.HorizontalFlip, _sample.VerticalFlip, _sample.Rotate180Degrees).GetSubPolicyCifar10();
                 case DataAugmentationEnum.AUTO_AUGMENT_IMAGENET:
                     //Debug.Assert(_config.HorizontalFlip == true);
                     Debug.Assert(_sample.VerticalFlip == false);
                     //Debug.Assert(_config.Rotate180Degrees == false);
-                    return new AutoAugment(indexInMiniBatch, xOriginalMiniBatch, yOriginalMiniBatch, meanAndVolatilityForEachChannel, indexInOriginalMiniBatchToImageStatistic(indexInMiniBatch), rand, 0, 0, 0.5, 0, 0, _sample.HorizontalFlip, _sample.VerticalFlip, _sample.Rotate180Degrees).GetSubPolicyImageNet();
+                    return new AutoAugment(indexInMiniBatch, xOriginalMiniBatch, meanAndVolatilityForEachChannel, indexInOriginalMiniBatchToImageStatistic(indexInMiniBatch), rand, 0, 0, 0.5, 0, 0, _sample.HorizontalFlip, _sample.VerticalFlip, _sample.Rotate180Degrees).GetSubPolicyImageNet();
                 case DataAugmentationEnum.AUTO_AUGMENT_SVHN:
                     Debug.Assert(_sample.HorizontalFlip == false);
                     Debug.Assert(_sample.VerticalFlip == false);
                     //Debug.Assert(_config.Rotate180Degrees == false);
-                    return new AutoAugment(indexInMiniBatch, xOriginalMiniBatch, yOriginalMiniBatch, meanAndVolatilityForEachChannel, indexInOriginalMiniBatchToImageStatistic(indexInMiniBatch), rand, 0, 0, 0.5, 0, 0, _sample.HorizontalFlip, _sample.VerticalFlip, _sample.Rotate180Degrees).GetSubPolicySVHN();
+                    return new AutoAugment(indexInMiniBatch, xOriginalMiniBatch, meanAndVolatilityForEachChannel, indexInOriginalMiniBatchToImageStatistic(indexInMiniBatch), rand, 0, 0, 0.5, 0, 0, _sample.HorizontalFlip, _sample.VerticalFlip, _sample.Rotate180Degrees).GetSubPolicySVHN();
                 case DataAugmentationEnum.RAND_AUGMENT:
-                    return new RandAugment(indexInMiniBatch, xOriginalMiniBatch, yOriginalMiniBatch, meanAndVolatilityForEachChannel, indexInOriginalMiniBatchToImageStatistic(indexInMiniBatch), rand, 0.5, 0, 0).CreateSubPolicy(_sample.RandAugment_N, _sample.RandAugment_M);
+                    return new RandAugment(indexInMiniBatch, xOriginalMiniBatch, meanAndVolatilityForEachChannel, indexInOriginalMiniBatchToImageStatistic(indexInMiniBatch), rand, 0.5, 0, 0).CreateSubPolicy(_sample.RandAugment_N, _sample.RandAugment_M);
                 case DataAugmentationEnum.NO_AUGMENTATION:
                     return new List<Operation>();
                 default:
@@ -104,7 +103,6 @@ namespace SharpNet.DataAugmentation
         private List<Operation> DefaultSubPolicy(
             int indexInMiniBatch,
             CpuTensor<float> xOriginalMiniBatch,
-            CpuTensor<float> yOriginalMiniBatch,
             List<Tuple<float, float>> meanAndVolatilityForEachChannel,
             Func<int, Lazy<ImageStatistic>> indexInMiniBatchToImageStatistic,
             Random rand)
@@ -183,7 +181,7 @@ namespace SharpNet.DataAugmentation
             //we can not use CutMix && Mixup at tjhe same time: if they are both enabled we need to disable one of them (randomly)
             var alphaCutMix = _sample.AlphaCutMix;
             var alphaMixup = _sample.AlphaMixup;
-            if (alphaCutMix > 0 && alphaMixup > 0 && !_sample.MixOnlySameCategory)
+            if (alphaCutMix > 0 && alphaMixup > 0)
             {
                 // Mixup and CutMix can not be used at the same time: we need to disable one of them
                 if (Utils.RandomCoinFlip())
@@ -196,8 +194,8 @@ namespace SharpNet.DataAugmentation
                 }
             }
 
-            result.Add(CutMix.ValueOf(alphaCutMix, _sample.UseMaxCutMix, _sample.MixOnlySameCategory, indexInMiniBatch, xOriginalMiniBatch, yOriginalMiniBatch, rand));
-            result.Add(Mixup.ValueOf(alphaMixup, _sample.UseMaxMixup, _sample.MixOnlySameCategory, indexInMiniBatch, xOriginalMiniBatch, yOriginalMiniBatch, rand));
+            result.Add(CutMix.ValueOf(alphaCutMix, indexInMiniBatch, xOriginalMiniBatch, rand));
+            result.Add(Mixup.ValueOf(alphaMixup, indexInMiniBatch, xOriginalMiniBatch, rand));
             result.Add(Cutout.ValueOf(_sample.CutoutPatchPercentage, rand, nbRows, nbCols));
             result.Add(Cutout.ValueOfColumnsCutout(_sample.ColumnsCutoutPatchPercentage, rand, nbRows, nbCols));
             result.Add(Cutout.ValueORowsCutout(_sample.RowsCutoutPatchPercentage, rand, nbRows, nbCols));
@@ -230,7 +228,7 @@ namespace SharpNet.DataAugmentation
             //we ensure that all tensors shape are 4D 'NCHW' tensors  (where N is the batch size, C is the number of channels, H is the height and W is the width)
             (xOriginalMiniBatch, xDataAugmentedMiniBatch, xBufferForDataAugmentedMiniBatch) = To_NCHW(xOriginalMiniBatch, xDataAugmentedMiniBatch, xBufferForDataAugmentedMiniBatch);
             
-            var subPolicy = GetSubPolicy(indexInMiniBatch, xOriginalMiniBatch, yOriginalMiniBatch, meanAndVolatilityForEachChannel, indexInOriginalMiniBatchToImageStatistic, rand);
+            var subPolicy = GetSubPolicy(indexInMiniBatch, xOriginalMiniBatch, meanAndVolatilityForEachChannel, indexInOriginalMiniBatchToImageStatistic, rand);
 #if DEBUG
             OperationHelper.CheckIntegrity(subPolicy);
 #endif

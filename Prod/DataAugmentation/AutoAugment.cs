@@ -16,11 +16,10 @@ namespace SharpNet.DataAugmentation
 
         public AutoAugment(int indexInMiniBatch, 
             CpuTensor<float> xOriginalMiniBatch,
-            CpuTensor<float> _yDataAugmentedMiniBatch,
             List<Tuple<float, float>> meanAndVolatilityForEachChannel, Lazy<ImageStatistic> stats, Random rand,
             double widthShiftRangeInPercentage, double heightShiftRangeInPercentage, double cutoutPatchPercentage,
             double alphaCutMix, double alphaMixup, bool horizontalFlip, bool verticalFlip, bool rotate180Degrees) : 
-            base(indexInMiniBatch, xOriginalMiniBatch, _yDataAugmentedMiniBatch, meanAndVolatilityForEachChannel, stats, rand, cutoutPatchPercentage, alphaCutMix, alphaMixup)
+            base(indexInMiniBatch, xOriginalMiniBatch, meanAndVolatilityForEachChannel, stats, rand, cutoutPatchPercentage, alphaCutMix, alphaMixup)
         {
             _widthShiftRangeInPercentage = widthShiftRangeInPercentage;
             _heightShiftRangeInPercentage = heightShiftRangeInPercentage;
@@ -139,8 +138,8 @@ namespace SharpNet.DataAugmentation
                                 Rotate180Degrees(_rotate180Degrees?0.5:0.0),
                                 op1,
                                 op2,
-                                CutMix.ValueOf(_alphaCutMix, false, false, _indexInMiniBatch, _xOriginalMiniBatch, _yOriginalMiniBatch, _rand), //!D
-                                Mixup.ValueOf(_alphaMixup, false, false, _indexInMiniBatch, _xOriginalMiniBatch, _yOriginalMiniBatch, _rand), //!D
+                                CutMix.ValueOf(_alphaCutMix, _indexInMiniBatch, _xOriginalMiniBatch, _rand),
+                                Mixup.ValueOf(_alphaMixup, _indexInMiniBatch, _xOriginalMiniBatch, _rand),
                                 Cutout.ValueOf(_cutoutPatchPercentage, _rand, NbRows, NbCols)
                             };
             subPolicy.RemoveAll(x => x == null);

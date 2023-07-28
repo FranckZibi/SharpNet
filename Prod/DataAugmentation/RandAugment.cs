@@ -12,10 +12,9 @@ namespace SharpNet.DataAugmentation
 
         public RandAugment(int indexInMiniBatch,
             CpuTensor<float> xOriginalMiniBatch,
-            CpuTensor<float> yOriginalMiniBatch,
             List<Tuple<float, float>> meanAndVolatilityForEachChannel, Lazy<ImageStatistic> stats, Random rand,
             double cutoutPatchPercentage, double alphaCutMix, double alphaMixup) : 
-            base(indexInMiniBatch, xOriginalMiniBatch, yOriginalMiniBatch, meanAndVolatilityForEachChannel, stats, rand, cutoutPatchPercentage, alphaCutMix, alphaMixup)
+            base(indexInMiniBatch, xOriginalMiniBatch, meanAndVolatilityForEachChannel, stats, rand, cutoutPatchPercentage, alphaCutMix, alphaMixup)
         {
         }
 
@@ -56,8 +55,8 @@ namespace SharpNet.DataAugmentation
             {
                 subPolicy.Add(GetRandomOperation(magnitudePercentage));
             }
-            subPolicy.Add(CutMix.ValueOf(_alphaCutMix, false, false, _indexInMiniBatch, _xOriginalMiniBatch, _yOriginalMiniBatch, _rand)); //!D
-            subPolicy.Add(Mixup.ValueOf(_alphaMixup, false, false, _indexInMiniBatch, _xOriginalMiniBatch, _yOriginalMiniBatch, _rand)); //!D
+            subPolicy.Add(CutMix.ValueOf(_alphaCutMix, _indexInMiniBatch, _xOriginalMiniBatch, _rand));
+            subPolicy.Add(Mixup.ValueOf(_alphaMixup, _indexInMiniBatch, _xOriginalMiniBatch, _rand));
             subPolicy.Add(Cutout.ValueOf(_cutoutPatchPercentage, _rand, NbRows, NbCols));
             subPolicy.RemoveAll(x => x == null);
             return subPolicy;

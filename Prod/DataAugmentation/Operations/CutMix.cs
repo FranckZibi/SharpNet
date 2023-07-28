@@ -12,9 +12,8 @@ namespace SharpNet.DataAugmentation.Operations
         private readonly int _colEnd;
         private readonly int _indexInMiniBatchForCutMix;
         private readonly CpuTensor<float> _xOriginalMiniBatch;
-        private readonly bool _useMax;
 
-        public CutMix(int rowStart, int rowEnd, int colStart, int colEnd, int indexInMiniBatchForCutMix, CpuTensor<float> xOriginalMiniBatch, bool useMax = false)
+        public CutMix(int rowStart, int rowEnd, int colStart, int colEnd, int indexInMiniBatchForCutMix, CpuTensor<float> xOriginalMiniBatch)
         {
             Debug.Assert(indexInMiniBatchForCutMix < xOriginalMiniBatch.Shape[0]);
             _rowStart = rowStart;
@@ -23,10 +22,9 @@ namespace SharpNet.DataAugmentation.Operations
             _colEnd = colEnd;
             _indexInMiniBatchForCutMix = indexInMiniBatchForCutMix;
             _xOriginalMiniBatch = xOriginalMiniBatch;
-            _useMax = useMax;
         }
 
-        public static CutMix ValueOf(double alphaCutMix, bool useMax, bool mixOnlySameCategory, int indexInMiniBatch, CpuTensor<float> xOriginalMiniBatch, CpuTensor<float> yOriginalMiniBatch, Random rand)
+        public static CutMix ValueOf(double alphaCutMix, int indexInMiniBatch, CpuTensor<float> xOriginalMiniBatch, Random rand)
         {
             if (alphaCutMix <= 0.0)
             {
@@ -54,13 +52,8 @@ namespace SharpNet.DataAugmentation.Operations
             var colStart = Math.Max(0, colMiddle - cutMixWidth / 2 / 2);
             var colEnd = Math.Min(nbCols - 1, colMiddle + cutMixWidth / 2 - 1);
 
-            //int indexToMixWith = (indexInMiniBatch + 1) % miniBatchSize;
-            int indexToMixWith = GetIndexToMixWith(mixOnlySameCategory, indexInMiniBatch, miniBatchSize, yOriginalMiniBatch, rand);
-            if (indexToMixWith < 0)
-            {
-                return null;
-            }
-            return new CutMix(rowStart, rowEnd, colStart, colEnd, indexToMixWith, xOriginalMiniBatch, useMax);
+            int indexToMixWithForCutMix = (indexInMiniBatch + 1) % miniBatchSize;
+            return new CutMix(rowStart, rowEnd, colStart, colEnd, indexToMixWithForCutMix, xOriginalMiniBatch);
         }
 
 
@@ -93,10 +86,7 @@ namespace SharpNet.DataAugmentation.Operations
                     // the udpated y value is:
                     //      'cutMixLambda' * y value of the element at 'indexInMiniBatch'
                     //      +'1-cutMixLambda' * y value of the element at 'indexInMiniBatchForCutMix'
-                    yDataAugmentedMiniBatch.Set(indexInMiniBatch, 0, 
-                        _useMax 
-                        ?Math.Max(originalValue, cutMixValue) 
-                        :cutMixLambda * originalValue + (1 - cutMixLambda) * cutMixValue);
+                    yDataAugmentedMiniBatch.Set(indexInMiniBatch, 0, cutMixLambda * originalValue + (1 - cutMixLambda) * cutMixValue);
                 }
                 return;
             }

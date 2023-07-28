@@ -10,7 +10,6 @@ namespace SharpNet.DataAugmentation
     {
         protected readonly int _indexInMiniBatch;
         protected readonly CpuTensor<float> _xOriginalMiniBatch;
-        protected readonly CpuTensor<float> _yOriginalMiniBatch;
         private readonly List<Tuple<float, float>> _meanAndVolatilityForEachChannel;
         private readonly Lazy<ImageStatistic> _stats;
         protected readonly Random _rand;
@@ -21,14 +20,12 @@ namespace SharpNet.DataAugmentation
         protected int NbCols => _xOriginalMiniBatch.Shape[3];
         protected AbstractDataAugmentationStrategy(int indexInMiniBatch, 
             CpuTensor<float> xOriginalMiniBatch,
-            CpuTensor<float> yOriginalMiniBatch,
             List<Tuple<float, float>> meanAndVolatilityForEachChannel, Lazy<ImageStatistic> stats, Random rand,
             double cutoutPatchPercentage, double alphaCutMix, double alphaMixup)
         {
             Debug.Assert(stats != null);
             _indexInMiniBatch = indexInMiniBatch;
             _xOriginalMiniBatch = xOriginalMiniBatch;
-            _yOriginalMiniBatch = yOriginalMiniBatch;
             _meanAndVolatilityForEachChannel = meanAndVolatilityForEachChannel;
             _stats = stats;
             _rand = rand;

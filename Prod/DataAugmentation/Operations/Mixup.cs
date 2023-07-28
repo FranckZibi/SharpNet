@@ -8,22 +8,15 @@ namespace SharpNet.DataAugmentation.Operations
         private readonly float _mixupLambda;
         private readonly int _indexInMiniBatchForMixup;
         private readonly CpuTensor<float> _xOriginalMiniBatch;
-        private readonly bool _useMax;
 
-        public Mixup(float mixupLambda, int indexInMiniBatchForMixup, CpuTensor<float> xOriginalMiniBatch, bool useMax = false)
+        public Mixup(float mixupLambda, int indexInMiniBatchForMixup, CpuTensor<float> xOriginalMiniBatch)
         {
-            if (useMax)
-            {
-                mixupLambda = 0.5f; //!D TO TEST
-            }
-
             _mixupLambda = mixupLambda;
             _indexInMiniBatchForMixup = indexInMiniBatchForMixup;
             _xOriginalMiniBatch = xOriginalMiniBatch;
-            _useMax = useMax;
         }
 
-        public static Mixup ValueOf(double alphaMixup, bool useMax, bool mixOnlySameCategory, int indexInMiniBatch, CpuTensor<float> xOriginalMiniBatch, CpuTensor<float> yOriginalMiniBatch, Random rand)
+        public static Mixup ValueOf(double alphaMixup, int indexInMiniBatch, CpuTensor<float> xOriginalMiniBatch, Random rand)
         {
             if (alphaMixup <= 0.0)
             {
@@ -32,12 +25,8 @@ namespace SharpNet.DataAugmentation.Operations
             var mixupLambda = (float)Utils.BetaDistribution(alphaMixup, alphaMixup, rand);
             var miniBatchShape = xOriginalMiniBatch.Shape;
             var miniBatchSize = miniBatchShape[0];
-            int indexToMixWith = GetIndexToMixWith(mixOnlySameCategory, indexInMiniBatch, miniBatchSize, yOriginalMiniBatch, rand);
-            if (indexToMixWith < 0)
-            {
-                return null;
-            }
-            return new Mixup(mixupLambda, indexToMixWith, xOriginalMiniBatch, useMax);
+            int indexInMiniBatchForMixup = (indexInMiniBatch + 2) % miniBatchSize;
+            return new Mixup(mixupLambda, indexInMiniBatchForMixup, xOriginalMiniBatch);
         }
 
 
@@ -57,11 +46,7 @@ namespace SharpNet.DataAugmentation.Operations
                     // the udpated y value is:
                     //      '_mixupLambda' * y value of the element at 'indexInMiniBatch'
                     //      +'1-_mixupLambda' * y value of the element at '_indexInMiniBatchForMixup'
-                    yDataAugmentedMiniBatch.Set(indexInMiniBatch, 0,
-                                                _useMax
-                        ? Math.Max(originalValue, mixupValue)
-                        :_mixupLambda * originalValue + (1 - _mixupLambda) * mixupValue   
-                        );
+                    yDataAugmentedMiniBatch.Set(indexInMiniBatch, 0, _mixupLambda * originalValue + (1 - _mixupLambda) * mixupValue);
                 }
                 return;
             }
