@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using JetBrains.Annotations;
-using Newtonsoft.Json.Linq;
 using SharpNet.Data;
 using SharpNet.MathTools;
 
@@ -34,21 +33,29 @@ public class EvaluationMetricAccumulatorForSingleEpoch : IDisposable
 
     public void UpdateMetrics([NotNull] Tensor yExpected, [NotNull] Tensor yPredicted)
     {
+        var remainingCount = _count - _currentElementCount;
+        if (remainingCount <= 0) 
+        {
+            throw new ArgumentException($"remainingCount = {remainingCount} and received a tensor of {yExpected.Shape[0]} elements");
+        }
+        if (yExpected.Shape[0] > remainingCount)
+        {
+            var newShape = Utils.CloneShapeWithNewCount(yExpected.Shape, remainingCount);
+            yExpected = yExpected.Reshape(newShape);
+            yPredicted = yPredicted.Reshape(newShape);
+        }
+
         if (_metrics.Any(RequireFullYToCompute))
         {
+            //we'll just update the tensors '_full_y_true' and '_full_y_pred' by appending to those tensors
+            //the content of the tensors 'yExpected' and 'yPredicted'
             if (_full_y_true == null)
             {
                 var full_y_true_shape = Utils.CloneShapeWithNewCount(yExpected.Shape, _count);
                 _full_y_true = _memoryPool.GetFloatTensor(full_y_true_shape);
                 _full_y_pred = _memoryPool.GetFloatTensor(_full_y_true.Shape);
             }
-            var remainingCount = _count - _currentElementCount;
-            if (yExpected.Shape[0] > remainingCount)
-            {
-                var newShape = Utils.CloneShapeWithNewCount(yExpected.Shape, remainingCount);
-                yExpected = yExpected.Reshape(newShape);
-                yPredicted = yPredicted.Reshape(newShape);
-            }
+           
             Debug.Assert(yExpected.Shape[0] + _currentElementCount <= _count);
             yExpected.CopyTo(_full_y_true.Slice(_currentElementCount, yExpected.Shape));
             yPredicted.CopyTo(_full_y_pred.Slice(_currentElementCount, yPredicted.Shape));

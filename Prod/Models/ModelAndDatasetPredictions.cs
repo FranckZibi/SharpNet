@@ -8,6 +8,7 @@ using System.Linq;
 using System.Text;
 using SharpNet.Datasets;
 using SharpNet.HyperParameters;
+using static HDF.PInvoke.H5T;
 using DataSet = SharpNet.Datasets.DataSet;
 
 namespace SharpNet.Models;
@@ -335,6 +336,9 @@ public sealed class ModelAndDatasetPredictions : IDisposable
         const bool includeIdColumns = true;
         const bool overwriteIfExists = false;
 
+        var prefix = "_" + Guid.NewGuid().ToString("N").Substring(0, 3);
+            
+
         ISample.Log.Debug($"Computing Model '{Model.ModelName}' predictions for Training & Validation Dataset");
         DatasetSample.Train_XYDatasetPath_InTargetFormat = trainDataset.to_csv_in_directory(Model.DatasetPath, true, includeIdColumns, overwriteIfExists);
         var (trainPredictions_InTargetFormat, trainRankingScore_InTargetFormat, 
@@ -351,14 +355,14 @@ public sealed class ModelAndDatasetPredictions : IDisposable
         {
             ISample.Log.Debug($"Model '{Model.ModelName}' score on Training: {trainRankingScore_InTargetFormat}");
         }
-        SaveTrainPredictionsInModelFormat(trainPredictions_InModelFormat, trainLoss_InModelFormat);
-        SaveTrainPredictionsInTargetFormat(trainPredictions_InTargetFormat, trainDataset, trainRankingScore_InTargetFormat);
+        SaveTrainPredictionsInModelFormat(trainPredictions_InModelFormat, trainLoss_InModelFormat, prefix);
+        SaveTrainPredictionsInTargetFormat(trainPredictions_InTargetFormat, trainDataset, trainRankingScore_InTargetFormat, prefix);
         if (validationRankingScore_InTargetFormat != null)
         {
             ISample.Log.Info($"Model '{Model.ModelName}' score on Validation: {validationRankingScore_InTargetFormat}");
         }
-        SaveValidationPredictionsInModelFormat(validationPredictions_InModelFormat, validationLoss_InModelFormat);
-        SaveValidationPredictionsInTargetFormat(validationPredictions_InTargetFormat, validationDataset, validationRankingScore_InTargetFormat);
+        SaveValidationPredictionsInModelFormat(validationPredictions_InModelFormat, validationLoss_InModelFormat, prefix);
+        SaveValidationPredictionsInTargetFormat(validationPredictions_InTargetFormat, validationDataset, validationRankingScore_InTargetFormat, prefix);
 
         var testDatasetIfAny = DatasetSample.TestDataset();
         if (testDatasetIfAny != null)
@@ -380,8 +384,8 @@ public sealed class ModelAndDatasetPredictions : IDisposable
                 DatasetSample.Test_YDatasetPath_InTargetFormat = DatasetSample.Test_XDatasetPath_InTargetFormat = null;
                 DatasetSample.Test_YDatasetPath_InModelFormat = DatasetSample.Test_XDatasetPath_InModelFormat = null;
             }
-            SaveTestPredictionsInTargetFormat(testPredictionsInTargetFormat, testDatasetIfAny, testRankingScore);
-            SaveTestPredictionsInModelFormat(testPredictionsInModelFormat, null);
+            SaveTestPredictionsInTargetFormat(testPredictionsInTargetFormat, testDatasetIfAny, testRankingScore, prefix);
+            SaveTestPredictionsInModelFormat(testPredictionsInModelFormat, null, prefix);
             //testDatasetIfAny.Dispose();
         }
         return (trainRankingScore_InTargetFormat, validationRankingScore_InTargetFormat);
@@ -438,26 +442,26 @@ public sealed class ModelAndDatasetPredictions : IDisposable
 
     //private string Name => Model.ModelName;
 
-    private void SaveTrainPredictionsInTargetFormat(DataFrame trainPredictionsInTargetFormat, DataSet xDataset, IScore trainScore)
+    private void SaveTrainPredictionsInTargetFormat(DataFrame trainPredictionsInTargetFormat, DataSet xDataset, IScore trainScore, string prefix)
     {
         if (trainPredictionsInTargetFormat == null)
         {
             return;
         }
         ISample.Log.Debug($"Saving Model '{Model.ModelName}' predictions in Target Format for Training Dataset (score={trainScore})");
-        var fileName = Model.ModelName + "_predict_train_" + IScore.ToString(trainScore, 5) + ".csv";
+        var fileName = Model.ModelName +prefix+ "_predict_train_" + IScore.ToString(trainScore, 5) + ".csv";
         PredictionsSample.Train_PredictionsFileName = fileName;
         DatasetSample.SavePredictionsInTargetFormat(trainPredictionsInTargetFormat, xDataset, Path.Combine(Model.WorkingDirectory, fileName));
     }
 
-    private void SaveValidationPredictionsInTargetFormat(DataFrame validationPredictionsInTargetFormat, DataSet xDataset, IScore validationScore)
+    private void SaveValidationPredictionsInTargetFormat(DataFrame validationPredictionsInTargetFormat, DataSet xDataset, IScore validationScore, string prefix)
     {
         if (validationPredictionsInTargetFormat == null)
         {
             return;
         }
         ISample.Log.Debug($"Saving Model '{Model.ModelName}' predictions in Target Format for Validation Dataset (score={validationScore})");
-        var fileName = Model.ModelName + "_predict_valid_" + IScore.ToString(validationScore, 5) + ".csv";
+        var fileName = Model.ModelName + prefix+"_predict_valid_" + IScore.ToString(validationScore, 5) + ".csv";
         PredictionsSample.Validation_PredictionsFileName = fileName;
         DatasetSample.SavePredictionsInTargetFormat(validationPredictionsInTargetFormat, xDataset, Path.Combine(Model.WorkingDirectory, fileName));
     }
@@ -468,50 +472,50 @@ public sealed class ModelAndDatasetPredictions : IDisposable
     /// <param name="testPredictionsInTargetFormat"></param>
     /// <param name="xDataset"></param>
     /// <param name="testScore"></param>
-    private void SaveTestPredictionsInTargetFormat(DataFrame testPredictionsInTargetFormat, DataSet xDataset, IScore testScore)
+    private void SaveTestPredictionsInTargetFormat(DataFrame testPredictionsInTargetFormat, DataSet xDataset, IScore testScore, string prefix)
     {
         if (testPredictionsInTargetFormat == null)
         {
             return;
         }
         ISample.Log.Debug($"Saving Model '{Model.ModelName}' predictions in Target Format for Test Dataset");
-        var fileName = Model.ModelName + "_predict_test_" + IScore.ToString(testScore, 5) + ".csv";
+        var fileName = Model.ModelName +prefix+ "_predict_test_" + IScore.ToString(testScore, 5) + ".csv";
         PredictionsSample.Test_PredictionsFileName = fileName;
         DatasetSample.SavePredictionsInTargetFormat(testPredictionsInTargetFormat, xDataset, Path.Combine(Model.WorkingDirectory, fileName));
     }
 
     private PredictionsSample PredictionsSample => ModelAndDatasetPredictionsSample.PredictionsSample;
 
-    private void SaveTrainPredictionsInModelFormat(DataFrame trainPredictionsInModelFormat, IScore trainLoss)
+    private void SaveTrainPredictionsInModelFormat(DataFrame trainPredictionsInModelFormat, IScore trainLoss, string prefix)
     {
         if (trainPredictionsInModelFormat == null)
         {
             return;
         }
         ISample.Log.Debug($"Saving Model '{Model.ModelName}' predictions in Model Format for Training Dataset (loss={trainLoss})");
-        var fileName = Model.ModelName + "_modelformat_predict_train_" + IScore.ToString(trainLoss, 5) + ".csv";
+        var fileName = Model.ModelName + prefix+ "_modelformat_predict_train_" + IScore.ToString(trainLoss, 5) + ".csv";
         PredictionsSample.Train_PredictionsFileName_InModelFormat = fileName;
         DatasetSample.SavePredictionsInModelFormat(trainPredictionsInModelFormat, Path.Combine(Model.WorkingDirectory, fileName));
     }
-    private void SaveValidationPredictionsInModelFormat(DataFrame validationPredictionsInModelFormat, IScore validationLoss)
+    private void SaveValidationPredictionsInModelFormat(DataFrame validationPredictionsInModelFormat, IScore validationLoss, string prefix)
     {
         if (validationPredictionsInModelFormat == null)
         {
             return;
         }
         ISample.Log.Debug($"Saving Model '{Model.ModelName}' predictions in Model Format for Validation Dataset (loss={validationLoss})");
-        var fileName = Model.ModelName + "_modelformat_predict_valid_" + IScore.ToString(validationLoss, 5) + ".csv";
+        var fileName = Model.ModelName +prefix+ "_modelformat_predict_valid_" + IScore.ToString(validationLoss, 5) + ".csv";
         PredictionsSample.Validation_PredictionsFileName_InModelFormat = fileName;
         DatasetSample.SavePredictionsInModelFormat(validationPredictionsInModelFormat, Path.Combine(Model.WorkingDirectory, fileName));
     }
-    private void SaveTestPredictionsInModelFormat(DataFrame testPredictionsInModelFormat, IScore testLoss)
+    private void SaveTestPredictionsInModelFormat(DataFrame testPredictionsInModelFormat, IScore testLoss, string prefix)
     {
         if (testPredictionsInModelFormat == null)
         {
             return;
         }
         ISample.Log.Debug($"Saving Model '{Model.ModelName}' predictions in Model Format for Test Dataset");
-        var fileName = Model.ModelName + "_modelformat_predict_test_" + IScore.ToString(testLoss, 5) + ".csv";
+        var fileName = Model.ModelName+ prefix + "_modelformat_predict_test_" + IScore.ToString(testLoss, 5) + ".csv";
         PredictionsSample.Test_PredictionsFileName_InModelFormat = fileName;
         DatasetSample.SavePredictionsInModelFormat(testPredictionsInModelFormat, Path.Combine(Model.WorkingDirectory, fileName));
     }
