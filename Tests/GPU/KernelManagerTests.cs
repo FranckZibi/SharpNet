@@ -15,7 +15,7 @@ namespace SharpNetTests.GPU
     public class KernelManagerTests
     {
         private static GPUWrapper GpuWrapper => TestGPUTensor.GpuWrapper;
-        private readonly Random _rand = new Random(0);
+        private readonly Random _rand = new (0);
 
         [Test]
         public void KernelManagerTest()

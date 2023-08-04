@@ -8,7 +8,6 @@ using System.Linq;
 using System.Text;
 using SharpNet.Datasets;
 using SharpNet.HyperParameters;
-using static HDF.PInvoke.H5T;
 using DataSet = SharpNet.Datasets.DataSet;
 
 namespace SharpNet.Models;
@@ -16,15 +15,12 @@ namespace SharpNet.Models;
 public sealed class ModelAndDatasetPredictions : IDisposable    
 {
     #region public fields and properties
-
     /// <summary>
     /// true if the 'this' object has created the 'ModelAndDatasetPredictionsSample' and will need to dispose it
     /// false if the 'this' object has received the 'ModelAndDatasetPredictionsSample' as a parameter (no need to dispose it)
     /// </summary>
     private readonly bool isOwnerOfModelAndDatasetPredictionsSample;
-
     public Model Model { get; private set; }
-
     private Model EmbeddedModel
     {
         get
@@ -36,8 +32,6 @@ public sealed class ModelAndDatasetPredictions : IDisposable
             return Model;
         }
     }
-
-
     public ModelAndDatasetPredictionsSample ModelAndDatasetPredictionsSample { get; private set; }
     #endregion
 
@@ -47,7 +41,6 @@ public sealed class ModelAndDatasetPredictions : IDisposable
     {
         this.isOwnerOfModelAndDatasetPredictionsSample = isOwnerOfModelAndDatasetPredictionsSample;
     }
-
     private ModelAndDatasetPredictions(ModelAndDatasetPredictionsSample modelAndDatasetPredictionsSample, Model model)
     {
         ModelAndDatasetPredictionsSample = modelAndDatasetPredictionsSample;
@@ -59,8 +52,7 @@ public sealed class ModelAndDatasetPredictions : IDisposable
             Model = withKFold.Model;
         }
     }
-
-    public ModelAndDatasetPredictions WithKFold(int n_splits)
+    private ModelAndDatasetPredictions WithKFold(int n_splits)
     {
         Debug.Assert(n_splits >= 2);
         var embeddedModel = EmbeddedModel;
@@ -73,8 +65,6 @@ public sealed class ModelAndDatasetPredictions : IDisposable
         var kfoldModel = new KFoldModel(kfoldSample, embeddedModel.WorkingDirectory, kfoldModelName, DatasetSample, embeddedModel.ModelSample);
         return new ModelAndDatasetPredictions(modelAndDatasetPredictionsSample, kfoldModel);
     }
-
-
     public static ModelAndDatasetPredictions Load(string workingDirectory, string modelName, bool useAllAvailableCores)
     {
         var start = Stopwatch.StartNew();
@@ -82,13 +72,11 @@ public sealed class ModelAndDatasetPredictions : IDisposable
         ISample.Log.Debug($"{nameof(ModelAndDatasetPredictionsSample.Load)} of model '{modelName}' took {start.Elapsed.TotalSeconds}s");
         return new ModelAndDatasetPredictions(modelAndDatasetSample, workingDirectory, modelName, true);
     }
-
     public static ModelAndDatasetPredictions LoadWithKFold(string workingDirectory, string modelName, int n_splits, bool useAllAvailableCores)
     {
         using var m = Load(workingDirectory, modelName, useAllAvailableCores);
         return m.WithKFold(n_splits);
     }
-
     public static ModelAndDatasetPredictions LoadWithNewPercentageInTrainingNoKFold(double newPercentageInTraining, string workingDirectory, string modelName, bool useAllAvailableCores)
     {
         using var m = Load(workingDirectory, modelName, useAllAvailableCores);
@@ -102,8 +90,6 @@ public sealed class ModelAndDatasetPredictions : IDisposable
         m.Dispose();
         return new ModelAndDatasetPredictions(modelAndDatasetPredictionsSample, embeddedModel.WorkingDirectory, newModelName, true);
     }
-
-
     #endregion
 
     public AbstractDatasetSample DatasetSample => ModelAndDatasetPredictionsSample.DatasetSample;
@@ -167,17 +153,6 @@ public sealed class ModelAndDatasetPredictions : IDisposable
         return validationRankingScore;
     }
 
-    /// <summary>
-    /// try to use one of the metric computed when training the model as a ranking score
-    /// </summary>
-    /// <param name="modelMetrics">the metrics computed when training the model</param>
-    /// <returns></returns>
-    private IScore ExtractRankingScoreFromModelMetricsIfAvailable(params IScore[] modelMetrics)
-    {
-        return modelMetrics.FirstOrDefault(v => v != null && v.Metric == Model.ModelSample.GetRankingEvaluationMetric());
-    }
-
-
     #region Contribution to Loss
     /// <summary>
     /// 
@@ -227,8 +202,6 @@ public sealed class ModelAndDatasetPredictions : IDisposable
         ISample.Log.Info($"Contribution to loss written to file {outputPath}");
         File.WriteAllText(outputPath, sb.ToString());
     }
-
-
     /// <summary>
     /// 
     /// </summary>
@@ -271,8 +244,6 @@ public sealed class ModelAndDatasetPredictions : IDisposable
         }
         return stemmingColumnNameToColumnNames.Values.ToList();
     }
-
-
     private static float LossContribution(IScore baseScore, IScore updatedScore)
     {
         if (baseScore == null || updatedScore == null)
@@ -285,7 +256,6 @@ public sealed class ModelAndDatasetPredictions : IDisposable
         }
         return baseScore.Value - updatedScore.Value;
     }
-
     private static string ToString(IScore a)
     {
         if (a == null)
@@ -319,10 +289,9 @@ public sealed class ModelAndDatasetPredictions : IDisposable
             ;
 
     }
-
     #endregion
 
-    public List<string> Save(bool saveModel, bool savePredictions, DataSet trainDataset, DataSet validationDataset, string modelName)
+    private List<string> Save(bool saveModel, bool savePredictions, DataSet trainDataset, DataSet validationDataset, string modelName)
     {
         List<string> savedFiles = new();
         if (saveModel)
@@ -399,7 +368,6 @@ public sealed class ModelAndDatasetPredictions : IDisposable
         }
         return (trainRankingScore_InTargetFormat, validationRankingScore_InTargetFormat, savedFiles);
     }
-
     /// <summary>
     /// Compute and Save the Feature Importance for the current Model & Dataset
     /// </summary>
@@ -433,7 +401,6 @@ public sealed class ModelAndDatasetPredictions : IDisposable
         res.AddRange(Model.AllFiles());
         return res;
     }
-
     public List<string> Save(string workingDirectory, string modelName)
     {
         var res = new List<string>();
@@ -444,13 +411,11 @@ public sealed class ModelAndDatasetPredictions : IDisposable
         return res;
     }
 
-    //private string Name => Model.ModelName;
-
     private List<string> SaveTrainPredictionsInTargetFormat(DataFrame trainPredictionsInTargetFormat, DataSet xDataset, IScore trainScore, string modelName)
     {
         if (trainPredictionsInTargetFormat == null)
         {
-            return new List<string> {};
+            return new List<string>();
         }
         ISample.Log.Debug($"Saving Model '{modelName}' predictions in Target Format for Training Dataset (score={trainScore})");
         var fileName = modelName + "_predict_train_" + IScore.ToString(trainScore, 5) + ".csv";
@@ -459,12 +424,11 @@ public sealed class ModelAndDatasetPredictions : IDisposable
         DatasetSample.SavePredictionsInTargetFormat(trainPredictionsInTargetFormat, xDataset, path);
         return new List<string> { path };
     }
-
     private List<string> SaveValidationPredictionsInTargetFormat(DataFrame validationPredictionsInTargetFormat, DataSet xDataset, IScore validationScore, string modelName)
     {
         if (validationPredictionsInTargetFormat == null)
         {
-            return new List<string> { };
+            return new List<string>();
         }
         ISample.Log.Debug($"Saving Model '{modelName}' predictions in Target Format for Validation Dataset (score={validationScore})");
         var fileName = modelName + "_predict_valid_" + IScore.ToString(validationScore, 5) +".csv";
@@ -481,11 +445,12 @@ public sealed class ModelAndDatasetPredictions : IDisposable
     /// <param name="testPredictionsInTargetFormat"></param>
     /// <param name="xDataset"></param>
     /// <param name="testScore"></param>
+    /// <param name="modelName"></param>
     private List<string> SaveTestPredictionsInTargetFormat(DataFrame testPredictionsInTargetFormat, DataSet xDataset, IScore testScore, string modelName)
     {
         if (testPredictionsInTargetFormat == null)
         {
-            return new List<string> { };
+            return new List<string>();
         }
         ISample.Log.Debug($"Saving Model '{modelName}' predictions in Target Format for Test Dataset");
         var fileName = modelName + "_predict_test_" + IScore.ToString(testScore, 5) +".csv";
@@ -495,14 +460,12 @@ public sealed class ModelAndDatasetPredictions : IDisposable
         return new List<string> { path };
 
     }
-
     private PredictionsSample PredictionsSample => ModelAndDatasetPredictionsSample.PredictionsSample;
-
     private List<string> SaveTrainPredictionsInModelFormat(DataFrame trainPredictionsInModelFormat, IScore trainLoss, string modelName)
     {
         if (trainPredictionsInModelFormat == null)
         {
-            return new List<string> { };
+            return new List<string>();
         }
         ISample.Log.Debug($"Saving Model '{modelName}' predictions in Model Format for Training Dataset (loss={trainLoss})");
         var fileName = modelName + "_modelformat_predict_train_" + IScore.ToString(trainLoss, 5) + ".csv";
@@ -516,7 +479,7 @@ public sealed class ModelAndDatasetPredictions : IDisposable
     {
         if (validationPredictionsInModelFormat == null)
         {
-            return new List<string> { };
+            return new List<string>();
         }
         ISample.Log.Debug($"Saving Model '{modelName}' predictions in Model Format for Validation Dataset (loss={validationLoss})");
         var fileName = modelName + "_modelformat_predict_valid_" + IScore.ToString(validationLoss, 5) + ".csv";
@@ -530,7 +493,7 @@ public sealed class ModelAndDatasetPredictions : IDisposable
     {
         if (testPredictionsInModelFormat == null)
         {
-            return new List<string> { };
+            return new List<string>();
         }
         ISample.Log.Debug($"Saving Model '{modelName}' predictions in Model Format for Test Dataset");
         var fileName = modelName + "_modelformat_predict_test_" + IScore.ToString(testLoss, 5) + ".csv";
@@ -539,7 +502,15 @@ public sealed class ModelAndDatasetPredictions : IDisposable
         DatasetSample.SavePredictionsInModelFormat(testPredictionsInModelFormat, path);
         return new List<string> { path };
     }
-
+    /// <summary>
+    /// try to use one of the metric computed when training the model as a ranking score
+    /// </summary>
+    /// <param name="modelMetrics">the metrics computed when training the model</param>
+    /// <returns></returns>
+    private IScore ExtractRankingScoreFromModelMetricsIfAvailable(params IScore[] modelMetrics)
+    {
+        return modelMetrics.FirstOrDefault(v => v != null && v.Metric == Model.ModelSample.GetRankingEvaluationMetric());
+    }
 
     #region Dispose pattern
     private bool disposed = false;

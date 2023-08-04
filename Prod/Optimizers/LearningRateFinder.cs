@@ -20,9 +20,9 @@ namespace SharpNet.Optimizers
         ///between each block, we'll multiply the learning rate by 'multiplicativeCoeff'
         /// </summary>
         private readonly double _multiplicativeCoeff;
-        private readonly List<double> _loss = new List<double>();
-        private readonly List<double> _avgLosses = new List<double>();
-        private readonly List<double> _smoothedLosses = new List<double>();
+        private readonly List<double> _loss = new ();
+        private readonly List<double> _avgLosses = new ();
+        private readonly List<double> _smoothedLosses = new ();
         private readonly int _nbBlocksPerEpoch;
 
         #endregion

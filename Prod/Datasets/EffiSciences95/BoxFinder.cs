@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using SharpNet.Pictures;
+// ReSharper disable ConditionIsAlwaysTrueOrFalse
 
 namespace SharpNet.Datasets.EffiSciences95;
 
@@ -13,7 +14,7 @@ public static class BoxFinder
     public static void FindBox(bool isLabeled)
     {
         var cache = new RGBColorFactoryWithCache(false);
-        bool debug = false;
+        const bool debug = false;
         using var datasetSample = new EffiSciences95DatasetSample();
         var dataset = new EffiSciences95BoxesDataset(isLabeled);
 
@@ -27,7 +28,7 @@ public static class BoxFinder
                 return;
             }
 
-            lock (lockObject)
+            lock (LockObject)
             {
                 ++totalProcessed;
                 if (totalProcessed % 100 == 0)
@@ -45,7 +46,7 @@ public static class BoxFinder
             IList<RGBColor> kmeanColors = initialRootColors;
 
             var kmeanTextColorIndex = MatrixTools.ToKMeanTextColorIndex(rgbColorContent, kmeanColors, ColorDistances, computeMainColorFromPointsWithinDistances, 2);
-            var bestBoxe = EffiSciences95Row.Empty(fileNameIndex, "");
+            var bestBox = EffiSciences95Row.Empty(fileNameIndex, "");
 
             
             for (int textColorIndex = 0; textColorIndex < kmeanColors.Count; ++textColorIndex)
@@ -81,13 +82,14 @@ public static class BoxFinder
 
                 foreach (var box in allBoxes)
                 {
-                    if (bestBoxe.IsEmpty || box.ConfidenceLevel > bestBoxe.ConfidenceLevel)
+                    if (bestBox.IsEmpty || box.ConfidenceLevel > bestBox.ConfidenceLevel)
                     {
-                        bestBoxe = box;
+                        bestBox = box;
                         boxesToDrawRectangles.Add(box);
                     }
                 }
 
+                // ReSharper disable once InvertIf
                 if (debug && boxesToDrawRectangles.Count != 0)
                 {
                     using Bitmap bmpFamily = bmpContent.AsBitmap(get);
@@ -104,14 +106,16 @@ public static class BoxFinder
                 }
             }
 
-            if (debug && !bestBoxe.IsEmpty)
+#pragma warning disable CS0162
+            if (debug && !bestBox.IsEmpty)
+#pragma warning restore CS0162
             {
                 using Bitmap bmpFamily = bmpContent.AsBitmap();
                 using Graphics graphics = Graphics.FromImage(bmpFamily);
                 using Pen pen = new Pen(Color.FromKnownColor(KnownColor.Blue), 2);
-                var rect = bestBoxe.Shape;
+                var rect = bestBox.Shape;
                 graphics.DrawRectangle(pen, rect.Left, rect.Top, rect.Width, rect.Height);
-                var rectangleDesc = "_" + bestBoxe.FileSuffix;
+                var rectangleDesc = "_" + bestBox.FileSuffix;
                 var path = Utils.UpdateFilePathWithPrefixSuffix(srcPath, "", "_000_" + DateTime.Now.Ticks + rectangleDesc);
                 PictureTools.SavePng(bmpFamily, path);
             }
@@ -119,13 +123,14 @@ public static class BoxFinder
             EffiSciences95Row existing;
             lock (dataset)
             {
-                if (!dataset.Content.TryGetValue(bestBoxe.No, out existing))
+                if (!dataset.Content.TryGetValue(bestBox.No, out existing))
                 {
+                    // ReSharper disable once RedundantAssignment
                     existing = null;
                 }
             }
 
-            if (bestBoxe.IsClearlyBetterThan(existing))
+            if (bestBox.IsClearlyBetterThan(existing))
             {
                 if (existing != null && Utils.FileExist(existing.Document))
                 {
@@ -134,15 +139,15 @@ public static class BoxFinder
 
                 lock (dataset)
                 {
-                    dataset.Content[bestBoxe.No] = bestBoxe;
+                    dataset.Content[bestBox.No] = bestBox;
                 }
 
-                if (isLabeled && !bestBoxe.IsEmpty)
+                if (isLabeled && !bestBox.IsEmpty)
                 { 
                     //we do not save the box 'old' / 'young' for the unlabeled dataset
                     using var bmpFamily2 = bmpContent.AsBitmap();
-                    using var bmpFamily3 = bmpFamily2.Clone(bestBoxe.Shape, bmpFamily2.PixelFormat);
-                    PictureTools.SavePng(bmpFamily3, bestBoxe.Document);
+                    using var bmpFamily3 = bmpFamily2.Clone(bestBox.Shape, bmpFamily2.PixelFormat);
+                    PictureTools.SavePng(bmpFamily3, bestBox.Document);
                 }
             }
         }
@@ -157,7 +162,7 @@ public static class BoxFinder
     private static readonly double[] max_family_density = new[] { 0.7 /*blue*/, 0.7 /*red*/, 0.7 /*yellow*/, 0.55 /*black*/, 0.55 /*white*/};
     private static readonly double[] computeMainColorFromPointsWithinDistances = new[]{ 0.5,  /* blue */ 0.4, /* red */ 0.5,  /* yellow */ 0.03 /* black */,   0.3 /*  white */ }; private static readonly double[] family_confidence_level = new[] { 1.0 /*blue*/, 1.0 /*red*/, 1.0 /*yellow*/, 0.9 /*black*/, 0.9 /*white*/};
     private static readonly string[] family_names = new[] { "blue", "red", "yellow", "black", "white" };
-    private static readonly List<RGBColor> initialRootColors = new List<RGBColor>
+    private static readonly List<RGBColor> initialRootColors = new ()
     {
         new RGBColor(20, 20 /*10*/, 190 /*200*/ /*210*/),//new RGBColor(0, 0, 255), //blue
         new RGBColor(220, 30, 30 /*20*/ /*15*/),//new RGBColor(220, 20, 20), //red
@@ -178,7 +183,7 @@ public static class BoxFinder
 
 
 
-    private static readonly object lockObject = new object();
+    private static readonly object LockObject = new ();
     private static double ComputeConfidenceLevel(Rectangle rect, int[,] countMatrix, int textColorIndex)
     {
         var row_start = rect.Top;

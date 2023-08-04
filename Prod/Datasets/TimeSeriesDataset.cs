@@ -25,7 +25,7 @@ public class TimeSeriesDataset : DataSet, ITimeSeriesDataSet
 
     public override bool CanBeSavedInCSV => false;
 
-    protected override DataFrame ExtractIdDataFrame(int rows)
+    public override DataFrame ExtractIdDataFrame(int rows)
     {
         var ids = Enumerable.Range(0, _elementIdToLastAssociateEntry.Count).Select(i => _elementIdToLastAssociateEntry[i].UniqueId).ToArray();
         return DataFrame.New(ids, new List<string>{IdColumn});
@@ -37,9 +37,9 @@ public class TimeSeriesDataset : DataSet, ITimeSeriesDataSet
     private readonly Dictionary<string, List<TimeSeriesSinglePoint>> _pidToSortedEntries = new();
     private readonly Dictionary<string, int> _EntryUniqueIdToIndexIn_pidToSortedEntries = new();
     private readonly Dictionary<int, TimeSeriesSinglePoint> _elementIdToLastAssociateEntry = new();
-    [NotNull] public readonly TimeSeriesSinglePoint[] Entries;
+    [NotNull] private readonly TimeSeriesSinglePoint[] Entries;
 
-    public bool IsTrainingDataSet => _trainingDataSetOldIfAny == null;
+    private bool IsTrainingDataSet => _trainingDataSetOldIfAny == null;
     int EntriesCountForEachElementId_X => EncoderDecoder_NetworkSample.Use_Decoder ? EncoderDecoder_NetworkSample.Encoder_TimeSteps : 1 + EncoderDecoder_NetworkSample.Encoder_TimeSteps;
     int EntriesCountForEachElementId_Y => EncoderDecoder_NetworkSample.Use_Decoder ? EncoderDecoder_NetworkSample.Decoder_TimeSteps : 1;
     private int Total_TimeSteps => EncoderDecoder_NetworkSample.Total_TimeSteps;
@@ -161,8 +161,8 @@ public class TimeSeriesDataset : DataSet, ITimeSeriesDataSet
             ResizeStrategyEnum.None,
             datasetSample.GetColumnNames(),
             datasetSample.CategoricalFeatures,
-            datasetSample.IdColumn,
-            null, //TODO
+            null,
+            datasetSample.IdColumn, 
             ',')
     {
         EncoderDecoder_NetworkSample = networkSample;

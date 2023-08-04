@@ -14,7 +14,7 @@ public class PlumeLabs88DirectoryDataSet : DataSet
     [CanBeNull] private readonly CpuTensor<float> _yPlumeLabs88DirectoryDataSet;
 
     public PlumeLabs88DirectoryDataSet(PlumeLabs88DatasetSample datasetSample,  bool isTrainingDataset)
-        : base(PlumeLabs88Utils.NAME, datasetSample.GetObjective(), null, ResizeStrategyEnum.None, Array.Empty<string>(), datasetSample.CategoricalFeatures, datasetSample.IdColumn, datasetSample.RowInTargetFormatPredictionToID(isTrainingDataset), ',')
+        : base(PlumeLabs88Utils.NAME, datasetSample.GetObjective(), null, ResizeStrategyEnum.None, Array.Empty<string>(), datasetSample.CategoricalFeatures, datasetSample.RowInTargetFormatPredictionToID(isTrainingDataset), datasetSample.IdColumn, ',')
     {
         _datasetSample = datasetSample;
         _isTrainingDataset = isTrainingDataset;

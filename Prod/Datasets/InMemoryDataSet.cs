@@ -21,8 +21,8 @@ public class InMemoryDataSet : DataSet
         List<Tuple<float, float>> meanAndVolatilityForEachChannel = null,
         string[] columnNames = null,
         string[] categoricalFeatures = null,
-        string idColumn = "",
-        [CanBeNull] string[] yIDs = null,
+        [CanBeNull] string[] y_IDs = null,
+        [CanBeNull] string idColumn = null,
         char separator = ',')
         : base(name,
             objective,
@@ -30,8 +30,8 @@ public class InMemoryDataSet : DataSet
             ResizeStrategyEnum.None,
             columnNames ?? new string[0],
             categoricalFeatures ??new string[0],
-            idColumn ?? "",
-            yIDs,
+            y_IDs,
+            idColumn, 
             separator)
     {
         Debug.Assert(y==null || AreCompatible_X_Y(x, y));

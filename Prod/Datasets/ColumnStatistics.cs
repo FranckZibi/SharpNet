@@ -8,10 +8,9 @@ namespace SharpNet.Datasets;
 
 public class ColumnStatistics
 {
+    #region private fields
     private readonly bool _standardizeDoubleValues;
     private readonly bool _allDataFrameAreAlreadyNormalized;
-
-    #region private fields
     private readonly Dictionary<string, int> _distinctCategoricalValueToCount = new();
     private readonly List<string> _distinctCategoricalValues = new();
     private readonly Dictionary<string, int> _distinctCategoricalValueToIndex = new();
@@ -42,9 +41,7 @@ public class ColumnStatistics
     public IList<string> GetDistinctCategoricalValues() => _distinctCategoricalValues;
     #endregion
 
-
     #region constructors
-
     /// <summary>
     /// 
     /// </summary>
@@ -103,7 +100,6 @@ public class ColumnStatistics
         }
         _numericalValues.Add(numeric_val_before_encoding);
     }
-
     public void Fit(float val_before_encoding)
     {
         ++Count;
@@ -134,13 +130,10 @@ public class ColumnStatistics
         }
         _numericalValues.Add(val_before_encoding);
     }
-
     public void Fit(int val_before_encoding)
     {
         Fit((float)val_before_encoding);
     }
-
-
     public double Transform(string val_before_encoding)
     {
         if (IsCategorical)
@@ -170,7 +163,6 @@ public class ColumnStatistics
         }
         return val_after_encoding;
     }
-
     public double Transform(float val_before_encoding)
     {
         if (IsCategorical)
@@ -192,7 +184,6 @@ public class ColumnStatistics
         }
         return val_after_encoding;
     }
-
     public string Inverse_Transform(double val_after_encoding, string missingNumberValue)
     {
         if (IsCategorical)
@@ -217,20 +208,6 @@ public class ColumnStatistics
             val_before_encoding = volatility * val_before_encoding + _numericalValues.Average;
         }
         return val_before_encoding.ToString(CultureInfo.InvariantCulture);
-    }
-
-    public float Inverse_Transform_float(float val_after_encoding)
-    {
-        if (IsCategorical || double.IsNaN(val_after_encoding))
-        {
-            return val_after_encoding;
-        }
-        var volatility = _numericalValues.Volatility;
-        if (volatility > 0 && _standardizeDoubleValues && !IsTargetLabel)
-        {
-            return (float) (volatility * val_after_encoding + _numericalValues.Average);
-        }
-        return val_after_encoding;
     }
     public static double ExtractDouble(string featureValue)
     {
@@ -308,5 +285,4 @@ public class ColumnStatistics
         return isNegative ? -result : result;
 
     }
-   
 }

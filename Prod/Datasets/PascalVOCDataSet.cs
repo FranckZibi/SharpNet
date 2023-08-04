@@ -27,10 +27,7 @@ namespace SharpNet.Datasets
                 meanAndVolatilityOfEachChannel, 
                 resizeStrategy,
                 new string[0],
-                new string[0],
-                "",
-                null, //TODO
-                ',')
+                new string[0])
         {
             var annotationsDirectory = Path.Combine(NetworkSample.DefaultDataDirectory, vocDevKitDirectory, subDirectory, "Annotations");
             var dataDirectory = Path.Combine(NetworkSample.DefaultDataDirectory, vocDevKitDirectory, subDirectory, "JPEGImages");
@@ -79,7 +76,7 @@ namespace SharpNet.Datasets
 
             _directoryDataSet = new DirectoryDataSet(
                     elementIdToPaths, elementIdToCategoryIndex, null
-                    , subDirectory, Objective_enum.Classification, 3, CategoryIndexToDescription.Length, meanAndVolatilityOfEachChannel, ResizeStrategyEnum.ResizeToTargetSize, null, null, y_IDs.ToArray());
+                    , subDirectory, Objective_enum.Classification, 3, CategoryIndexToDescription.Length, meanAndVolatilityOfEachChannel, ResizeStrategyEnum.ResizeToTargetSize, null, y_IDs.ToArray(), null);
         }
 
         public static PascalVOCDataSet PascalVOC2007()

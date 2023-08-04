@@ -203,7 +203,7 @@ namespace SharpNet.Datasets
             for (int elementId = 0; elementId < p.Shape[0]; ++elementId)
             {
                 var rowWithPrediction = p.RowSlice(elementId, 1);
-                var sha1 = dataSet.ID_Y_row_InTargetFormat(elementId);
+                var sha1 = dataSet.Y_ID_row_InTargetFormat(elementId);
                 var predictionWithProba = Hierarchy.ExtractPredictionWithProba(rowWithPrediction.AsReadonlyFloatCpuSpan);
                 var predictedCancelName = predictionWithProba.Item1;
                 var predictedCancelProba = predictionWithProba.Item2;
@@ -410,7 +410,7 @@ namespace SharpNet.Datasets
                 var entry = entries[elementId];
                 var categoryPath = ToPath(entry.Cancel);
                 //Debug.Assert(categoryPath != null && categoryPath.Length >= 1);
-                var categoryName = Hierarchy.CategoryPathToCategoryName(categoryPath);
+                var categoryName = CategoryHierarchy.CategoryPathToCategoryName(categoryPath);
                 if (categoryNameToCount.ContainsKey(categoryName))
                 {
                     ++categoryNameToCount[categoryName];
@@ -446,11 +446,10 @@ namespace SharpNet.Datasets
                 CancelMeanAndVolatilityForEachChannel,
                 resizeStrategy,
                 null,
-                null,
-                y_IDs.ToArray());
+                y_IDs.ToArray(), null);
         }
         
-        public static readonly List<Tuple<float, float>> CancelMeanAndVolatilityForEachChannel = new List<Tuple<float, float>> { Tuple.Create(147.02734f, 60.003986f), Tuple.Create(141.81636f, 51.15815f), Tuple.Create(130.15608f, 48.55502f) };
+        public static readonly List<Tuple<float, float>> CancelMeanAndVolatilityForEachChannel = new() { Tuple.Create(147.02734f, 60.003986f), Tuple.Create(141.81636f, 51.15815f), Tuple.Create(130.15608f, 48.55502f) };
 
 
         /// <summary>

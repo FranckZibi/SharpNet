@@ -27,8 +27,8 @@ namespace SharpNet.Layers
                 return _layerName;
             }
         }
-        public List<int> NextLayerIndexes { get; } = new List<int>();
-        public List<int> PreviousLayerIndexes { get; } = new List<int>();
+        public List<int> NextLayerIndexes { get; } = new ();
+        public List<int> PreviousLayerIndexes { get; } = new ();
         /// <summary>
         /// true if the layer weights should be updated during training
         /// false if it is a frozen layer

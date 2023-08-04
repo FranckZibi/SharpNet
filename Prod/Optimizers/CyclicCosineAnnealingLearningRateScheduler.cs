@@ -12,7 +12,7 @@ namespace SharpNet.Optimizers
     {
         #region private fields
         private readonly double _minLearningRate;
-        private readonly List<Tuple<double, double>> _values = new List<Tuple<double, double>>();
+        private readonly List<Tuple<double, double>> _values = new ();
         /// <summary>
         /// the last epoch of each cycle.
         /// For instance, if we have 3 cycles :
@@ -20,7 +20,7 @@ namespace SharpNet.Optimizers
         /// then it will contains
         ///     10, 30, 70
         /// </summary>
-        private List<int> EndEpochForEachCycle { get; } = new List<int>();
+        private List<int> EndEpochForEachCycle { get; } = new ();
         #endregion
 
         /// <summary>

@@ -26,7 +26,7 @@ namespace SharpNetTests
         private const int Height = 17;
         private const int Width = 32;
         private const int Nx = Height * Width * ChannelsCount;
-	    private readonly Random _rand = new Random(0);
+	    private readonly Random _rand = new (0);
         private const GPUWrapper.ConvolutionAlgoPreference ConvolutionAlgoPreference = GPUWrapper.ConvolutionAlgoPreference.FASTEST_DETERMINIST_NO_TRANSFORM;
         // ReSharper disable once MemberCanBeMadeStatic.Local
         private GPUWrapper GpuWrapper => TestGPUTensor.GpuWrapper;
@@ -1015,7 +1015,7 @@ namespace SharpNetTests
         [TestCase(50, 504)]
         public void TestCosineSimilarityLoss(int itemCount, int timeSeriesLength)
         {
-            var shape = new int[] { itemCount * timeSeriesLength };
+            var shape = new [] { itemCount * timeSeriesLength };
             var predicted = RandomTensor(shape);
             var expected = RandomTensor(predicted.Shape);
             var cosineSimilarityLoss = RandomTensor(new[] { timeSeriesLength });
@@ -1029,7 +1029,7 @@ namespace SharpNetTests
 
         public void TestCosineSimilarityGradient(int itemCount, int timeSeriesLength)
         {
-            var shape = new int[] { itemCount * timeSeriesLength };
+            var shape = new [] { itemCount * timeSeriesLength };
             var predicted = RandomTensor(shape);
             var expected = RandomTensor(predicted.Shape);
             var cosineSimilarityGradient = RandomTensor(expected.Shape);
@@ -1344,11 +1344,6 @@ namespace SharpNetTests
         {
             return TestCpuTensor.RandomFloatTensor(shape, _rand, -1.5, +1.5);
         }
-        private GPUTensor<float> RandomGPUTensor(int[] shape)
-        {
-            return CloneToGPU(RandomTensor(shape), GpuWrapper);
-        }
-
         /// <summary>
         /// return a tensor of shape 'shape' with random index value sin range [minIndex, maxIndex]
         /// </summary>

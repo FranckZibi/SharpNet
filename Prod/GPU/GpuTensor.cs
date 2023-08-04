@@ -6,6 +6,7 @@ using JetBrains.Annotations;
 using SharpNet.CPU;
 using SharpNet.Data;
 using SharpNet.Layers;
+// ReSharper disable IdentifierTypo
 
 namespace SharpNet.GPU
 {
@@ -193,6 +194,7 @@ namespace SharpNet.GPU
             _wrapper.RunKernel("Compute_Row_Mean_Variance", rows, new object[] { cols, x, row_mean, row_variance, unbiasedVariance });
         }
 
+        // ReSharper disable once UnusedMember.Local
         private void Compute_Row_Mean_VarianceV2(Tensor row_mean, Tensor row_variance, bool unbiasedVariance)
         {
             var x = this;
@@ -784,7 +786,7 @@ namespace SharpNet.GPU
             _wrapper.RunKernel(kernelName, batchSize, new object[] { numClass, buffer, yExpected, yPredicted });
         }
 
-        public override void ComputeAccuracyBuffer([NotNull] Tensor yExpected, [NotNull] Tensor yPredicted)
+        public override void ComputeAccuracyBuffer(Tensor yExpected, Tensor yPredicted)
         {
             var buffer = this;
             Debug.Assert(AreCompatible(new List<Tensor> {yExpected, yPredicted}));
@@ -868,7 +870,7 @@ namespace SharpNet.GPU
         CallCudaForLossBuffer(yExpected, yPredicted, EvaluationMetricEnum.BinaryCrossentropy);
     }
 
-    public override void ComputeAccuracyCategoricalCrossentropyWithHierarchyBuffer([NotNull] Tensor yExpected, [NotNull] Tensor yPredicted)
+    public override void ComputeAccuracyCategoricalCrossentropyWithHierarchyBuffer(Tensor yExpected, Tensor yPredicted)
         {
             var buffer = this;
             Debug.Assert(AreCompatible(new List<Tensor> { buffer, yExpected, yPredicted }));
@@ -1187,7 +1189,7 @@ namespace SharpNet.GPU
             var workSpaceLength = buffer.Count - A_columnMajorLength - tauLength - devInfoIntLength;
             var TAU = buffer.Pointer + A_columnMajorLength * sizeof(float);
             var devInfoInt = TAU + tauLength * sizeof(float);
-            var workSpace = devInfoInt + devInfoIntLength * sizeof(float); ;
+            var workSpace = devInfoInt + devInfoIntLength * sizeof(float);
 
             // 1st step involving geqrf method
             A.Transpose(A_columnMajor);

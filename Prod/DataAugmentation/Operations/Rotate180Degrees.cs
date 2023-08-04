@@ -1,5 +1,3 @@
-using System;
-
 namespace SharpNet.DataAugmentation.Operations
 {
     public class Rotate180Degrees : Operation

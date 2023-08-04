@@ -95,7 +95,7 @@ namespace SharpNet.Layers
         public override void AddToOtherNetwork(Network otherNetwork) { AddToOtherNetwork(otherNetwork, Deserialize); }
         #endregion
 
-        public static List<PredictionDescription> ExtractSelectedAfterNonMaxSuppression(CpuTensor<float> tensor, int elementId, int maxOutputSizePerClass, int maxOutputSize, double IOU_threshold, double score_Threshold)
+        private static List<PredictionDescription> ExtractSelectedAfterNonMaxSuppression(CpuTensor<float> tensor, int elementId, int maxOutputSizePerClass, int maxOutputSize, double IOU_threshold, double score_Threshold)
         {
             var predictions = PredictionsAboveBoxConfidenceThreshold(tensor, elementId, score_Threshold);
             var sortedPredictions = new List<PredictionDescription>(predictions.Where(p=>p.Score >= score_Threshold).OrderByDescending(p=>p.Score));

@@ -15,7 +15,7 @@ namespace SharpNetTests
     [TestFixture]
     public class TestGradient
     {
-	    private readonly Random _rand = new Random(0);
+	    private readonly Random _rand = new (0);
 
         [Test]
         public void TestGradientForDenseLayer()

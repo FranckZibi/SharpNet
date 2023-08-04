@@ -145,7 +145,8 @@ namespace SharpNet.Networks
             var metrics = GetAllEvaluationMetrics();
             return metrics.Count != 0 ? metrics[0] : EvaluationMetricEnum.DEFAULT_VALUE;
         }
-        public override List<EvaluationMetricEnum> GetAllEvaluationMetrics()
+
+        protected override List<EvaluationMetricEnum> GetAllEvaluationMetrics()
         {
             return EvaluationMetrics;
         }

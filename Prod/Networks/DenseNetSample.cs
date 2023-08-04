@@ -33,6 +33,7 @@ namespace SharpNet.Networks
 
     public class DenseNetNetworkSample : NetworkSample
     {
+        // ReSharper disable once MemberCanBePrivate.Global
         public DenseNetNetworkSample()
         {
         }

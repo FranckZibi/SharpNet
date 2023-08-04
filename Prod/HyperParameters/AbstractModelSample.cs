@@ -70,7 +70,7 @@ public abstract class AbstractModelSample : AbstractSample, IModelSample
     }
 
     public abstract EvaluationMetricEnum GetRankingEvaluationMetric();
-    public abstract List<EvaluationMetricEnum> GetAllEvaluationMetrics();
+    protected abstract List<EvaluationMetricEnum> GetAllEvaluationMetrics();
     public abstract Model NewModel(AbstractDatasetSample datasetSample, string workingDirectory, string modelName);
     public abstract void Use_All_Available_Cores();
 

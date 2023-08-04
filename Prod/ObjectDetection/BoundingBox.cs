@@ -1,8 +1,5 @@
 ﻿using System;
 using System.Diagnostics;
-using System.Drawing;
-using System.Drawing.Drawing2D;
-using System.Drawing.Text;
 using System.Linq;
 using System.Xml;
 
@@ -45,28 +42,6 @@ namespace SharpNet.ObjectDetection
         public BoundingBox UpSampling(double rowFactor, double colFactor)
         {
             return new BoundingBox(colFactor*_colCenter, rowFactor*_rowCenter, colFactor*_width, rowFactor*_height);
-        }
-
-        /// <summary>
-        /// draw the bounding box in the bitmap 'bitmap'
-        /// </summary>
-        /// <param name="bitmap"></param>
-        /// <param name="boxCaption">the caption to add at the top of the bounding box</param>
-        public void Draw(Bitmap bitmap, string boxCaption)
-        {
-            using var gr = Graphics.FromImage(bitmap);
-            gr.SmoothingMode = SmoothingMode.AntiAlias;
-            using var thick_pen = new Pen(Color.Blue, 3);
-            gr.DrawRectangle(thick_pen, (float)Left, (float)Top, (float)_width, (float)_height);
-            gr.InterpolationMode = InterpolationMode.HighQualityBicubic;
-            gr.PixelOffsetMode = PixelOffsetMode.HighQuality;
-            gr.TextRenderingHint = TextRenderingHint.AntiAliasGridFit;
-            if (!string.IsNullOrEmpty(boxCaption))
-            {
-                int fontSize = Math.Max(12, bitmap.Height/56);
-                gr.DrawString(boxCaption, new Font("MS Sans Serif", fontSize, FontStyle.Bold, GraphicsUnit.Point), Brushes.Red, (float) Left, (float) Top - fontSize-3, new StringFormat());
-            }
-            gr.Flush();
         }
         public static BoundingBox FromPascalVOC(XmlNode node, int imageHeight, int imageWidth)
         {

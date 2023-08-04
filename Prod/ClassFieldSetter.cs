@@ -11,7 +11,7 @@ namespace SharpNet
     public static class ClassFieldSetter
     {
         #region private fields
-        private static readonly Dictionary<Type,  Dictionary<string, FieldInfo>> type2name2FieldInfo = new Dictionary<Type, Dictionary<string, FieldInfo>>();
+        private static readonly Dictionary<Type,  Dictionary<string, FieldInfo>> type2name2FieldInfo = new ();
         #endregion
 
         public static void Set(object o, string fieldName, object fieldValue)

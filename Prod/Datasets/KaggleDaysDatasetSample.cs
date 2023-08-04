@@ -42,8 +42,8 @@ public class KaggleDaysDatasetSample : AbstractDatasetSample
         }
     }
 
-    
-    public static string[] SplitProducts(string str)
+
+    private static string[] SplitProducts(string str)
     {
         if (string.IsNullOrEmpty(str) || string.IsNullOrEmpty(str.Trim()))
         {
@@ -52,44 +52,44 @@ public class KaggleDaysDatasetSample : AbstractDatasetSample
         return str.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries).ToArray();
     }
 
-    public static void Enrich(string predictions)
-    {
-        var preds = File.ReadAllLines(predictions).Skip(1).Select(float.Parse).ToArray();
-        var idFile = Utils.ReadCsv(Path.Combine(DataDirectory, "search_test_v2.csv")).Skip(1).ToArray();
+    //public static void Enrich(string predictions)
+    //{
+    //    var preds = File.ReadAllLines(predictions).Skip(1).Select(float.Parse).ToArray();
+    //    var idFile = Utils.ReadCsv(Path.Combine(DataDirectory, "search_test_v2.csv")).Skip(1).ToArray();
 
-        Dictionary<string, List<Tuple<string,float>>> losses = new ();
-        for (int i = 0; i < idFile.Length; i++)
-        {
-            var sessionId = idFile[i][0];
-            var productId = idFile[i][1];
-            var pred = preds[i];
-            if (!losses.ContainsKey(sessionId))
-            {
-                losses[sessionId] = new List<Tuple<string, float>>();
-            }
-            losses[sessionId].Add(Tuple.Create(productId, pred));
-        }
+    //    Dictionary<string, List<Tuple<string,float>>> losses = new ();
+    //    for (int i = 0; i < idFile.Length; i++)
+    //    {
+    //        var sessionId = idFile[i][0];
+    //        var productId = idFile[i][1];
+    //        var pred = preds[i];
+    //        if (!losses.ContainsKey(sessionId))
+    //        {
+    //            losses[sessionId] = new List<Tuple<string, float>>();
+    //        }
+    //        losses[sessionId].Add(Tuple.Create(productId, pred));
+    //    }
 
-        var session_ids = DataFrame.read_string_csv(Path.Combine(DataDirectory, "sample_submission.csv")).StringColumnContent("session_id");
-        var linePred =new List<string>();
-        linePred.Add("session_id,best_products");
-        foreach (var sessionId in session_ids)
-        {
-            if (!losses.ContainsKey(sessionId))
-            {
-                linePred.Add(sessionId+",");
-            }
-            else
-            {
-                string[] sorted = losses[sessionId].OrderBy(t => t.Item2).ToArray().Take(12).Select(t=>t.Item1).ToArray();
-                linePred.Add(sessionId + ","+string.Join(' ', sorted));
-            }
-        }
-        File.WriteAllLines(predictions+"_final.csv", linePred);
-    }
+    //    var session_ids = DataFrame.read_string_csv(Path.Combine(DataDirectory, "sample_submission.csv")).StringColumnContent("session_id");
+    //    var linePred =new List<string>();
+    //    linePred.Add("session_id,best_products");
+    //    foreach (var sessionId in session_ids)
+    //    {
+    //        if (!losses.ContainsKey(sessionId))
+    //        {
+    //            linePred.Add(sessionId+",");
+    //        }
+    //        else
+    //        {
+    //            string[] sorted = losses[sessionId].OrderBy(t => t.Item2).ToArray().Take(12).Select(t=>t.Item1).ToArray();
+    //            linePred.Add(sessionId + ","+string.Join(' ', sorted));
+    //        }
+    //    }
+    //    File.WriteAllLines(predictions+"_final.csv", linePred);
+    //}
 
     // ReSharper disable once UnusedMember.Global
-    public static void Create_search_train_v2()
+    private static void Create_search_train_v2()
     {
         var search_train_path = Path.Combine(DataDirectory, "search_train.csv");
         var allLines = Utils.ReadCsv(search_train_path);
@@ -123,7 +123,7 @@ public class KaggleDaysDatasetSample : AbstractDatasetSample
         File.WriteAllText(Path.Combine(DataDirectory, "search_train_v2.csv"), sb.ToString());
     }
 
-    public static void Create_search_test_v2()
+    private static void Create_search_test_v2()
     {
         var search_train_path = Path.Combine(DataDirectory, "search_test.csv");
         var allLines = Utils.ReadCsv(search_train_path);
@@ -154,14 +154,12 @@ public class KaggleDaysDatasetSample : AbstractDatasetSample
         "session_id" , "product_id", "channel_grouping", "country", "region", "device_category", "category", "name", "market", "subbrand"
     };
 
-    public static Type GetColumnType(string columnName)
+    private static Type GetColumnType(string columnName)
     {
         return StringColumns.Contains(columnName) ? typeof(string) : typeof(float);
 
     }
-
-
-    public static void Create_search_train_test_v3()
+    private static void Create_search_train_test_v3()
     {
         IModelSample.Log.Info("starting Create_search_train_test_v3");
         var user_info = DataFrame.read_csv(Path.Combine(DataDirectory, "user_info.csv"), true, GetColumnType);
@@ -206,9 +204,7 @@ public class KaggleDaysDatasetSample : AbstractDatasetSample
         IModelSample.Log.Info("Finished building test dataset ref dataset");
 
     }
-
-
-    public static void AddBeforeSearchDataV2()
+    private static void AddBeforeSearchDataV2()
     {
         var before_search_path = Path.Combine(DataDirectory, "before_search.csv");
         Dictionary<string, Dictionary<string, HashSet<string>>> before_search_to_line = new();
@@ -447,52 +443,6 @@ public class KaggleDaysDatasetSample : AbstractDatasetSample
     public static (ISample bestSample, IScore bestScore) LaunchLightGBMHPO(int num_iterations = 100, int maxAllowedSecondsForAllComputation = 0)
     {
         var searchSpace = new Dictionary<string, object>
-        {
-            //related to Dataset 
-            //{"KFold", 2},
-            {"PercentageInTraining", 0.8}, //will be automatically set to 1 if KFold is enabled
-
-            //related to model
-            {"objective", nameof(LightGBMSample.objective_enum.binary)},
-            {"metric", ""}, //same as objective
-            { "num_threads", 1},
-            { "verbosity", "0" },
-            { "early_stopping_round", num_iterations/10 },
-            { "num_iterations", num_iterations },
-            //high priority
-            { "bagging_fraction", 0.8},
-            //{ "bagging_fraction", new[]{0.8f, 0.9f, 1.0f} },
-            { "bagging_freq", new[]{0, 10} },
-            //{ "boosting", new []{"gbdt", "dart"}},
-            { "boosting", "dart"},
-            { "colsample_bytree",AbstractHyperParameterSearchSpace.Range(0.6f, 1.0f)},
-            { "lambda_l1",AbstractHyperParameterSearchSpace.Range(0f, 2f)},
-            //{ "learning_rate",AbstractHyperParameterSearchSpace.Range(0.005f, 0.2f)},
-            { "learning_rate", new[]{0.001, 0.01, 0.1}},
-            { "max_depth", new[]{10, 20, 50} },
-            { "min_data_in_leaf", new[]{20, 50 ,100} },
-            { "num_leaves", AbstractHyperParameterSearchSpace.Range(3, 50) },
-            //{ "num_leaves", new[]{3,15,50} },
-
-            ////medium priority
-            //{ "drop_rate", new[]{0.05, 0.1, 0.2}},                               //specific to dart mode
-            { "lambda_l2",AbstractHyperParameterSearchSpace.Range(0f, 2f)},
-            //{ "min_data_in_bin", new[]{3, 10, 100, 150}  },
-            //{ "max_bin", AbstractHyperParameterSearchSpace.Range(10, 255) },
-            
-            //{ "max_drop", new[]{40, 50, 60}},                                   //specific to dart mode
-
-            //{ "skip_drop",AbstractHyperParameterSearchSpace.Range(0.1f, 0.6f)},  //specific to dart mode
-
-            ////low priority
-            //{ "extra_trees", new[] { true , false } }, //low priority 
-            ////{ "colsample_bynode",AbstractHyperParameterSearchSpace.Range(0.5f, 1.0f)}, //very low priority
-            //{ "path_smooth", AbstractHyperParameterSearchSpace.Range(0f, 1f) }, //low priority
-            //{ "min_sum_hessian_in_leaf", AbstractHyperParameterSearchSpace.Range(1e-3f, 1.0f) },
-        };
-
-
-        searchSpace = new Dictionary<string, object>
         {
 
             //related to Dataset 

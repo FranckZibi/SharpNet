@@ -34,8 +34,8 @@ public sealed class RandomizeColumnDataSet : DataSet
             original.ResizeStrategy,
             original.ColumnNames,
             original.CategoricalFeatures,
-            original.IdColumn,
             original.Y_IDs,
+            original.IdColumn, 
             original.Separator)
     {
         _original = original;

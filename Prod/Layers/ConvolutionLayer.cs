@@ -426,6 +426,7 @@ namespace SharpNet.Layers
                 //Conv1D
                 Debug.Assert(!isDepthwiseConvolution);
                 var inputShapeConv2D = ReshapeConv1d_to_Conv2D(inputShape);
+                // ReSharper disable once ConditionIsAlwaysTrueOrFalse
                 var outputShapeConv2D = OutputShape(inputShapeConv2D, convolutionShape, paddingType, stride, isDepthwiseConvolution);
                 return ReshapeConv2d_to_Conv1D(outputShapeConv2D);
             }

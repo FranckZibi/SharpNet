@@ -357,12 +357,14 @@ public class CatBoostSample : AbstractModelSample
                 return EvaluationMetricEnum.BinaryCrossentropy;
             case metric_enum.MultiClass:
                 return EvaluationMetricEnum.CategoricalCrossentropy;
+            case metric_enum.Accuracy:
+                return EvaluationMetricEnum.Accuracy;
             default:
                 throw new NotImplementedException($"can't manage {nameof(eval_metric)} {eval_metric}");
         }
     }
 
-    public override List<EvaluationMetricEnum> GetAllEvaluationMetrics()
+    protected override List<EvaluationMetricEnum> GetAllEvaluationMetrics()
     {
         return new List<EvaluationMetricEnum> { GetRankingEvaluationMetric() };
     }

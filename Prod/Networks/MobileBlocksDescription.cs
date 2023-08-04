@@ -32,13 +32,13 @@ namespace SharpNet.Networks
         {
             return new List<MobileBlocksDescription>
             {
-                new MobileBlocksDescription(3, 1, 16, 1, true, 1, 1, .25),
-                new MobileBlocksDescription(3, 2, 24, 6, true, 2, 2, .25),
-                new MobileBlocksDescription(5, 2, 40, 6, true, 2, 2, .25),
-                new MobileBlocksDescription(3, 3, 80, 6, true, 2, 2, .25),
-                new MobileBlocksDescription(5, 3, 112, 6, true, 1, 1, .25),
-                new MobileBlocksDescription(5, 4, 192, 6, true, 2, 2, .25),
-                new MobileBlocksDescription(3, 1, 320, 6, true, 1, 1, .25)
+                new (3, 1, 16, 1, true, 1, 1, .25),
+                new (3, 2, 24, 6, true, 2, 2, .25),
+                new (5, 2, 40, 6, true, 2, 2, .25),
+                new (3, 3, 80, 6, true, 2, 2, .25),
+                new (5, 3, 112, 6, true, 1, 1, .25),
+                new (5, 4, 192, 6, true, 2, 2, .25),
+                new (3, 1, 320, 6, true, 1, 1, .25)
             };
         }
 

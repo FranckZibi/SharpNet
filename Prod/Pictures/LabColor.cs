@@ -97,7 +97,6 @@ namespace SharpNet.Pictures
 
             return ((k * t + 16.0) / 116.0);
         }
-        private double C { get { return Math.Sqrt(A * A + B * B); } }
-
+        //private double C { get { return Math.Sqrt(A * A + B * B); } }
     }
 }

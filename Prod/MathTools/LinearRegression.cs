@@ -72,21 +72,6 @@ namespace SharpNet.MathTools
             }
         }
 
-        public double Y_Average => (count == 0) ? 0 : (y_sum / count);
-        public double Y_Volatility => Math.Sqrt(Y_Variance);
-        public double Y_Variance
-        {
-            get
-            {
-                if (count <= 0)
-                {
-                    return 0;
-                }
-                return Math.Abs(yy_sum - count * Y_Average * Y_Average) / count;
-            }
-        }
-
-
         /// <summary>
         /// estimate value of the dependent variable 'y' given the independent variable 'x'
         /// </summary>

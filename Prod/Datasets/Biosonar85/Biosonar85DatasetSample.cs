@@ -4,8 +4,6 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using SharpNet.CPU;
-using SharpNet.MathTools;
 // ReSharper disable FieldCanBeMadeReadOnly.Global
 // ReSharper disable MemberCanBePrivate.Global
 
@@ -54,6 +52,7 @@ public class Biosonar85DatasetSample : AbstractDatasetSample
 
     public static string Y_train_path = Path.Join(Biosonar85Utils.DataDirectory, "Y_train_ofTdMHi.csv");
     public static string Y_test_path = Path.Join(Biosonar85Utils.DataDirectory, "Y_random_Xwjr6aB.csv");
+    // ReSharper disable once UnusedMember.Global
     public static string Y_train_small_path = Path.Join(Biosonar85Utils.DataDirectory, "Y_train_small.csv");
 
     public static string PNG_train_directory = Path.Join(Biosonar85Utils.DataDirectory, "X_train_64_256_128_1000_150000_250");
@@ -154,10 +153,10 @@ public class Biosonar85DatasetSample : AbstractDatasetSample
         }
     }
 
-    private object lockObject = new object();
+    private readonly object _lockObject = new ();
     private (DataSet fullTrainingAndValidation, DataSet testDataset) LoadAndEncodeDataset_If_Needed()
     {
-        lock (lockObject)
+        lock (_lockObject)
         {
             var sw = Stopwatch.StartNew();
             switch (InputDataType)
@@ -209,10 +208,10 @@ public class Biosonar85DatasetSample : AbstractDatasetSample
         }
     }
 
-    /// <summary>
-    /// compute stats for train & test dataset
-    /// </summary>
-    // ReSharper disable once UnusedMember.Local
+    ///// <summary>
+    ///// compute stats for train & test dataset
+    ///// </summary>
+    //// ReSharper disable once UnusedMember.Local
     //private static void ComputeStats()
     //{
     //    var xTrainPath = Path.Join(Biosonar85Utils.DataDirectory, xTrainBin);

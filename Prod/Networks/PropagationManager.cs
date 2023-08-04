@@ -19,7 +19,7 @@ namespace SharpNet.Networks
         [NotNull] private readonly IDictionary<string, Stopwatch> _updateWeightsTime;
 
         // output of each layer, without the last one (prediction)
-        private readonly List<Tensor> _all_allocated_Y = new List<Tensor>();
+        private readonly List<Tensor> _all_allocated_Y = new ();
         #endregion
 
         public PropagationManager(List<Layer> layers, [NotNull] TensorMemoryPool memoryPool, [NotNull] IDictionary<string, Stopwatch> forwardPropagationTrainingTime, [NotNull] IDictionary<string, Stopwatch> forwardPropagationInferenceTime, [NotNull] IDictionary<string, Stopwatch> backwardPropagationTime, [NotNull] IDictionary<string, Stopwatch> updateWeightsTime)
@@ -77,7 +77,7 @@ namespace SharpNet.Networks
                 var allLayerInput = layer.PreviousLayerIndexes.Select(i => _all_allocated_Y[i]).ToList();
                 referenceCountToLayer.Add(layer.NextLayerIndexes.Count);
 
-                Tensor yBuffer = null;
+                Tensor yBuffer;
                 if (layer.IsInputLayer)
                 {
                     var X = allXForInputLayers[inputLayerProcessed++];

@@ -38,17 +38,17 @@ namespace SharpNet.Layers
 
         #region trainable parameters
         [NotNull] private Tensor _weightsAndBiases;
-        [NotNull] private readonly List<Tensor> _weights_ax = new List<Tensor>();
-        [NotNull] private readonly List<Tensor> _weights_aa = new List<Tensor>();
-        [NotNull] private readonly List<Tensor> _weights_ax_bias = new List<Tensor>();
-        [NotNull] private readonly List<Tensor> _weights_aa_bias = new List<Tensor>();
+        [NotNull] private readonly List<Tensor> _weights_ax = new();
+        [NotNull] private readonly List<Tensor> _weights_aa = new();
+        [NotNull] private readonly List<Tensor> _weights_ax_bias = new();
+        [NotNull] private readonly List<Tensor> _weights_aa_bias = new();
         #endregion
         #region gradients
         [NotNull] private Tensor _weightsAndBiasesGradients;
-        [NotNull] private readonly List<Tensor> _weights_ax_gradients = new List<Tensor>();
-        [NotNull] private readonly List<Tensor> _weights_aa_gradients = new List<Tensor>();
-        [NotNull] private readonly List<Tensor> _weights_ax_bias_gradients = new List<Tensor>();
-        [NotNull] private readonly List<Tensor> _weights_aa_bias_gradients = new List<Tensor>();
+        [NotNull] private readonly List<Tensor> _weights_ax_gradients = new();
+        [NotNull] private readonly List<Tensor> _weights_aa_gradients = new();
+        [NotNull] private readonly List<Tensor> _weights_ax_bias_gradients = new();
+        [NotNull] private readonly List<Tensor> _weights_aa_bias_gradients = new ();
         #endregion
 
         private readonly bool _returnSequences;

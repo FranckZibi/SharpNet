@@ -25,10 +25,10 @@ public class EncoderDecoder_NetworkSample: NetworkSample
 
 
     #region Encoder
-    private List<string> Encoder_FeatureNames;
     /// <summary>
     /// numb er of layer in the encoder.
     /// </summary>
+    // ReSharper disable once UnusedMember.Global
     public void Encoder(int numLayers, int timeSteps, double dropoutRate)
     {
         if (numLayers == 1 && dropoutRate > 1e-6)
@@ -81,7 +81,7 @@ public class EncoderDecoder_NetworkSample: NetworkSample
 
 
     #region Decoder 
-    private List<string> Decoder_FeatureNames;
+    // ReSharper disable once UnusedMember.Global
     public void Decoder(int numLayers, int timeSteps, double dropoutRate)
     {
         if (numLayers == 1 && dropoutRate > 1e-6)
@@ -138,8 +138,6 @@ public class EncoderDecoder_NetworkSample: NetworkSample
     public enum InputNormalizationEnum
     {
         NONE,
-        Z_SCORE,
-        DEDUCE_MEAN,
         BATCH_NORM_LAYER, //we'll use a batch norm layer for normalization
         DEDUCE_MEAN_AND_BATCH_NORM_LAYER
     }

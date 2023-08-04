@@ -71,7 +71,8 @@ public class LightGBMSample : AbstractModelSample
                 throw new NotImplementedException($"can't manage metric {metric}");
         }
     }
-    public override List<EvaluationMetricEnum> GetAllEvaluationMetrics()
+
+    protected override List<EvaluationMetricEnum> GetAllEvaluationMetrics()
     {
         if (string.IsNullOrEmpty(metric))
         {

@@ -39,12 +39,13 @@ namespace SharpNet.Networks
             _blocks = blocks;
         }
 
+        // ReSharper disable once UnusedMember.Global
         public static Yolov3NetworkSample ValueOf(List<int> resourceIds, List<Tuple<string, Dictionary<string, string>>> blocks = null)
         {
             var config = (Yolov3NetworkSample)new Yolov3NetworkSample(blocks ?? YOLOV3Config)
             {
                     LossFunction = EvaluationMetricEnum.CategoricalCrossentropy,
-                    CompatibilityMode = NetworkSample.CompatibilityModeEnum.TensorFlow,
+                    CompatibilityMode = CompatibilityModeEnum.TensorFlow,
                     lambdaL2Regularization = 0.0005,
                     ResourceIds = resourceIds.ToList(),
             }
@@ -54,6 +55,7 @@ namespace SharpNet.Networks
         }
         #endregion
 
+        // ReSharper disable once UnusedMember.Global
         public Network Build()
         {
             LoadNetDescription();

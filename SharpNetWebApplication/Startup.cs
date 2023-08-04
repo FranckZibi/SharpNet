@@ -22,7 +22,7 @@ namespace SharpNetWebApplication
         
         #region private fields
         private static Network _network;
-        private static readonly List<string> ToProcess =  new List<string>();
+        private static readonly List<string> ToProcess =  new ();
         #endregion
         #region public fields
         private static readonly IDictionary<string, CancelIdentification> Cache = new ConcurrentDictionary<string, CancelIdentification>();

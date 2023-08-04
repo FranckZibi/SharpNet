@@ -12,7 +12,7 @@ namespace SharpNetTests.TextPreprocessing
         [Test]
         public void TestPadding()
         {
-            var sequences = new List<List<int>> { new List<int> { 0, 1, 2 }, new List<int> { 3, 4 } };
+            var sequences = new List<List<int>> { new() { 0, 1, 2 }, new() { 3, 4 } };
 
             //pre and post padding keeping the same length
             //pre padding

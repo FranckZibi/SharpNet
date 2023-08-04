@@ -19,8 +19,8 @@ namespace SharpNet.MathTools
 
         public void Add(double t, int count = 1)
         {
-            min = (Count == 0) ? t : System.Math.Min(t, min);
-            max = (Count == 0) ? t : System.Math.Max(t, max);
+            min = (Count == 0) ? t : Math.Min(t, min);
+            max = (Count == 0) ? t : Math.Max(t, max);
             sum += t * count;
             sumSquare += (t * t) * count;
             Count += count;
@@ -39,6 +39,7 @@ namespace SharpNet.MathTools
                 Add(e);
             }
         }
+        // ReSharper disable once UnusedMember.Global
         public void Add(IEnumerable<double> list)
         {
             foreach (var e in list)
@@ -48,8 +49,8 @@ namespace SharpNet.MathTools
         }
         public void Add(DoubleAccumulator b)
         {
-            min = (Count == 0) ? b.min : System.Math.Min(b.min, min);
-            max = (Count == 0) ? b.max : System.Math.Max(b.max, max);
+            min = (Count == 0) ? b.min : Math.Min(b.min, min);
+            max = (Count == 0) ? b.max : Math.Max(b.max, max);
             sum += b.sum;
             sumSquare += b.sumSquare;
             Count += b.Count;
@@ -64,13 +65,14 @@ namespace SharpNet.MathTools
 
             return res;
         }
-		public double Volatility => System.Math.Sqrt(Variance);
+		public double Volatility => Math.Sqrt(Variance);
 
 
         /// <summary>
         /// Coefficient Of Variation, see https://en.wikipedia.org/wiki/Coefficient_of_variation
         /// Volatility / Average 
         /// </summary>
+        // ReSharper disable once UnusedMember.Global
         public double CoefficientOfVariation => (Math.Abs(Average) < 1e-6) ? 0 : (Volatility / Average);
 
         public double Variance
@@ -91,7 +93,7 @@ namespace SharpNet.MathTools
 		}
         private string ToString(int roundDigits)
         {
-            string result = "E(x)=" + System.Math.Round(Average, roundDigits) + "; Vol(X)=" + System.Math.Round(Volatility, roundDigits) + "; Count=" + Count + "; Min=" + min + "; Max=" + max;
+            string result = "E(x)=" + Math.Round(Average, roundDigits) + "; Vol(X)=" + Math.Round(Volatility, roundDigits) + "; Count=" + Count + "; Min=" + min + "; Max=" + max;
             return result;
         }
     }

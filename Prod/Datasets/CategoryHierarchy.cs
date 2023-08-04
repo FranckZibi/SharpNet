@@ -15,7 +15,7 @@ namespace SharpNet.Datasets
         private readonly string _displayName;
         private readonly CategoryHierarchy _parentIfAny;
         private readonly bool _onlyOneChildrenValidAtATime;
-        private readonly List<CategoryHierarchy> _children = new List<CategoryHierarchy>();
+        private readonly List<CategoryHierarchy> _children = new ();
         private readonly int _startIndex;
         private float[] _lazyRootTemplate = null;
         #endregion
@@ -166,7 +166,7 @@ namespace SharpNet.Datasets
             return Tuple.Create(result, parentProba);
         }
 
-        public string CategoryPathToCategoryName(string[] path)
+        public static string CategoryPathToCategoryName(string[] path)
         {
             if (path == null || path.Length == 0)
             {

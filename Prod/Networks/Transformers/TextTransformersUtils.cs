@@ -6,26 +6,27 @@ using log4net;
 using SharpNet.CPU;
 using SharpNet.HPO;
 using SharpNet.HyperParameters;
+// ReSharper disable UnusedMember.Global
 
 namespace SharpNet.Networks.Transformers;
 
 public static class TextTransformersUtils
 {
-    public const string NAME = "TextTransformers";
+    private const string NAME = "TextTransformers";
 
 
     #region public fields & properties
-    public static readonly ILog Log = LogManager.GetLogger(typeof(TextTransformersUtils));
+    private static readonly ILog Log = LogManager.GetLogger(typeof(TextTransformersUtils));
     #endregion
 
     public static string WorkingDirectory => Path.Combine(Utils.ChallengesPath, NAME);
-    public static string DataDirectory => Path.Combine(WorkingDirectory, "Data");
+    private static string DataDirectory => Path.Combine(WorkingDirectory, "Data");
     // ReSharper disable once MemberCanBePrivate.Global
 
     //public static string XTrainPath => Path.Combine(DataDirectory, "input_gpt_dev.txt");
     public static string XTrainPath => Path.Combine(DataDirectory, "victor_hugo_v1.txt");
 
-    public static string GenerateText(Network nn, int textLength, double maxAllowedError)
+    private static string GenerateText(Network nn, int textLength, double maxAllowedError)
     {
         var outputShape = nn.YPredicted_MiniBatch_Shape(1);
         var max_length = outputShape[1];
@@ -37,7 +38,7 @@ public static class TextTransformersUtils
         var xInputSingleRowSpan = xInputSingleRow.SpanContent;
 
         var fulltext = datasetSample.GetText(-1);
-        var r = new System.Random();
+        var r = new Random();
         int randomStartIdx = r.Next(fulltext.Length/2 - max_length-1);
 
         List<int> tmpSequence = tokenizer.TextsToSequences(new[] { fulltext.Substring(randomStartIdx, 10*max_length) })[0].Take(max_length).ToList();
@@ -70,7 +71,7 @@ public static class TextTransformersUtils
     }
 
 
-    public static int GetIndexPrediction(float[] proba, Random r, double maxAllowedError)
+    private static int GetIndexPrediction(float[] proba, Random r, double maxAllowedError)
     {
         List<Tuple<float, int>> probaWithIndex = new List<Tuple<float, int>>();
         for (int i = 0; i < proba.Length; i++)
@@ -123,7 +124,7 @@ public static class TextTransformersUtils
         ChallengeTools.Retrain(WorkingDirectory, "1E68E0FFA0", null, 0.9, retrainOnFullDataset: false, useAllAvailableCores: true);
     }
 
-    public static void SpeedTest()
+    private static void SpeedTest()
     {
         var speedTestWorkingDirectory = Path.Join(WorkingDirectory, "SpeedTest");
         Utils.ConfigureGlobalLog4netProperties(speedTestWorkingDirectory, "log");

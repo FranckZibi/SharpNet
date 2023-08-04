@@ -2464,95 +2464,7 @@ namespace SharpNet.CPU
             }
             return new CpuTensor<float>(new[] { rows, numClasses }, content);
         }
-
-        ///// <param name="predictionsInModelFormat_without_Ids">a tensor of shape (batchSize, num_classes) </param>
-        ///// <param name="FromProbaDistributionToPredictedCategory_Method">
-        ///// 0 : default method (Arg Max)
-        ///// 1 : fit the observed class distribution to the expected class distribution, starting with the least common class
-        ///// 2 : fit the observed class distribution to the expected class distribution, starting with the most common class
-        ///// </param>
-        ///// <param name="percentageByTargetLabel"></param>
-        ///// <returns>a tensor of shape (batchSize, 1)</returns>
-        ///// ReSharper disable once UnusedMember.Local
-        //public static CpuTensor<float> FromProbaDistributionToPredictedCategory(CpuTensor<float> predictionsInModelFormat_without_Ids, int FromProbaDistributionToPredictedCategory_Method, IList<float> percentageByTargetLabel)
-        //{
-        //    if (FromProbaDistributionToPredictedCategory_Method == 0)
-        //    {
-        //        return predictionsInModelFormat_without_Ids.ArgMax();
-        //    }
-        //    Debug.Assert(predictionsInModelFormat_without_Ids.Shape.Length == 2);
-        //    var rows = predictionsInModelFormat_without_Ids.Shape[0];
-        //    var columns = predictionsInModelFormat_without_Ids.Shape[1];
-        //    Debug.Assert(percentageByTargetLabel.Count == columns);
-        //    List<Tuple<int, float>> percentageInEachClass = new();
-        //    for (var index = 0; index < percentageByTargetLabel.Count; index++)
-        //    {
-        //        percentageInEachClass.Add(Tuple.Create(index, percentageByTargetLabel[index]));
-        //    }
-
-        //    float[] content = Enumerable.Repeat(float.NaN, rows).ToArray();
-        //    percentageInEachClass = (FromProbaDistributionToPredictedCategory_Method == 1)
-        //        ? percentageInEachClass.OrderByDescending(t => t.Item2).ToList()
-        //        : percentageInEachClass.OrderBy(t => t.Item2).ToList();
-
-        //    var observedValue = new List<float>(rows);
-        //    var probaContent = predictionsInModelFormat_without_Ids.ReadonlyContent;
-        //    for (int iClass = 0; iClass < percentageInEachClass.Count - 1; ++iClass)
-        //    {
-        //        observedValue.Clear();
-        //        int classIndex = percentageInEachClass[iClass].Item1;
-        //        float classPercentage = percentageInEachClass[iClass].Item2;
-
-        //        //we compute the proba threshold for class 'classIndex'
-        //        //all non classified element with an observed proba greater than this threshold will be predicted as 'classIndex'
-        //        for (int row = 0; row < rows; ++row)
-        //        {
-        //            if (float.IsNaN(content[row]))
-        //            {
-        //                observedValue.Add(probaContent[row * columns + classIndex]);
-        //            }
-        //        }
-        //        if (observedValue.Count == 0)
-        //        {
-        //            continue;
-        //        }
-        //        observedValue.Sort();
-        //        observedValue.Reverse();
-        //        int idxInSortedObservedValue = (int)(classPercentage * rows);
-        //        idxInSortedObservedValue = Math.Min(idxInSortedObservedValue, observedValue.Count - 1);
-        //        var probaThreshold = observedValue[idxInSortedObservedValue];
-
-        //        for (int row = 0; row < rows; ++row)
-        //        {
-        //            if (float.IsNaN(content[row]) && probaContent[row * columns + classIndex] >= probaThreshold)
-        //            {
-        //                content[row] = classIndex;
-        //            }
-        //        }
-        //    }
-
-        //    for (int row = 0; row < rows; ++row)
-        //    {
-        //        if (float.IsNaN(content[row]))
-        //        {
-        //            content[row] = percentageInEachClass.Last().Item1;
-        //        }
-        //    }
-        //    return new CpuTensor<float>(new[] { rows, 1 }, content);
-        //}
-
-        public static CpuTensor<float> AddIndexInFirstColumn(CpuTensor<float> tensor, int startIndex = 0)
-        {
-            Debug.Assert(tensor.Shape.Length == 2);
-            var firstColumn = new float[tensor.Shape[0]];
-            for (int i = 0; i < firstColumn.Length; ++i)
-            {
-                firstColumn[i] = i + startIndex;
-            }
-            var tensorWithIndex = new CpuTensor<float>(new int[] { firstColumn.Length, 1 }, firstColumn);
-            return CpuTensor<float>.MergeHorizontally(tensorWithIndex, tensor);
-        }
-
+        
         public static CpuTensor<T> MergeHorizontally(params CpuTensor<T>[] tensors)
         {
             tensors = tensors.Where(t => t != null).ToArray();
@@ -2728,8 +2640,8 @@ namespace SharpNet.CPU
             Debug.Assert(startRowIndex + nbRows - 1 < Shape[0]);
             return SpanSlice(startRowIndex* MultDim0, MultDim0);
         }
-        
-        public Span<T> SpanSlice(int start, int length)
+
+        private Span<T> SpanSlice(int start, int length)
         {
             Debug.Assert(start >= 0);
             return Content.Slice(start, length).Span;
@@ -3073,22 +2985,7 @@ namespace SharpNet.CPU
             var volatility = Math.Sqrt(Math.Max(0, variance));
             return Tuple.Create((float)mean, (float)volatility);
         }
-
-        private void MergeInPlace(CpuTensor<float> a, CpuTensor<float> b, Func<float, float, float> func)
-        {
-            var buffer = this;
-            Debug.Assert(a.Dimension == b.Dimension);
-            Debug.Assert(a.Count == b.Count);
-            var content = (float*)buffer.Pointer;
-            var aSpan = a.ReadonlyContent;
-            var bSpan = b.ReadonlyContent;
-
-            for (int i = 0; i < buffer.Count; ++i)
-            {
-                content[i] = func(aSpan[i], bSpan[i]);
-            }
-        }
-        public void MergeInPlaceByRow(CpuTensor<float> a, CpuTensor<float> b, Func<float, float, float> func, float rowDivider)
+        private void MergeInPlaceByRow(CpuTensor<float> a, CpuTensor<float> b, Func<float, float, float> func, float rowDivider)
         {
             var buffer = this;
             Debug.Assert(a.Dimension == b.Dimension);
@@ -3262,6 +3159,7 @@ namespace SharpNet.CPU
 
 
 
+        // ReSharper disable once UnusedMember.Global
         public void Save(string filePath, Func<int, bool> shouldSaveRow, bool addColumnWithRowIndex, string header = null)
         {
             var sb = new StringBuilder();
@@ -3287,34 +3185,7 @@ namespace SharpNet.CPU
                 sb.Append(Environment.NewLine);
                 ++rowIndex;
             }
-            System.IO.File.WriteAllText(filePath, sb.ToString());
-        }
-
-
-
-        public void ShuffleInPlace([NotNull] Random r, params int[] columnIndexToShuffle)
-        {
-            if (columnIndexToShuffle.Length == 0)
-            {
-                return; //nothing to do
-            }
-            Debug.Assert(Shape.Length == 2);
-            var rows = Shape[0];
-            var cols = Shape[1];
-            var content = SpanContent;
-            var srcRow = rows;
-            while (srcRow > 1)
-            {
-                srcRow--;
-                var targetRow = r.Next(srcRow + 1);
-                foreach (var col in columnIndexToShuffle)
-                {
-                    Debug.Assert(col<cols);
-                    var srcIdx = srcRow * cols+col;
-                    var targetIdx = targetRow * cols+col;
-                    (content[srcIdx], content[targetIdx]) = (content[targetIdx], content[srcIdx]);
-                }
-            }
+            File.WriteAllText(filePath, sb.ToString());
         }
 
         public CpuTensor<float> ArgMax()

@@ -1,12 +1,14 @@
 ﻿using SharpNet.DataAugmentation;
 using SharpNet.GPU;
 using SharpNet.Layers;
+// ReSharper disable MemberCanBePrivate.Global
 
 namespace SharpNet.Networks;
 
 public class WideResNetNetworkSample : NetworkSample
 {
 
+    // ReSharper disable once EmptyConstructor
     public WideResNetNetworkSample()
     {
     }
@@ -18,7 +20,7 @@ public class WideResNetNetworkSample : NetworkSample
     /// </summary>
     public double WRN_DropOut;
     public double WRN_DropOutAfterDenseLayer;
-    public NetworkSample.POOLING_BEFORE_DENSE_LAYER WRN_PoolingBeforeDenseLayer = NetworkSample.POOLING_BEFORE_DENSE_LAYER.AveragePooling_2;
+    public POOLING_BEFORE_DENSE_LAYER WRN_PoolingBeforeDenseLayer = POOLING_BEFORE_DENSE_LAYER.AveragePooling_2;
     #endregion
 
 
@@ -186,10 +188,6 @@ public class WideResNetNetworkSample : NetworkSample
     {
         // ReSharper disable once IntroduceOptionalParameters.Global
         return WRN(workingDirectory, depth, k, inputShape_CHW, numClass, false);
-    }
-    public Network WRN_ImageNet(string workingDirectory, int depth, int k, int[] inputShape_CHW, int numClass)
-    {
-        return WRN(workingDirectory, depth, k, inputShape_CHW, numClass, true);
     }
     public Network WRN(string workingDirectory, int depth, int k, int[] inputShape_CHW, int numClass, bool reduceInputSize)
     {

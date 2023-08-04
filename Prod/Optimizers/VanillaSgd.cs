@@ -7,7 +7,7 @@ namespace SharpNet.Optimizers
     public class VanillaSgd : Optimizer
     {
         private VanillaSgd() {}
-        public static readonly VanillaSgd Instance = new VanillaSgd();
+        public static readonly VanillaSgd Instance = new ();
 
         public override void UpdateWeights(double learningRate, double maxLearningRate, int batchSize, Tensor weights,
             Tensor weightGradients,
@@ -19,7 +19,7 @@ namespace SharpNet.Optimizers
             weights.Update_Adding_Alpha_X(-ponderedLearningRate, weightGradients);
             bias?.Update_Adding_Alpha_X(-ponderedLearningRate, biasGradients);
         }
-        public override List<Tensor> EmbeddedTensors => new List<Tensor>();
+        public override List<Tensor> EmbeddedTensors => new ();
 
         #region serialization
         public override string Serialize() {return "";}

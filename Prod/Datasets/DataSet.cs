@@ -26,15 +26,15 @@ namespace SharpNet.Datasets
         /// <summary>
         /// tensor with all original elements (no data augmentation) in the order needed for the current mini batch 
         /// </summary>
-        private readonly List<CpuTensor<float>> all_xOriginalNotAugmentedMiniBatch = new List<CpuTensor<float>>();
+        private readonly List<CpuTensor<float>> all_xOriginalNotAugmentedMiniBatch = new ();
         /// <summary>
         /// tensor with all augmented elements in the order needed for the current mini batch 
         /// </summary>
-        private readonly List<CpuTensor<float>> all_xDataAugmentedMiniBatch = new List<CpuTensor<float>>();
+        private readonly List<CpuTensor<float>> all_xDataAugmentedMiniBatch = new ();
         /// <summary>
         /// a temporary buffer used to construct the data augmented pictures
         /// </summary>
-        private readonly List<CpuTensor<float>> all_xBufferForDataAugmentedMiniBatch = new List<CpuTensor<float>>();
+        private readonly List<CpuTensor<float>> all_xBufferForDataAugmentedMiniBatch = new ();
         private readonly CpuTensor<float> yOriginalMiniBatch = new(new[] { 1 });
         private readonly CpuTensor<float> yDataAugmentedMiniBatch = new(new[] { 1 });
         /// <summary>
@@ -53,17 +53,24 @@ namespace SharpNet.Datasets
         /// </summary>
         [NotNull] public string[] ColumnNames { get; }
         [NotNull] public string[] CategoricalFeatures { get; }
+
+        /// <summary>
+        /// the content of the Y_ID column in the prediction file in target format
+        /// or null if there is not such column
+        /// </summary>
         [CanBeNull] public string[] Y_IDs { get; }
+        /// <summary>
+        /// name of the Y_ID column in the prediction file in target format,
+        /// or null if there is not such column
+        /// </summary>
+        [CanBeNull] public string IdColumn { get; }
+
         /// <summary>
         /// the type of use of the dataset : Regression or Classification
         /// </summary>
         public Objective_enum Objective { get; }
         public string Name { get; }
         public ResizeStrategyEnum ResizeStrategy { get; }
-        /// <summary>
-        /// name of the Id Column, null or empty if no Id columns are available
-        /// </summary>
-        [NotNull] public string IdColumn { get; }
         public char Separator { get; }
         #endregion
 
@@ -74,9 +81,9 @@ namespace SharpNet.Datasets
             ResizeStrategyEnum resizeStrategy,
             [NotNull] string[] columnNames,
             [NotNull] string[] categoricalFeatures,
-            string idColumn,
-            [CanBeNull] string[] y_IDs,
-            char separator)
+            [CanBeNull] string[] y_IDs = null,
+            [CanBeNull] string idColumn = null,
+            char separator = ',')
         {
             Name = name;
             Objective = objective;
@@ -84,8 +91,15 @@ namespace SharpNet.Datasets
             ResizeStrategy = resizeStrategy;
             ColumnNames = columnNames;
             Separator = separator;
-            IdColumn = idColumn;
+            if (y_IDs != null)
+            {
+                if (string.IsNullOrEmpty(idColumn))
+                {
+                    throw new ArgumentException($"{nameof(idColumn)} must be provided if Y_IDS columns is needed");
+                }
+            }
             Y_IDs = y_IDs;
+            IdColumn = idColumn;
 
             _rands = new Random[2 * Environment.ProcessorCount];
             for (int i = 0; i < _rands.Length; ++i)
@@ -140,8 +154,6 @@ namespace SharpNet.Datasets
             return yBuffer;
         }
         public Random FirstRandom => _rands[0];
-
-
         /// <summary>
         /// Load 'miniBatch' (= xMiniBatch.Shape[0](') elements from the 'this' DataSet and copy them into 'xMiniBatch' (and 'yMiniBatch') tensors
         /// The indexes in the 'this' dataset of those 'miniBatch' elements to copy into 'xMiniBatch' are:
@@ -254,7 +266,6 @@ namespace SharpNet.Datasets
             }
             return elementsActuallyLoaded;
         }
-
         public static CpuTensor<float> ToXWorkingSet(CpuTensor<byte> x, List<Tuple<float, float>> meanAndVolatilityOfEachChannel)
         {
             var xWorkingSet = x.Select((_, c, val) => (float)((val - meanAndVolatilityOfEachChannel[c].Item1) / Math.Max(meanAndVolatilityOfEachChannel[c].Item2, 1e-9)));
@@ -334,18 +345,6 @@ namespace SharpNet.Datasets
         {
             return ImageStatistic.ValueOf(OriginalElementContent(elementId, channels, targetHeight, targetWidth, false, false));
         }
-        public DataFrame AddIdColumnsAtLeftIfNeeded(DataFrame df)
-        {
-            if (string.IsNullOrEmpty(IdColumn))
-            {
-                return df;
-            }
-            if (df.Columns.Contains(IdColumn))
-            {
-                return df; // Id Column is already in the DataFrame, nothing to do
-            }
-            return DataFrame.MergeHorizontally(ExtractIdDataFrame(df.Shape[0]), df);
-        }
         // ReSharper disable once UnusedMember.Global
         public DataSet Resize(int targetSize, bool shuffle)
         {
@@ -360,12 +359,6 @@ namespace SharpNet.Datasets
             }
             return new MappedDataSet(this, elementIdToOriginalElementId);
         }
-        //public DataSet Shuffle(Random r)
-        //{
-        //    var elementIdToOriginalElementId = Enumerable.Range(0, Count).ToList();
-        //    Utils.Shuffle(elementIdToOriginalElementId, r);
-        //    return new MappedDataSet(this, elementIdToOriginalElementId);
-        //}
         /// <summary>
         /// return a data set keeping only 'percentageToKeep' elements of the current data set
         /// </summary>
@@ -375,6 +368,7 @@ namespace SharpNet.Datasets
         {
             return SubDataSet(_ => _rands[0].NextDouble() < percentageToKeep);
         }
+        // ReSharper disable once VirtualMemberNeverOverridden.Global
         public virtual double PercentageToUseForLossAndAccuracyFastEstimate => 0.1;
         public DataSet SubDataSet(Func<int, bool> elementIdInOriginalDataSetToIsIncludedInSubDataSet)
         {
@@ -393,18 +387,19 @@ namespace SharpNet.Datasets
             return new MappedDataSet(this, subElementIdToOriginalElementId);
         }
         /// <summary>
-        /// returns the ID associated with the row 'Y_row_InTargetFormat' in the
-        /// prediction file in target format
+        /// returns the Y_ID associated with the row 'Y_row_InTargetFormat'
+        /// in the prediction file in target format
+        /// return null if there is no Y_ID column in the prediction file in target format
         /// </summary>
         /// <param name="Y_row_InTargetFormat"></param>
         /// <returns></returns>
-        public virtual string ID_Y_row_InTargetFormat(int Y_row_InTargetFormat)
+        public virtual string Y_ID_row_InTargetFormat(int Y_row_InTargetFormat)
         {
-            if (Y_IDs != null)
+            if (Y_IDs == null)
             {
-                return Y_IDs[Y_row_InTargetFormat];  
+                return null; // there is no Y_ID column in the prediction file in target format
             }
-            return Y_row_InTargetFormat.ToString();
+            return Y_IDs[Y_row_InTargetFormat];  
         }
         /// <summary>
         /// the length of the returned list is:
@@ -490,7 +485,6 @@ namespace SharpNet.Datasets
             var rand = _rands[indexInMiniBatch % _rands.Length];
             return rand;
         }
-
         /// <summary>
         /// true if the DataSet can ve saved in CSV format
         /// false if it is not possible
@@ -534,7 +528,7 @@ namespace SharpNet.Datasets
         /// <param name="directory">the directory where to save to dataset</param>
         /// <param name="overwriteIfExists"></param>
         /// <returns>the path (directory+filename) where the dataset has been saved</returns>
-        public virtual string to_libsvm_in_directory(string directory, bool overwriteIfExists)
+        public string to_libsvm_in_directory(string directory, bool overwriteIfExists)
         {
             if (ColumnNames.Length == 0)
             {
@@ -617,6 +611,7 @@ namespace SharpNet.Datasets
             Dispose(false);
         }
         #endregion
+
         #region Background Thread management
         /// <summary>
         /// true if we should use a separate thread to load the content of the next mini batch
@@ -681,7 +676,6 @@ namespace SharpNet.Datasets
         }
         #endregion
 
-
         protected void UpdateStatus(ref int nbPerformed)
         {
             int delta = Math.Max(Count / 100, 1);
@@ -696,7 +690,7 @@ namespace SharpNet.Datasets
         {
             return Math.Min(batchSize, shuffledElementId.Length - firstIndexInShuffledElementId);
         }
-        protected virtual DataFrame ExtractIdDataFrame(int rows)
+        public virtual DataFrame ExtractIdDataFrame(int rows)
         {
             if (string.IsNullOrEmpty(IdColumn))
             {
@@ -705,7 +699,7 @@ namespace SharpNet.Datasets
             var content = new string[rows];
             for (int row = 0; row < rows; ++row)
             {
-                content[row] = ID_Y_row_InTargetFormat(row);
+                content[row] = Y_ID_row_InTargetFormat(row);
             }
             return DataFrame.New(content, new[] { IdColumn });
             //int columnIndexesOfId = Array.IndexOf(ColumnNames, IdColumn);
@@ -750,8 +744,6 @@ namespace SharpNet.Datasets
             }
             LoadAt(elementId, indexInBuffer, xBuffers[0], yBuffer, withDataAugmentation, isTraining);
         }
-
-
 
 
         /// <summary>
@@ -823,7 +815,7 @@ namespace SharpNet.Datasets
                         : 1;
                 int targetHeight = all_xMiniBatchShape[0][^2];
                 int targetWidth = all_xMiniBatchShape[0][^1];
-                Lazy<ImageStatistic> MiniBatchIdxToLazyImageStatistic(int miniBatchIdx) => new Lazy<ImageStatistic>(() => ElementIdToImageStatistic(MiniBatchIdxToElementId(miniBatchIdx), channels, targetHeight, targetWidth));
+                Lazy<ImageStatistic> MiniBatchIdxToLazyImageStatistic(int miniBatchIdx) => new(() => ElementIdToImageStatistic(MiniBatchIdxToElementId(miniBatchIdx), channels, targetHeight, targetWidth));
                 var imageDataGenerator = new ImageDataGenerator(dataAugmentationSample);
                 Parallel.For(0, miniBatchSize, indexInMiniBatch => imageDataGenerator.DataAugmentationForMiniBatch(indexInMiniBatch % maxElementsToLoad, all_xOriginalNotAugmentedMiniBatch[0], all_xDataAugmentedMiniBatch[0], yOriginalMiniBatch, yDataAugmentedMiniBatch, MiniBatchIdxToCategoryIndex, MiniBatchIdxToLazyImageStatistic, MeanAndVolatilityForEachChannel, GetRandomForIndexInMiniBatch(indexInMiniBatch), all_xBufferForDataAugmentedMiniBatch[0]));
             }

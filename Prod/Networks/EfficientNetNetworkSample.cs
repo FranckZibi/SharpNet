@@ -8,11 +8,15 @@ using SharpNet.GPU;
 using SharpNet.Layers;
 using SharpNet.Models;
 // ReSharper disable UnusedMember.Global
+// ReSharper disable MemberCanBePrivate.Global
+// ReSharper disable ConvertToConstant.Global
+// ReSharper disable FieldCanBeMadeReadOnly.Global
 
 namespace SharpNet.Networks;
 
 public class EfficientNetNetworkSample : NetworkSample
 {
+    // ReSharper disable once EmptyConstructor
     public EfficientNetNetworkSample()
     {
     }
@@ -45,7 +49,7 @@ public class EfficientNetNetworkSample : NetworkSample
         var config = (EfficientNetNetworkSample)new EfficientNetNetworkSample()
         {
             LossFunction = EvaluationMetricEnum.CategoricalCrossentropy,
-            CompatibilityMode = NetworkSample.CompatibilityModeEnum.TensorFlow,
+            CompatibilityMode = CompatibilityModeEnum.TensorFlow,
             lambdaL2Regularization = 0.0005,
             //!D WorkingDirectory = Path.Combine(NetworkSample.DefaultWorkingDirectory, "ImageNet"),
             NumEpochs = 150,
@@ -73,7 +77,7 @@ public class EfficientNetNetworkSample : NetworkSample
         var config = (EfficientNetNetworkSample)new EfficientNetNetworkSample
         {
             LossFunction = EvaluationMetricEnum.CategoricalCrossentropyWithHierarchy,
-            CompatibilityMode = NetworkSample.CompatibilityModeEnum.TensorFlow,
+            CompatibilityMode = CompatibilityModeEnum.TensorFlow,
             lambdaL2Regularization = 0.0005,
             //!D WorkingDirectory = Path.Combine(NetworkSample.DefaultWorkingDirectory, "Cancel"),
             AlwaysUseFullTestDataSetForLossAndAccuracy = false,
@@ -112,7 +116,7 @@ public class EfficientNetNetworkSample : NetworkSample
         var config = (EfficientNetNetworkSample)new EfficientNetNetworkSample()
         {
             LossFunction = EvaluationMetricEnum.CategoricalCrossentropy,
-            CompatibilityMode = NetworkSample.CompatibilityModeEnum.TensorFlow,
+            CompatibilityMode = CompatibilityModeEnum.TensorFlow,
             lambdaL2Regularization = 0.0005,
             //!D WorkingDirectory = Path.Combine(NetworkSample.DefaultWorkingDirectory, CIFAR10DataSet.NAME),
             NumEpochs = 150,
@@ -300,7 +304,7 @@ public class EfficientNetNetworkSample : NetworkSample
             {
                 throw new ArgumentException("missing " + weights + " model file " + modelPath);
             }
-            network.LoadParametersFromH5File(modelPath, NetworkSample.CompatibilityModeEnum.TensorFlow);
+            network.LoadParametersFromH5File(modelPath, CompatibilityModeEnum.TensorFlow);
         }
 
         network.FreezeSelectedLayers();
@@ -540,6 +544,6 @@ public class EfficientNetNetworkSample : NetworkSample
 
     public static string GetKerasModelPath(string modelFileName)
     {
-        return System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), @".keras\models\", modelFileName);
+        return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), @".keras\models\", modelFileName);
     }
 }

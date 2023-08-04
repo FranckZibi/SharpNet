@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using JetBrains.Annotations;
@@ -11,13 +10,17 @@ public class DataFrameDataSet : DataSet
 {
     // ReSharper disable once PrivateFieldCanBeConvertedToLocalVariable
 
-    #region private fields
+    #region private fields and properties
     private readonly int[] _elementIdToCategoryIndex;
     private CpuTensor<float> _x => XDataFrame.FloatCpuTensor();
-
     [CanBeNull] private CpuTensor<float> yDataFrameDataSet => YDataFrame_InModelFormat?.FloatCpuTensor();
+    private DataFrame YDataFrame_InModelFormat { get; }
     #endregion
 
+    #region public fields and properties
+    public DataFrame XDataFrame { get; }
+    public AbstractDatasetSample DatasetSample { get; }
+    #endregion
 
     public DataFrameDataSet(
         AbstractDatasetSample datasetSample,
@@ -30,8 +33,8 @@ public class DataFrameDataSet : DataSet
             ResizeStrategyEnum.None,
             x_df.Columns,
             Utils.Intersect(x_df.Columns, datasetSample.CategoricalFeatures).ToArray(),
-            datasetSample.IdColumn,
             y_IDs,
+            datasetSample.IdColumn, 
             datasetSample.GetSeparator())
     {
         DatasetSample = datasetSample;
@@ -52,46 +55,33 @@ public class DataFrameDataSet : DataSet
         YDataFrame_InModelFormat = y_df;
     }
 
-    //public override List<TrainingAndTestDataset> KFoldSplit(int kfold, int countMustBeMultipleOf)
-    //{
-    //    return DatasetSample.KFoldSplit(this, kfold, countMustBeMultipleOf);
-    //}
-
     public override void LoadAt(int elementId, int indexInBuffer, CpuTensor<float> xBuffer, CpuTensor<float> yBuffer, bool withDataAugmentation, bool isTraining)
     {
-        Debug.Assert(indexInBuffer >= 0 && indexInBuffer < xBuffer.Shape[0]);
-        //same number of channels / same height  / same width
-        //only the first dimension (batch size) can be different
-        Debug.Assert(_x.SameShapeExceptFirstDimension(xBuffer));
         if (xBuffer != null)
         {
+            //same number of channels / same height  / same width
+            //only the first dimension (batch size) can be different
+            Debug.Assert(_x.SameShapeExceptFirstDimension(xBuffer));
+            Debug.Assert(indexInBuffer >= 0 && indexInBuffer < xBuffer.Shape[0]);
             _x.CopyTo(_x.Idx(elementId), xBuffer, xBuffer.Idx(indexInBuffer), xBuffer.MultDim0);
         }
 
         if (yBuffer != null && yDataFrameDataSet != null)
         {
+            Debug.Assert(indexInBuffer >= 0 && indexInBuffer < yBuffer.Shape[0]);
             Debug.Assert(yDataFrameDataSet.SameShapeExceptFirstDimension(yBuffer));
             yDataFrameDataSet.CopyTo(yDataFrameDataSet.Idx(elementId), yBuffer, yBuffer.Idx(indexInBuffer), yBuffer.MultDim0);
         }
     }
-
     public override int[] Y_Shape()
     {
         return yDataFrameDataSet?.Shape;
     }
-
     public override CpuTensor<float> LoadFullY()
     {
         return yDataFrameDataSet;
     }
-
-    public void ShuffleColumns(Random r, IList<string> columnToShuffle)
-    {
-        XDataFrame.ShuffleInPlace(r, columnToShuffle.ToArray());
-    }
-
     public override int Count => _x.Shape[0];
-
     public override int ElementIdToCategoryIndex(int elementId)
     {
         if (IsRegressionProblem)
@@ -100,15 +90,10 @@ public class DataFrameDataSet : DataSet
         }
         return _elementIdToCategoryIndex[elementId];
     }
-    public AbstractDatasetSample DatasetSample { get; }
-
-    public DataFrame XDataFrame { get; }
-    public DataFrame YDataFrame_InModelFormat { get; }
     public override string ToString()
     {
         return XDataFrame + " => " + YDataFrame_InModelFormat;
     }
-
     public override AbstractDatasetSample GetDatasetSample()
     {
         return DatasetSample;

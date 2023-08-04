@@ -130,7 +130,6 @@ public sealed class EmbeddingLayer : Layer
     #region forward and backward propagation
     public override void ForwardPropagation(List<Tensor> allX, Tensor y, bool isTraining)
     {
-        ++NbForwardPropagation;
         Debug.Assert(allX.Count == 1);
         var x = allX[0];
         Debug.Assert(x.Shape[0] == y.Shape[0]); //same batchSize
@@ -182,7 +181,7 @@ public sealed class EmbeddingLayer : Layer
         y.ReshapeInPlace(yOriginalShape);
     }
 
-    public List<Tensor> Split(Tensor w)
+    private List<Tensor> Split(Tensor w)
     {
         var res = new List<Tensor>();
         int nextIdxInWeights = 0;
@@ -194,10 +193,6 @@ public sealed class EmbeddingLayer : Layer
         }
         return res;
     }
-
-
-    public int NbForwardPropagation = 0;
-
     private bool ShouldEmbedEachElementOfLastDimension => _embeddingDescriptions[0].indexInLastDimensionToUse == -1;
 
     public override void BackwardPropagation(List<Tensor> allX, Tensor y_NotUsed, Tensor dy, List<Tensor> allDx)

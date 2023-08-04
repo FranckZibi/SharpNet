@@ -9,7 +9,7 @@ namespace SharpNet.Data
 {
     public class Serializer
     {
-        private readonly StringBuilder _sb = new StringBuilder();
+        private readonly StringBuilder _sb = new ();
         public Serializer Add(string description, int value)
         {
             _sb.Append("int;" + description + ";" + value + ";");
@@ -76,16 +76,6 @@ namespace SharpNet.Data
                 data[i] = convert(elementValue);
             }
             return data;
-        }
-
-
-        public Serializer Add(string value)
-        {
-            if (!string.IsNullOrEmpty(value))
-            {
-                _sb.Append(value);
-            }
-            return this;
         }
         // ReSharper disable once UnusedMember.Global
         public Serializer Add(string description, float value)

@@ -6,9 +6,9 @@ namespace SharpNet.Pictures
     public sealed class ColorAccumulator
     {
         #region private fields
-        private readonly DoubleAccumulator L = new DoubleAccumulator();
-        private readonly DoubleAccumulator A = new DoubleAccumulator();
-        private readonly DoubleAccumulator B = new DoubleAccumulator();
+        private readonly DoubleAccumulator L = new ();
+        private readonly DoubleAccumulator A = new ();
+        private readonly DoubleAccumulator B = new ();
         #endregion
 
         public override int GetHashCode()
@@ -19,8 +19,6 @@ namespace SharpNet.Pictures
         {
             return "E(Color)=" + Average + " ; Volatility="+Math.Round(Volatility,1)+" ; "  + Count + "pixels;";
         }
-
-        public long Count => L.Count;
 
         public void Add(RGBColor color, int count = 1)
         {
@@ -45,5 +43,6 @@ namespace SharpNet.Pictures
         {
             get { return Math.Sqrt(Math.Pow(L.Volatility, 2) + Math.Pow(A.Volatility, 2) + Math.Pow(B.Volatility, 2)); }
         }
+        private long Count => L.Count;
     }
 }

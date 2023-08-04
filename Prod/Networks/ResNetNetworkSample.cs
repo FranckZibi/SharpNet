@@ -31,7 +31,7 @@ namespace SharpNet.Networks
 {
     public class ResNetNetworkSample : NetworkSample
     {
-        public ResNetNetworkSample()
+        private ResNetNetworkSample()
         {
         }
 

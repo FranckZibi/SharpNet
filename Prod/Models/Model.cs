@@ -5,7 +5,6 @@ using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using log4net;
-using Newtonsoft.Json.Linq;
 using SharpNet.CPU;
 using SharpNet.Datasets;
 using SharpNet.HyperParameters;

@@ -15,8 +15,6 @@ using SharpNet.GPU;
 using SharpNet.Layers;
 using SharpNet.Models;
 using SharpNet.Optimizers;
-using SharpNet.Svm;
-using H5GroupId = System.Int64;
 
 
 namespace SharpNet.Networks
@@ -34,8 +32,8 @@ namespace SharpNet.Networks
         // ReSharper disable once MemberCanBePrivate.Global
         public NetworkSample NetworkSample => (NetworkSample)ModelSample;
         public NetworkSample Sample => NetworkSample;
-        public Random Rand { get; } = new Random(0);
-        public List<Layer> Layers { get; } = new List<Layer>();
+        public Random Rand { get; } = new (0);
+        public List<Layer> Layers { get; } = new ();
         public PropagationManager PropagationManager { get; }
         public TensorMemoryPool MemoryPool { get; }
         public GPUWrapper GpuWrapper { get; }
@@ -805,6 +803,7 @@ namespace SharpNet.Networks
         /// check if we have just reached an epoch with a new best validation score that is high enough that we should save the network and the predictions
         /// </summary>
         /// <param name="validationDatasetIfAny"></param>
+        /// <param name="epoch"></param>
         /// <returns></returns>
         private bool IsNewBestIterationToSave(DataSet validationDatasetIfAny, int epoch)
         {

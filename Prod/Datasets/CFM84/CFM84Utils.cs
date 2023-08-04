@@ -101,7 +101,7 @@ public static class CFM84Utils
     public static void Run()
     {
         //Misc.CreateAllFiles(); return;
-        //Misc.YCNG(); return;
+        //Misc.Run(); return;
         //BuildStatNormalizeFile();
         //Misc.BuildStatFile(); return;
         //using var m = ModelAndDatasetPredictions.Load(@"C:\Projects\Challenges\CFM84\dump\", "FB801BE40C", true);

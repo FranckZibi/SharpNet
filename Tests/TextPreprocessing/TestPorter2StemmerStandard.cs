@@ -7,7 +7,7 @@ namespace SharpNetTests.TextPreprocessing;
 public class TestPorter2StemmerStandard
 {
     // ReSharper disable once IdentifierTypo
-    private readonly EnglishPorter2Stemmer _stemmer = new EnglishPorter2Stemmer();
+    private readonly EnglishPorter2Stemmer _stemmer = new ();
 
 
     [Test]

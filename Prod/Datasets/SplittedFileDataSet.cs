@@ -28,10 +28,7 @@ namespace SharpNet.Datasets
                 meanAndVolatilityForEachChannel, 
                 ResizeStrategyEnum.None,
                 new string[0],
-                new string[0],
-                "",
-                null, //TODO
-                ',')
+                new string[0])
         {
             //Currently only pictures (channels x height x width) are supported
             Debug.Assert(singleElementShape_CHW.Length == 3);
@@ -61,14 +58,12 @@ namespace SharpNet.Datasets
         }
         public override void LoadAt(int elementId, int indexInBuffer, CpuTensor<float> xBuffer, CpuTensor<float> yBuffer, bool withDataAugmentation, bool isTraining)
         {
-            Debug.Assert(indexInBuffer >= 0 && indexInBuffer < xBuffer.Shape[0]);
-
             //we load the element content from the file
             var xByte = LoadElementIdFromFile(elementId);
 
             if (xBuffer != null)
             {
-
+                Debug.Assert(indexInBuffer >= 0 && indexInBuffer < xBuffer.Shape[0]);
                 var targetHeight = xBuffer.Shape[2];
                 var targetWidth = xBuffer.Shape[3];
                 var xBufferContent = xBuffer.SpanContent;

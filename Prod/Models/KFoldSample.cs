@@ -44,7 +44,8 @@ public class KFoldSample : AbstractModelSample
     #endregion
     public override EvaluationMetricEnum GetLoss() => EmbeddedModelLoss;
     public override EvaluationMetricEnum GetRankingEvaluationMetric() => EmbeddedModelRankingEvaluationMetric;
-    public override List<EvaluationMetricEnum> GetAllEvaluationMetrics()
+
+    protected override List<EvaluationMetricEnum> GetAllEvaluationMetrics()
     {
         return new List<EvaluationMetricEnum> { GetRankingEvaluationMetric() };
     }

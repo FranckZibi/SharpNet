@@ -6,7 +6,6 @@ using JetBrains.Annotations;
 using log4net;
 using SharpNet.CPU;
 using SharpNet.DataAugmentation;
-using SharpNet.DataAugmentation.Operations;
 using SharpNet.GPU;
 using SharpNet.HPO;
 using SharpNet.HyperParameters;
@@ -67,9 +66,9 @@ public static class Biosonar85Utils
 
 
     public const float x_train_mean_PNG_1CHANNEL_V2 = -57.210965f;    // for train dataset
-    public const float x_test_mean_PNG_1CHANNEL_V2 = -54.409614f;     // for test dataset
+    //public const float x_test_mean_PNG_1CHANNEL_V2 = -54.409614f;     // for test dataset
     public const float x_train_volatility_PNG_1CHANNEL_V2 = 13.373847f;            // for train dataset
-    public const float x_test_volatility_PNG_1CHANNEL_V2 = 10.493092f;             // for test dataset
+    //public const float x_test_volatility_PNG_1CHANNEL_V2 = 10.493092f;             // for test dataset
 
     public static void Run()
     {
@@ -88,10 +87,11 @@ public static class Biosonar85Utils
         //Launch_HPO(10);return;
     }
 
+    // ReSharper disable once UnusedMember.Global
     public static void ComputeAverage_avg()
     {
         var dfs = new List<DataFrame>();
-        var path = @"\\RYZEN2700X-DEV\Challenges\Biosonar85\Submit\";
+        const string path = @"\\RYZEN2700X-DEV\Challenges\Biosonar85\Submit\";
         foreach (var file in new[]
                  {
                      @"7E45F84676_predict_test_0,9353867531264475.csv",
@@ -104,7 +104,7 @@ public static class Biosonar85Utils
     }
 
 
-    public static (int[] shape, int n_fft, int hop_len, int f_min, int f_max, int top_db) ProcessXFileName(string xPath)
+    private static (int[] shape, int n_fft, int hop_len, int f_min, int f_max, int top_db) ProcessXFileName(string xPath)
     {
         var xSplitted = Path.GetFileNameWithoutExtension(xPath).Split("_");
         var xShape = new[] { int.Parse(xSplitted[^8]), int.Parse(xSplitted[^7]), int.Parse(xSplitted[^6]) };
@@ -188,8 +188,8 @@ public static class Biosonar85Utils
             null, //meanAndVolatilityForEachChannel
             null, //columnNames
             new string[0], //categoricalFeatures,
-            "id", //idColumn,
             yID,
+            "id", //idColumn,
             ',' //separator,
         );
         return dataset;
@@ -352,6 +352,7 @@ public static class Biosonar85Utils
         hpo.Process(t => SampleUtils.TrainWithHyperParameters((ModelAndDatasetPredictionsSample)t, WorkingDirectory, retrainOnFullDatasetIfBetterModelFound, ref bestScoreSoFar), maxAllowedSecondsForAllComputation);
     }
 
+    // ReSharper disable once UnusedMember.Global
     public static void Launch_HPO_Spectogram(int numEpochs = 10, int maxAllowedSecondsForAllComputation = 0)
     {
         Utils.ConfigureGlobalLog4netProperties(WorkingDirectory, "log");
@@ -443,7 +444,7 @@ public static class Biosonar85Utils
     /// The default EfficientNet Hyper-Parameters for CIFAR10
     /// </summary>
     /// <returns></returns>
-    public static EfficientNetNetworkSample DefaultEfficientNetNetworkSample()
+    private static EfficientNetNetworkSample DefaultEfficientNetNetworkSample()
     {
         var config = (EfficientNetNetworkSample)new EfficientNetNetworkSample()
         {

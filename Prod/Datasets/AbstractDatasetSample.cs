@@ -112,6 +112,7 @@ public abstract class AbstractDatasetSample : AbstractSample, IDisposable
         return (y_pred_InModelFormat, modelLossScore, y_pred_InTargetFormat, targetRankingScore, path_pred_InModelFormat);
     }
 
+    [SuppressMessage("ReSharper", "PossibleMultipleWriteAccessInDoubleCheckLocking")]
     public virtual int[] GetInputShapeOfSingleElement()
     {
         if (_cacheInputShape_CHW != null)
@@ -137,7 +138,7 @@ public abstract class AbstractDatasetSample : AbstractSample, IDisposable
             }
             else
             {
-                throw new ArgumentException($"can't compute shape for dataset type {fullTrainingAndValidation.GetType()}");
+                throw new ArgumentException($"can't compute shape for dataset type {fullTrainingAndValidation.GetType()}, you must override method {nameof(GetInputShapeOfSingleElement)} for class {GetType()}");
             }
         }
         return _cacheInputShape_CHW;
@@ -225,6 +226,7 @@ public abstract class AbstractDatasetSample : AbstractSample, IDisposable
         var columnNamesLength = columnNames?.Length??0;
         for (var i = 0; i < columnNamesLength; i++)
         {
+            // ReSharper disable once PossibleNullReferenceException
             var column = columnNames[i];
 
             if (IsIdColumn(column))
@@ -358,8 +360,12 @@ public abstract class AbstractDatasetSample : AbstractSample, IDisposable
         var y_pred_Decoded_InTargetFormat = (DatasetEncoder != null)
                 ?DatasetEncoder.Inverse_Transform(y_pred_Encoded_InTargetFormat)
                 : y_pred_Encoded_InTargetFormat;
-        y_pred_Decoded_InTargetFormat = xDataset.AddIdColumnsAtLeftIfNeeded(y_pred_Decoded_InTargetFormat);
-    
+
+        //we add the Y_ID column
+        if (!string.IsNullOrEmpty(xDataset.IdColumn) && !y_pred_Decoded_InTargetFormat.Columns.Contains(xDataset.IdColumn))
+        {
+            y_pred_Decoded_InTargetFormat = DataFrame.MergeHorizontally(xDataset.ExtractIdDataFrame(y_pred_Decoded_InTargetFormat.Shape[0]), y_pred_Decoded_InTargetFormat);
+        }
         if (PredictionsMustBeOrderedByIdColumn && !string.IsNullOrEmpty(IdColumn))
         {
             y_pred_Decoded_InTargetFormat = y_pred_Decoded_InTargetFormat.sort_values(IdColumn);

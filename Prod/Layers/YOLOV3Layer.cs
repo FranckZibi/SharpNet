@@ -29,12 +29,6 @@ namespace SharpNet.Layers
 
         public float Score => BoxConfidence* ArgMaxClassPrediction;
 
-
-        public string CaptionFor(string[] categoryIndexToDescription)
-        {
-            return categoryIndexToDescription[ArgMaxClass]+" "+Math.Round(Score, 4);
-        }
-
         private PredictionDescription(int indexInInput, BoundingBox box, float boxConfidence, int argMaxClass, float argMaxClassPrediction)
         {
             IndexInInput = indexInInput;

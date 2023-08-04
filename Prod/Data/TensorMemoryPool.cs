@@ -14,8 +14,8 @@ namespace SharpNet.Data
     public class TensorMemoryPool : IDisposable
     {
         #region private fields
-        private readonly List<Tensor> _availableTensorOrderedByCount = new List<Tensor>();
-        private readonly List<Tensor> _allAllocatedTensors = new List<Tensor>();
+        private readonly List<Tensor> _availableTensorOrderedByCount = new ();
+        private readonly List<Tensor> _allAllocatedTensors = new ();
         //null if we should allocate CpuTensor
         //not  null for GPUTensor
 #if PROFILE_MEMORY_POOL

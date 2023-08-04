@@ -71,7 +71,7 @@ namespace SharpNet.TextPreprocessing
         /// characters that will be filtered (removed) from input
         /// </summary>
         private readonly char[] _filters;
-        private readonly ConcurrentDictionary<string, int> _wordToWordCount =  new ConcurrentDictionary<string, int>();
+        private readonly ConcurrentDictionary<string, int> _wordToWordCount =  new ();
         /// <summary>
         /// index associated with each word, from the most common (index 0, 1 or 2) to the least common (index _numWords-1)
         /// if _firstElementIsPaddingToken == true

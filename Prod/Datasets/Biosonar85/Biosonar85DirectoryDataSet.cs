@@ -3,7 +3,7 @@ using System;
 using System.Collections.Generic;
 using SharpNet.Pictures;
 using SharpNet.MathTools;
-using System.Threading.Channels;
+// ReSharper disable InconsistentlySynchronizedField
 
 namespace SharpNet.Datasets.Biosonar85
 {
@@ -11,14 +11,13 @@ namespace SharpNet.Datasets.Biosonar85
 
     public class Biosonar85DirectoryDataSet : DirectoryDataSet
     {
-        private Dictionary<int, BitmapContent> cache = new(); 
+        private readonly Dictionary<int, BitmapContent> _cache = new(); 
         public Biosonar85DirectoryDataSet(List<List<string>> elementIdToPaths, List<int> elementIdToCategoryIndex, CpuTensor<float> expectedYIfAny, string name, Objective_enum objective, int channels, int numClass, List<Tuple<float, float>> meanAndVolatilityForEachChannel, ResizeStrategyEnum resizeStrategy, string[] featureNames, string[] y_IDs) 
-            : base(elementIdToPaths, elementIdToCategoryIndex, expectedYIfAny, name, objective, channels, numClass, meanAndVolatilityForEachChannel, resizeStrategy, featureNames, "id", y_IDs)
+            : base(elementIdToPaths, elementIdToCategoryIndex, expectedYIfAny, name, objective, channels, numClass, meanAndVolatilityForEachChannel, resizeStrategy, featureNames, y_IDs, "id")
         {
         }
 
-        private object lockObject = new object();
-
+        private readonly object _lockObject = new ();
 
         public override void LoadAt(int elementId, int indexInBuffer, CpuTensor<float> xBuffer, CpuTensor<float> yBuffer, bool withDataAugmentation, bool isTraining)
         {
@@ -63,18 +62,20 @@ namespace SharpNet.Datasets.Biosonar85
         {
             try
             {
-                if (!cache.ContainsKey(elementId))
+                if (_cache.ContainsKey(elementId))
                 {
-                    var tmp = BitmapContent.ValueFromSeveralSingleChannelBitmaps(_elementIdToPaths[elementId]);
-                    lock (lockObject)
+                    return _cache[elementId];
+                }
+
+                var tmp = BitmapContent.ValueFromSeveralSingleChannelBitmaps(_elementIdToPaths[elementId]);
+                lock (_lockObject)
+                {
+                    if (!_cache.ContainsKey(elementId))
                     {
-                        if (!cache.ContainsKey(elementId))
-                        {
-                            cache[elementId] = tmp;
-                        }
+                        _cache[elementId] = tmp;
                     }
                 }
-                return cache[elementId];
+                return _cache[elementId];
             }
             catch (Exception e)
             {

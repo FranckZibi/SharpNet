@@ -159,7 +159,8 @@ namespace SharpNet
         {
             return LongProduct(data.Select(i=>(long)i).ToArray());
         }
-        public static long LongProduct(long[] data)
+
+        private static long LongProduct(long[] data)
         {
             if ((data == null) || (data.Length == 0))
             {
@@ -1401,7 +1402,7 @@ namespace SharpNet
                 return "";
             }
         }
-        private static readonly object lockConfigureLog4netProperties = new object();
+        private static readonly object lockConfigureLog4netProperties = new ();
         private static void ConfigureLog4netProperties(string logDirectory, string logFile, ContextPropertiesBase properties)
         {
             properties["threadid"] = Thread.CurrentThread.ManagedThreadId;

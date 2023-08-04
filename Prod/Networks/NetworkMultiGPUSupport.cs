@@ -18,7 +18,7 @@ namespace SharpNet.Networks
         #endregion
 
         #region private fields used by master network only
-        private readonly List<Tensor> all_x_miniBatch = new List<Tensor>();
+        private readonly List<Tensor> all_x_miniBatch = new ();
         /// <summary>
         /// list of all slave networks
         /// empty list of:
@@ -27,7 +27,7 @@ namespace SharpNet.Networks
         ///     the 'this' network is a master network  but we are not using multi GPU computation
         ///     (all computation is performed on the master network)
         /// </summary>
-        private readonly List<Network> _slaveNetworks = new List<Network>();
+        private readonly List<Network> _slaveNetworks = new();
         private Tensor _yPredictedForEpoch;
         #endregion
 

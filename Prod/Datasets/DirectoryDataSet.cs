@@ -20,9 +20,9 @@ namespace SharpNet.Datasets
         ///     each element is a single channel of the target element id
         ///     we'll need to stack all those channels to build the element id
         /// </summary>
-        protected readonly List<List<string>> _elementIdToPaths = new List<List<string>>();
+        protected readonly List<List<string>> _elementIdToPaths = new ();
         private readonly List<int> _elementIdToCategoryIndex;
-        private readonly Random _rand = new Random(0);
+        private readonly Random _rand = new (0);
         [NotNull] protected CpuTensor<float> Y_DirectoryDataSet { get; }
         #endregion
 
@@ -52,14 +52,12 @@ namespace SharpNet.Datasets
                 numClass,
                 meanAndVolatilityForEachChannel,
                 resizeStrategy,
-                null,
                 null, //idColumn
-                rowInTargetFormatPredictionToID.ToArray());
+                rowInTargetFormatPredictionToID.ToArray(), null);
         }
 
         #region constructor
-        public DirectoryDataSet(
-            List<List<string>> elementIdToPaths,
+        public DirectoryDataSet(List<List<string>> elementIdToPaths,
             List<int> elementIdToCategoryIndex,
             CpuTensor<float> expectedYIfAny,
             string name,
@@ -69,16 +67,16 @@ namespace SharpNet.Datasets
             List<Tuple<float, float>> meanAndVolatilityForEachChannel,
             ResizeStrategyEnum resizeStrategy,
             string[] featureNames,
-            string idColumn,
-            string[] y_IDs)
+            string[] y_IDs,
+            string idColumn)
             : base(name,
                 objective, 
                 meanAndVolatilityForEachChannel, 
                 resizeStrategy,
                 featureNames?? new string[0],
                 new string[0],
-                idColumn,
                 y_IDs,
+                idColumn, 
                 ',')
         {
             _elementIdToPaths.AddRange(elementIdToPaths);
@@ -86,6 +84,7 @@ namespace SharpNet.Datasets
 
             if (meanAndVolatilityForEachChannel == null)
             {
+                // ReSharper disable once RedundantAssignment
                 meanAndVolatilityForEachChannel = ComputeMeanAndVolatilityForEachChannel(channels);
                 throw new ArgumentException("please update mean and volatility for dataSet " + name);
             }

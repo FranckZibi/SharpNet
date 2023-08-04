@@ -6,7 +6,6 @@ using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using SharpNet.Layers;
 using SharpNet.HyperParameters;
-using log4net;
 
 namespace SharpNet.GPU
 {
@@ -17,7 +16,6 @@ namespace SharpNet.GPU
     {
         #region Private fields
         // ReSharper disable once PrivateFieldCanBeConvertedToLocalVariable
-        public static readonly ILog Log = LogManager.GetLogger(typeof(GPUWrapper));
         private readonly IntPtr _deviceHandle;
         private readonly string _deviceName;
         private readonly Version _cublasVersion;
@@ -36,7 +34,7 @@ namespace SharpNet.GPU
         private readonly IDictionary<Tuple<cudnnTensorDescriptor_t, cudnnTensorDescriptor_t, cudnnConvolutionDescriptor_t, cudnnFilterDescriptor_t, ConvolutionAlgoPreference>, cudnnConvolutionFwdAlgo_t> cacheConvolutionForwardAlgorithm = new Dictionary<Tuple<cudnnTensorDescriptor_t, cudnnTensorDescriptor_t, cudnnConvolutionDescriptor_t, cudnnFilterDescriptor_t, ConvolutionAlgoPreference>, cudnnConvolutionFwdAlgo_t>();
         private readonly IDictionary<CUdevice_attribute, int> properties = new Dictionary<CUdevice_attribute, int>();
         private readonly IDictionary<Tuple<int, int>, Tensor> _cacheDevSeqLengths = new Dictionary<Tuple<int, int>, Tensor>();
-        private readonly List<Tensor> _randomNumberGeneratorStatesBuffers = new List<Tensor>();
+        private readonly List<Tensor> _randomNumberGeneratorStatesBuffers = new ();
         private IntPtr _cudaBlasHandle;
         private IntPtr _contextHandle;
         private cudnnHandle_t _cudnnHandle;
@@ -65,10 +63,10 @@ namespace SharpNet.GPU
 
 
         public int WarpSize { get; }
-        public Stopwatch SwCopyDeviceToSameDevice { get; } = new Stopwatch();
-        public Stopwatch SwCopyDeviceToOtherDevice { get; } = new Stopwatch();
-        public Stopwatch SwCopyHostToDevice { get; } = new Stopwatch();
-        public Stopwatch SwCopyDeviceToHost { get; } = new Stopwatch();
+        public Stopwatch SwCopyDeviceToSameDevice { get; } = new ();
+        public Stopwatch SwCopyDeviceToOtherDevice { get; } = new ();
+        public Stopwatch SwCopyHostToDevice { get; } = new ();
+        public Stopwatch SwCopyDeviceToHost { get; } = new ();
         #endregion
 
         public CublasWrapper CublasWrapper { get; }

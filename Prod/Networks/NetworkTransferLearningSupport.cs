@@ -49,43 +49,6 @@ namespace SharpNet.Networks
             }
             throw new NotImplementedException("can only update a network where the 2 last layers are DenseLayer & ActivationLayer");
         }
-
-
-        /// <summary>
-        /// set the number of regression output of the current network by updating the head layers (Dense+Activation layers)
-        /// it update the last Dense Layers (resetting all its weights) to match the required number of regression values
-        /// </summary>
-        /// <param name="newRegressionCount">the target number of categories</param>
-        public void SetRegressionCount(int newRegressionCount)
-        {
-            LogInfo("setting number of output regression output to " + newRegressionCount);
-            if (Layers.Count >= 2 && Layers[Layers.Count - 1] is ActivationLayer && Layers[Layers.Count - 2] is DenseLayer)
-            {
-                var denseLayer = (DenseLayer)Layers[Layers.Count - 2];
-
-                //we remove the ActivationLayer (last layer)
-                var activationLayer = (ActivationLayer)Layers.Last();
-                var activationFunctionType = activationLayer.ActivationFunction;
-                var activationLayerName = activationLayer.LayerName;
-                RemoveAndDisposeLastLayer();
-
-                //we remove the Dense layer
-                var lambdaL2Regularization = denseLayer.LambdaL2Regularization;
-                var denseLayerName = denseLayer.LayerName;
-                RemoveAndDisposeLastLayer();
-
-                //We add a new DenseLayer (with weight reseted)
-                LogInfo("Resetting weights of layer " + denseLayerName + " to have " + newRegressionCount + " categories");
-                Dense(newRegressionCount, lambdaL2Regularization, false, denseLayerName);
-
-                //we put back the ActivationLayer
-                Activation(activationFunctionType, activationLayerName);
-
-                return;
-            }
-            throw new NotImplementedException("can only update a network where the 2 last layers are DenseLayer & ActivationLayer");
-        }
-
         private void RemoveAndDisposeLastLayer()
         {
             var lastLayer = Layers.Last();

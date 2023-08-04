@@ -6,11 +6,11 @@ namespace SharpNetTests.ObjectDetection
     [TestFixture]
     public class BoundingBoxTests
     {
-        private static readonly BoundingBox b1 = new BoundingBox(132.625, 76.742, 24.594, 41.12);
-        private static readonly BoundingBox b2 = new BoundingBox(155.751, 55.233, 25.32, 43.186);
-        private static readonly BoundingBox topLeft = new BoundingBox(0.25, 0.25, 0.5, 0.5);
-        private static readonly BoundingBox center = new BoundingBox(0.5, 0.5, 0.5, 0.5);
-        private static readonly BoundingBox bottomRight = new BoundingBox(0.75, 0.75, 0.5, 0.5);
+        private static readonly BoundingBox b1 = new (132.625, 76.742, 24.594, 41.12);
+        private static readonly BoundingBox b2 = new (155.751, 55.233, 25.32, 43.186);
+        private static readonly BoundingBox topLeft = new (0.25, 0.25, 0.5, 0.5);
+        private static readonly BoundingBox center = new (0.5, 0.5, 0.5, 0.5);
+        private static readonly BoundingBox bottomRight = new (0.75, 0.75, 0.5, 0.5);
 
         [Test]
         public void Test_Right_Left_Top_Bottom_Area()

@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
-using SharpNet.CPU;
 using SharpNet.Pictures;
 
 namespace SharpNet.Datasets.EffiSciences95;
@@ -90,9 +89,8 @@ public class EffiSciences95DirectoryDataSet : DirectoryDataSet
             2,
             PrecomputedMeanAndVolatilityForEachChannel,
             ResizeStrategyEnum.None, 
-            null,
             null, //idColumn
-            y_IDs.ToArray())
+            y_IDs.ToArray(), null)
     {
         _datasetSample = datasetSample;
         _boxes = boxes;
@@ -135,8 +133,7 @@ public class EffiSciences95DirectoryDataSet : DirectoryDataSet
         return res;
     }
 
-
-    public void ClearBitmap(BitmapContent res, Rectangle rect)
+    private void ClearBitmap(BitmapContent res, Rectangle rect)
     {
         Debug.Assert(_datasetSample.MaxEnlargeForBox >= _datasetSample.MinEnlargeForBox);
         if (_datasetSample.MaxEnlargeForBox > 0)

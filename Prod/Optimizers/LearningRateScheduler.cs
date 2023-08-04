@@ -49,25 +49,6 @@ namespace SharpNet.Optimizers
         {
             return ByInterval(epoch1, learningRate1, epoch2, learningRate2, epoch3, learningRate3, true);
         }
-
-        /// <summary>
-        /// We start with a learning rate of 'initialLearningRate' (epoch = 1)
-        /// every 'XEpoch' epochs, we divide the learning rate by 'divideConstant'
-        /// </summary>
-        /// <param name="initialLearningRate"></param>
-        /// <param name="divideConstant"></param>
-        /// <param name="XEpoch"></param>
-        /// <param name="isConstantByInterval"></param>
-        /// <returns></returns>
-        public static LearningRateScheduler DivideByConstantEveryXEpoch(double initialLearningRate, int divideConstant, int XEpoch, bool isConstantByInterval)
-        {
-            var values = new List<Tuple<double, double>> { Tuple.Create(1.0, initialLearningRate) };
-            while (values.Count < 100)
-            {
-                values.Add(Tuple.Create(values.Last().Item1 + XEpoch, values.Last().Item2 / divideConstant));
-            }
-            return new LearningRateScheduler(values, isConstantByInterval, true);
-        }
         public static LearningRateScheduler ConstantByInterval(int epoch1, double learningRate1, int epoch2, double learningRate2, int epoch3, double learningRate3, int epoch4, double learningRate4)
         {
             return ByInterval(epoch1, learningRate1, epoch2, learningRate2, epoch3, learningRate3, epoch4, learningRate4, true);
@@ -119,27 +100,27 @@ namespace SharpNet.Optimizers
         {
             return new LearningRateScheduler(new List<Tuple<double, double>>
                                              {
-                                                 new Tuple<double, double>(epoch1, learningRate1),
-                                                 new Tuple<double, double>(epoch2, learningRate2)
+                                                 new (epoch1, learningRate1),
+                                                 new (epoch2, learningRate2)
                                              }, constantByInterval, constantInEachEpoch);
         }
         private static LearningRateScheduler ByInterval(int epoch1, double learningRate1, int epoch2, double learningRate2, int epoch3, double learningRate3, int epoch4, double learningRate4, bool constantByInterval)
         {
             return new LearningRateScheduler(new List<Tuple<double, double>>
                                              {
-                                                 new Tuple<double, double>(epoch1, learningRate1),
-                                                 new Tuple<double, double>(epoch2, learningRate2),
-                                                 new Tuple<double, double>(epoch3, learningRate3),
-                                                 new Tuple<double, double>(epoch4, learningRate4)
+                                                 new (epoch1, learningRate1),
+                                                 new (epoch2, learningRate2),
+                                                 new (epoch3, learningRate3),
+                                                 new (epoch4, learningRate4)
                                              }, constantByInterval, true);
         }
         private static LearningRateScheduler ByInterval(int epoch1, double learningRate1, int epoch2, double learningRate2, int epoch3, double learningRate3, bool constantByInterval)
         {
             return new LearningRateScheduler(new List<Tuple<double, double>>
                                              {
-                                                 new Tuple<double, double>(epoch1, learningRate1),
-                                                 new Tuple<double, double>(epoch2, learningRate2),
-                                                 new Tuple<double, double>(epoch3, learningRate3),
+                                                 new (epoch1, learningRate1),
+                                                 new (epoch2, learningRate2),
+                                                 new (epoch3, learningRate3),
                                              }, constantByInterval, true);
         }
     }

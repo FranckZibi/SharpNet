@@ -6,12 +6,14 @@ namespace SharpNet.DataAugmentation.Operations
 {
     public class CutMix : Operation
     {
+        #region private fields
         private readonly int _rowStart;
         private readonly int _rowEnd;
         private readonly int _colStart;
         private readonly int _colEnd;
         private readonly int _indexInMiniBatchForCutMix;
         private readonly CpuTensor<float> _xOriginalMiniBatch;
+        #endregion
 
         public CutMix(int rowStart, int rowEnd, int colStart, int colEnd, int indexInMiniBatchForCutMix, CpuTensor<float> xOriginalMiniBatch)
         {
@@ -23,7 +25,6 @@ namespace SharpNet.DataAugmentation.Operations
             _indexInMiniBatchForCutMix = indexInMiniBatchForCutMix;
             _xOriginalMiniBatch = xOriginalMiniBatch;
         }
-
         public static CutMix ValueOf(double alphaCutMix, int indexInMiniBatch, CpuTensor<float> xOriginalMiniBatch, Random rand)
         {
             if (alphaCutMix <= 0.0)
@@ -55,19 +56,6 @@ namespace SharpNet.DataAugmentation.Operations
             int indexToMixWithForCutMix = (indexInMiniBatch + 1) % miniBatchSize;
             return new CutMix(rowStart, rowEnd, colStart, colEnd, indexToMixWithForCutMix, xOriginalMiniBatch);
         }
-
-
-        public float CutMixLambda
-        {
-            get
-            {
-                int nbRows = _xOriginalMiniBatch.Shape[2];
-                int nbCols = _xOriginalMiniBatch.Shape[3];
-                float cutMixLambda = 1f - ((float)((_rowEnd - _rowStart + 1) * (_colEnd - _colStart + 1))) / (nbCols * nbRows);
-                return cutMixLambda;
-            }
-        }
-
         public override void UpdateY(CpuTensor<float> yOriginalMiniBatch, CpuTensor<float> yDataAugmentedMiniBatch, int indexInMiniBatch, Func<int, int> indexInMiniBatchToCategoryIndex)
         {
             // if CutMix has been used, wee need to update the expected output ('y' tensor)
@@ -104,7 +92,6 @@ namespace SharpNet.DataAugmentation.Operations
                 yDataAugmentedMiniBatch.Set(indexInMiniBatch, cutMixCategoryIndex, 1f - cutMixLambda);
             }
         }
-
         public override float AugmentedValue(int indexInMiniBatch, int channel,
             CpuTensor<float> xInputMiniBatch, int rowInput, int colInput, 
             CpuTensor<float> xOutputMiniBatch, int rowOutput, int colOutput)
@@ -116,6 +103,17 @@ namespace SharpNet.DataAugmentation.Operations
                 return _xOriginalMiniBatch.Get(_indexInMiniBatchForCutMix, channel, rowInput, colInput);
             }
             return xInputMiniBatch.Get(indexInMiniBatch, channel, rowInput, colInput);
+        }
+
+        private float CutMixLambda
+        {
+            get
+            {
+                int nbRows = _xOriginalMiniBatch.Shape[2];
+                int nbCols = _xOriginalMiniBatch.Shape[3];
+                float cutMixLambda = 1f - ((float)((_rowEnd - _rowStart + 1) * (_colEnd - _colStart + 1))) / (nbCols * nbRows);
+                return cutMixLambda;
+            }
         }
     }
 }

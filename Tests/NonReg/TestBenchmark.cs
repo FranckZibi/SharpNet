@@ -141,7 +141,6 @@ namespace SharpNetTests.NonReg
                 swDA.Start();
                 int MiniBatchIdxToCategoryIndex(int miniBatchIdx) => dataset.ElementIdToCategoryIndex(MiniBatchIdxToElementId(miniBatchIdx));
                 Lazy<ImageStatistic> MiniBatchIdxToImageStatistic(int miniBatchIdx) => new(() => dataset.ElementIdToImageStatistic(MiniBatchIdxToElementId(miniBatchIdx), channels, targetHeight, targetWidth));
-                var coinFlipForMiniBatch = Utils.RandomCoinFlip();   
                 if (useMultiThreading)
                 {
                     Parallel.For(0, miniBatchSize, indexInMiniBatch => imageDataGenerator.DataAugmentationForMiniBatch(

@@ -22,10 +22,7 @@ namespace SharpNet.Datasets
                 meanAndVolatilityForEachChannel,
                 ResizeStrategyEnum.None,
                 new string[0],
-                new string[0],
-                "",
-                null, //TODO
-                ',')
+                new string[0])
         {
             _univariateTimeSeries = univariateTimeSeries;
             _timeSteps = timeSteps;
@@ -64,9 +61,8 @@ namespace SharpNet.Datasets
             {
                 Debug.Assert(indexInBuffer >= 0 && indexInBuffer < xBuffer.Shape[0]);
                 Debug.Assert(xBuffer.SameShapeExceptFirstDimension(X_Shape));
-                Debug.Assert(xBuffer.Shape[0] == yBuffer.Shape[0]); //same batch size
+                Debug.Assert(yBuffer == null || xBuffer.Shape[0] == yBuffer.Shape[0]); //same batch size
                 Debug.Assert(yBuffer == null || yBuffer.SameShapeExceptFirstDimension(_yUnivariateTimeSeriesDataSet.Shape));
-
                 var xSrc = _univariateTimeSeries.Span.Slice(elementId*_stride, xBuffer.MultDim0);
                 var xDest = xBuffer.AsFloatCpuSpan.Slice(indexInBuffer * xBuffer.MultDim0, xBuffer.MultDim0);
                 Debug.Assert(xSrc.Length == xDest.Length);

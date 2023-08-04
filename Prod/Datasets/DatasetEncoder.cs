@@ -16,10 +16,9 @@ namespace SharpNet.Datasets;
 /// </summary>
 public class DatasetEncoder
 {
-    #region Private Fields
+    #region Private fields and properties
     private readonly bool _standardizeDoubleValues;
     private readonly bool _allDataFrameAreAlreadyNormalized;
-
     /// <summary>
     /// list of all categorical features in the dataset
     /// </summary>
@@ -34,12 +33,9 @@ public class DatasetEncoder
     /// (usually a single feature)
     /// </summary>
     [NotNull] private string IdColumn { get; }
-
     private Objective_enum DatasetObjective { get; }
-
     [NotNull] private readonly Dictionary<string, ColumnStatistics> _columnStats = new();
     [NotNull] private static readonly ILog Log = LogManager.GetLogger(typeof(DatasetEncoder));
-
     /// <summary>
     /// number of time the method 'Fit' has been called
     /// </summary>
@@ -53,8 +49,8 @@ public class DatasetEncoder
     /// </summary>
     // ReSharper disable once NotAccessedField.Local
     private int _inverseTransformCallCount = 0;
-
     #endregion
+
     /// <summary>
     /// 
     /// </summary>
@@ -73,13 +69,11 @@ public class DatasetEncoder
         _allDataFrameAreAlreadyNormalized = allDataFrameAreAlreadyNormalized;
     }
     public ColumnStatistics this[string featureName] => _columnStats[featureName];
-    
     public DataFrame Fit_Transform(DataFrame string_df)
     {
         Fit(string_df);
         return Transform(string_df);
     }
-
     //public IList<float> GetDistinctCategoricalPercentage(string categoricalColumn)
     //{
     //    if (!IsCategoricalColumn(categoricalColumn))
@@ -115,8 +109,6 @@ public class DatasetEncoder
     
         Parallel.For(0, df.Columns.Length, columnIdxIdDataFrame => FitColumn(df, columnIdxIdDataFrame));
     }
-
-
     public void FitMissingCategoricalColumns(params DataFrame[] dfs)
     {
         foreach (var df in dfs)
@@ -136,44 +128,6 @@ public class DatasetEncoder
                 }
             }
         }
-    }
-
-
-    private void FitColumn(DataFrame df, int columnIdxIdDataFrame)
-    {
-        var rows = df.Shape[0];
-        var columnStats = _columnStats[df.Columns[columnIdxIdDataFrame]];
-        var tensorType = df.ColumnsDesc[columnIdxIdDataFrame].Item2;
-        int tensorCols = df.EmbeddedTensors[tensorType].Shape[1];
-        var columnIdxInTensor = df.ColumnsDesc[columnIdxIdDataFrame].Item3;
-        Debug.Assert(columnIdxInTensor < tensorCols);
-        switch (tensorType)
-        {
-            case DataFrame.STRING_TYPE_IDX:
-                var strReadonlyContent = df.StringTensorEvenIfView.ReadonlyContent;
-                for (var rowIndex = 0; rowIndex < rows; rowIndex++)
-                {
-                    columnStats.Fit(strReadonlyContent[columnIdxInTensor + rowIndex * tensorCols]);
-                }
-                break;
-            case DataFrame.FLOAT_TYPE_IDX:
-                var floatReadonlyContent = df.FloatTensorEvenIfView.ReadonlyContent;
-                for (var rowIndex = 0; rowIndex < rows; rowIndex++)
-                {
-                    columnStats.Fit(floatReadonlyContent[columnIdxInTensor + rowIndex * tensorCols]);
-                }
-                break;
-            case DataFrame.INT_TYPE_IDX:
-                var intReadonlyContent = df.IntTensorEvenIfView.ReadonlyContent;
-                for (var rowIndex = 0; rowIndex < rows; rowIndex++)
-                {
-                    columnStats.Fit(intReadonlyContent[columnIdxInTensor + rowIndex * tensorCols]);
-                }
-                break;
-            default:
-                throw new NotImplementedException($"Tensor Type {tensorType} not supported");
-        }
-
     }
     // ReSharper disable once MemberCanBePrivate.Global
     public DataFrame Transform(DataFrame df)
@@ -241,7 +195,6 @@ public class DatasetEncoder
 
         return DataFrame.New(content, df.Columns);
     }
-
     /// <summary>
     /// Decode the dataframe 'df' (replacing numerical values by their categorical values) and return the content of the decoded DataFrame
     /// </summary>
@@ -274,30 +227,42 @@ public class DatasetEncoder
         return DataFrame.New(decodedContent, float_df.Columns);
     }
 
-    public DataFrame Inverse_Transform_float(DataFrame float_df)
+
+    private void FitColumn(DataFrame df, int columnIdxIdDataFrame)
     {
-        ++_inverseTransformCallCount;
-        Debug.Assert(float_df.IsFloatDataFrame);
-        //we display a warning for column names without known encoding
-        var unknownFeatureName = Utils.Without(float_df.Columns, _columnStats.Keys);
-        unknownFeatureName.Remove("0");
-        if (unknownFeatureName.Count != 0)
+        var rows = df.Shape[0];
+        var columnStats = _columnStats[df.Columns[columnIdxIdDataFrame]];
+        var tensorType = df.ColumnsDesc[columnIdxIdDataFrame].Item2;
+        int tensorCols = df.EmbeddedTensors[tensorType].Shape[1];
+        var columnIdxInTensor = df.ColumnsDesc[columnIdxIdDataFrame].Item3;
+        Debug.Assert(columnIdxInTensor < tensorCols);
+        switch (tensorType)
         {
-            Log.Warn($"{unknownFeatureName.Count} unknown feature name(s): '{string.Join(' ', unknownFeatureName)}' (not in '{string.Join(' ', _columnStats.Keys)}')");
+            case DataFrame.STRING_TYPE_IDX:
+                var strReadonlyContent = df.StringTensorEvenIfView.ReadonlyContent;
+                for (var rowIndex = 0; rowIndex < rows; rowIndex++)
+                {
+                    columnStats.Fit(strReadonlyContent[columnIdxInTensor + rowIndex * tensorCols]);
+                }
+                break;
+            case DataFrame.FLOAT_TYPE_IDX:
+                var floatReadonlyContent = df.FloatTensorEvenIfView.ReadonlyContent;
+                for (var rowIndex = 0; rowIndex < rows; rowIndex++)
+                {
+                    columnStats.Fit(floatReadonlyContent[columnIdxInTensor + rowIndex * tensorCols]);
+                }
+                break;
+            case DataFrame.INT_TYPE_IDX:
+                var intReadonlyContent = df.IntTensorEvenIfView.ReadonlyContent;
+                for (var rowIndex = 0; rowIndex < rows; rowIndex++)
+                {
+                    columnStats.Fit(intReadonlyContent[columnIdxInTensor + rowIndex * tensorCols]);
+                }
+                break;
+            default:
+                throw new NotImplementedException($"Tensor Type {tensorType} not supported");
         }
 
-        var encodedContent = float_df.FloatCpuTensor().ReadonlyContent;
-        var decodedContent = new float[encodedContent.Length];
-        for (int idx = 0; idx < encodedContent.Length; ++idx)
-        {
-            var encodedValue = encodedContent[idx];
-            int col = idx % float_df.ColumnsDesc.Count;
-            var decodedValueAsString = _columnStats.TryGetValue(float_df.Columns[col], out var featureStat)
-                ? featureStat.Inverse_Transform_float(encodedValue)
-                : encodedValue;
-            decodedContent[idx] = decodedValueAsString;
-        }
-        return DataFrame.New(decodedContent, float_df.Columns);
     }
     private bool IsCategoricalColumn(string columnName)
     {

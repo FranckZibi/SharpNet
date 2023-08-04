@@ -8,7 +8,7 @@ namespace SharpNet.Networks
     public partial class Network
     {
         #region private fields
-        private readonly Stopwatch _spInternalFit = new Stopwatch();
+        private readonly Stopwatch _spInternalFit = new ();
         private readonly Stopwatch _swComputeMetrics;
         private readonly IDictionary<string, Stopwatch> _updateWeightsTime = new Dictionary<string, Stopwatch>();
         #endregion

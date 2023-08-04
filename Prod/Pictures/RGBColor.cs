@@ -9,7 +9,7 @@ public class RGBColor : IEquatable<RGBColor>
     private readonly byte red;
     private readonly byte green;
     private readonly byte blue;
-    public int Index24Bits { get; }
+    private int Index24Bits { get; }
     private LabColor _lazyLab;
     #endregion
 
@@ -19,16 +19,15 @@ public class RGBColor : IEquatable<RGBColor>
     }
 
 
-    public static readonly RGBColor Black = new RGBColor(0, 0, 0);
-    public static readonly RGBColor White = new RGBColor(255, 255, 255);
-    public static readonly RGBColor RedRef = new RGBColor(255, 0, 0);
-    public static readonly RGBColor OrangeRef = new RGBColor(255, 165, 0);
-    public static readonly RGBColor GreenRef = new RGBColor(0, 255, 0);
-    public static readonly RGBColor PinkRef = new RGBColor(255, 102, 204);
-    public static readonly RGBColor GreyRef = new RGBColor(161, 169, 164);
-
-    public static readonly RGBColor DarkBlue = new RGBColor(0, 0, 139);
-    public static readonly RGBColor ClearBlue = new RGBColor(135, 206, 235);
+    private static readonly RGBColor Black = new (0, 0, 0);
+    private static readonly RGBColor White = new (255, 255, 255);
+    //public static readonly RGBColor RedRef = new (255, 0, 0);
+    //public static readonly RGBColor OrangeRef = new (255, 165, 0);
+    //public static readonly RGBColor GreenRef = new (0, 255, 0);
+    //public static readonly RGBColor PinkRef = new (255, 102, 204);
+    //public static readonly RGBColor GreyRef = new (161, 169, 164);
+    //public static readonly RGBColor DarkBlue = new (0, 0, 139);
+    //public static readonly RGBColor ClearBlue = new (135, 206, 235);
     public RGBColor(byte red, byte green, byte blue)
     {
         this.red = red;
@@ -246,74 +245,7 @@ public class RGBColor : IEquatable<RGBColor>
     {
         var aLab = a.Lab;
         var bLab = b.Lab;
-        //var res0 = aLab.Distance(bLab);
-
-
         var res = aLab.Distance(bLab);
-        return res;
-
-        if (b.Blue > 75)
-        {
-            return 1.0;
-        }
-            
-
-        var errorR = 255 - b.Red;
-        var errorG = 255 - b.Green;
-        var errorB = b.Blue;
-
-        int sum = errorR + errorG + errorB;
-        if (sum > 50.0)
-        {
-            //res *= sum / 20.0;
-            return 1.0;
-        }
-
-        const double mult = 4.0;
-        if (errorR == 0)
-        {
-            res /= mult;
-        }
-        if (errorG == 0)
-        {
-            res /= mult;
-        }
-        if (errorB == 0)
-        {
-            res /= mult;
-        }
-
-
-        
-
-
-
-        if (errorR != 0 && errorG != 0 && errorB != 0)
-        {
-            res *= mult;
-        }
-
-
-
-
-        
-
-
-
-        var max = Math.Max(errorR, Math.Max(errorG, errorB));
-        if (max >= 40)
-        {
-            return 1.0;
-        }
-
-        return res;
-
-
-        //if (max <= 10)
-        //{
-        //    return 0.0;
-        //}
-
         return res;
     }
 
@@ -331,7 +263,7 @@ public class RGBColor : IEquatable<RGBColor>
         //var res1 = a.HSB2.DistanceISS(b.HSB2);
         //return res0;
 
-        var res = aLab.Distance(bLab); ;
+        var res = aLab.Distance(bLab);
 
         var errorR = 255 - b.Red;
         var errorG = 255 - b.Green;
@@ -385,14 +317,6 @@ public class RGBColor : IEquatable<RGBColor>
         {
             return 1.0;
         }
-
-        return res;
-
-
-        //if (max <= 10)
-        //{
-        //    return 0.0;
-        //}
 
         return res;
     }

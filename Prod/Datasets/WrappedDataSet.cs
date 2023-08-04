@@ -16,8 +16,8 @@ public abstract class WrappedDataSet : DataSet
             original.ResizeStrategy,
             original.ColumnNames,
             original.CategoricalFeatures,
-            original.IdColumn,
             Y_IDs,
+            original.IdColumn, 
             original.Separator)
     {
         _original = original;

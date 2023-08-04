@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
-using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
 using System.IO;
 using System.Runtime.InteropServices;
@@ -24,7 +23,6 @@ namespace SharpNet.Pictures
             }
             bmp.Save(Utils.UpdateFilePathChangingExtension(filename, "", "", ".png"));
         }
-
         public static List<KeyValuePair<CpuTensor<byte>, int>> ReadInputPictures(string fileData, string fileLabels)
         {
             var result = new List<KeyValuePair<CpuTensor<byte>, int>>();
@@ -52,6 +50,25 @@ namespace SharpNet.Pictures
                 default: throw new ArgumentException(Marshal.SizeOf(typeof(T)) + " size is not supported");
             }
         }
+        public static bool IsPicture(string fullName)
+        {
+            var toLower = (fullName ?? "").ToLowerInvariant();
+            foreach (var extension in new[] { ".jpeg", ".jpg", ".bmp", ".png" })
+            {
+                if (toLower.EndsWith(extension))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+        // ReSharper disable once UnusedMember.Global
+        public static Size ImageSize(string imagePath)
+        {
+            using var stream = File.OpenRead(imagePath);
+            using var sourceImage = Image.FromStream(stream, false, false);
+            return sourceImage.Size;
+        }
 
         private static void SaveBitmap(CpuTensor<byte> xTrain, int pictureIndex, string directory, string filePrefix, string fileSuffix)
         {
@@ -65,58 +82,6 @@ namespace SharpNet.Pictures
         {
             Save(AsBitmap(xTrain, toByte, pictureIndex), Path.Combine(directory, filePrefix + "_" + pictureIndex.ToString("D3") + "_" + fileSuffix));
         }
-
-
-        /// <summary>
-        /// Resize the image to the specified width and height.
-        /// from: https://stackoverflow.com/questions/1922040/how-to-resize-an-image-c-sharp/24199315
-        /// </summary>
-        /// <param name="image">The image to resize.</param>
-        /// <param name="width">The width to resize to.</param>
-        /// <param name="height">The height to resize to.</param>
-        /// <param name="interpolationMode">The interpolation mode.</param>
-        /// here is a benchmark of the different possibilities:
-        ///     NearestNeighbor    5.5s
-        ///     Bilinear           8.8s
-        ///     Bicubic            11s
-        ///     HighQualityBicubic 19s
-        /// <returns>The resized image.</returns>
-        public static Bitmap ResizeImage(Bitmap image, int width, int height, InterpolationMode interpolationMode)
-        {
-            var destRect = new Rectangle(0, 0, width, height);
-            var destImage = new Bitmap(width, height);
-
-            destImage.SetResolution(image.HorizontalResolution, image.VerticalResolution);
-
-            using var graphics = Graphics.FromImage(destImage);
-            graphics.CompositingMode = CompositingMode.SourceCopy;
-            graphics.CompositingQuality = CompositingQuality.HighQuality;
-            //InterpolationMode.NearestNeighbor:    5.5s
-            //InterpolationMode.Bilinear:           8.8s
-            //InterpolationMode.Bicubic:            11s
-            //InterpolationMode.HighQualityBicubic: 19s
-            graphics.InterpolationMode = interpolationMode;
-            graphics.SmoothingMode = SmoothingMode.HighQuality; //no change
-            graphics.PixelOffsetMode = PixelOffsetMode.HighQuality; //no change
-            using var wrapMode = new ImageAttributes();
-            wrapMode.SetWrapMode(WrapMode.TileFlipXY);
-            graphics.DrawImage(image, destRect, 0, 0, image.Width, image.Height, GraphicsUnit.Pixel, wrapMode);
-            return destImage;
-        }
-
-        //public static Bitmap CropImage(Bitmap src, Rectangle croppedRectangle)
-        //{
-        //    var croppedBitmap = new Bitmap(croppedRectangle.Width, croppedRectangle.Height);
-        //    using var graphics = Graphics.FromImage(croppedBitmap);
-        //    graphics.CompositingMode = CompositingMode.SourceCopy;
-        //    graphics.InterpolationMode = InterpolationMode.NearestNeighbor;
-        //    graphics.DrawImage(src, new Rectangle(0, 0, croppedBitmap.Width, croppedBitmap.Height), croppedRectangle, GraphicsUnit.Pixel);
-        //    return croppedBitmap;
-        //    //discarded : slower then above
-        //    //var bmpImage = new Bitmap(src);
-        //    //return bmpImage.Clone(croppedRectangle, bmpImage.PixelFormat);
-        //}
-
         private static Bitmap AsBitmap<T>(CpuTensor<T> xTrain, Func<T, byte> toByte, int pictureIndex) where T: struct
         {
             if (xTrain == null)
@@ -181,27 +146,6 @@ namespace SharpNet.Pictures
                 }
             }
             return matrix;
-        }
-
-        public static bool IsPicture(string fullName)
-        {
-            var toLower = (fullName??"").ToLowerInvariant();
-            foreach (var extension in new [] {".jpeg", ".jpg", ".bmp", ".png"})
-            {
-                if (toLower.EndsWith(extension))
-                {
-                    return true;
-                }
-            }
-            return false;
-        }
-
-        // ReSharper disable once UnusedMember.Global
-        public static Size ImageSize(string imagePath)
-        {
-            using var stream = File.OpenRead(imagePath);
-            using var sourceImage = Image.FromStream(stream, false, false);
-            return sourceImage.Size;
         }
     }
 }

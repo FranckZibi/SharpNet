@@ -42,7 +42,7 @@ public class BayesianSearchHPO : AbstractHpo
     /// Item3:  the sample description
     /// </summary>
     private readonly List<Tuple<ISample, float[], float, string>> _nextSamplesToCompute = new();
-    private readonly object _lockObject = new object();
+    private readonly object _lockObject = new ();
     /// <summary>
     /// Number of samples that have been used to train the model '_surrogateModel'
     /// 0 means the model has not been trained so far
@@ -263,7 +263,7 @@ public class BayesianSearchHPO : AbstractHpo
         // we retrieve 100x more random samples then needed to keep only the top 1%
         using var x = RandomSamplesForPrediction(count*100);
         //using var dataset = new InMemoryDataSet(x, null, "", Objective_enum.Regression, null, featureNames: SurrogateModelFeatureNames(), categoricalFeatures: SurrogateModelCategoricalFeature());
-        using var dataset = new InMemoryDataSet(x, null, "", Objective_enum.Regression, null, SurrogateModelFeatureNames(), SurrogateModelCategoricalFeature(), "", null, ',');
+        using var dataset = new InMemoryDataSet(x, null, "", Objective_enum.Regression, null, SurrogateModelFeatureNames(), SurrogateModelCategoricalFeature());
         
         // we compute the estimate score associated with each random sample (using the surrogate model)
         var y = _samplesUsedForModelTraining == 0 
@@ -386,7 +386,7 @@ public class BayesianSearchHPO : AbstractHpo
         //var x = df1.FloatCpuTensor();
         //var y_true = df2.FloatCpuTensor();
         
-        using var trainingDataset = new InMemoryDataSet(x, y_true, "", Objective_enum.Regression, null, SurrogateModelFeatureNames(), SurrogateModelCategoricalFeature(), "", null, ',');
+        using var trainingDataset = new InMemoryDataSet(x, y_true, "", Objective_enum.Regression, null, SurrogateModelFeatureNames(), SurrogateModelCategoricalFeature());
         Log.Info($"Training surrogate model with {x.Shape[0]} samples");
         Utils.TryDelete(_surrogateTrainedFiles.train_XDatasetPath);
         Utils.TryDelete(_surrogateTrainedFiles.train_YDatasetPath);
