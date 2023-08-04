@@ -192,7 +192,7 @@ public static class ChallengeTools
             using var mKFold = ModelAndDatasetPredictions.LoadWithKFold(workingDirectory, modelName, n_splits.Value, useAllAvailableCores);
             ISample.Log.Info($"Training Model '{mKFold.Model.ModelName}' (= Model '{modelName}' with KFold={n_splits})");
             mKFold.Fit(computeAndSavePredictions, computeValidationRankingScore, saveTrainedModel);
-            mKFold.Save(workingDirectory);
+            mKFold.Save(workingDirectory, modelName);
             ISample.Log.Info($"Model '{mKFold.Model.ModelName}' trained in {swKfold.Elapsed.TotalSeconds}");
         }
         if (percentageInTraining.HasValue)

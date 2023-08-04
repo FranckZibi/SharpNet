@@ -1384,7 +1384,7 @@ namespace SharpNetTests.NonReg
         {
             var batchSize = X.Shape[0];
             using var dataSet = new InMemoryDataSet(X, Y_expected);
-            var observedMetrics = network.ComputeMetricsForTestDataSet(batchSize, dataSet);
+            var observedMetrics = network.ComputeMetricsForValidationDataSet(batchSize, dataSet);
             if (expectedLoss.HasValue)
             { 
                 Assert.AreEqual(expectedLoss.Value, GetMetricValue(observedMetrics,network.Sample.GetLoss()), epsilon, "expected loss: " + expectedLoss.Value + " but was: " + GetMetricValue(observedMetrics, network.Sample.GetLoss()));

@@ -114,6 +114,7 @@ namespace SharpNet.Datasets
             return res;
         }
         public override int Count { get; }
+        public override AbstractDatasetSample GetDatasetSample() => null;
         public static List<string> AllBinFilesInDirectory(string directory, params string[] filesPrefix)
         {
             var result = new List<string>();

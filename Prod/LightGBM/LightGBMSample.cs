@@ -150,20 +150,6 @@ public class LightGBMSample : AbstractModelSample
     {
         num_threads = Utils.CoreCount;
     }
-
-    public string DeviceName()
-    {
-
-        if (device_type == device_type_enum.cpu)
-        {
-            return num_threads + "cpu";
-        }
-        else
-        {
-            return "gpu";
-        }
-    }
-
     public void UpdateForDataset(DataSet dataset)
     {
         var categoricalFeatures = dataset.CategoricalFeatures;

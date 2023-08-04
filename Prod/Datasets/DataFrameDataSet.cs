@@ -7,7 +7,7 @@ using SharpNet.CPU;
 
 namespace SharpNet.Datasets;
 
-public class DataFrameDataSet : DataSet, IGetDatasetSample
+public class DataFrameDataSet : DataSet
 {
     // ReSharper disable once PrivateFieldCanBeConvertedToLocalVariable
 
@@ -109,7 +109,7 @@ public class DataFrameDataSet : DataSet, IGetDatasetSample
         return XDataFrame + " => " + YDataFrame_InModelFormat;
     }
 
-    public AbstractDatasetSample GetDatasetSample()
+    public override AbstractDatasetSample GetDatasetSample()
     {
         return DatasetSample;
     }

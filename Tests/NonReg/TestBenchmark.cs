@@ -311,12 +311,12 @@ namespace SharpNetTests.NonReg
             var sw = Stopwatch.StartNew();
             network.Fit(mnist.Training, mnist.Test);
             var elapsedMs = sw.Elapsed.TotalSeconds;
-            var lossAndAccuracy = network.ComputeMetricsForTestDataSet(network.Sample.BatchSize, mnist.Test);
+            var lossAndAccuracy = network.ComputeMetricsForValidationDataSet(network.Sample.BatchSize, mnist.Test);
 
             System.IO.File.AppendAllText(Utils.ConcatenatePathWithFileName(NetworkSample.DefaultWorkingDirectory, "GPUBenchmark_Speed.csv" ), 
                 DateTime.Now.ToString("F", CultureInfo.InvariantCulture) +";"
                 +"MNIST;"
-                + network.DeviceName() + ";"
+                + network.GpuWrapper?.DeviceName() + ";"
                 + network.TotalParams() + ";"
                 + network.Sample.NumEpochs + ";"
                 + network.Sample.BatchSize + ";"

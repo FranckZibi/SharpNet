@@ -21,8 +21,7 @@ public static class SampleUtils
     /// <param name="bestScoreSoFar">the best score associated with the best sample found so far for the model</param>
     /// <returns>the score of the ranking evaluation metric for the validation dataset</returns>
     public static IScore TrainWithHyperParameters(
-        [NotNull] ModelAndDatasetPredictionsSample modelAndDatasetPredictionsSample, string workingDirectory,
-        bool retrainOnFullDatasetIfBetterModelFound, ref IScore bestScoreSoFar)
+        [NotNull] ModelAndDatasetPredictionsSample modelAndDatasetPredictionsSample, string workingDirectory, bool retrainOnFullDatasetIfBetterModelFound, ref IScore bestScoreSoFar)
     {
         using var modelAndDataset = new ModelAndDatasetPredictions(modelAndDatasetPredictionsSample, workingDirectory, modelAndDatasetPredictionsSample.ComputeHash(), false);
         var model = modelAndDataset.Model;
@@ -32,11 +31,11 @@ public static class SampleUtils
         {
             Model.Log.Info($"Model '{model.ModelName}' has new best score: {validationRankingScore} (was: {bestScoreSoFar})");
             bestScoreSoFar = validationRankingScore;
-            if (bestScoreSoFar.IsBetterThan(modelAndDataset.DatasetSample.MinimumScoreToSaveModel))
+            if (bestScoreSoFar.IsBetterThan(modelAndDataset.Model.ModelSample.GetMinimumRankingScoreToSaveModel()))
             {
                 var trainAndValidation = modelAndDataset.DatasetSample.SplitIntoTrainingAndValidation();
-                modelAndDataset.ComputeAndSavePredictions(trainAndValidation);
-                modelAndDataset.Save(workingDirectory);
+                modelAndDataset.ComputeAndSavePredictions(trainAndValidation.Training, trainAndValidation.Test, model.ModelName);
+                modelAndDataset.Save(workingDirectory, model.ModelName);
                 modelAndDataset.Dispose();
                 if (retrainOnFullDatasetIfBetterModelFound)
                 {

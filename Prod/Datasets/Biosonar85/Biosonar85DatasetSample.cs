@@ -54,6 +54,7 @@ public class Biosonar85DatasetSample : AbstractDatasetSample
 
     public static string Y_train_path = Path.Join(Biosonar85Utils.DataDirectory, "Y_train_ofTdMHi.csv");
     public static string Y_test_path = Path.Join(Biosonar85Utils.DataDirectory, "Y_random_Xwjr6aB.csv");
+    public static string Y_train_small_path = Path.Join(Biosonar85Utils.DataDirectory, "Y_train_small.csv");
 
     public static string PNG_train_directory = Path.Join(Biosonar85Utils.DataDirectory, "X_train_64_256_128_1000_150000_250");
     public static string PNG_test_directory = Path.Join(Biosonar85Utils.DataDirectory, "X_test_64_256_128_1000_150000_250");
@@ -75,8 +76,6 @@ public class Biosonar85DatasetSample : AbstractDatasetSample
     {
         return Objective_enum.Classification;
     }
-    //public override IScore MinimumScoreToSaveModel => new Score(0.92f, GetRankingEvaluationMetric());
-
     public override int NumClass => 1;
     public override string[] TargetLabelDistinctValues => Biosonar85Utils.TargetLabelDistinctValues;
     
@@ -197,7 +196,9 @@ public class Biosonar85DatasetSample : AbstractDatasetSample
                 case InputDataTypeEnum.PNG_1CHANNEL_V2:
                     if (trainDataset_PNG_1CHANNEL_V2 == null)
                     {
+                        //trainDataset_PNG_1CHANNEL_V2 = Biosonar85Utils.Load("X_train_small_10_129_401_256_128_1000_150000_250.bin", "Y_train_small_10_1_None_256_128_1000_150000_250.bin", Y_train_small_path, Biosonar85Utils.x_train_mean_PNG_1CHANNEL_V2, Biosonar85Utils.x_train_volatility_PNG_1CHANNEL_V2);
                         trainDataset_PNG_1CHANNEL_V2 = Biosonar85Utils.Load(xTrainBinV2, yTrainBinV2, Y_train_path, Biosonar85Utils.x_train_mean_PNG_1CHANNEL_V2, Biosonar85Utils.x_train_volatility_PNG_1CHANNEL_V2);
+
                         testDataset_PNG_1CHANNEL_V2 = Biosonar85Utils.Load(xTestBinV2, null, Y_test_path, Biosonar85Utils.x_train_mean_PNG_1CHANNEL_V2, Biosonar85Utils.x_train_volatility_PNG_1CHANNEL_V2);
                         Log.Info($"Loading of raw files took {sw.Elapsed.Seconds}s");
                     }

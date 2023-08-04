@@ -44,7 +44,7 @@ namespace SharpNet.Svm
         #endregion
 
         public override (string train_XDatasetPath_InModelFormat, string train_YDatasetPath_InModelFormat, string train_XYDatasetPath_InModelFormat, string validation_XDatasetPath_InModelFormat, string validation_YDatasetPath_InModelFormat, string validation_XYDatasetPath_InModelFormat, IScore trainLossIfAvailable, IScore validationLossIfAvailable, IScore trainRankingMetricIfAvailable, IScore validationRankingMetricIfAvailable)
-            Fit(DataSet trainDataset, DataSet validationDatasetIfAny)
+            Fit(DataSet trainDataset, DataSet validationDatasetIfAny, Func<bool, bool, DataSet, DataSet, string, List<string>> save = null)
         {
             var sw = Stopwatch.StartNew();
             const bool overwriteIfExists = false;

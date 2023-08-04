@@ -15,6 +15,7 @@ using SharpNet.GPU;
 using SharpNet.Layers;
 using SharpNet.Models;
 using SharpNet.Optimizers;
+using SharpNet.Svm;
 using H5GroupId = System.Int64;
 
 
@@ -586,15 +587,19 @@ namespace SharpNet.Networks
         /// </summary>
         [SuppressMessage("ReSharper", "ExpressionIsAlwaysNull")]
         public override (string train_XDatasetPath_InModelFormat, string train_YDatasetPath_InModelFormat, string train_XYDatasetPath_InModelFormat, string validation_XDatasetPath_InModelFormat, string validation_YDatasetPath_InModelFormat, string validation_XYDatasetPath_InModelFormat, IScore trainLossIfAvailable, IScore validationLossIfAvailable, IScore trainRankingMetricIfAvailable, IScore validationRankingMetricIfAvailable)
-            Fit(DataSet trainingDataset, DataSet validationDatasetIfAny)
+            Fit(DataSet trainingDataset, DataSet validationDatasetIfAny, Func<bool, bool, DataSet, DataSet, string, List<string>> save = null)
         {
+            if (save == null)
+            {
+                save = (saveModel, savePredictions, trainDataSet, validationDataSet, modelNameForEpoch) => Save(WorkingDirectory, modelNameForEpoch);
+            }
+
             //FindBestLearningRate(trainingDataset, 1e-8, 10.0, Sample.BatchSize);
             if (ModelSample.GetLoss() == EvaluationMetricEnum.DEFAULT_VALUE)
             {
                 throw new ArgumentException("Loss Function not set");
             }
             int miniBatchSizeForAllWorkers = Sample.BatchSize;
-            int numEpochs = Sample.NumEpochs;
             var learningRateComputer = Sample.GetLearningRateComputer();
 
             List<KeyValuePair<EvaluationMetricEnum, double>> trainingMetrics = null;
@@ -617,7 +622,7 @@ namespace SharpNet.Networks
                 {
                     LogDebug("Validation dataset: " + validationDatasetIfAny);
                 }
-                LogInfo("#Epochs=" + numEpochs + " BatchSize=" + miniBatchSizeForAllWorkers+" Name="+ModelName);
+                LogInfo("#Epochs=" + Sample.NumEpochs + " BatchSize=" + miniBatchSizeForAllWorkers+" Name="+ModelName);
                 if (Sample.DisplayTensorContentStats)
                 {
                     LogDebug("Initial Tensor Content stats" + Environment.NewLine + ContentStats() + Environment.NewLine);
@@ -637,7 +642,7 @@ namespace SharpNet.Networks
                 for (;;)
                 {
                     int epoch = EpochData.Count + 1;
-                    if (epoch > numEpochs)
+                    if (epoch > Sample.NumEpochs)
                     {
                         break;
                     }
@@ -666,9 +671,9 @@ namespace SharpNet.Networks
                     if (validationDatasetIfAny != null)
                     {
                         //We compute the validation loss&accuracy
-                        if (ShouldUseFullTestDataSetForLossAndAccuracy(learningRateComputer, epoch, numEpochs))
+                        if (ShouldUseFullTestDataSetForLossAndAccuracy(learningRateComputer, epoch))
                         {
-                            validationMetrics = ComputeMetricsForTestDataSet(miniBatchSizeForAllWorkers, validationDatasetIfAny);
+                            validationMetrics = ComputeMetricsForValidationDataSet(miniBatchSizeForAllWorkers, validationDatasetIfAny);
                             lossAndAccuracyMsg += " - " + MetricsToString(validationMetrics, "val_");
                         }
                         else
@@ -678,7 +683,7 @@ namespace SharpNet.Networks
                             if (percentageToUseInTestDataSet > 1e-6)
                             {
                                 using var subDataSet = validationDatasetIfAny.SubDataSet(percentageToUseInTestDataSet);
-                                validationMetrics = ComputeMetricsForTestDataSet(miniBatchSizeForAllWorkers, subDataSet);
+                                validationMetrics = ComputeMetricsForValidationDataSet(miniBatchSizeForAllWorkers, subDataSet);
                                 lossAndAccuracyMsg += " - " + MetricsToString(validationMetrics, "estimate_val_");
                             }
                         }
@@ -688,10 +693,10 @@ namespace SharpNet.Networks
                     double secondsForEpoch = swEpoch.Elapsed.TotalSeconds;
                     double nbStepsByEpoch = ((double)trainingDataset.Count) / miniBatchSizeForAllWorkers;
                     var msByStep = (1000 * secondsForEpoch) / nbStepsByEpoch;
-                    LogInfo("Epoch " + epoch + "/" + numEpochs + " - " + Math.Round(secondsForEpoch, 0) + "s " + Math.Round(msByStep, 0) + "ms/step - lr: " + Math.Round(learningRateAtEpochStart, 8) + " - " + lossAndAccuracyMsg + " - " + ModelName);
+                    LogInfo("Epoch " + epoch + "/" + Sample.NumEpochs + " - " + Math.Round(secondsForEpoch, 0) + "s " + Math.Round(msByStep, 0) + "ms/step - lr: " + Math.Round(learningRateAtEpochStart, 8) + " - " + lossAndAccuracyMsg + " - " + ModelName);
                     LogDebug(MemoryInfo());
                     //if it is the last epoch, we'll save Layer KPI
-                    if (epoch == numEpochs)
+                    if (epoch == Sample.NumEpochs)
                     {
                         LogInfo(LayersKpi());
                     }
@@ -701,18 +706,29 @@ namespace SharpNet.Networks
                     EpochData.Add(currentEpochData);
                     #endregion
 
+                    var modelNameForEpoch = (epoch == Sample.NumEpochs) ? ModelName : (ModelName + "_" + epoch);
                     #region we save the network in disk if necessary
-                    if (ShouldSaveNetwork(trainingDataset, numEpochs, learningRateComputer, savedNetworks, epoch)
-                    )
+                    bool isNewBestIterationToSave = IsNewBestIterationToSave(validationDatasetIfAny, epoch);
+                    if (ShouldSaveNetwork(trainingDataset, validationDatasetIfAny, learningRateComputer, savedNetworks, epoch) || isNewBestIterationToSave)
                     {
-                        var savedPaths = trainingDataset.Save(this, WorkingDirectory, ModelName);
-                        savedNetworks[DateTime.Now] = savedPaths;
+                        Debug.Assert(save != null);
+                        if (isNewBestIterationToSave)
+                        {
+                            LogInfo("Saving predictions because of new best validation score");
+                        }
+                        var savedFiles = save(true, isNewBestIterationToSave, trainingDataset, validationDatasetIfAny, modelNameForEpoch);
+                        if (isNewBestIterationToSave)
+                        {
+                            Utils.TryDelete(savedNetworks.Values.SelectMany(x => x));
+                            savedNetworks.Clear();
+                        }
+                        savedNetworks[DateTime.Now] = savedFiles;
                     }
                     #endregion
 
                     if (Sample.SaveNetworkStatsAfterEachEpoch)
                     {
-                        var networkStatFileName = Path.Combine(WorkingDirectory, ModelName + "_NetworkStats.txt");
+                        var networkStatFileName = Path.Combine(WorkingDirectory, modelNameForEpoch + "_NetworkStats.txt");
                         LogInfo("Saving network '" + ModelName + "' stats in " + networkStatFileName);
                         File.WriteAllText(networkStatFileName, ContentStats());
                     }
@@ -723,34 +739,7 @@ namespace SharpNet.Networks
                     }
                 }
 
-                string line = "";
-                var testsCsv = string.IsNullOrEmpty(trainingDataset.Name) ? "Tests.csv" : ("Tests_" + trainingDataset.Name + ".csv");
-                try
-                {
-                    //We save the results of the net
-                    line = DateTime.Now.ToString("F", CultureInfo.InvariantCulture) + ";"
-                        + ModelName.Replace(';', '_') + ";"
-                        + DeviceName() + ";"
-                        + TotalParams() + ";"
-                        + GetNumEpochs()+ ";"
-                        + miniBatchSizeForAllWorkers + ";"
-                        + learningRateComputer.LearningRate(1, 0, 1.0) + ";"
-                        + _spInternalFit.Elapsed.TotalSeconds + ";"
-                        + (_spInternalFit.Elapsed.TotalSeconds / GetNumEpochs()) + ";"
-                        + EpochData.Last().GetTrainingLoss(Sample.GetLoss()) + ";"
-                        + EpochData.Last().TrainingAccuracy + ";"
-                        + EpochData.Last().GetValidationLoss(Sample.GetLoss()) + ";"
-                        + EpochData.Last().ValidationAccuracy + ";"
-                        + Environment.NewLine;
-                    File.AppendAllText(Utils.ConcatenatePathWithFileName(WorkingDirectory, testsCsv), line);
-                }
-                catch (Exception e)
-                {
-                    LogInfo("fail to add line in file:" + Environment.NewLine + line + Environment.NewLine + e);
-                    // ignored
-                }
-
-                LogInfo("Training '"+ ModelName+"' for " + numEpochs + " epochs took: " + _spInternalFit.Elapsed.TotalSeconds + "s");
+                LogInfo("Training '"+ ModelName+"' for " + Sample.NumEpochs + " epochs took: " + _spInternalFit.Elapsed.TotalSeconds + "s");
                 if (!string.IsNullOrEmpty(ModelName))
                 {
                     LogDebug("Network Name: "+ModelName);
@@ -796,18 +785,58 @@ namespace SharpNet.Networks
                 validationRankingMetricIfAvailable);
         }
 
-        private bool ShouldSaveNetwork(DataSet trainingDataset, int numEpochs, ILearningRateComputer learningRateComputer, Dictionary<DateTime, List<string>> savedNetworks, int epoch)
+        private bool ShouldSaveNetwork(DataSet trainingDataset, DataSet validationDatasetIfAny, ILearningRateComputer learningRateComputer, Dictionary<DateTime, List<string>> savedNetworks, int epoch)
         {
             if (Sample.AutoSaveIntervalInMinutes < 0)
             {
                 return false;
             }
             return   //if we have finished training
-                     (epoch == numEpochs && numEpochs > 10)
+                     (epoch == Sample.NumEpochs && Sample.NumEpochs >= 10)
                      //or if we should save the network every 'Config.AutoSaveIntervalInMinutes' minutes
                      || (savedNetworks.Count>0 && (DateTime.Now - savedNetworks.Keys.Max()).TotalMinutes > Sample.AutoSaveIntervalInMinutes)
                      || learningRateComputer.ShouldCreateSnapshotForEpoch(epoch)
-                     || ShouldStopTrainingBecauseOfEarlyStopping(EpochData, Sample.EarlyStoppingRounds, Sample.GetLoss());
+                     || ShouldStopTrainingBecauseOfEarlyStopping(EpochData, Sample.EarlyStoppingRounds, Sample.GetLoss())
+                     ;
+        }
+
+
+        /// <summary>
+        /// check if we have just reached an epoch with a new best validation score that is high enough that we should save the network and the predictions
+        /// </summary>
+        /// <param name="validationDatasetIfAny"></param>
+        /// <returns></returns>
+        private bool IsNewBestIterationToSave(DataSet validationDatasetIfAny, int epoch)
+        {
+            if (   validationDatasetIfAny == null 
+                || epoch == Sample.NumEpochs
+                || !EpochData.Last().ValidationMetrics.TryGetValue(Sample.GetRankingEvaluationMetric(), out var rankingLastEpoch) 
+                || double.IsNaN(rankingLastEpoch)
+                || Sample.GetMinimumRankingScoreToSaveModel() == null
+                )
+            {
+                return false;
+            }
+            var rankingScoreLastEpoch = new Score((float)rankingLastEpoch, Sample.GetRankingEvaluationMetric());
+
+
+            if (Sample.GetMinimumRankingScoreToSaveModel().IsBetterThan(rankingScoreLastEpoch))
+            {
+                return false;
+            }
+            for (int i = 0;i<EpochData.Count-1;++i)
+            {
+                if (!EpochData[i].ValidationMetrics.TryGetValue(Sample.GetRankingEvaluationMetric(), out double rankingPreviousEpoch) || double.IsNaN(rankingPreviousEpoch))
+                {
+                    return false;
+                }
+                var rankingScorePreviousEpoch = new Score((float)rankingPreviousEpoch, Sample.GetRankingEvaluationMetric());
+                if (!rankingScoreLastEpoch.IsBetterThan(rankingScorePreviousEpoch))
+                {
+                    return false;
+                }
+            }
+            return true;
         }
 
         private static bool TryGet(List<KeyValuePair<EvaluationMetricEnum, double>> availableMetrics, EvaluationMetricEnum metric, out double metricValue)
@@ -855,9 +884,9 @@ namespace SharpNet.Networks
             return nbConsecutiveEpochsWithDegradationOfValidationLoss >= earlyStoppingRounds;
         }
 
-        private bool ShouldUseFullTestDataSetForLossAndAccuracy(ILearningRateComputer learningRateComputer, int epoch, int numEpoch)
+        private bool ShouldUseFullTestDataSetForLossAndAccuracy(ILearningRateComputer learningRateComputer, int epoch)
         {
-            if (Sample.AlwaysUseFullTestDataSetForLossAndAccuracy || epoch == 1 || epoch == numEpoch)
+            if (Sample.AlwaysUseFullTestDataSetForLossAndAccuracy || epoch == 1 || epoch == Sample.NumEpochs)
             {
                 return true;
             }
@@ -865,11 +894,11 @@ namespace SharpNet.Networks
         }
 
         #region compute Loss and Accuracy
-        public List<KeyValuePair<EvaluationMetricEnum, double>> ComputeMetricsForTestDataSet(int miniBatchSize, DataSet testDataSet)
+        public List<KeyValuePair<EvaluationMetricEnum, double>> ComputeMetricsForValidationDataSet(int miniBatchSize, DataSet validationDataSet)
         {
-            //We perform a mini batch gradient descent in Testing mode:
+            //We perform a mini batch gradient descent in Validation mode:
             //  there will be no shuffling/data augmentation.
-            var (_,metrics) = MiniBatchGradientDescentForSingleEpoch(testDataSet, miniBatchSize, returnPredictionsForFullDataset:false, computeMetricsForFullDataset:true);
+            var (_,metrics) = MiniBatchGradientDescentForSingleEpoch(validationDataSet, miniBatchSize, returnPredictionsForFullDataset:false, computeMetricsForFullDataset:true);
             return metrics;
         }
         #endregion
@@ -902,30 +931,16 @@ namespace SharpNet.Networks
         public override (DataFrame, string) PredictWithPath(DataSet dataset, bool removeAllTemporaryFilesAtEnd)
         {
             var cpuTensor = Predict(dataset, Sample.BatchSize);
-            if (dataset is IGetDatasetSample getDatasetSample && getDatasetSample.GetDatasetSample().TargetLabels.Length == cpuTensor.Shape[1])
+            if (dataset.GetDatasetSample() != null && dataset.GetDatasetSample().TargetLabels.Length == cpuTensor.Shape[1])
             {
-                return (DataFrame.New(cpuTensor, getDatasetSample.GetDatasetSample().TargetLabels), "");
+                return (DataFrame.New(cpuTensor, dataset.GetDatasetSample().TargetLabels), "");
             }
             return (DataFrame.New(cpuTensor), "");
-        }
-
-        public override int GetNumEpochs()
-        {
-            return EpochData.Count + 1;
-        }
-        public override string DeviceName()
-        {
-            return GpuWrapper?.DeviceName();
         }
         public int TotalParams()
         {
             return Layers.SelectMany(l => l.Parameters).Select(t => t.Item1.Count).Sum();
         }
-        public override double GetLearningRate()
-        {
-            throw new NotImplementedException();
-        }
-
         private int[] YExpected_MiniBatch_Shape(int miniBatchSize)
         {
             var YPredicted_MiniBatch_Shape = this.YPredicted_MiniBatch_Shape(miniBatchSize);

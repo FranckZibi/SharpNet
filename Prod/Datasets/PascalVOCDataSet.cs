@@ -109,5 +109,6 @@ namespace SharpNet.Datasets
         }
         public int ElementIdToHeight(int elementId) { return _annotations[elementId].Height; }
         public int ElementIdToWidth(int elementId) { return _annotations[elementId].Width; }
+        public override AbstractDatasetSample GetDatasetSample() => null;
     }
 }

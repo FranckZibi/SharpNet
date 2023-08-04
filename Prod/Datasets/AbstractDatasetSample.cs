@@ -13,11 +13,6 @@ using SharpNet.Models;
 
 namespace SharpNet.Datasets;
 
-public interface IGetDatasetSample
-{
-    AbstractDatasetSample GetDatasetSample();
-}
-
 [SuppressMessage("ReSharper", "EmptyGeneralCatchClause")]
 public abstract class AbstractDatasetSample : AbstractSample, IDisposable
 {
@@ -379,8 +374,6 @@ public abstract class AbstractDatasetSample : AbstractSample, IDisposable
         predictionsInModelFormat?.to_csv(path, GetSeparator());
     }
    
-    public virtual IScore MinimumScoreToSaveModel => null;
-
     public virtual ITrainingAndTestDataset SplitIntoTrainingAndValidation()
     {
         var fullTrain = FullTrainingAndValidation();

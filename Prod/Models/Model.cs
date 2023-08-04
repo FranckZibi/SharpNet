@@ -39,11 +39,8 @@ public abstract class Model: IDisposable
         DataFrame trainPredictions_InModelFormat, IScore trainLoss_InModelFormat,
         DataFrame validationPredictions_InTargetFormat, IScore validationRankingScore_InTargetFormat,
         DataFrame validationPredictions_InModelFormat, IScore validationLoss_InModelFormat)
-        ComputePredictionsAndRankingScore(ITrainingAndTestDataset trainingAndValidation, AbstractDatasetSample datasetSample, bool computeTrainMetrics)
+        ComputePredictionsAndRankingScore(DataSet trainDataset, DataSet validationDataset, AbstractDatasetSample datasetSample, bool computeTrainMetrics)
     {
-        var validationDataset = trainingAndValidation.Test;
-        var trainDataset = trainingAndValidation.Training;
-
         DataFrame trainPredictions_InTargetFormat = null;
         IScore trainRankingScore_InTargetFormat = null;
         DataFrame trainPredictions_InModelFormat = null;
@@ -165,7 +162,7 @@ public abstract class Model: IDisposable
     }
 
     public abstract (string train_XDatasetPath_InModelFormat, string train_YDatasetPath_InModelFormat, string train_XYDatasetPath_InModelFormat, string validation_XDatasetPath_InModelFormat, string validation_YDatasetPath_InModelFormat, string validation_XYDatasetPath_InModelFormat, IScore trainLossIfAvailable, IScore validationLossIfAvailable, IScore trainRankingMetricIfAvailable, IScore validationRankingMetricIfAvailable)
-        Fit(DataSet trainDataset, DataSet validationDatasetIfAny);
+        Fit(DataSet trainDataset, DataSet validationDatasetIfAny, Func<bool,bool,DataSet, DataSet, string, List<string>> save = null);
 
     /// <summary>
     /// do Model inference for dataset 'dataset' and returns the predictions
@@ -197,10 +194,6 @@ public abstract class Model: IDisposable
     /// <param name="modelName"></param>
     /// <returns></returns>
     public abstract List<string> Save(string workingDirectory, string modelName);
-    public virtual string DeviceName() => "";
-    public virtual int GetNumEpochs() => -1;
-    public virtual double GetLearningRate() => double.NaN;
-
     protected static void LogDebug(string message) { Log.Debug(message); }
     protected static void LogInfo(string message) { Log.Info(message); }
     protected static void LogWarn(string message) { Log.Warn(message); }

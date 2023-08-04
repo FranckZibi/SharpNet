@@ -117,5 +117,6 @@ namespace SharpNet.Datasets
         {
             return X_Shape + " => " + _yUnivariateTimeSeriesDataSet;
         }
+        public override AbstractDatasetSample GetDatasetSample() => null;
     }
 }

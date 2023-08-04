@@ -41,7 +41,6 @@ public class CatBoostSample : AbstractModelSample
         IScore validationRankingMetricIfAvailable = null;
         return (trainLossIfAvailable, validationLossIfAvailable, trainRankingMetricIfAvailable, validationRankingMetricIfAvailable);
     }
-
     #region Common parameters
 
     /// <summary>
@@ -327,17 +326,6 @@ public class CatBoostSample : AbstractModelSample
             SetRankingEvaluationMetric(GetLoss());
         } 
         return true;
-    }
-    public string DeviceName()
-    {
-        if (task_type == task_type_enum.CPU)
-        {
-            return thread_count + "cpu";
-        }
-        else
-        {
-            return "gpu";
-        }
     }
     public override EvaluationMetricEnum GetLoss()
     {

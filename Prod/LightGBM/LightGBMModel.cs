@@ -39,7 +39,7 @@ namespace SharpNet.LightGBM
         #endregion
 
         public override (string train_XDatasetPath_InModelFormat, string train_YDatasetPath_InModelFormat, string train_XYDatasetPath_InModelFormat, string validation_XDatasetPath_InModelFormat, string validation_YDatasetPath_InModelFormat, string validation_XYDatasetPath_InModelFormat, IScore trainLossIfAvailable, IScore validationLossIfAvailable, IScore trainRankingMetricIfAvailable, IScore validationRankingMetricIfAvailable)
-            Fit(DataSet trainDataset, DataSet validationDatasetIfAny)
+            Fit(DataSet trainDataset, DataSet validationDatasetIfAny, Func<bool, bool, DataSet, DataSet, string, List<string>> save = null)
         {
             if (ModelSample.GetLoss()  == EvaluationMetricEnum.DEFAULT_VALUE)
             {
@@ -237,20 +237,6 @@ namespace SharpNet.LightGBM
             //No need to save model : it is already saved
             return LightGbmSample.Save(workingDirectory, modelName);
         }
-
-        public override int GetNumEpochs()
-        {
-            return LightGbmSample.num_iterations;
-        }
-        public override string DeviceName()
-        {
-            return LightGbmSample.DeviceName();
-        }
-        public override double GetLearningRate()
-        {
-            return LightGbmSample.learning_rate;
-        }
-
         public override List<string> AllFiles()
         {
             return new List<string> { ModelPath };

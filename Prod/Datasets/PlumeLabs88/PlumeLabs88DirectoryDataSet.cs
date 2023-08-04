@@ -7,6 +7,7 @@ using SharpNet.CPU;
 namespace SharpNet.Datasets.PlumeLabs88;
 
 public class PlumeLabs88DirectoryDataSet : DataSet
+
 {
     private readonly PlumeLabs88DatasetSample _datasetSample;
     private readonly bool _isTrainingDataset;
@@ -61,6 +62,7 @@ public class PlumeLabs88DirectoryDataSet : DataSet
         throw new NotImplementedException();
     }
 
+    public override AbstractDatasetSample GetDatasetSample() => _datasetSample;
     public override bool CanBeSavedInCSV => false;
     public override bool UseRowIndexAsId => true;
 }

@@ -1262,7 +1262,14 @@ namespace SharpNet
             }
             return dicoString2Object;
         }
-        public static bool TryDelete(string filePath)
+        public static void TryDelete(IEnumerable<string> filePaths)
+        {
+            foreach(var filePath in filePaths)
+            {
+                TryDelete(filePath);
+            }  
+        }
+       public static bool TryDelete(string filePath)
         {
             if (string.IsNullOrEmpty(filePath))
             {

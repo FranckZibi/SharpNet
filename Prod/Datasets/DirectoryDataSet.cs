@@ -256,5 +256,10 @@ namespace SharpNet.Datasets
             UpdateStatus(ref nbPerformed);
             OriginalElementContent(elementId, channels ,- 1,-1, false, false).UpdateWith_Sum_SumSquare_Count_For_Each_Channel(_sum_SumSquare_Count_For_Each_Channel);
         }
+
+        public override AbstractDatasetSample GetDatasetSample()
+        {
+            return null;
+        }
     }
 }

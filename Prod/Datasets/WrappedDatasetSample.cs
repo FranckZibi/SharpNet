@@ -21,8 +21,6 @@ public abstract class WrappedDatasetSample : AbstractDatasetSample
     public override char GetSeparator() => Original.GetSeparator();
     public override void SavePredictionsInTargetFormat(DataFrame y_pred_Encoded_InTargetFormat, DataSet xDataset, string path) => Original.SavePredictionsInTargetFormat(y_pred_Encoded_InTargetFormat, xDataset, path);
     public override void SavePredictionsInModelFormat(DataFrame predictionsInModelFormat, string path) => Original.SavePredictionsInModelFormat(predictionsInModelFormat, path);
-    //public override ITrainingAndTestDataSet SplitIntoTrainingAndValidation() => EmbeddedDatasetSample.SplitIntoTrainingAndValidation();
-    public override IScore MinimumScoreToSaveModel => Original.MinimumScoreToSaveModel;
     public override HashSet<string> FieldsToDiscardInComputeHash() => Original.FieldsToDiscardInComputeHash();
 
 

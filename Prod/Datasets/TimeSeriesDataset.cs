@@ -9,7 +9,7 @@ using SharpNet.Networks;
 
 namespace SharpNet.Datasets;
 
-public class TimeSeriesDataset : DataSet, ITimeSeriesDataSet, IGetDatasetSample
+public class TimeSeriesDataset : DataSet, ITimeSeriesDataSet
 {
     private readonly CpuTensor<float> _yTimeSeriesDataset;
 
@@ -417,7 +417,7 @@ public class TimeSeriesDataset : DataSet, ITimeSeriesDataSet, IGetDatasetSample
         }
     }
 
-    public AbstractDatasetSample GetDatasetSample()
+    public override AbstractDatasetSample GetDatasetSample()
     {
         return DatasetSampleForTimeSeries;
     }

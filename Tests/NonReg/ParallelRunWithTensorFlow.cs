@@ -141,7 +141,7 @@ namespace SharpNetTests.NonReg
             //network.LogContent();
 
             using var trainingDataSet = new InMemoryDataSet(X, Y, "", Objective_enum.Classification, null);
-            var lossAccuracyBefore = network.ComputeMetricsForTestDataSet(batchSize, trainingDataSet);
+            var lossAccuracyBefore = network.ComputeMetricsForValidationDataSet(batchSize, trainingDataSet);
 
             Log.Info("-");
             Log.Info("--------------------------------------------------------------------");
@@ -155,7 +155,7 @@ namespace SharpNetTests.NonReg
 
             //network.LogContent();
 
-            var lossAccuracyAfter = network.ComputeMetricsForTestDataSet(batchSize, trainingDataSet);
+            var lossAccuracyAfter = network.ComputeMetricsForValidationDataSet(batchSize, trainingDataSet);
 
             Log.Info("C# numEpochs= " + numEpochs);
             Log.Info("C# learningRate= " + learningRate);
@@ -222,7 +222,7 @@ namespace SharpNetTests.NonReg
             var predict_before = network.Predict(X, false).ToNumpy();
 
             using var trainingDataSet = new InMemoryDataSet(X, Y);
-            var lossAccuracyBefore = network.ComputeMetricsForTestDataSet(batchSize, trainingDataSet);
+            var lossAccuracyBefore = network.ComputeMetricsForValidationDataSet(batchSize, trainingDataSet);
 
             Log.Info("-");
             Log.Info("--------------------------------------------------------------------");
@@ -231,7 +231,7 @@ namespace SharpNetTests.NonReg
             TestNetwork.Fit(network, X, Y, learningRate, numEpochs, batchSize);
 
             var predict_after = network.Predict(X, false).ToNumpy();
-            var lossAccuracyAfter = network.ComputeMetricsForTestDataSet(batchSize, trainingDataSet);
+            var lossAccuracyAfter = network.ComputeMetricsForValidationDataSet(batchSize, trainingDataSet);
 
             Log.Info("C# numEpochs= " + numEpochs);
             Log.Info("C# learningRate= " + learningRate);
@@ -304,7 +304,7 @@ namespace SharpNetTests.NonReg
             var predict_before = network.Predict(X, false).ToNumpy();
 
             using var trainingDataSet = new InMemoryDataSet(X, Y);
-            var lossAccuracyBefore = network.ComputeMetricsForTestDataSet(batchSize, trainingDataSet);
+            var lossAccuracyBefore = network.ComputeMetricsForValidationDataSet(batchSize, trainingDataSet);
 
             Log.Info("-");
             Log.Info("--------------------------------------------------------------------");
@@ -313,7 +313,7 @@ namespace SharpNetTests.NonReg
             TestNetwork.Fit(network, X, Y, learningRate, numEpochs, batchSize);
 
             var predict_after = network.Predict(X, false).ToNumpy();
-            var lossAccuracyAfter = network.ComputeMetricsForTestDataSet(batchSize, trainingDataSet);
+            var lossAccuracyAfter = network.ComputeMetricsForValidationDataSet(batchSize, trainingDataSet);
 
             Log.Info("C# numEpochs= " + numEpochs);
             Log.Info("C# learningRate= " + learningRate);
@@ -391,7 +391,7 @@ namespace SharpNetTests.NonReg
             var predict_before = network.Predict(X, false).ToNumpy();
 
             using var trainingDataSet = new InMemoryDataSet(X, Y);
-            var lossAccuracyBefore = network.ComputeMetricsForTestDataSet(batchSize, trainingDataSet);
+            var lossAccuracyBefore = network.ComputeMetricsForValidationDataSet(batchSize, trainingDataSet);
 
             Log.Info("-");
             Log.Info("--------------------------------------------------------------------");
@@ -400,7 +400,7 @@ namespace SharpNetTests.NonReg
             TestNetwork.Fit(network, X, Y, learningRate, numEpochs, batchSize);
 
             var predict_after = network.Predict(X, false).ToNumpy();
-            var lossAccuracyAfter = network.ComputeMetricsForTestDataSet(batchSize, trainingDataSet);
+            var lossAccuracyAfter = network.ComputeMetricsForValidationDataSet(batchSize, trainingDataSet);
 
             Log.Info("C# numEpochs= " + numEpochs);
             Log.Info("C# learningRate= " + learningRate);
@@ -469,7 +469,7 @@ namespace SharpNetTests.NonReg
             var predict_before = network.Predict(X, false).ToNumpy();
 
             using var trainingDataSet = new InMemoryDataSet(X, Y);
-            var lossAccuracyBefore = network.ComputeMetricsForTestDataSet(batchSize, trainingDataSet);
+            var lossAccuracyBefore = network.ComputeMetricsForValidationDataSet(batchSize, trainingDataSet);
 
             Log.Info("-");
             Log.Info("--------------------------------------------------------------------");
@@ -480,7 +480,7 @@ namespace SharpNetTests.NonReg
             TestNetwork.Fit(network, X, Y, learningRate, numEpochs, batchSize);
 
             var predict_after = network.Predict(X, false).ToNumpy();
-            var lossAccuracyAfter = network.ComputeMetricsForTestDataSet(batchSize, trainingDataSet);
+            var lossAccuracyAfter = network.ComputeMetricsForValidationDataSet(batchSize, trainingDataSet);
 
             Log.Info("C# numEpochs= " + numEpochs);
             Log.Info("C# learningRate= " + learningRate);
@@ -541,7 +541,7 @@ namespace SharpNetTests.NonReg
             var predict_before = network.Predict(X, false).ToNumpy();
 
             using var trainingDataSet = new InMemoryDataSet(X, Y);
-            var lossAccuracyBefore = network.ComputeMetricsForTestDataSet(batchSize, trainingDataSet);
+            var lossAccuracyBefore = network.ComputeMetricsForValidationDataSet(batchSize, trainingDataSet);
 
             Log.Info("-");
             Log.Info("--------------------------------------------------------------------");
@@ -550,7 +550,7 @@ namespace SharpNetTests.NonReg
             TestNetwork.Fit(network, X, Y, learningRate, numEpochs, batchSize);
 
             var predict_after = network.Predict(X, false).ToNumpy();
-            var lossAccuracyAfter = network.ComputeMetricsForTestDataSet(batchSize, trainingDataSet);
+            var lossAccuracyAfter = network.ComputeMetricsForValidationDataSet(batchSize, trainingDataSet);
 
             Log.Info("C# numEpochs= " + numEpochs);
             Log.Info("C# learningRate= " + learningRate);
@@ -613,7 +613,7 @@ namespace SharpNetTests.NonReg
 
             using var trainingDataSet = new InMemoryDataSet(X, Y);
 
-            var lossAccuracyBefore = network.ComputeMetricsForTestDataSet(batchSize, trainingDataSet);
+            var lossAccuracyBefore = network.ComputeMetricsForValidationDataSet(batchSize, trainingDataSet);
 
             Log.Info("-");
             Log.Info("--------------------------------------------------------------------");
@@ -622,7 +622,7 @@ namespace SharpNetTests.NonReg
             TestNetwork.Fit(network, X, Y, learningRate, numEpochs, batchSize);
 
             var predict_after = network.Predict(X, false).ToNumpy();
-            var lossAccuracyAfter = network.ComputeMetricsForTestDataSet(batchSize, trainingDataSet);
+            var lossAccuracyAfter = network.ComputeMetricsForValidationDataSet(batchSize, trainingDataSet);
 
             Log.Info("C# numEpochs= " + numEpochs);
             Log.Info("C# learningRate= " + learningRate);
@@ -679,7 +679,7 @@ namespace SharpNetTests.NonReg
 
             using var trainingDataSet = new InMemoryDataSet(X, Y);
 
-            var lossAccuracyBefore = network.ComputeMetricsForTestDataSet(batchSize, trainingDataSet);
+            var lossAccuracyBefore = network.ComputeMetricsForValidationDataSet(batchSize, trainingDataSet);
 
             Log.Info("-");
             Log.Info("- Fit -------------------------------------------------------------------");
@@ -692,7 +692,7 @@ namespace SharpNetTests.NonReg
             Log.Info("-");
 
             var predict_after = network.Predict(X, false).ToNumpy();
-            var lossAccuracyAfter = network.ComputeMetricsForTestDataSet(batchSize, trainingDataSet);
+            var lossAccuracyAfter = network.ComputeMetricsForValidationDataSet(batchSize, trainingDataSet);
 
             Log.Info("C# numEpochs= " + numEpochs);
             Log.Info("C# learningRate= " + learningRate);
@@ -764,7 +764,7 @@ namespace SharpNetTests.NonReg
             using var trainingDataSet = new InMemoryDataSet(X, Y);
 
 
-            var lossAccuracyBefore = network.ComputeMetricsForTestDataSet(batchSize, trainingDataSet);
+            var lossAccuracyBefore = network.ComputeMetricsForValidationDataSet(batchSize, trainingDataSet);
 
             Log.Info("-");
             Log.Info("- Fit -------------------------------------------------------------------");
@@ -777,7 +777,7 @@ namespace SharpNetTests.NonReg
             Log.Info("-");
 
             var predict_after = network.Predict(X, false).ToNumpy();
-            var lossAccuracyAfter = network.ComputeMetricsForTestDataSet(batchSize, trainingDataSet);
+            var lossAccuracyAfter = network.ComputeMetricsForValidationDataSet(batchSize, trainingDataSet);
 
             Log.Info("C# numEpochs= " + numEpochs);
             Log.Info("C# learningRate= " + learningRate);
@@ -866,7 +866,7 @@ namespace SharpNetTests.NonReg
             var Y_val = new CpuTensor<float>(new[] { X_val.Shape[0], 1 }, validationEntries.Select(e => e.IsSarcastic ? 1f : 0f).ToArray());
             using var validationDataSet = new InMemoryDataSet(X_val, Y_val);
 
-            var lossAccuracyBefore = network.ComputeMetricsForTestDataSet(batchSize, trainingDataSet);
+            var lossAccuracyBefore = network.ComputeMetricsForValidationDataSet(batchSize, trainingDataSet);
 
             //Log.Info("-");
             //Log.Info("--------------------------------------------------------------------");
@@ -875,7 +875,7 @@ namespace SharpNetTests.NonReg
             TestNetwork.Fit(network, trainingDataSet, learningRate, numEpochs, batchSize, validationDataSet);
 
             var predict_after = network.Predict(X, false).ToNumpy();
-            var lossAccuracyAfter = network.ComputeMetricsForTestDataSet(batchSize, trainingDataSet);
+            var lossAccuracyAfter = network.ComputeMetricsForValidationDataSet(batchSize, trainingDataSet);
 
             Log.Info("C# numEpochs= " + numEpochs);
             Log.Info("C# learningRate= " + learningRate);
@@ -938,7 +938,7 @@ namespace SharpNetTests.NonReg
             var predict_before = network.Predict(X, false).ToNumpy();
 
             using var trainingDataSet = new InMemoryDataSet(X, Y);
-            var lossAccuracyBefore = network.ComputeMetricsForTestDataSet(batchSize, trainingDataSet);
+            var lossAccuracyBefore = network.ComputeMetricsForValidationDataSet(batchSize, trainingDataSet);
 
             Log.Info("-");
             Log.Info("--------------------------------------------------------------------");
@@ -947,7 +947,7 @@ namespace SharpNetTests.NonReg
             TestNetwork.Fit(network, X, Y, learningRate, numEpochs, batchSize);
 
             var predict_after = network.Predict(X, false).ToNumpy();
-            var lossAccuracyAfter = network.ComputeMetricsForTestDataSet(batchSize, trainingDataSet);
+            var lossAccuracyAfter = network.ComputeMetricsForValidationDataSet(batchSize, trainingDataSet);
 
             Log.Info("C# numEpochs= " + numEpochs);
             Log.Info("C# learningRate= " + learningRate);
@@ -1007,7 +1007,7 @@ namespace SharpNetTests.NonReg
 
             using var trainingDataSet = new InMemoryDataSet(X, Y);
 
-            var lossAccuracyBefore = network.ComputeMetricsForTestDataSet(batchSize, trainingDataSet);
+            var lossAccuracyBefore = network.ComputeMetricsForValidationDataSet(batchSize, trainingDataSet);
 
             Log.Info("-");
             Log.Info("--------------------------------------------------------------------");
@@ -1016,7 +1016,7 @@ namespace SharpNetTests.NonReg
             TestNetwork.Fit(network, X, Y, learningRate, numEpochs, batchSize);
 
             var predict_after = network.Predict(X, false).ToNumpy();
-            var lossAccuracyAfter = network.ComputeMetricsForTestDataSet(batchSize, trainingDataSet);
+            var lossAccuracyAfter = network.ComputeMetricsForValidationDataSet(batchSize, trainingDataSet);
 
             Log.Info("C# numEpochs= " + numEpochs);
             Log.Info("C# learningRate= " + learningRate);
@@ -1080,7 +1080,7 @@ namespace SharpNetTests.NonReg
 
             using var trainingDataSet = new InMemoryDataSet(X, Y);
 
-            var lossAccuracyBefore = network.ComputeMetricsForTestDataSet(batchSize, trainingDataSet);
+            var lossAccuracyBefore = network.ComputeMetricsForValidationDataSet(batchSize, trainingDataSet);
 
             Log.Info("-");
             Log.Info("--------------------------------------------------------------------");
@@ -1089,7 +1089,7 @@ namespace SharpNetTests.NonReg
             TestNetwork.Fit(network, X, Y, learningRate, numEpochs, batchSize);
 
             var predict_after = network.Predict(X, false).ToNumpy();
-            var lossAccuracyAfter = network.ComputeMetricsForTestDataSet(batchSize, trainingDataSet);
+            var lossAccuracyAfter = network.ComputeMetricsForValidationDataSet(batchSize, trainingDataSet);
 
             Log.Info("C# numEpochs= " + numEpochs);
             Log.Info("C# learningRate= " + learningRate);

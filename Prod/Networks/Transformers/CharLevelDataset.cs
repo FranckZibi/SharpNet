@@ -72,4 +72,6 @@ public class CharLevelDataset : DataSet
     {
         throw new NotImplementedException();
     }
+
+    public override AbstractDatasetSample GetDatasetSample() => _datasetSample;
 }

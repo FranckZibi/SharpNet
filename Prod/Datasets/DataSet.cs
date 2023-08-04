@@ -128,6 +128,7 @@ namespace SharpNet.Datasets
         public abstract int ElementIdToCategoryIndex(int elementId);
         #endregion
 
+        public abstract AbstractDatasetSample GetDatasetSample();
 
         public virtual CpuTensor<float> LoadFullY()
         {
@@ -345,18 +346,6 @@ namespace SharpNet.Datasets
             }
             return DataFrame.MergeHorizontally(ExtractIdDataFrame(df.Shape[0]), df);
         }
-
-        /// <summary>
-        /// save the model and return all the files used to save the model
-        /// </summary>
-        /// <param name="model"></param>
-        /// <param name="workingDirectory"></param>
-        /// <param name="modelName"></param>
-        /// <returns></returns>
-        public virtual List<string> Save(Model model, string workingDirectory, string modelName)
-        {
-            return model.Save(workingDirectory, modelName);
-        }
         // ReSharper disable once UnusedMember.Global
         public DataSet Resize(int targetSize, bool shuffle)
         {
@@ -555,19 +544,44 @@ namespace SharpNet.Datasets
             to_libsvm(datasetPath, Separator, overwriteIfExists);
             return datasetPath;
         }
-        public virtual List<TrainingAndTestDataset> KFoldSplit(int kfold, int countMustBeMultipleOf)
+        public List<TrainingAndTestDataset> KFoldSplit(int n_splits, int countMustBeMultipleOf)
         {
-            var validationIntervalForKfold = KFoldModel.KFoldIntervals(kfold, Count, countMustBeMultipleOf);
+            var validationIntervalForKfold = IdToValidationKFold(n_splits, countMustBeMultipleOf);
             List<TrainingAndTestDataset> res = new();
-            for (var index = 0; index < validationIntervalForKfold.Count; index++)
+            for (int fold = 0; fold < n_splits; ++fold)
             {
-                var intervalForValidation = validationIntervalForKfold[index];
-                var training = SubDataSet(id => id < intervalForValidation.Item1 || id > intervalForValidation.Item2);
-                var test = SubDataSet(id => id >= intervalForValidation.Item1 && id <= intervalForValidation.Item2);
-                res.Add(new TrainingAndTestDataset(training, test, KFoldModel.KFoldModelNameEmbeddedModelName(Name, index)));
+                int kfoldIndex = fold;
+                var training = SubDataSet(id => validationIntervalForKfold[id] != kfoldIndex);
+                var validation = SubDataSet(id => validationIntervalForKfold[id] == kfoldIndex);
+                res.Add(new TrainingAndTestDataset(training, validation, KFoldModel.KFoldModelNameEmbeddedModelName(Name, kfoldIndex)));
             }
             return res;
         }
+
+        public virtual int[] IdToValidationKFold(int n_splits, int countMustBeMultipleOf)
+        {
+            Debug.Assert(n_splits >= 1);
+            int[] validationIntervalForKfold = new int[Count];
+            int countByFold = Count / n_splits;
+            Debug.Assert(countByFold >= 1);
+            int end = -1;
+            for (int split = 0; split < n_splits; ++split)
+            {
+                int start = split == 0 ? 0 : (end + 1);
+                end = start + countByFold - 1;
+                end -= (end - start + 1) % countMustBeMultipleOf;
+                if (split == n_splits - 1)
+                {
+                    end = Count - 1;
+                }
+                for (int idx = start; idx <= end; ++idx)
+                {
+                    validationIntervalForKfold[idx] = split;
+                }
+            }
+            return validationIntervalForKfold;
+        }
+
 
         #region Dispose pattern
         public void Dispose()

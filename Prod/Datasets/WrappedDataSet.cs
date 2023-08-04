@@ -38,10 +38,15 @@ public abstract class WrappedDataSet : DataSet
     public override bool CanBeSavedInCSV => _original.CanBeSavedInCSV;
     public override bool UseRowIndexAsId => _original.UseRowIndexAsId;
     public override List<int[]> XMiniBatch_Shape(int[] shapeForFirstLayer) { return _original.XMiniBatch_Shape(shapeForFirstLayer); }
+    public override AbstractDatasetSample GetDatasetSample() => _original.GetDatasetSample();
 
-    public override List<TrainingAndTestDataset> KFoldSplit(int kfold, int countMustBeMultipleOf)
+    public override int[] IdToValidationKFold(int n_splits, int countMustBeMultipleOf)
     {
-        return _original.KFoldSplit(kfold, countMustBeMultipleOf);
+        if (Count != _original.Count)
+        {
+            throw new ArgumentException($"{Count} != {_original.Count}");
+        }
+        return _original.IdToValidationKFold(n_splits, countMustBeMultipleOf);
     }
 
     #region Dispose pattern

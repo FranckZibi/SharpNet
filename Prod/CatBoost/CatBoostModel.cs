@@ -38,7 +38,7 @@ namespace SharpNet.CatBoost
         #endregion
 
         public override (string train_XDatasetPath_InModelFormat, string train_YDatasetPath_InModelFormat, string train_XYDatasetPath_InModelFormat, string validation_XDatasetPath_InModelFormat, string validation_YDatasetPath_InModelFormat, string validation_XYDatasetPath_InModelFormat, IScore trainLossIfAvailable, IScore validationLossIfAvailable, IScore trainRankingMetricIfAvailable, IScore validationRankingMetricIfAvailable)
-            Fit(DataSet trainDataset, DataSet validationDatasetIfAny)
+            Fit(DataSet trainDataset, DataSet validationDatasetIfAny, Func<bool, bool, DataSet, DataSet, string, List<string>> save = null)
         {
             if (ModelSample.GetLoss() == EvaluationMetricEnum.DEFAULT_VALUE)
             {
@@ -253,18 +253,6 @@ namespace SharpNet.CatBoost
         {
             //No need to save model : it is already saved in json format
             return CatBoostSample.Save(workingDirectory, modelName);
-        }
-        public override int GetNumEpochs()
-        {
-            return CatBoostSample.iterations;
-        }
-        public override string DeviceName()
-        {
-            return CatBoostSample.DeviceName();
-        }
-        public override double GetLearningRate()
-        {
-            return CatBoostSample.learning_rate;
         }
         public override List<string> AllFiles()
         {

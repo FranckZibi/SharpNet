@@ -86,6 +86,21 @@ namespace SharpNet.Networks
         #endregion
         #endregion
 
+
+        public double MinimumRankingScoreToSaveModel = double.NaN;
+
+
+        public override IScore GetMinimumRankingScoreToSaveModel()
+        {
+            if (double.IsNaN(MinimumRankingScoreToSaveModel))
+            {
+                return null;
+            }
+            return new Score((float)MinimumRankingScoreToSaveModel, GetRankingEvaluationMetric());
+
+        }
+
+
         /// <summary>
         /// all resources (CPU or GPU) available for the current network
         /// values superior or equal to 0 means GPU resources (device)

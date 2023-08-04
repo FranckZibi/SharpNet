@@ -15,7 +15,14 @@ public abstract class AbstractModelSample : AbstractSample, IModelSample
 
     public abstract EvaluationMetricEnum GetLoss();
 
+    public virtual IScore GetMinimumRankingScoreToSaveModel()
+    {
+        return null;
+    }
+
+
     public bool IsRegressionProblem => GetObjective() == Objective_enum.Regression;
+
 
     public Objective_enum GetObjective()
     {

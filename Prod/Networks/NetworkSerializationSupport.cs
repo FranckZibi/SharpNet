@@ -150,7 +150,6 @@ namespace SharpNet.Networks
             res.Add(ToParameterFilePath(WorkingDirectory, ModelName));
             return res;
         }
-
         [NotNull] public static string ToModelFilePath(string workingDirectory, string modelName)
         {
             return Path.Combine(workingDirectory, modelName + ".txt");

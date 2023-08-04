@@ -107,6 +107,10 @@ public class InMemoryDataSet : DataSet
     }
 
     public CpuTensor<float> X => _x;
+    public override AbstractDatasetSample GetDatasetSample()
+    {
+        return null;
+    }
     public override string ToString()
     {
         return _x + " => " + _yInMemoryDataSet;

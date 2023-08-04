@@ -232,5 +232,4 @@ public class SVMSample : AbstractModelSample
 
         return searchSpace;
     }
-
 }
