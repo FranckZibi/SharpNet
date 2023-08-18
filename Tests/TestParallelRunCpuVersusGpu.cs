@@ -1219,8 +1219,7 @@ namespace SharpNetTests
             var expected = TestCpuTensor.RandomFloatTensor(predicted.Shape, _rand, 0.00001, +1.5);
             var batchSize = shape[0];
             var mseOfLogLoss = RandomTensor(new[] { batchSize });
-            const float epsilon = 0.001f;
-            TestAll(new[] { mseOfLogLoss, expected, predicted }, tensors => tensors[0].MseOfLogLoss(tensors[1], tensors[2], epsilon));
+            TestAll(new[] { mseOfLogLoss, expected, predicted }, tensors => tensors[0].ComputeEvaluationMetric(tensors[1], tensors[2], EvaluationMetricEnum.MseOfLog));
         }
 
         [TestCase(new[] { 10000, 1 })]

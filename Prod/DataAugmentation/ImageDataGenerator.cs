@@ -177,8 +177,7 @@ namespace SharpNet.DataAugmentation
                 result.Add(new Contrast((float)_sample.ContrastOperationEnhancementFactor, lazyStats.Value.GreyMean(meanAndVolatilityForEachChannel)));
             }
 
-
-            //we can not use CutMix && Mixup at tjhe same time: if they are both enabled we need to disable one of them (randomly)
+            //we can not use CutMix && Mixup at the same time: if they are both enabled we need to disable one of them (randomly)
             var alphaCutMix = _sample.AlphaCutMix;
             var alphaMixup = _sample.AlphaMixup;
             if (alphaCutMix > 0 && alphaMixup > 0)
@@ -196,9 +195,20 @@ namespace SharpNet.DataAugmentation
 
             result.Add(CutMix.ValueOf(alphaCutMix, indexInMiniBatch, xOriginalMiniBatch, rand));
             result.Add(Mixup.ValueOf(alphaMixup, indexInMiniBatch, xOriginalMiniBatch, rand));
-            result.Add(Cutout.ValueOf(_sample.CutoutPatchPercentage, rand, nbRows, nbCols));
-            result.Add(Cutout.ValueOfColumnsCutout(_sample.ColumnsCutoutPatchPercentage, rand, nbRows, nbCols));
-            result.Add(Cutout.ValueORowsCutout(_sample.RowsCutoutPatchPercentage, rand, nbRows, nbCols));
+            for (int i = 0; i < Math.Max(_sample.CutoutCount, 1); i++)
+            {
+                result.Add(Cutout.ValueOf(_sample.CutoutPatchPercentage, rand, nbRows, nbCols));
+            }
+
+            for (int i = 0; i < Math.Max(_sample.ColumnsCutoutCount, 1); i++)
+            {
+                result.Add(Cutout.ValueOfColumnsCutout(_sample.ColumnsCutoutPatchPercentage, rand, nbRows, nbCols));
+            }
+            for (int i = 0; i < Math.Max(_sample.RowsCutoutCount,1); i++)
+            {
+                result.Add(Cutout.ValueORowsCutout(_sample.RowsCutoutPatchPercentage, rand, nbRows, nbCols));
+            }
+
             result.RemoveAll(x => x == null);
 #if DEBUG
             OperationHelper.CheckIntegrity(result);

@@ -29,7 +29,7 @@ public class KFoldModel : Model
         }
     }
 
-    public KFoldModel(KFoldSample modelSample, string kfoldWorkingDirectory, string kfoldModelName, AbstractDatasetSample datasetSample, IModelSample embeddedModelSample) : base(modelSample, kfoldWorkingDirectory, kfoldModelName)
+    public KFoldModel(KFoldSample modelSample, string kfoldWorkingDirectory, string kfoldModelName, AbstractDatasetSample datasetSample, AbstractModelSample embeddedModelSample) : base(modelSample, kfoldWorkingDirectory, kfoldModelName)
     {
         _embeddedModels = new();
         for (int i = 0; i < modelSample.n_splits; ++i)
@@ -227,6 +227,7 @@ public class KFoldModel : Model
                 {
                     if (validationIntervalForKfold[row] != fold)
                     {
+                        // ReSharper disable once PossibleNullReferenceException
                         trainPredictions_InModelFormat.RowSlice(row, 1, true).Add(fold_trainPredictions_InModelFormat.RowSlice(fold_training_row++, 1, true));
                     }
                 }
@@ -252,12 +253,14 @@ public class KFoldModel : Model
         IScore trainRankingScore_InTargetFormat = null;
         if (computeTrainMetrics)
         {
+            // ReSharper disable once PossibleNullReferenceException
             trainLoss_InModelFormat = ComputeLoss(y_true_InModelFormat, trainPredictions_InModelFormat.FloatCpuTensor());
             trainPredictions_InTargetFormat = datasetSample.PredictionsInModelFormat_2_PredictionsInTargetFormat(trainPredictions_InModelFormat, ModelSample.GetObjective());
             trainRankingScore_InTargetFormat = datasetSample.ComputeRankingEvaluationMetric(y_true_InTargetFormat, trainPredictions_InTargetFormat, ModelSample.GetRankingEvaluationMetric());
         }
 
         //validationPredictions_InModelFormat.Mult(1f / n_splits);
+        // ReSharper disable once PossibleNullReferenceException
         var validationLoss_InModelFormat = ComputeLoss(y_true_InModelFormat, validationPredictions_InModelFormat.FloatCpuTensor());
         var validationPredictions_InTargetFormat = datasetSample.PredictionsInModelFormat_2_PredictionsInTargetFormat(validationPredictions_InModelFormat, ModelSample.GetObjective());
         var validationRankingScore_InTargetFormat = datasetSample.ComputeRankingEvaluationMetric(y_true_InTargetFormat, validationPredictions_InTargetFormat, ModelSample.GetRankingEvaluationMetric());

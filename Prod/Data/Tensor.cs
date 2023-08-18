@@ -190,11 +190,11 @@ namespace SharpNet.Data
         public int Dimension => Shape.Length;
         protected ulong ReallyNeededMemoryInBytesForShape(int[] shape) { return (ulong)Utils.Product(shape) * (ulong)TypeSize; }
         public CpuTensor<float> AsFloatCpu => AsCpu<float>();
-        public CpuTensor<Half> AsHalfCpu => AsCpu<Half>();
+        private CpuTensor<Half> AsHalfCpu => AsCpu<Half>();
         public CpuTensor<string> AsStringCpu => AsCpu<string>();
         public CpuTensor<int> AsIntCpu => AsCpu<int>();
         public Span<float> AsFloatCpuSpan => AsFloatCpu.SpanContent;
-        public Span<Half> AsHalfCpuSpan => AsHalfCpu.SpanContent;
+        protected Span<Half> AsHalfCpuSpan => AsHalfCpu.SpanContent;
         public float*  AsFloatPointer => (float*)AsFloatCpu.Pointer;
 
         public ReadOnlySpan<float> AsReadonlyFloatCpuSpan => AsCpu<float>().ReadonlyContent;
@@ -318,6 +318,7 @@ namespace SharpNet.Data
         /// reshape the current tensor to 'newShape' in a thread safe way
         /// </summary>
         /// <param name="newShape">the target shape</param>
+        // ReSharper disable once UnusedMember.Global
         public void Reshape_ThreadSafe(int[] newShape)
         {
             if (SameShape(newShape))
@@ -721,10 +722,6 @@ namespace SharpNet.Data
             extractedShape[0] = nbRows; //new number of rows
             return Slice(Idx(startRowIndex), extractedShape);
         }
-        public Tensor GetSubTensor(int startRowIndex)
-        {
-            return GetSubTensor(startRowIndex, Shape.Skip(1).ToArray());
-        }
         public Tensor GetSubTensor(int startRowIndex, int[] subTensorShape)
         {
             Debug.Assert(Shape.Length >= 2);
@@ -737,7 +734,7 @@ namespace SharpNet.Data
             return d.Select(t => t.RowSlice(startRowIndex, nbRows)).ToList();
         }
 
-        public Tensor ElementSlice(int elementIndex)
+        protected Tensor ElementSlice(int elementIndex)
         {
             return RowSlice(elementIndex, 1);
         }
@@ -949,12 +946,8 @@ namespace SharpNet.Data
         }
 
         #region BinaryCrossentropy & CategoricalCrossentropy &  SparseCategoricalCrossentropy
-        public abstract void BinaryCrossentropyLossBuffer([NotNull] Tensor yExpected, [NotNull] Tensor yPredicted);
-        public double BinaryCrossentropyLoss(Tensor yExpected, Tensor yPredicted)
-        {
-            ComputeBufferForEvaluationMetric(yExpected, yPredicted, EvaluationMetricEnum.BinaryCrossentropy);
-            return BufferToEvaluationMetric(EvaluationMetricEnum.BinaryCrossentropy, Count);
-        }
+
+        protected abstract void BinaryCrossentropyLossBuffer([NotNull] Tensor yExpected, [NotNull] Tensor yPredicted);
         /// <summary>
         /// this = a buffer a vector of shape (batch_size)
         /// </summary>
@@ -965,18 +958,9 @@ namespace SharpNet.Data
         /// what has been predicted by the NN (in each row the biggest value is the NN favorite)
         /// shape is (batch_size, numClass) </param>
         /// <returns></returns>
-        public abstract void CategoricalCrossentropyLossBuffer([NotNull] Tensor yExpectedOneHot, [NotNull] Tensor yPredicted);
-        public double CategoricalCrossentropyLoss([NotNull] Tensor yExpectedOneHot, [NotNull] Tensor yPredicted)
-        {
-            ComputeBufferForEvaluationMetric(yExpectedOneHot, yPredicted, EvaluationMetricEnum.CategoricalCrossentropy);
-            return BufferToEvaluationMetric(EvaluationMetricEnum.CategoricalCrossentropy, Count);
-        }
-        public abstract void CategoricalCrossentropyWithHierarchyLossBuffer([NotNull] Tensor yExpected, [NotNull] Tensor yPredicted);
-        public double CategoricalCrossentropyWithHierarchyLoss(Tensor yExpected, Tensor yPredicted)
-        {
-            ComputeBufferForEvaluationMetric(yExpected, yPredicted, EvaluationMetricEnum.CategoricalCrossentropyWithHierarchy);
-            return BufferToEvaluationMetric(EvaluationMetricEnum.CategoricalCrossentropyWithHierarchy, Count);
-        }
+        protected abstract void CategoricalCrossentropyLossBuffer([NotNull] Tensor yExpectedOneHot, [NotNull] Tensor yPredicted);
+
+        protected abstract void CategoricalCrossentropyWithHierarchyLossBuffer([NotNull] Tensor yExpected, [NotNull] Tensor yPredicted);
         /// <summary>
         /// this = a buffer a vector of shape (batch_size)
         /// </summary>
@@ -986,7 +970,7 @@ namespace SharpNet.Data
         /// what has been predicted by the NN (in each row the biggest value is the NN favorite)
         /// shape is (batch_size, numClass) </param>
         /// <returns></returns>
-        public abstract void SparseCategoricalCrossentropyLossBuffer([NotNull] Tensor yExpectedSparse, [NotNull] Tensor yPredicted);
+        protected abstract void SparseCategoricalCrossentropyLossBuffer([NotNull] Tensor yExpectedSparse, [NotNull] Tensor yPredicted);
         public double SparseCategoricalCrossentropyLoss([NotNull] Tensor yExpectedSparse, [NotNull] Tensor yPredicted)
         {
             ComputeBufferForEvaluationMetric(yExpectedSparse, yPredicted, EvaluationMetricEnum.SparseCategoricalCrossentropy);
@@ -1005,13 +989,14 @@ namespace SharpNet.Data
         /// what has been predicted by the NN (in each row the biggest value is the NN favorite)
         /// shape is (batch_size, numClass) </param>
         /// <returns></returns>
-        public abstract void ComputeSparseAccuracyBuffer([NotNull] Tensor yExpected, [NotNull] Tensor yPredicted);
+        protected abstract void ComputeSparseAccuracyBuffer([NotNull] Tensor yExpected, [NotNull] Tensor yPredicted);
         public double ComputeSparseAccuracy(Tensor yExpectedSparse, Tensor yPredicted)
         {
             ComputeBufferForEvaluationMetric(yExpectedSparse, yPredicted, EvaluationMetricEnum.SparseAccuracy);
             return BufferToEvaluationMetric(EvaluationMetricEnum.SparseAccuracy, Count);
         }
-        public abstract void ComputeAccuracyCategoricalCrossentropyWithHierarchyBuffer([NotNull] Tensor yExpected, [NotNull] Tensor yPredicted);
+
+        protected abstract void ComputeAccuracyCategoricalCrossentropyWithHierarchyBuffer([NotNull] Tensor yExpected, [NotNull] Tensor yPredicted);
         public double ComputeAccuracyCategoricalCrossentropyWithHierarchy(Tensor yExpected, Tensor yPredicted)
         {
             ComputeBufferForEvaluationMetric(yExpected, yPredicted, EvaluationMetricEnum.AccuracyCategoricalCrossentropyWithHierarchy);
@@ -1023,7 +1008,7 @@ namespace SharpNet.Data
         /// <param name="yExpected">yExpected in one-hot encoding (in each row there are exactly one '1' , all other values being 0)</param>
         /// <param name="yPredicted">what has been predicted by the NN (in each row the biggest value is the NN favorite)</param>
         /// <returns></returns>
-        public abstract void ComputeAccuracyBuffer([NotNull] Tensor yExpected, [NotNull] Tensor yPredicted);
+        protected abstract void ComputeAccuracyBuffer([NotNull] Tensor yExpected, [NotNull] Tensor yPredicted);
         public double ComputeAccuracy([NotNull] Tensor yExpected, [NotNull] Tensor yPredicted)
         {
             ComputeBufferForEvaluationMetric(yExpected, yPredicted, EvaluationMetricEnum.Accuracy);
@@ -1046,49 +1031,29 @@ namespace SharpNet.Data
         /// <param name="yPredicted">the observed values for the prediction</param>
         /// <param name="huberDelta"></param>
         public abstract void HuberLossBuffer(Tensor yExpected, Tensor yPredicted, float huberDelta);
-        // ReSharper disable once UnusedParameter.Global
-        public double HuberLoss(Tensor yExpected, Tensor yPredicted, float huberDelta)
-        {
-            ComputeBufferForEvaluationMetric(yExpected, yPredicted, EvaluationMetricEnum.Huber);
-            return BufferToEvaluationMetric(EvaluationMetricEnum.Huber, Count);
-        }
         #endregion
         
         #region Mae
-        public double MaeLoss(Tensor yExpected, Tensor yPredicted)
-        {
-            ComputeBufferForEvaluationMetric(yExpected, yPredicted, EvaluationMetricEnum.Mae);
-            return BufferToEvaluationMetric(EvaluationMetricEnum.Mae, Count);
-        }
         /// <summary>
         /// Mean Absolute Error
         /// </summary>
         /// <param name="yExpected"></param>
         /// <param name="yPredicted"></param>
-        public abstract void MaeLossBuffer([NotNull] Tensor yExpected, [NotNull] Tensor yPredicted);
+        protected abstract void MaeLossBuffer([NotNull] Tensor yExpected, [NotNull] Tensor yPredicted);
         #endregion
 
         #region Mse / Rmse
-        public double MseLoss(Tensor yExpected, Tensor yPredicted)
-        {
-            ComputeBufferForEvaluationMetric(yExpected, yPredicted, EvaluationMetricEnum.Mse);
-            return BufferToEvaluationMetric(EvaluationMetricEnum.Mse, Count);
-        }
-        public double RmseLoss(Tensor yExpected, Tensor yPredicted)
-        {
-            ComputeBufferForEvaluationMetric(yExpected, yPredicted, EvaluationMetricEnum.Mse);
-            return BufferToEvaluationMetric(EvaluationMetricEnum.Rmse, Count);
-        }
         /// <summary>
         /// MSE
         /// </summary>
         /// <param name="yExpected"></param>
         /// <param name="yPredicted"></param>
-        public abstract void MseLossBuffer([NotNull] Tensor yExpected, [NotNull] Tensor yPredicted);
+        protected abstract void MseLossBuffer([NotNull] Tensor yExpected, [NotNull] Tensor yPredicted);
 
         #endregion
 
         #region MseOfLogLoss
+
         /// <summary>
         /// this = buffer
         /// Compute the Mean Squared Error of log loss (MseOfLog loss) and stores it in the 'this' tensor
@@ -1097,23 +1062,13 @@ namespace SharpNet.Data
         /// </summary>
         /// <param name="yExpected">the expected values for the prediction</param>
         /// <param name="yPredicted">the observed values for the prediction</param>
-        /// <param name="epsilon">minimum allowed value for a prediction</param>
-        public abstract void MseOfLogLossBuffer(Tensor yExpected, Tensor yPredicted, float epsilon);
-
-        public double MseOfLogLoss(Tensor yExpected, Tensor yPredicted, float epsilon)
-        {
-            ComputeBufferForEvaluationMetric(yExpected, yPredicted, EvaluationMetricEnum.MseOfLog);
-            return BufferToEvaluationMetric(EvaluationMetricEnum.MseOfLog, Count);
-        }
+        /// <param name="epsilon"></param>
+        protected abstract void MseOfLogLossBuffer(Tensor yExpected, Tensor yPredicted, float epsilon);
         #endregion
 
         #region MeanSquaredLogError
-        public abstract void MeanSquaredLogErrorLossBuffer([NotNull] Tensor yExpected, [NotNull] Tensor yPredicted);
-        public double MeanSquaredLogErrorLoss(Tensor yExpected, Tensor yPredicted)
-        {
-            ComputeBufferForEvaluationMetric(yExpected, yPredicted, EvaluationMetricEnum.MeanSquaredLogError);
-            return BufferToEvaluationMetric(EvaluationMetricEnum.MeanSquaredLogError, Count);
-        }
+
+        protected abstract void MeanSquaredLogErrorLossBuffer([NotNull] Tensor yExpected, [NotNull] Tensor yPredicted);
         #endregion
 
         #region F1 score
@@ -1132,8 +1087,9 @@ namespace SharpNet.Data
         #endregion
 
         #region Pearson & Spearman Correlation
-        public abstract double ComputePearsonCorrelation([NotNull] Tensor y_pred);
-        public abstract double ComputeSpearmanCorrelation([NotNull] Tensor y_pred);
+
+        protected abstract double ComputePearsonCorrelation([NotNull] Tensor y_pred);
+        protected abstract double ComputeSpearmanCorrelation([NotNull] Tensor y_pred);
         #endregion
 
         #region AUC
@@ -1148,7 +1104,7 @@ namespace SharpNet.Data
         #endregion
 
         // ReSharper disable once UnusedParameter.Global
-        public double BufferToEvaluationMetric(EvaluationMetricEnum evaluationMetric, int elementCountInBuffer)
+        private double BufferToEvaluationMetric(EvaluationMetricEnum evaluationMetric, int elementCountInBuffer)
         {
             var buffer = this;
             if (evaluationMetric == EvaluationMetricEnum.Rmse)
@@ -1158,7 +1114,7 @@ namespace SharpNet.Data
             return buffer.ContentAsFloatArray().Sum() / elementCountInBuffer;
         }
 
-        public void ComputeBufferForEvaluationMetric(Tensor yExpected, Tensor yPredicted, EvaluationMetricEnum evaluationMetric)
+        private void ComputeBufferForEvaluationMetric(Tensor yExpected, Tensor yPredicted, EvaluationMetricEnum evaluationMetric)
         {
             var buffer = this;
             switch (evaluationMetric)
@@ -1211,7 +1167,9 @@ namespace SharpNet.Data
                     buffer.MaeLossBuffer(yExpected, yPredicted);
                     return;
                 case EvaluationMetricEnum.MseOfLog:
-                    buffer.MseOfLogLossBuffer(yExpected, yPredicted, NetworkSample.Default_MseOfLog_Loss);
+                    var epsilon = NetworkSample.Default_MseOfLog_Loss;
+                    Debug.Assert(epsilon > 0);
+                    buffer.MseOfLogLossBuffer(yExpected, yPredicted, epsilon);
                     return;
                 case EvaluationMetricEnum.MeanSquaredLogError:
                     buffer.MeanSquaredLogErrorLossBuffer(yExpected, yPredicted);
@@ -1373,6 +1331,7 @@ namespace SharpNet.Data
             UniformDistribution(rand, -limit, limit);
         }
 
+        // ReSharper disable once UnusedMember.Global
         public void PytorchUniform(Random rand)
         {
             int fanIn = Shape[0];  //number of input units in the weight tensor

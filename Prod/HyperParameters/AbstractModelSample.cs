@@ -6,7 +6,7 @@ using SharpNet.Models;
 
 namespace SharpNet.HyperParameters;
 
-public abstract class AbstractModelSample : AbstractSample, IModelSample
+public abstract class AbstractModelSample : AbstractSample
 {
     protected AbstractModelSample(HashSet<string> mandatoryCategoricalHyperParameters) : base(
         mandatoryCategoricalHyperParameters)

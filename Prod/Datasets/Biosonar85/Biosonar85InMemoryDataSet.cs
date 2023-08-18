@@ -19,10 +19,10 @@ public class Biosonar85InMemoryDataSet : InMemoryDataSet
             throw new ArgumentException($"only KFold == 2 is supported, not {n_splits}");
         }
         var validationIntervalForKfold = new int[Count];
-        string IdToSite(string id) { return id.Split(new[] { '-', '.' })[1]; }
+        // ReSharper disable once PossibleNullReferenceException
         for (int i = 0; i < Y_IDs.Length; ++i)
         {
-            var site = IdToSite(Y_IDs[i]);
+            var site = Biosonar85Utils.IdToSite(Y_IDs[i]);
             validationIntervalForKfold[i] = (site.StartsWith("GUA") || site.StartsWith("JAM") || site.StartsWith("BERMUDE"))?1:0;
         }
         return validationIntervalForKfold;

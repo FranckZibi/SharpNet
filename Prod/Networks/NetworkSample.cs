@@ -389,6 +389,19 @@ namespace SharpNet.Networks
                 }
             }
 
+            if (CutoutPatchPercentage <= 0)
+            {
+                CutoutCount = 0;
+            }
+            if (ColumnsCutoutPatchPercentage <= 0)
+            {
+                ColumnsCutoutCount = 0;
+            }
+            if (RowsCutoutPatchPercentage <= 0)
+            {
+                RowsCutoutCount = 0;
+            }
+
             if (LossFunction == EvaluationMetricEnum.DEFAULT_VALUE)
             {
                 return false;
@@ -602,18 +615,33 @@ namespace SharpNet.Networks
         /// If less or equal to 0 , Cutout will be disabled
         /// </summary>
         public double CutoutPatchPercentage = 0.0;
+        /// <summary>
+        /// number of distinct 'cutout' to perform in the same image
+        /// if CutoutPatchPercentage is less or equal to 0 , Cutout will be disabled (and CutoutCount will be set to 0
+        /// </summary>
+        public int CutoutCount = 1;
 
         /// <summary>
         /// The columns cutout to use in maximum % of the number of columns
         /// If less or equal to 0 , Columns Cutout will be disabled
         /// </summary>
         public double ColumnsCutoutPatchPercentage = 0.0;
+        /// <summary>
+        /// number of distinct 'column cutout' to perform in the same image
+        /// if ColumnsCutoutPatchPercentage is less or equal to 0 , Column Cutout will be disabled (and ColumnsCutoutCount will be set to 0)
+        /// </summary>
+        public int ColumnsCutoutCount = 1;
 
         /// <summary>
         /// The rows cutout to use in maximum % of the number of rows
         /// If less or equal to 0 , Rows Cutout will be disabled
         /// </summary>
         public double RowsCutoutPatchPercentage = 0.0;
+        /// <summary>
+        /// number of distinct 'rows cutout' to perform in the same image
+        /// if RowsCutoutPatchPercentage is less or equal to 0 , Rows Cutout will be disabled (and RowsCutoutCount will be set to)
+        /// </summary>
+        public int RowsCutoutCount = 1;
 
 
 

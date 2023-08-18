@@ -589,10 +589,11 @@ namespace SharpNet.Networks
         {
             if (save == null)
             {
-                save = (saveModel, savePredictions, trainDataSet, validationDataSet, modelNameForEpoch) => Save(WorkingDirectory, modelNameForEpoch);
+                save = (_, _, _, _, modelNameForEpoch) => Save(WorkingDirectory, modelNameForEpoch);
             }
 
-            //FindBestLearningRate(trainingDataset, 1e-8, 10.0, Sample.BatchSize);
+            //FindBestLearningRate(trainingDataset, 1e-8, 10, Sample.BatchSize);
+
             if (ModelSample.GetLoss() == EvaluationMetricEnum.DEFAULT_VALUE)
             {
                 throw new ArgumentException("Loss Function not set");
@@ -706,20 +707,17 @@ namespace SharpNet.Networks
 
                     var modelNameForEpoch = (epoch == Sample.NumEpochs) ? ModelName : (ModelName + "_" + epoch);
                     #region we save the network in disk if necessary
-                    bool isNewBestIterationToSave = IsNewBestIterationToSave(validationDatasetIfAny, epoch);
-                    if (ShouldSaveNetwork(trainingDataset, validationDatasetIfAny, learningRateComputer, savedNetworks, epoch) || isNewBestIterationToSave)
+                    bool isNewBestIterationToSave = IsNewBestIterationToSave();
+                    if (ShouldSaveNetwork(learningRateComputer, savedNetworks, epoch) || isNewBestIterationToSave)
                     {
                         Debug.Assert(save != null);
                         if (isNewBestIterationToSave)
                         {
                             LogInfo("Saving predictions because of new best validation score");
-                        }
-                        var savedFiles = save(true, isNewBestIterationToSave, trainingDataset, validationDatasetIfAny, modelNameForEpoch);
-                        if (isNewBestIterationToSave)
-                        {
                             Utils.TryDelete(savedNetworks.Values.SelectMany(x => x));
                             savedNetworks.Clear();
                         }
+                        var savedFiles = save(true, isNewBestIterationToSave, trainingDataset, validationDatasetIfAny, modelNameForEpoch);
                         savedNetworks[DateTime.Now] = savedFiles;
                     }
                     #endregion
@@ -783,9 +781,13 @@ namespace SharpNet.Networks
                 validationRankingMetricIfAvailable);
         }
 
-        private bool ShouldSaveNetwork(DataSet trainingDataset, DataSet validationDatasetIfAny, ILearningRateComputer learningRateComputer, Dictionary<DateTime, List<string>> savedNetworks, int epoch)
+        private bool ShouldSaveNetwork(ILearningRateComputer learningRateComputer, Dictionary<DateTime, List<string>> savedNetworks, int epoch)
         {
             if (Sample.AutoSaveIntervalInMinutes < 0)
+            {
+                return false;
+            }
+            if (CurrentValidationScoreIsBelowMinimumRankingScoreToSaveModel())
             {
                 return false;
             }
@@ -799,44 +801,59 @@ namespace SharpNet.Networks
         }
 
 
+
         /// <summary>
         /// check if we have just reached an epoch with a new best validation score that is high enough that we should save the network and the predictions
         /// </summary>
-        /// <param name="validationDatasetIfAny"></param>
-        /// <param name="epoch"></param>
         /// <returns></returns>
-        private bool IsNewBestIterationToSave(DataSet validationDatasetIfAny, int epoch)
+        private bool CurrentValidationScoreIsBelowMinimumRankingScoreToSaveModel()
         {
-            if (   validationDatasetIfAny == null 
-                || epoch == Sample.NumEpochs
-                || !EpochData.Last().ValidationMetrics.TryGetValue(Sample.GetRankingEvaluationMetric(), out var rankingLastEpoch) 
-                || double.IsNaN(rankingLastEpoch)
-                || Sample.GetMinimumRankingScoreToSaveModel() == null
-                )
-            {
-                return false;
-            }
-            var rankingScoreLastEpoch = new Score((float)rankingLastEpoch, Sample.GetRankingEvaluationMetric());
-
-
-            if (Sample.GetMinimumRankingScoreToSaveModel().IsBetterThan(rankingScoreLastEpoch))
-            {
-                return false;
-            }
-            for (int i = 0;i<EpochData.Count-1;++i)
-            {
-                if (!EpochData[i].ValidationMetrics.TryGetValue(Sample.GetRankingEvaluationMetric(), out double rankingPreviousEpoch) || double.IsNaN(rankingPreviousEpoch))
-                {
-                    return false;
-                }
-                var rankingScorePreviousEpoch = new Score((float)rankingPreviousEpoch, Sample.GetRankingEvaluationMetric());
-                if (!rankingScoreLastEpoch.IsBetterThan(rankingScorePreviousEpoch))
-                {
-                    return false;
-                }
-            }
-            return true;
+            return CurrentRankingValidationScore() != null
+                   && Sample.GetMinimumRankingScoreToSaveModel() != null
+                   && Sample.GetMinimumRankingScoreToSaveModel().IsBetterThan(CurrentRankingValidationScore());
         }
+
+        private IScore CurrentRankingValidationScore()
+        {
+            if (EpochData.Last().ValidationMetrics.TryGetValue(Sample.GetRankingEvaluationMetric(), out var rankingLastEpoch) && !double.IsNaN(rankingLastEpoch))
+            {
+                return new Score((float)rankingLastEpoch, Sample.GetRankingEvaluationMetric());
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// check if we have just reached an epoch with a new best validation score that is high enough that we should save the network and the predictions
+        /// </summary>
+        /// <returns></returns>
+        private bool IsNewBestIterationToSave()
+        {
+            return CurrentRankingValidationScore() != null
+                   && EpochBestRankingValidationScore() == EpochData.Count
+                   && Sample.GetMinimumRankingScoreToSaveModel() != null
+                   && CurrentRankingValidationScore().IsBetterThan(Sample.GetMinimumRankingScoreToSaveModel());
+        }
+
+        private int EpochBestRankingValidationScore()
+        {
+            IScore bestScore = null;
+            int epochBestScore = -1;    
+            for (int i = 0; i < EpochData.Count; ++i)
+            {
+                if (!EpochData[i].ValidationMetrics.TryGetValue(Sample.GetRankingEvaluationMetric(), out var rankingScore) || double.IsNaN(rankingScore))
+                {
+                    continue;
+                }
+                var epochValidationScore = new Score((float)rankingScore, Sample.GetRankingEvaluationMetric());
+                if (bestScore == null || epochValidationScore.IsBetterThan(bestScore))
+                {
+                    bestScore = epochValidationScore;
+                    epochBestScore = i+1;
+                }
+            }
+            return epochBestScore;
+        }
+
 
         private static bool TryGet(List<KeyValuePair<EvaluationMetricEnum, double>> availableMetrics, EvaluationMetricEnum metric, out double metricValue)
         {

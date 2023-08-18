@@ -48,12 +48,12 @@ namespace SharpNet.HyperParameters
                 });
         }
 
-        public ModelAndDatasetPredictionsSample CopyWithNewModelSample(IModelSample newModelSample)
+        public ModelAndDatasetPredictionsSample CopyWithNewModelSample(AbstractModelSample newModelSample)
         {
             var clonedSamples = new List<ISample>();
             foreach (var s in Samples)
             {
-                clonedSamples.Add(s is IModelSample ? newModelSample : s.Clone());
+                clonedSamples.Add(s is AbstractModelSample ? newModelSample : s.Clone());
             }
             return new ModelAndDatasetPredictionsSample(clonedSamples.ToArray());
         }
@@ -74,7 +74,7 @@ namespace SharpNet.HyperParameters
             return new ModelAndDatasetPredictionsSample(clonedSamples.ToArray());
         }
 
-        public static ModelAndDatasetPredictionsSample New(IModelSample modelSample, AbstractDatasetSample abstractDatasetSample)
+        public static ModelAndDatasetPredictionsSample New(AbstractModelSample modelSample, AbstractDatasetSample abstractDatasetSample)
         {
             return new ModelAndDatasetPredictionsSample(new ISample[]{ modelSample, abstractDatasetSample, new PredictionsSample()});
         }

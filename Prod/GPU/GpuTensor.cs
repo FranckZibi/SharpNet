@@ -786,7 +786,7 @@ namespace SharpNet.GPU
             _wrapper.RunKernel(kernelName, batchSize, new object[] { numClass, buffer, yExpected, yPredicted });
         }
 
-        public override void ComputeAccuracyBuffer(Tensor yExpected, Tensor yPredicted)
+        protected override void ComputeAccuracyBuffer(Tensor yExpected, Tensor yPredicted)
         {
             var buffer = this;
             Debug.Assert(AreCompatible(new List<Tensor> {yExpected, yPredicted}));
@@ -799,12 +799,12 @@ namespace SharpNet.GPU
             _wrapper.RunKernel("ComputeAccuracy", nbRows, new object[] { nbCols, buffer, yExpected, yPredicted });
         }
 
-        public override double ComputePearsonCorrelation(Tensor y_pred)
+        protected override double ComputePearsonCorrelation(Tensor y_pred)
         {
             throw new NotImplementedException($"{nameof(EvaluationMetricEnum.PearsonCorrelation)} can not be used on GPU (only available on CPU)");
         }
 
-        public override double ComputeSpearmanCorrelation(Tensor y_pred)
+        protected override double ComputeSpearmanCorrelation(Tensor y_pred)
         {
             throw new NotImplementedException($"{nameof(EvaluationMetricEnum.SpearmanCorrelation)} can not be used on GPU (only available on CPU)");
         }
@@ -818,7 +818,7 @@ namespace SharpNet.GPU
             cpuBuffer.CopyTo(buffer);
         }
 
-        public override void ComputeSparseAccuracyBuffer(Tensor yExpectedSparse, Tensor yPredicted)
+        protected override void ComputeSparseAccuracyBuffer(Tensor yExpectedSparse, Tensor yPredicted)
         {
             var buffer = this;
             (yExpectedSparse, yPredicted, _) = ReformatTo2DTensorsSparse(yExpectedSparse, yPredicted);
@@ -831,8 +831,7 @@ namespace SharpNet.GPU
             _wrapper.RunKernel("ComputeSparseAccuracy", rows, new object[] { numClass, buffer, yExpectedSparse, yPredicted });
         }
 
-      
-    public override void SparseCategoricalCrossentropyLossBuffer(Tensor yExpectedSparse, Tensor yPredicted)
+    protected override void SparseCategoricalCrossentropyLossBuffer(Tensor yExpectedSparse, Tensor yPredicted)
     {
         var buffer = this;
         (yExpectedSparse, yPredicted, _) = ReformatTo2DTensorsSparse(yExpectedSparse, yPredicted);
@@ -843,34 +842,37 @@ namespace SharpNet.GPU
         CallCudaForLossBuffer(yExpectedSparse, yPredicted, EvaluationMetricEnum.SparseCategoricalCrossentropy);
     }
 
-    public override void CategoricalCrossentropyLossBuffer(Tensor yExpectedOneHot, Tensor yPredicted)
+    protected override void CategoricalCrossentropyLossBuffer(Tensor yExpectedOneHot, Tensor yPredicted)
     {
         CallCudaForLossBuffer(yExpectedOneHot, yPredicted, EvaluationMetricEnum.CategoricalCrossentropy);
     }
-    public override void MaeLossBuffer(Tensor yExpected, Tensor yPredicted)
+
+    protected override void MaeLossBuffer(Tensor yExpected, Tensor yPredicted)
     {
         CallCudaForLossBuffer(yExpected, yPredicted, EvaluationMetricEnum.Mae);
     }
-    public override void MseLossBuffer(Tensor yExpected, Tensor yPredicted)
+
+    protected override void MseLossBuffer(Tensor yExpected, Tensor yPredicted)
     {
         CallCudaForLossBuffer(yExpected, yPredicted, EvaluationMetricEnum.Mse);
     }
-    public override void MeanSquaredLogErrorLossBuffer(Tensor yExpected, Tensor yPredicted)
+
+    protected override void MeanSquaredLogErrorLossBuffer(Tensor yExpected, Tensor yPredicted)
     {
         CallCudaForLossBuffer(yExpected, yPredicted, EvaluationMetricEnum.MeanSquaredLogError);
     }
 
-    public override void CategoricalCrossentropyWithHierarchyLossBuffer(Tensor yExpected, Tensor yPredicted)
+    protected override void CategoricalCrossentropyWithHierarchyLossBuffer(Tensor yExpected, Tensor yPredicted)
     {
         CallCudaForLossBuffer(yExpected, yPredicted, EvaluationMetricEnum.CategoricalCrossentropyWithHierarchy);
     }
 
-    public override void BinaryCrossentropyLossBuffer(Tensor yExpected, Tensor yPredicted)
+    protected override void BinaryCrossentropyLossBuffer(Tensor yExpected, Tensor yPredicted)
     {
         CallCudaForLossBuffer(yExpected, yPredicted, EvaluationMetricEnum.BinaryCrossentropy);
     }
 
-    public override void ComputeAccuracyCategoricalCrossentropyWithHierarchyBuffer(Tensor yExpected, Tensor yPredicted)
+    protected override void ComputeAccuracyCategoricalCrossentropyWithHierarchyBuffer(Tensor yExpected, Tensor yPredicted)
         {
             var buffer = this;
             Debug.Assert(AreCompatible(new List<Tensor> { buffer, yExpected, yPredicted }));
@@ -882,7 +884,8 @@ namespace SharpNet.GPU
             var nbCols = yExpected.Shape[1];
             _wrapper.RunKernel("ComputeSingleAccuracyForCategoricalCrossentropyWithHierarchy", nbRows, new object[] { nbCols, buffer, yExpected, yPredicted });
         }
-        public override void MseOfLogLossBuffer(Tensor yExpected, Tensor yPredicted, float epsilon)
+
+    protected override void MseOfLogLossBuffer(Tensor yExpected, Tensor yPredicted, float epsilon)
         {
             var buffer = this;
             int batchSize = yExpected.Shape[0];

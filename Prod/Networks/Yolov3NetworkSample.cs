@@ -105,9 +105,9 @@ namespace SharpNet.Networks
             }
             var block = _blocks[0].Item2;
             InputShape_CHW = new[] { int.Parse(block["channels"]), int.Parse(block["height"]), int.Parse(block["width"]) };
-            if (block.ContainsKey("momentum"))
+            if (block.TryGetValue("momentum", out var value))
             {
-                BatchNormMomentum = double.Parse(block["momentum"], CultureInfo.InvariantCulture);
+                BatchNormMomentum = double.Parse(value, CultureInfo.InvariantCulture);
             }
             _blockIdToLastLayerIndex[0] = 0;
             //TODO: support decay

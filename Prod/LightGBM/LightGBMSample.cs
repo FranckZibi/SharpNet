@@ -67,6 +67,8 @@ public class LightGBMSample : AbstractModelSample
             case "multiclass":
             case "cross_entropy":
                 return EvaluationMetricEnum.CategoricalCrossentropy;
+            case "accuracy":
+                return EvaluationMetricEnum.Accuracy;
             default:
                 throw new NotImplementedException($"can't manage metric {metric}");
         }
@@ -675,6 +677,7 @@ public class LightGBMSample : AbstractModelSample
     //For example, LightGBM will use uint8_t for feature value if max_bin=255
     // aliases: max_bins
     // constraints: max_bin > 1
+    // default: 255
     public int max_bin = DEFAULT_VALUE;
 
     //max number of bins for each feature

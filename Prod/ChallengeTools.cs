@@ -9,6 +9,7 @@ using SharpNet.HyperParameters;
 using SharpNet.LightGBM;
 using SharpNet.Models;
 using SharpNet.TextPreprocessing;
+// ReSharper disable UnusedMember.Global
 
 namespace SharpNet;
 
@@ -30,7 +31,7 @@ public static class ChallengeTools
         Utils.ConfigureGlobalLog4netProperties(workingDirectory, $"{nameof(EstimateLossContribution)}");
         Utils.ConfigureThreadLog4netProperties(workingDirectory, $"{nameof(EstimateLossContribution)}");
         using var m = ModelAndDatasetPredictions.Load(workingDirectory, modelName, true);
-        m.EstimateLossContribution(computeAlsoRankingScore: true, maxGroupSize: 5000); ;
+        m.EstimateLossContribution(computeAlsoRankingScore: true, maxGroupSize: 5000);
     }
     
 
@@ -53,19 +54,19 @@ public static class ChallengeTools
     public static void TfIdfEncode()
     {
         string[] csvFiles = { @"C:\Projects\Challenges\KaggleDays\Data\search_train.csv", @"C:\Projects\Challenges\KaggleDays\Data\search_test.csv" };
-        string columnToEncode = "keyword";
+        const string columnToEncode = "keyword";
 
 
         //string[] csvFiles = { @"C:\Projects\Challenges\KaggleDays\Data\item_info.csv" };
         //string columnToEncode = "name";
 
-        int embeddingDim = 300;
-        bool hasHeader = true;
-        bool isNormalized = true;
-        var keepEncodedColumnName = false;
-        var reduceEmbeddingDimIfNeeded = false;
-        var norm = TfIdfEncoding.TfIdfEncoding_norm.L2;
-        var scikitLearnCompatibilityMode = false;
+        const int embeddingDim = 300;
+        const bool hasHeader = true;
+        const bool isNormalized = true;
+        const bool keepEncodedColumnName = false;
+        const bool reduceEmbeddingDimIfNeeded = false;
+        const TfIdfEncoding.TfIdfEncoding_norm norm = TfIdfEncoding.TfIdfEncoding_norm.L2;
+        const bool scikitLearnCompatibilityMode = false;
 
         string directory = Path.GetDirectoryName(csvFiles[0]) ?? "";
         Utils.ConfigureGlobalLog4netProperties(directory, $"{nameof(TfIdfEncode)}");

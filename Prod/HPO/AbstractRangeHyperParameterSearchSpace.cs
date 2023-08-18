@@ -152,7 +152,7 @@ public abstract class AbstractRangeHyperParameterSearchSpace : AbstractHyperPara
     {
         string FloatToString(float f)
         {
-            return Math.Round(f,4).ToString(CultureInfo.InvariantCulture);
+            return Math.Round(f,5).ToString(CultureInfo.InvariantCulture);
         }
         return "[" + FloatToString(LowerValueForBucket(bucketIndex)) + "," + FloatToString(UpperValueForBucket(bucketIndex)) + "]";
     }

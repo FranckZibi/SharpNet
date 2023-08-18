@@ -161,7 +161,7 @@ public class KaggleDaysDatasetSample : AbstractDatasetSample
     }
     private static void Create_search_train_test_v3()
     {
-        IModelSample.Log.Info("starting Create_search_train_test_v3");
+        ISample.Log.Info("starting Create_search_train_test_v3");
         var user_info = DataFrame.read_csv(Path.Combine(DataDirectory, "user_info.csv"), true, GetColumnType);
         var item_info = DataFrame.read_csv(Path.Combine(DataDirectory, "item_info.csv"), true, GetColumnType);
 
@@ -177,7 +177,7 @@ public class KaggleDaysDatasetSample : AbstractDatasetSample
         var keyword = DataFrame.read_csv(Path.Combine(DataDirectory, "tfidf_for_keyword.csv"), true, c => c == "keyword" ? typeof(string) : typeof(float));
 
 
-        IModelSample.Log.Info("Finished loading ref dataset");
+        ISample.Log.Info("Finished loading ref dataset");
 
         var train = DataFrame.read_csv(Path.Combine(DataDirectory, "search_train_v2.csv"), true, GetColumnType);
         var train_v3 = train
@@ -189,7 +189,7 @@ public class KaggleDaysDatasetSample : AbstractDatasetSample
             ;
         train_v3 = train_v3.DropIgnoreErrors("product_id", "keyword", "name");
         train_v3.to_csv(Path.Combine(DataDirectory, "search_train_v3.csv"));
-        IModelSample.Log.Info("Finished building train dataset ref dataset");
+        ISample.Log.Info("Finished building train dataset ref dataset");
 
         var test = DataFrame.read_csv(Path.Combine(DataDirectory, "search_test_v2.csv"), true, GetColumnType);
         var test_v3 = test
@@ -201,7 +201,7 @@ public class KaggleDaysDatasetSample : AbstractDatasetSample
             ;
         test_v3 = test_v3.DropIgnoreErrors("product_id", "keyword", "name");
         test_v3.to_csv(Path.Combine(DataDirectory, "search_test_v3.csv"));
-        IModelSample.Log.Info("Finished building test dataset ref dataset");
+        ISample.Log.Info("Finished building test dataset ref dataset");
 
     }
     private static void AddBeforeSearchDataV2()

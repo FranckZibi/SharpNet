@@ -12,8 +12,8 @@ public class DataFrameDataSet : DataSet
 
     #region private fields and properties
     private readonly int[] _elementIdToCategoryIndex;
-    private CpuTensor<float> _x => XDataFrame.FloatCpuTensor();
-    [CanBeNull] private CpuTensor<float> yDataFrameDataSet => YDataFrame_InModelFormat?.FloatCpuTensor();
+    private CpuTensor<float> _x => XDataFrame.FloatTensor;
+    [CanBeNull] private CpuTensor<float> yDataFrameDataSet => YDataFrame_InModelFormat?.FloatTensor;
     private DataFrame YDataFrame_InModelFormat { get; }
     #endregion
 
@@ -38,7 +38,7 @@ public class DataFrameDataSet : DataSet
             datasetSample.GetSeparator())
     {
         DatasetSample = datasetSample;
-        Debug.Assert(y_df == null || AreCompatible_X_Y(x_df.FloatCpuTensor(), y_df.FloatCpuTensor()));
+        Debug.Assert(y_df == null || AreCompatible_X_Y(x_df.FloatTensor, y_df.FloatTensor));
 
         if (IsRegressionProblem || y_df == null)
         {
@@ -47,8 +47,8 @@ public class DataFrameDataSet : DataSet
         else
         {
             _elementIdToCategoryIndex = y_df.Shape[1] == 1 
-                ? y_df.FloatCpuTensor().ReadonlyContent.Select(f => Utils.NearestInt(f)).ToArray() 
-                : y_df.FloatCpuTensor().ArgMax().ReadonlyContent.Select(f => Utils.NearestInt(f)).ToArray();
+                ? y_df.FloatTensor.ReadonlyContent.Select(f => Utils.NearestInt(f)).ToArray() 
+                : y_df.FloatTensor.ArgMax().ReadonlyContent.Select(f => Utils.NearestInt(f)).ToArray();
         }
 
         XDataFrame = x_df;
