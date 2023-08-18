@@ -79,11 +79,13 @@ public class TestUtils
     [TestCase(false, EvaluationMetricEnum.MeanSquaredLogError)]
     [TestCase(false, EvaluationMetricEnum.Rmse)]
     [TestCase(false, EvaluationMetricEnum.BinaryCrossentropy)]
+    [TestCase(false, EvaluationMetricEnum.BCEContinuousY)]
+    [TestCase(false, EvaluationMetricEnum.BCEWithFocalLoss)]
     [TestCase(false, EvaluationMetricEnum.CategoricalCrossentropy)]
     [TestCase(false, EvaluationMetricEnum.CategoricalCrossentropyWithHierarchy)]
     public void TestHigherScoreIsBetter(bool expectedResult, EvaluationMetricEnum metric)
     {
-        Assert.AreEqual(17, Enum.GetNames(typeof(EvaluationMetricEnum)).Length, $"expecting {Enum.GetNames(typeof(EvaluationMetricEnum)).Length} distinct tests for each {typeof(EvaluationMetricEnum)}");
+        Assert.AreEqual(20, Enum.GetNames(typeof(EvaluationMetricEnum)).Length, $"expecting {Enum.GetNames(typeof(EvaluationMetricEnum)).Length} distinct tests for each {typeof(EvaluationMetricEnum)}");
         Assert.AreEqual(expectedResult, Utils.HigherScoreIsBetter(metric));
     }
     

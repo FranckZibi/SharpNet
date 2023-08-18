@@ -51,8 +51,8 @@ public class QRT97DatasetSample : AbstractDatasetSample
 
     static QRT97DatasetSample()
     {
-        Utils.ConfigureGlobalLog4netProperties(QRT97Utils.WorkingDirectory, "log");
-        Utils.ConfigureThreadLog4netProperties(QRT97Utils.WorkingDirectory, "log");
+        Utils.ConfigureGlobalLog4netProperties(QRT97Utils.WorkingDirectory, QRT97Utils.NAME);
+        Utils.ConfigureThreadLog4netProperties(QRT97Utils.WorkingDirectory, QRT97Utils.NAME);
         var sw = Stopwatch.StartNew();
         Log.Debug($"Starting loading raw files");
         x_training_raw = DataFrame.read_csv_normalized(QRT97Utils.XTrainPath, ',', true, QRT97Utils.ColumnNameToType);

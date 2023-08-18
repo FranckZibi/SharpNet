@@ -256,14 +256,14 @@ public class KFoldModel : Model
             // ReSharper disable once PossibleNullReferenceException
             trainLoss_InModelFormat = ComputeLoss(y_true_InModelFormat, trainPredictions_InModelFormat.FloatCpuTensor());
             trainPredictions_InTargetFormat = datasetSample.PredictionsInModelFormat_2_PredictionsInTargetFormat(trainPredictions_InModelFormat, ModelSample.GetObjective());
-            trainRankingScore_InTargetFormat = datasetSample.ComputeRankingEvaluationMetric(y_true_InTargetFormat, trainPredictions_InTargetFormat, ModelSample.GetRankingEvaluationMetric());
+            trainRankingScore_InTargetFormat = datasetSample.ComputeRankingEvaluationMetric(y_true_InTargetFormat, trainPredictions_InTargetFormat, ModelSample);
         }
 
         //validationPredictions_InModelFormat.Mult(1f / n_splits);
         // ReSharper disable once PossibleNullReferenceException
         var validationLoss_InModelFormat = ComputeLoss(y_true_InModelFormat, validationPredictions_InModelFormat.FloatCpuTensor());
         var validationPredictions_InTargetFormat = datasetSample.PredictionsInModelFormat_2_PredictionsInTargetFormat(validationPredictions_InModelFormat, ModelSample.GetObjective());
-        var validationRankingScore_InTargetFormat = datasetSample.ComputeRankingEvaluationMetric(y_true_InTargetFormat, validationPredictions_InTargetFormat, ModelSample.GetRankingEvaluationMetric());
+        var validationRankingScore_InTargetFormat = datasetSample.ComputeRankingEvaluationMetric(y_true_InTargetFormat, validationPredictions_InTargetFormat, ModelSample);
 
         return 
             (trainPredictions_InTargetFormat, trainRankingScore_InTargetFormat,

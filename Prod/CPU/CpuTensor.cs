@@ -1648,40 +1648,6 @@ namespace SharpNet.CPU
             W.AsFloatCpu.Update(adam_vW, adam_sW, (w, adam_vw, adam_sw) => (float)(w - ( multiplicative_factor * (adam_vw / (Math.Sqrt(adam_sw) + epsilon)) + adamW_l2Regularization*w )));
         }
 
-        private static float CategoricalCrossentropyWithHierarchyLossHelper(ReadOnlySpan<float> expected, ReadOnlySpan<float> predicted)
-        {
-            Debug.Assert(expected.Length == predicted.Length);
-            double loss = 0;
-            for (int i = 0; i < expected.Length; ++i)
-            {
-                var expectedValue = expected[i];
-                if (Math.Abs(expectedValue) < 9.5f)
-                {
-                    //expectedValue contains a proba between 0 and 1
-                    Debug.Assert(expectedValue >= 0);
-                    Debug.Assert(expectedValue <= 1.0);
-                    Debug.Assert(predicted[i] >= 0.0);
-                    Debug.Assert(predicted[i] <= 1.0);
-                    if (expectedValue > 1e-6)
-                    {
-                        Debug.Assert(Math.Abs(expectedValue-1.0)<1e-6);
-                        loss += expectedValue * Math.Log(Math.Max(1e-6, predicted[i]));
-                    }
-                }
-                else
-                {
-                    //expectedValue contains a description : there is no associated loss
-                    if (expectedValue < 0)
-                    {
-                        var count = (int)(Math.Abs(expectedValue) + 0.5) / 10;
-                        //we need to skip 'count' indexes
-                        i += count - 1; //-1 because the for(;;) loop will also increment 'i'
-                    }
-                }
-            }
-            return -(float)loss;
-        }
-
         public override void NormalDistribution(Random rand, double mean, double stdDev)
         {
             Utils.NormalDistribution(AsFloatCpuSpan, rand, mean, stdDev);
@@ -1947,13 +1913,100 @@ namespace SharpNet.CPU
         {
             var batchSize = yPredicted.Shape[0];
             var buffer = this;
-            Parallel.For(0, batchSize, m => { buffer.AsFloatCpuSpan[m] = CategoricalCrossentropyWithHierarchyLossHelper(yExpected.RowSlice(m, 1).AsReadonlyFloatCpuSpan, yPredicted.RowSlice(m, 1).AsReadonlyFloatCpuSpan); });
+            Parallel.For(0, batchSize, m => { buffer.AsFloatCpuSpan[m] = CategoricalCrossentropyWithHierarchyLossBuffer_Helper(yExpected.RowSlice(m, 1).AsReadonlyFloatCpuSpan, yPredicted.RowSlice(m, 1).AsReadonlyFloatCpuSpan); });
         }
+        private static float CategoricalCrossentropyWithHierarchyLossBuffer_Helper(ReadOnlySpan<float> expected, ReadOnlySpan<float> predicted)
+        {
+            Debug.Assert(expected.Length == predicted.Length);
+            double loss = 0;
+            for (int i = 0; i < expected.Length; ++i)
+            {
+                var expectedValue = expected[i];
+                if (Math.Abs(expectedValue) < 9.5f)
+                {
+                    //expectedValue contains a proba between 0 and 1
+                    Debug.Assert(expectedValue >= 0);
+                    Debug.Assert(expectedValue <= 1.0);
+                    Debug.Assert(predicted[i] >= 0.0);
+                    Debug.Assert(predicted[i] <= 1.0);
+                    if (expectedValue > 1e-6)
+                    {
+                        Debug.Assert(Math.Abs(expectedValue - 1.0) < 1e-6);
+                        loss += expectedValue * Math.Log(Math.Max(1e-6, predicted[i]));
+                    }
+                }
+                else
+                {
+                    //expectedValue contains a description : there is no associated loss
+                    if (expectedValue < 0)
+                    {
+                        var count = (int)(Math.Abs(expectedValue) + 0.5) / 10;
+                        //we need to skip 'count' indexes
+                        i += count - 1; //-1 because the for(;;) loop will also increment 'i'
+                    }
+                }
+            }
+            return -(float)loss;
+        }
+
+
 
         protected override void BinaryCrossentropyLossBuffer(Tensor yExpected, Tensor yPredicted)
         {
             MergeInPlaceByRow(yPredicted.AsFloatCpu, yExpected.AsFloatCpu, (prediction, expected) => -expected * MathF.Log(prediction) - (1 - expected) * MathF.Log(1 - prediction) , yPredicted.MultDim0);
         }
+
+        protected override void BCEContinuousYLossBuffer(Tensor yExpected, Tensor yPredicted)
+        {
+            MergeInPlaceByRow(yPredicted.AsFloatCpu, yExpected.AsFloatCpu, (prediction, expected) => -MathF.Log(1 - MathF.Abs(prediction - expected)), yPredicted.MultDim0);
+        }
+
+        protected override void BCEWithFocalLossLossBuffer(Tensor yExpected, Tensor yPredicted, float percentageInTrueClass, float gamma)
+        {
+            var bceWithFocalLossLossBuffer = this;
+            // all tensors must be of shape (rows, 1)
+            Debug.Assert(yExpected.Shape.Length == 2);
+            Debug.Assert(yExpected.SameShape(yPredicted));
+            Debug.Assert(bceWithFocalLossLossBuffer.Count == yPredicted.Shape[0]);
+            var y_true = yExpected.AsFloatCpuSpan;
+            var y_pred = yPredicted.AsFloatCpuSpan;
+            var loss = bceWithFocalLossLossBuffer.AsFloatCpuSpan;
+
+            //loss = -POWER(ABS(y_true-y_pred)/MAX(y_true;1-y_true);gamma)*LN(1-ABS(y_true-y_pred))
+
+            int idx = 0;
+            var rows = yExpected.Shape[0];
+            var numClass = yExpected.Shape[1];
+            var imbalancedCoeffForTrueClass = 1 / (2 * percentageInTrueClass);
+            var imbalancedCoeffForFalseClass = 1 / (2 * (1 - percentageInTrueClass));
+
+            for (int row = 0; row < rows; ++row)
+            {
+                float rowLoss = 0;
+                for (int col = 0; col < numClass; ++col)
+                {
+                    //the gradient value for standard binary cross entropy (without focal loss)
+                    var absNonScaledGradient = MathF.Abs(y_pred[idx] - y_true[idx]);
+                    var nonScaledLoss = -MathF.Log(Math.Max(1 - absNonScaledGradient, 1e-6f));
+                    var focalLossCoeff = 1.0f;
+                    if (gamma > 0)
+                    {
+                        //we need to adjust the loss value for focal loss
+                        float maxValueForNonScaledGradient = Math.Max(y_true[idx], 1 - y_true[idx]);
+                        focalLossCoeff = MathF.Pow(absNonScaledGradient / maxValueForNonScaledGradient, gamma);
+                    }
+
+                    // we take into account the imbalance between the true and false class
+                    // if one class is over represented, we reduce the loss value for this class
+                    float imbalancedCoeffForCurrentClass = imbalancedCoeffForFalseClass + y_true[idx] * (imbalancedCoeffForTrueClass - imbalancedCoeffForFalseClass);
+
+                    rowLoss += focalLossCoeff * imbalancedCoeffForCurrentClass * nonScaledLoss;
+                    ++idx;
+                }
+                loss[row] = rowLoss/numClass;
+            }
+        }
+        
 
         protected override void ComputeSparseAccuracyBuffer(Tensor yExpectedSparse, Tensor yPredicted)
         {
@@ -1968,7 +2021,22 @@ namespace SharpNet.CPU
             var bufferPointer = (float*)buffer.Pointer;
             var yExpectedSparseCpu = yExpectedSparse.AsFloatCpu;
             var yPredictedCpu = yPredicted.AsFloatCpu;
-            Parallel.For(0, rows, row => bufferPointer[row] = ComputeSingleSparseAccuracy(yExpectedSparseCpu, yPredictedCpu, row));
+            Parallel.For(0, rows, row => bufferPointer[row] = ComputeSparseAccuracyBuffer_Helper(yExpectedSparseCpu, yPredictedCpu, row));
+        }
+
+        private static float ComputeSparseAccuracyBuffer_Helper(CpuTensor<float> yExpectedSparse, CpuTensor<float> yPredicted, int row)
+        {
+            int expectedClassIndex = Utils.NearestInt(yExpectedSparse.Get(row, 0));
+            var yPredictedSpan = yPredicted.RowSpanSlice(row, 1);
+            int predictedClassIndex = 0;
+            for (int j = 1; j < yPredictedSpan.Length; ++j)
+            {
+                if (yPredictedSpan[j] > yPredictedSpan[predictedClassIndex])
+                {
+                    predictedClassIndex = j;
+                }
+            }
+            return expectedClassIndex == predictedClassIndex ? 1 : 0;
         }
 
         public override void ComputeAUCBuffer(Tensor yExpected, Tensor yPredicted)
@@ -2009,20 +2077,6 @@ namespace SharpNet.CPU
             buffer.AsFloatCpu[0] = (float)auc;
         }
 
-        private static float ComputeSingleSparseAccuracy(CpuTensor<float> yExpectedSparse, CpuTensor<float> yPredicted, int row)
-        {
-            int expectedClassIndex = Utils.NearestInt(yExpectedSparse.Get(row, 0));
-            var yPredictedSpan = yPredicted.RowSpanSlice(row,1);
-            int predictedClassIndex = 0;
-            for (int j = 1; j < yPredictedSpan.Length; ++j)
-            {
-                if (yPredictedSpan[j] > yPredictedSpan[predictedClassIndex])
-                {
-                    predictedClassIndex = j;
-                }
-            }
-            return expectedClassIndex == predictedClassIndex ? 1 : 0;
-        }
 
         [SuppressMessage("ReSharper", "PossibleNullReferenceException")]
         protected override void ComputeAccuracyCategoricalCrossentropyWithHierarchyBuffer(Tensor yExpected, Tensor yPredicted)
@@ -2184,9 +2238,9 @@ namespace SharpNet.CPU
             var cosineSimilarityGradient = this;
             Debug.Assert(yExpected.SameShape(yPredicted));
             Debug.Assert(cosineSimilarityGradient.Count == yExpected.Count);
-            Parallel.For(0, timeSeriesLength, t => { CosineSimilarityGradient(t, cosineSimilarityGradient.AsFloatCpuSpan, yExpected.AsReadonlyFloatCpuSpan, yPredicted.AsReadonlyFloatCpuSpan, timeSeriesLength); });
+            Parallel.For(0, timeSeriesLength, t => { CosineSimilarityGradient_Helper(t, cosineSimilarityGradient.AsFloatCpuSpan, yExpected.AsReadonlyFloatCpuSpan, yPredicted.AsReadonlyFloatCpuSpan, timeSeriesLength); });
         }
-        private static void CosineSimilarityGradient(int day, Span<float> cosineSimilarityGradient, ReadOnlySpan<float> expected, ReadOnlySpan<float> predicted, int timeSeriesLength)
+        private static void CosineSimilarityGradient_Helper(int day, Span<float> cosineSimilarityGradient, ReadOnlySpan<float> expected, ReadOnlySpan<float> predicted, int timeSeriesLength)
         {
             Debug.Assert(expected.Length == predicted.Length);
             Debug.Assert(cosineSimilarityGradient.Length == expected.Length);
@@ -2213,12 +2267,12 @@ namespace SharpNet.CPU
 
         public override void HuberGradient(Tensor yExpected, Tensor yPredicted, float huberDelta)
         {
-            var loss = this;
-            Debug.Assert(loss.SameShape(yExpected));
-            Debug.Assert(loss.SameShape(yPredicted));
-            Parallel.For(0, loss.Shape[0], m => { HuberGradient(loss.RowSlice(m, 1).AsFloatCpuSpan, yExpected.RowSlice(m, 1).AsReadonlyFloatCpuSpan, yPredicted.RowSlice(m, 1).AsReadonlyFloatCpuSpan, huberDelta); });
+            var huberGradient = this;
+            Debug.Assert(huberGradient.SameShape(yExpected));
+            Debug.Assert(huberGradient.SameShape(yPredicted));
+            Parallel.For(0, huberGradient.Shape[0], m => { HuberGradient_Helper(huberGradient.RowSlice(m, 1).AsFloatCpuSpan, yExpected.RowSlice(m, 1).AsReadonlyFloatCpuSpan, yPredicted.RowSlice(m, 1).AsReadonlyFloatCpuSpan, huberDelta); });
         }
-        private static void HuberGradient(Span<float> gradient, ReadOnlySpan<float> expected, ReadOnlySpan<float> predicted, float huberDelta)
+        private static void HuberGradient_Helper(Span<float> gradient, ReadOnlySpan<float> expected, ReadOnlySpan<float> predicted, float huberDelta)
         {
             Debug.Assert(gradient.Length == expected.Length);
             Debug.Assert(gradient.Length == predicted.Length);
@@ -2230,13 +2284,6 @@ namespace SharpNet.CPU
             }
         }
 
-        public override void MseGradient(Tensor yExpected, Tensor yPredicted)
-        {
-            var loss = this;
-            Debug.Assert(loss.SameShape(yExpected));
-            Debug.Assert(loss.SameShape(yPredicted));
-            Parallel.For(0, loss.Shape[0], m => { MseGradient(loss.RowSlice(m, 1).AsFloatCpuSpan, yExpected.RowSlice(m, 1).AsReadonlyFloatCpuSpan, yPredicted.RowSlice(m, 1).AsReadonlyFloatCpuSpan); });
-        }
 
         public override void SparseCategoricalCrossentropyGradient(Tensor yExpectedSparse, Tensor yPredicted)
         {
@@ -2256,8 +2303,15 @@ namespace SharpNet.CPU
                 yGradient[row * numClass + yClass] -= 1.0f;
             }
         }
+        public override void MseGradient(Tensor yExpected, Tensor yPredicted)
+        {
+            var mseGradient = this;
+            Debug.Assert(mseGradient.SameShape(yExpected));
+            Debug.Assert(mseGradient.SameShape(yPredicted));
+            Parallel.For(0, mseGradient.Shape[0], m => { MseGradient_Helper(mseGradient.RowSlice(m, 1).AsFloatCpuSpan, yExpected.RowSlice(m, 1).AsReadonlyFloatCpuSpan, yPredicted.RowSlice(m, 1).AsReadonlyFloatCpuSpan); });
+        }
 
-        private static void MseGradient(Span<float> gradient, ReadOnlySpan<float> expected, ReadOnlySpan<float> predicted)
+        private static void MseGradient_Helper(Span<float> gradient, ReadOnlySpan<float> expected, ReadOnlySpan<float> predicted)
         {
             Debug.Assert(gradient.Length == expected.Length);
             Debug.Assert(gradient.Length == predicted.Length);
@@ -2270,12 +2324,12 @@ namespace SharpNet.CPU
 
         public override void MaeGradient(Tensor yExpected, Tensor yPredicted)
         {
-            var loss = this;
-            Debug.Assert(loss.SameShape(yExpected));
-            Debug.Assert(loss.SameShape(yPredicted));
-            Parallel.For(0, loss.Shape[0], m => { MaeGradient(loss.RowSlice(m, 1).AsFloatCpuSpan, yExpected.RowSlice(m, 1).AsReadonlyFloatCpuSpan, yPredicted.RowSlice(m, 1).AsReadonlyFloatCpuSpan); });
+            var maeGradient = this;
+            Debug.Assert(maeGradient.SameShape(yExpected));
+            Debug.Assert(maeGradient.SameShape(yPredicted));
+            Parallel.For(0, maeGradient.Shape[0], m => { MaeGradient_Helper(maeGradient.RowSlice(m, 1).AsFloatCpuSpan, yExpected.RowSlice(m, 1).AsReadonlyFloatCpuSpan, yPredicted.RowSlice(m, 1).AsReadonlyFloatCpuSpan); });
         }
-        private static void MaeGradient(Span<float> gradient, ReadOnlySpan<float> expected, ReadOnlySpan<float> predicted)
+        private static void MaeGradient_Helper(Span<float> gradient, ReadOnlySpan<float> expected, ReadOnlySpan<float> predicted)
         {
             Debug.Assert(gradient.Length == expected.Length);
             Debug.Assert(gradient.Length == predicted.Length);
@@ -2288,12 +2342,12 @@ namespace SharpNet.CPU
 
         public override void MseOfLogGradient(Tensor yExpected, Tensor yPredicted, float epsilon)
         {
-            var loss = this;
-            Debug.Assert(loss.SameShape(yExpected));
-            Debug.Assert(loss.SameShape(yPredicted));
-            Parallel.For(0, loss.Shape[0], m => { MseOfLogGradient(loss.RowSlice(m, 1).AsFloatCpuSpan, yExpected.RowSlice(m, 1).AsReadonlyFloatCpuSpan, yPredicted.RowSlice(m, 1).AsReadonlyFloatCpuSpan, epsilon); });
+            var mseOfLogGradient = this;
+            Debug.Assert(mseOfLogGradient.SameShape(yExpected));
+            Debug.Assert(mseOfLogGradient.SameShape(yPredicted));
+            Parallel.For(0, mseOfLogGradient.Shape[0], m => { MseOfLogGradient_Helper(mseOfLogGradient.RowSlice(m, 1).AsFloatCpuSpan, yExpected.RowSlice(m, 1).AsReadonlyFloatCpuSpan, yPredicted.RowSlice(m, 1).AsReadonlyFloatCpuSpan, epsilon); });
         }
-        private static void MseOfLogGradient(Span<float> gradient, ReadOnlySpan<float> expected, ReadOnlySpan<float> predicted, float epsilon)
+        private static void MseOfLogGradient_Helper(Span<float> gradient, ReadOnlySpan<float> expected, ReadOnlySpan<float> predicted, float epsilon)
         {
             Debug.Assert(gradient.Length == expected.Length);
             Debug.Assert(gradient.Length == predicted.Length);
@@ -2305,16 +2359,56 @@ namespace SharpNet.CPU
             }
         }
 
+        protected override void BCEWithFocalLossGradient(Tensor yExpected, Tensor yPredicted, float percentageInTrueClass, float gamma)
+        {
+            var bceWithFocalLossGradient = this;
+            Debug.Assert(yExpected.Shape.Length == 2);
+            Debug.Assert(yExpected.SameShape(yPredicted));
+            Debug.Assert(yExpected.SameShape(bceWithFocalLossGradient));
+            var y_true = yExpected.AsFloatCpuSpan;
+            var y_pred = yPredicted.AsFloatCpuSpan;
+            var gradients = bceWithFocalLossGradient.AsFloatCpuSpan;
+            var rows = yExpected.Shape[0];
+            var numClass = yExpected.Shape[1];
+            int idx = 0;
+
+            var imbalancedCoeffForTrueClass = 1 / (2*percentageInTrueClass);
+            var imbalancedCoeffForFalseClass = 1 / (2*(1-percentageInTrueClass));
+
+            for (int row = 0; row < rows; ++row)
+            {
+                for (int col = 0; col < numClass; ++col)
+                {
+                    //the gradient value for standard binary cross entropy (without focal loss)
+                    var nonScaledGradient = y_pred[idx] - y_true[idx];
+                    var focalLossCoeff = 1.0f;
+                    if (gamma > 0)
+                    {
+                        //we need to adjust the gradient value for focal loss
+                        float maxValueForNonScaledGradient = Math.Max(y_true[idx], 1 - y_true[idx]);
+                        focalLossCoeff = (gamma + 1) * MathF.Pow(MathF.Abs(nonScaledGradient) / maxValueForNonScaledGradient, gamma);
+                    }
+
+                    // we take into account the imbalance between the true and false class
+                    // if one class is over represented, we reduce the gradient value for this class
+                    float imbalancedCoeffForCurrentClass = imbalancedCoeffForFalseClass +  y_true[idx] * (imbalancedCoeffForTrueClass - imbalancedCoeffForFalseClass);
+
+                    gradients[idx++] = (focalLossCoeff * imbalancedCoeffForCurrentClass * nonScaledGradient) /numClass;
+                }
+            }
+        }
+
         public override void CategoricalCrossentropyWithHierarchyGradient(Tensor yExpected, Tensor yPredicted)
         {
-            var loss = this;
-            Debug.Assert(loss.SameShape(yExpected));
-            Debug.Assert(loss.SameShape(yPredicted));
-            Debug.Assert(loss.Dimension == 2);
-            loss.ZeroMemory();
-            Parallel.For(0, loss.Shape[0], m => { CategoricalCrossentropyWithHierarchyGradient(loss.RowSlice(m, 1).AsFloatCpuSpan, yExpected.RowSlice(m, 1).AsReadonlyFloatCpuSpan, yPredicted.RowSlice(m, 1).AsReadonlyFloatCpuSpan); });
+            var categoricalCrossentropyWithHierarchyGradient = this;
+            Debug.Assert(categoricalCrossentropyWithHierarchyGradient.SameShape(yExpected));
+            Debug.Assert(categoricalCrossentropyWithHierarchyGradient.SameShape(yPredicted));
+            Debug.Assert(categoricalCrossentropyWithHierarchyGradient.Dimension == 2);
+            categoricalCrossentropyWithHierarchyGradient.ZeroMemory();
+            Parallel.For(0, categoricalCrossentropyWithHierarchyGradient.Shape[0], m => { CategoricalCrossentropyWithHierarchyGradient_Helper(categoricalCrossentropyWithHierarchyGradient.RowSlice(m, 1).AsFloatCpuSpan, yExpected.RowSlice(m, 1).AsReadonlyFloatCpuSpan, yPredicted.RowSlice(m, 1).AsReadonlyFloatCpuSpan); });
         }
-        private static void CategoricalCrossentropyWithHierarchyGradient(Span<float> loss, ReadOnlySpan<float> expected, ReadOnlySpan<float> predicted)
+
+        private static void CategoricalCrossentropyWithHierarchyGradient_Helper(Span<float> loss, ReadOnlySpan<float> expected, ReadOnlySpan<float> predicted)
         {
             Debug.Assert(loss.Length == expected.Length);
             Debug.Assert(loss.Length == predicted.Length);
@@ -3288,6 +3382,8 @@ namespace SharpNet.CPU
 
         public static List<CpuTensor<float>> LoadTensorListFromBinFileAndStandardizeIt(string bin_file, int[] shape, float mean = 0f, float stdDev = 1f)
         {
+            ISample.Log.Info($"Loading {shape[0]} tensors from {bin_file} with shape {ShapeToString(shape)}");
+
             long elementCountInfile = Utils.FileLength(bin_file) / sizeof(float);
             shape = FillMinusOneIfAny(new[] { (int)elementCountInfile }, shape);
             long elementCount = Utils.LongProduct(shape);

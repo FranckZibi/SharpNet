@@ -452,16 +452,16 @@ public class CFM60DatasetSample : DatasetSampleForTimeSeries
 
             //related to Dataset 
             //{"KFold", 2},
-            {"PercentageInTraining", 0.8}, //will be automatically set to 1 if KFold is enabled
+            {nameof(AbstractDatasetSample.PercentageInTraining), 0.8}, //will be automatically set to 1 if KFold is enabled
             
             //Related to model
-            {"LossFunction", nameof(EvaluationMetricEnum.Mse)},
-            {"EvaluationMetrics", ""}, //same as loss function
-            {"ShuffleDatasetBeforeEachEpoch", true},
-            {"CompatibilityMode", "TensorFlow"},
-            {"BatchSize", 2048},
-            {"NumEpochs", numEpochs},
-            {"InitialLearningRate", 0.002},
+            {nameof(NetworkSample.LossFunction), nameof(EvaluationMetricEnum.Mse)},
+            {nameof(NetworkSample.EvaluationMetrics), ""}, //same as loss function
+            {nameof(NetworkSample.ShuffleDatasetBeforeEachEpoch), true},
+            {nameof(NetworkSample.CompatibilityMode), "TensorFlow"},
+            {nameof(NetworkSample.BatchSize), 2048},
+            {nameof(NetworkSample.NumEpochs), numEpochs},
+            {nameof(NetworkSample.InitialLearningRate), 0.002},
             {"Use_day", true},
             {"Use_LS", false},
             {"Pid_EmbeddingDim", 8},
@@ -470,13 +470,13 @@ public class CFM60DatasetSample : DatasetSampleForTimeSeries
             {"HiddenSize", 64},
             {"DropoutRate_Between_Encoder_And_Decoder", 0.2},
             {"DropoutRate_After_EncoderDecoder", 0.2},
-            {"DisableReduceLROnPlateau", true},
-            {"LearningRateSchedulerType", "OneCycle"},
-            {"OneCycle_DividerForMinLearningRate", 20},
-            {"OneCycle_PercentInAnnealing", 0.1},
+            {nameof(NetworkSample.DisableReduceLROnPlateau), true},
+            {nameof(NetworkSample.LearningRateSchedulerType), "OneCycle"},
+            {nameof(NetworkSample.OneCycle_DividerForMinLearningRate), 20},
+            {nameof(NetworkSample.OneCycle_PercentInAnnealing), 0.1},
 
-            {"OptimizerType", "Adam"},
-            {"lambdaL2Regularization", 0.00005},
+            {nameof(NetworkSample.OptimizerType), "Adam"},
+            {nameof(NetworkSample.lambdaL2Regularization), 0.00005},
             
             {"Encoder_NumLayers", 1},
             {"Encoder_TimeSteps", 60},

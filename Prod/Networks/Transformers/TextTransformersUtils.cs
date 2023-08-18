@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using log4net;
 using SharpNet.CPU;
+using SharpNet.Datasets;
 using SharpNet.HPO;
 using SharpNet.HyperParameters;
 // ReSharper disable UnusedMember.Global
@@ -139,12 +140,12 @@ public static class TextTransformersUtils
             //related to Dataset
             //{"MaxCharacterLengthForTraining", 1000 },
             //{ "KFold", 3 },
-            {"PercentageInTraining", new[]{0.9}},
+            {nameof(AbstractDatasetSample.PercentageInTraining), new[]{0.9}},
 
             //related to model
-            {"LossFunction", nameof(EvaluationMetricEnum.SparseCategoricalCrossentropy)},
-            {"EvaluationMetrics", nameof(EvaluationMetricEnum.SparseAccuracy)},
-            {"CompatibilityMode", "TensorFlow"},
+            {nameof(NetworkSample.LossFunction), nameof(EvaluationMetricEnum.SparseCategoricalCrossentropy)},
+            {nameof(NetworkSample.EvaluationMetrics), nameof(EvaluationMetricEnum.SparseAccuracy)},
+            {nameof(NetworkSample.CompatibilityMode), "TensorFlow"},
             {"max_length", new[]{256 } },
             {"embedding_dim", new[]{384} },
             //{"max_length", 256},
@@ -163,16 +164,16 @@ public static class TextTransformersUtils
             //{"vocab_size", 58},   //shakespeare
             {"vocab_size", 81},     // victor hugo 
             // Optimizer 
-            { "OptimizerType", "AdamW" },
-            //{ "AdamW_L2Regularization", 0.01},
+            { nameof(NetworkSample.OptimizerType), "AdamW" },
+            //{ nameof(NetworkSample.AdamW_L2Regularization), 0.01},
             // Learning Rate
-            { "InitialLearningRate", new[]{ 0.01 /*,0.05,0.001*/ } },
+            { nameof(NetworkSample.InitialLearningRate), new[]{ 0.01 /*,0.05,0.001*/ } },
             // Learning Rate Scheduler
-            //{ "LearningRateSchedulerType", new[] { "CyclicCosineAnnealing", "OneCycle", "Linear" } },
-            { "LearningRateSchedulerType", "CyclicCosineAnnealing"},
-            //{ "LearningRateSchedulerType", "Constant"},
-            { "BatchSize", new[]{64 } },
-            { "NumEpochs", numEpochs },
+            //{ nameof(NetworkSample.LearningRateSchedulerType), new[] { "CyclicCosineAnnealing", "OneCycle", "Linear" } },
+            { nameof(NetworkSample.LearningRateSchedulerType), "CyclicCosineAnnealing"},
+            //{ nameof(NetworkSample.LearningRateSchedulerType), "Constant"},
+            { nameof(NetworkSample.BatchSize), new[]{64 } },
+            { nameof(NetworkSample.NumEpochs), numEpochs },
             
 
         };

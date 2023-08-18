@@ -6,14 +6,12 @@ using SharpNet.Models;
 
 namespace SharpNet.HyperParameters;
 
-public abstract class AbstractModelSample : AbstractSample
+public abstract class AbstractModelSample : AbstractSample, IMetricConfig
 {
     protected AbstractModelSample(HashSet<string> mandatoryCategoricalHyperParameters) : base(
         mandatoryCategoricalHyperParameters)
     {
     }
-
-    public abstract EvaluationMetricEnum GetLoss();
 
     public virtual IScore GetMinimumRankingScoreToSaveModel()
     {
@@ -33,6 +31,8 @@ public abstract class AbstractModelSample : AbstractSample
             case EvaluationMetricEnum.SparseAccuracy:
             case EvaluationMetricEnum.AccuracyCategoricalCrossentropyWithHierarchy:
             case EvaluationMetricEnum.BinaryCrossentropy:
+            case EvaluationMetricEnum.BCEContinuousY:
+            case EvaluationMetricEnum.BCEWithFocalLoss:
             case EvaluationMetricEnum.CategoricalCrossentropy:
             case EvaluationMetricEnum.CategoricalCrossentropyWithHierarchy:
             case EvaluationMetricEnum.SparseCategoricalCrossentropy:
@@ -52,13 +52,16 @@ public abstract class AbstractModelSample : AbstractSample
         }
     }
 
+    #region IMetricConfig interface
+    public abstract EvaluationMetricEnum GetLoss();
+    public abstract EvaluationMetricEnum GetRankingEvaluationMetric();
     public List<EvaluationMetricEnum> Metrics
     {
         get
         {
             Debug.Assert(GetLoss() != EvaluationMetricEnum.DEFAULT_VALUE);
             var res = new List<EvaluationMetricEnum> { GetLoss() };
-            foreach(var m in GetAllEvaluationMetrics())
+            foreach (var m in GetAllEvaluationMetrics())
             {
                 if (m != GetLoss() && m != EvaluationMetricEnum.DEFAULT_VALUE)
                 {
@@ -68,8 +71,26 @@ public abstract class AbstractModelSample : AbstractSample
             return res;
         }
     }
+    public virtual float Get_MseOfLog_Epsilon()
+    {
+        throw new NotImplementedException();
+    }
+    public virtual float Get_Huber_Delta()
+    {
+        throw new NotImplementedException();
+    }
+    public virtual float Get_BCEWithFocalLoss_PercentageInTrueClass()
+    {
+        throw new NotImplementedException();
+    }
 
-    public abstract EvaluationMetricEnum GetRankingEvaluationMetric();
+    public virtual float Get_BCEWithFocalLoss_Gamma()
+    {
+        throw new NotImplementedException();
+    }
+
+    #endregion
+
     protected abstract List<EvaluationMetricEnum> GetAllEvaluationMetrics();
     public abstract Model NewModel(AbstractDatasetSample datasetSample, string workingDirectory, string modelName);
     public abstract void Use_All_Available_Cores();

@@ -362,25 +362,25 @@ public class KaggleDaysDatasetSample : AbstractDatasetSample
         {
             //related to Dataset 
             {"KFold", 2},
-            //{"PercentageInTraining", 0.8}, //will be automatically set to 1 if KFold is enabled
+            //{nameof(AbstractDatasetSample.PercentageInTraining), 0.8}, //will be automatically set to 1 if KFold is enabled
 
-            { "LossFunction", nameof(EvaluationMetricEnum.BinaryCrossentropy)},
+            { nameof(NetworkSample.LossFunction), nameof(EvaluationMetricEnum.BinaryCrossentropy)},
 
             // Optimizer 
-            { "OptimizerType", new[] { "AdamW"} },
-            //{ "OptimizerType", "AdamW" },
-            { "AdamW_L2Regularization", new[] {0.001f, 0.01f } },
-            //{ "AdamW_L2Regularization", AbstractHyperParameterSearchSpace.Range(0.001f/4, 0.001f*4, AbstractHyperParameterSearchSpace.range_type.normal) },
-            //{ "AdamW_L2Regularization", 0.001f },
-            //{ "SGD_usenesterov", new[] { true, false } },
-            //{ "lambdaL2Regularization", new[] { 0, 1e-5, 1e-4, 1e-3, } },
+            { nameof(NetworkSample.OptimizerType), new[] { "AdamW"} },
+            //{ nameof(NetworkSample.OptimizerType), "AdamW" },
+            { nameof(NetworkSample.AdamW_L2Regularization), new[] {0.001f, 0.01f } },
+            //{ nameof(NetworkSample.AdamW_L2Regularization), AbstractHyperParameterSearchSpace.Range(0.001f/4, 0.001f*4, AbstractHyperParameterSearchSpace.range_type.normal) },
+            //{ nameof(NetworkSample.AdamW_L2Regularization), 0.001f },
+            //{ nameof(NetworkSample.SGD_usenesterov), new[] { true, false } },
+            //{ nameof(NetworkSample.lambdaL2Regularization), new[] { 0, 1e-5, 1e-4, 1e-3, } },
 
             // Learning Rate
-            { "InitialLearningRate", AbstractHyperParameterSearchSpace.Range(0.001f/4, 0.001f*4, AbstractHyperParameterSearchSpace.range_type.normal) },
-            //{ "InitialLearningRate", 0.001f },
+            { nameof(NetworkSample.InitialLearningRate), AbstractHyperParameterSearchSpace.Range(0.001f/4, 0.001f*4, AbstractHyperParameterSearchSpace.range_type.normal) },
+            //{ nameof(NetworkSample.InitialLearningRate), 0.001f },
             // Learning Rate Scheduler
-            { "LearningRateSchedulerType", new[] { "OneCycle" } },
-            //{ "LearningRateSchedulerType", "CyclicCosineAnnealing" },
+            { nameof(NetworkSample.LearningRateSchedulerType), new[] { "OneCycle" } },
+            //{ nameof(NetworkSample.LearningRateSchedulerType), "CyclicCosineAnnealing" },
             //{ "EmbeddingDim", new[] { 0, 4, 8, 12 } },
             { "EmbeddingDim", new[]{4, 8} },
             //{"weight_norm", new[]{true, false}},
@@ -388,8 +388,8 @@ public class KaggleDaysDatasetSample : AbstractDatasetSample
             { "dropout_top", new[] { 0, 0.1, 0.2 } },
             { "dropout_mid", new[] { 0, 0.3, 0.5 } },
             { "dropout_bottom", new[] { 0, 0.2, 0.4 } },
-            { "BatchSize", new[] {1024, 2048, 4096} },
-            { "NumEpochs", new[] { numEpochs } },
+            { nameof(NetworkSample.BatchSize), new[] {1024, 2048, 4096} },
+            { nameof(NetworkSample.NumEpochs), new[] { numEpochs } },
 
 
             { "hidden_size", new[]{512, 1024,2048} },
@@ -413,7 +413,7 @@ public class KaggleDaysDatasetSample : AbstractDatasetSample
         {
             //related to Dataset 
             {"KFold", 2},
-            //{"PercentageInTraining", 0.8}, //will be automatically set to 1 if KFold is enabled
+            //{nameof(AbstractDatasetSample.PercentageInTraining), 0.8}, //will be automatically set to 1 if KFold is enabled
 
             //related to model
             {"loss_function", nameof(CatBoostSample.loss_function_enum.Logloss)},
@@ -447,7 +447,7 @@ public class KaggleDaysDatasetSample : AbstractDatasetSample
 
             //related to Dataset 
             {"KFold", 2},
-            //{"PercentageInTraining", 0.8}, //will be automatically set to 1 if KFold is enabled
+            //{nameof(AbstractDatasetSample.PercentageInTraining), 0.8}, //will be automatically set to 1 if KFold is enabled
             {"objective", nameof(LightGBMSample.objective_enum.binary)},
             {"metric", ""}, //same as objective
             { "num_threads", -1},

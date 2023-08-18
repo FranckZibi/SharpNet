@@ -1,5 +1,6 @@
 using System;
 using SharpNet.CPU;
+using SharpNet.MathTools;
 
 namespace SharpNet.DataAugmentation.Operations
 {
@@ -29,13 +30,30 @@ namespace SharpNet.DataAugmentation.Operations
             return new Mixup(mixupLambda, indexInMiniBatchForMixup, xOriginalMiniBatch);
         }
 
+        // ReSharper disable once UnusedMember.Global
+        public static void DisplayStatsForAlphaMixup()
+        {
+            var rand = new Random();
+            for (int i = 1; i <= 100; ++i)
+            {
+                var alphaMixup = i / 10.0;
+                var acc = new DoubleAccumulator();
+                for (int t = 0; t < 10000; ++t)
+                {
+                    var mixupLambda = Utils.BetaDistribution(alphaMixup, alphaMixup, rand);
+                    acc.Add(mixupLambda);
+                }
+                Console.WriteLine($"for alphaMixup={alphaMixup}, mixupLambda={acc}");
+            }
+        }
+
 
         public override void UpdateY(CpuTensor<float> yOriginalMiniBatch, CpuTensor<float> yDataAugmentedMiniBatch, int indexInMiniBatch, Func<int, int> indexInMiniBatchToCategoryIndex)
         {
             // We need to update the expected y using Mixup lambda
 
 
-            //special case: when the y tensor is of shape (batchSizae, 1)
+            //special case: when the y tensor is of shape (batchSize, 1)
             if (yOriginalMiniBatch.Shape.Length == 2 && yOriginalMiniBatch.Shape[1] == 1)
             {
                 var originalValue = yOriginalMiniBatch.Get(indexInMiniBatch, 0);
@@ -65,7 +83,11 @@ namespace SharpNet.DataAugmentation.Operations
             CpuTensor<float> xOutputMiniBatch, int rowOutput, int colOutput)
         {
             var initialValue = xInputMiniBatch.Get(indexInMiniBatch, channel, rowInput, colInput);
-            return _mixupLambda * initialValue + (1 - _mixupLambda) * _xOriginalMiniBatch.Get(_indexInMiniBatchForMixup, channel, rowInput, colInput);
+            var otherValue = _xOriginalMiniBatch.Get(_indexInMiniBatchForMixup, channel, rowInput, colInput);
+
+            //!D To test: return Math.Max(initialValue, otherValue);
+
+            return _mixupLambda * initialValue + (1 - _mixupLambda) * otherValue;
         }
     }
 }

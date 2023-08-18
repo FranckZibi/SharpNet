@@ -404,7 +404,7 @@ namespace SharpNetTests.CPU
             var y_pred = CpuTensor<float>.New(y_pred_array, 1);
             const EvaluationMetricEnum metric = EvaluationMetricEnum.SpearmanCorrelation;
             var buffer = new CpuTensor<float>(y_pred.ComputeMetricBufferShape(metric));
-            var observedLoss = buffer.ComputeEvaluationMetric(y_true, y_pred,  metric);
+            var observedLoss = buffer.ComputeEvaluationMetric(y_true, y_pred, metric, null);
             Assert.AreEqual(expected_value, observedLoss, 1e-6);
         }
 
@@ -415,7 +415,7 @@ namespace SharpNetTests.CPU
             var y_pred = CpuTensor<float>.New(y_pred_array, 1);
             const EvaluationMetricEnum metric = EvaluationMetricEnum.MeanSquaredLogError;
             var buffer = new CpuTensor<float>(y_pred.ComputeMetricBufferShape(metric));
-            var observedLoss = buffer.ComputeEvaluationMetric(y_true, y_pred, metric);
+            var observedLoss = buffer.ComputeEvaluationMetric(y_true, y_pred, metric, null);
             Assert.AreEqual(expected_value, observedLoss, 1e-6);
         }
 
@@ -427,7 +427,7 @@ namespace SharpNetTests.CPU
             var y_pred = CpuTensor<float>.New(y_pred_array, 1);
             const EvaluationMetricEnum metric = EvaluationMetricEnum.PearsonCorrelation;
             var buffer = new CpuTensor<float>(y_pred.ComputeMetricBufferShape(metric));
-            var observedLoss = buffer.ComputeEvaluationMetric(y_true, y_pred, metric);
+            var observedLoss = buffer.ComputeEvaluationMetric(y_true, y_pred, metric, null);
             Assert.AreEqual(expected_value, observedLoss, 1e-6);
         }
 
@@ -440,7 +440,7 @@ namespace SharpNetTests.CPU
             var y_pred = CpuTensor<float>.New(y_pred_array, 1);
             const EvaluationMetricEnum metric = EvaluationMetricEnum.AUC;
             var buffer = new CpuTensor<float>(y_pred.ComputeMetricBufferShape(metric));
-            var observedLoss = buffer.ComputeEvaluationMetric(y_true, y_pred, metric);
+            var observedLoss = buffer.ComputeEvaluationMetric(y_true, y_pred, metric, null);
             Assert.AreEqual(expected_value, observedLoss, 1e-6);
         }
 
@@ -450,7 +450,7 @@ namespace SharpNetTests.CPU
             var expected = GetExpectedCategoricalCrossentropyWithHierarchy();
             var predicted = GetPredictedCategoricalCrossentropyWithHierarchy();
             var buffer = new CpuTensor<float>(new[]{expected.Shape[0]});
-            var observedLoss = buffer.ComputeEvaluationMetric(expected, predicted, EvaluationMetricEnum.CategoricalCrossentropyWithHierarchy);
+            var observedLoss = buffer.ComputeEvaluationMetric(expected, predicted, EvaluationMetricEnum.CategoricalCrossentropyWithHierarchy, null);
             var expectedLossBuffer = new []
             {
                 //no clue
@@ -683,9 +683,64 @@ namespace SharpNetTests.CPU
             var yPredicted = TestNetworkPropagation.FromNumpyArray("[[[0.6, 0.4], [0.4, 0.6]]]");
             var expectedGradient = TestNetworkPropagation.FromNumpyArray("[[[0.15, -0.15], [0.1, 0.15]]]");
             var observedGradient = new CpuTensor<float>(expectedGradient.Shape);
-            observedGradient.HuberGradient(yExpected, yPredicted, 1f);
+            const float huberDelta = 1f;
+            observedGradient.HuberGradient(yExpected, yPredicted, huberDelta);
             Assert.IsTrue(TensorExtensions.SameFloatContent(expectedGradient, observedGradient, 1e-6));
         }
+
+
+        [TestCase(1, true)]
+        [TestCase(1, false)]
+        [TestCase(2, true)]
+        [TestCase(2, false)]
+        public void TestFocalLossWithZeroGammaAndBalancedDataset(int numClass, bool yExpectedHasOnly0And1)
+        {
+            // when the gamma of focal loss is 0 and the dataset is balanced, than focal loss should have the same value as binary crossentropy
+            const int rows = 317;
+            var metricConfig = new TestMetricConfig(bceWithFocalLossPercentageInTrueClass: 0.5f, bceWithFocalLoss_Gamma: 0f);
+            var yExpected = yExpectedHasOnly0And1?RandomOneHotTensor(new[] { rows, numClass }, _rand):RandomFloatTensor(new[] { rows, numClass }, _rand, 0, 1);
+            var yPredicted = RandomFloatTensor(yExpected.Shape, _rand, 0, 1);
+
+            //we ensure that the loss is the same
+            var bufferBinaryLoss = RandomTensor(new[] { rows });
+            bufferBinaryLoss.ComputeLossBufferForEvaluationMetric(yExpected, yPredicted, yExpectedHasOnly0And1? EvaluationMetricEnum.BinaryCrossentropy: EvaluationMetricEnum.BCEContinuousY, metricConfig);
+            var bufferFocalLoss = RandomTensor(new[] { rows });
+            bufferFocalLoss.ComputeLossBufferForEvaluationMetric(yExpected, yPredicted, EvaluationMetricEnum.BCEWithFocalLoss, metricConfig);
+            TensorExtensions.SameFloatContent(bufferBinaryLoss, bufferFocalLoss, 1e-4, out var difference);
+            Assert.IsTrue(string.IsNullOrEmpty(difference), difference);
+
+
+            //we ensure that the gradient is the same
+            yExpected = yExpectedHasOnly0And1 ? RandomOneHotTensor(new[] { rows, numClass }, _rand) : RandomFloatTensor(new[] { rows, numClass }, _rand, 0, 1);
+            yPredicted = RandomFloatTensor(yExpected.Shape, _rand, 0, 1);
+            var gradientsBinaryLoss = RandomTensor(yExpected.Shape);
+            gradientsBinaryLoss.ComputeGradientForEvaluationMetric(yExpected, yPredicted, yExpectedHasOnly0And1 ? EvaluationMetricEnum.BinaryCrossentropy : EvaluationMetricEnum.BCEContinuousY, metricConfig);
+            var gradientsFocalLoss = RandomTensor(yExpected.Shape);
+            gradientsFocalLoss.ComputeGradientForEvaluationMetric(yExpected, yPredicted, EvaluationMetricEnum.BCEWithFocalLoss, metricConfig);
+            TensorExtensions.SameFloatContent(gradientsBinaryLoss, gradientsFocalLoss, 1e-4, out difference);
+            Assert.IsTrue(string.IsNullOrEmpty(difference), difference);
+        }
+
+
+        [TestCase(1, true)]
+        [TestCase(1, false)]
+        [TestCase(2, true)]
+        [TestCase(2, false)]
+        public void TestFocalLossGradientWithZeroGamma(int numClass, bool yExpectedHasOnly0And1)
+        {
+            // when the gamma of focal loss is 0, than focal loss should have the same value as binary crossentropy
+            const int rows = 317;
+            var metricConfig = new TestMetricConfig(bceWithFocalLossPercentageInTrueClass: 1f, bceWithFocalLoss_Gamma: 0f);
+            var yExpected = yExpectedHasOnly0And1 ? RandomOneHotTensor(new[] { rows, numClass }, _rand) : RandomFloatTensor(new[] { rows, numClass }, _rand, 0, 1); var yPredicted = RandomFloatTensor(yExpected.Shape, _rand, 0, 1);
+
+            var bufferBinaryGradient = RandomTensor(yExpected.Shape);
+            bufferBinaryGradient.ComputeGradientForEvaluationMetric(yExpected, yPredicted, yExpectedHasOnly0And1 ? EvaluationMetricEnum.BinaryCrossentropy : EvaluationMetricEnum.BCEContinuousY, metricConfig);
+
+            var bufferFocalGradient = RandomTensor(yExpected.Shape);
+            bufferFocalGradient.ComputeGradientForEvaluationMetric(yExpected, yPredicted, EvaluationMetricEnum.BCEWithFocalLoss, metricConfig); TensorExtensions.SameFloatContent(bufferBinaryGradient, bufferFocalGradient, 1e-6, out var difference);
+            Assert.IsTrue(string.IsNullOrEmpty(difference), difference);
+        }
+
 
 
         [Test]

@@ -73,7 +73,7 @@ public abstract class Model: IDisposable
         }
         var lossMetric = ModelSample.GetLoss();
         using var buffer = new CpuTensor<float>(y_true.ComputeMetricBufferShape(lossMetric));
-        return new Score( (float)buffer.ComputeEvaluationMetric(y_true, y_pred, lossMetric), lossMetric);
+        return new Score( (float)buffer.ComputeEvaluationMetric(y_true, y_pred, lossMetric, ModelSample), lossMetric);
     }
 
     private static bool LoggingForModelShouldBeDebug(string modelName)

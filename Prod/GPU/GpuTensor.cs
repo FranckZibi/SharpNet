@@ -872,26 +872,43 @@ namespace SharpNet.GPU
         CallCudaForLossBuffer(yExpected, yPredicted, EvaluationMetricEnum.BinaryCrossentropy);
     }
 
+
+    protected override void BCEContinuousYLossBuffer(Tensor yExpected, Tensor yPredicted)
+    {
+        CallCudaForLossBuffer(yExpected, yPredicted, EvaluationMetricEnum.BCEContinuousY);
+    }
+
+    protected override void BCEWithFocalLossLossBuffer(Tensor yExpected, Tensor yPredicted, float percentageInTrueClass, float gamma)
+    {
+        var bceWithFocalLossLossBuffer = this;
+        Debug.Assert(yExpected.Shape.Length == 2);
+        Debug.Assert(yExpected.SameShape(yPredicted));
+        int rows = yExpected.Shape[0];
+        int numClass = yExpected.Shape[1];
+        Debug.Assert(bceWithFocalLossLossBuffer.SameShape(new[] { rows }));
+        _wrapper.RunKernel("BCEWithFocalLossLossBuffer", rows, new object[] { numClass, percentageInTrueClass, gamma, bceWithFocalLossLossBuffer, yExpected, yPredicted });
+    }
+
     protected override void ComputeAccuracyCategoricalCrossentropyWithHierarchyBuffer(Tensor yExpected, Tensor yPredicted)
-        {
-            var buffer = this;
-            Debug.Assert(AreCompatible(new List<Tensor> { buffer, yExpected, yPredicted }));
-            Debug.Assert(buffer.Shape.Length == 1);
-            Debug.Assert(buffer.Shape[0] == yPredicted.Shape[0]);
-            Debug.Assert(yExpected.SameShape(yPredicted));
-            Debug.Assert(yExpected.Dimension >= 2);
-            int nbRows = yExpected.Shape[0];
-            var nbCols = yExpected.Shape[1];
-            _wrapper.RunKernel("ComputeSingleAccuracyForCategoricalCrossentropyWithHierarchy", nbRows, new object[] { nbCols, buffer, yExpected, yPredicted });
-        }
+    {
+        var buffer = this;
+        Debug.Assert(AreCompatible(new List<Tensor> { buffer, yExpected, yPredicted }));
+        Debug.Assert(buffer.Shape.Length == 1);
+        Debug.Assert(buffer.Shape[0] == yPredicted.Shape[0]);
+        Debug.Assert(yExpected.SameShape(yPredicted));
+        Debug.Assert(yExpected.Dimension >= 2);
+        int rows = yExpected.Shape[0];
+        var cols = yExpected.Shape[1];
+        _wrapper.RunKernel("ComputeSingleAccuracyForCategoricalCrossentropyWithHierarchy", rows, new object[] { cols, buffer, yExpected, yPredicted });
+    }
 
     protected override void MseOfLogLossBuffer(Tensor yExpected, Tensor yPredicted, float epsilon)
         {
             var buffer = this;
-            int batchSize = yExpected.Shape[0];
-            Debug.Assert(buffer.SameShape(new[] { batchSize }));
+            int rows = yExpected.Shape[0];
+            Debug.Assert(buffer.SameShape(new[] { rows }));
             Debug.Assert(yExpected.SameShape(yPredicted));
-            _wrapper.RunKernel("MseOfLogLossBuffer", batchSize, new object[] { yExpected.MultDim0, buffer, yExpected, yPredicted, epsilon });
+            _wrapper.RunKernel("MseOfLogLossBuffer", rows, new object[] { yExpected.MultDim0, buffer, yExpected, yPredicted, epsilon });
         }
 
         //!D To write properly for GPU
@@ -911,22 +928,33 @@ namespace SharpNet.GPU
         public override void HuberLossBuffer(Tensor yExpected, Tensor yPredicted, float huberDelta)
         {
             var huberLoss = this;
-            int batchSize = yExpected.Shape[0];
-            Debug.Assert(huberLoss.SameShape(new[] { batchSize }));
+            int rows = yExpected.Shape[0];
+            Debug.Assert(huberLoss.SameShape(new[] { rows }));
             Debug.Assert(yExpected.SameShape(yPredicted));
-            _wrapper.RunKernel("HuberLossBuffer", batchSize, new object[] { yExpected.MultDim0, huberDelta, huberLoss, yExpected, yPredicted });
+            _wrapper.RunKernel("HuberLossBuffer", rows, new object[] { yExpected.MultDim0, huberDelta, huberLoss, yExpected, yPredicted });
         }
 
         #endregion
 
         #region Compute of Gradients (for backward propagation)
+
+        protected override void BCEWithFocalLossGradient(Tensor yExpected, Tensor yPredicted, float percentageInTrueClass, float gamma)
+        {
+            var bceWithFocalLossGradient = this;
+            Debug.Assert(yExpected.Shape.Length == 2);
+            Debug.Assert(yExpected.SameShape(yPredicted, bceWithFocalLossGradient));
+            int rows = yExpected.Shape[0];
+            int numClass = yExpected.Shape[1];
+            _wrapper.RunKernel("BCEWithFocalLossGradient", rows, new object[] { numClass, percentageInTrueClass, gamma, bceWithFocalLossGradient, yExpected, yPredicted });
+        }
+
         public override void CategoricalCrossentropyWithHierarchyGradient(Tensor yExpected, Tensor yPredicted)
         {
-            var loss = this;
-            int nbRows = yExpected.Shape[0];
-            var nbCols = yExpected.Shape[1];
-            loss.ZeroMemory();
-            _wrapper.RunKernel("CategoricalCrossentropyWithHierarchyGradient", nbRows, new object[] { nbCols, loss, yExpected, yPredicted });
+            var categoricalCrossentropyWithHierarchyGradient = this;
+            int rows = yExpected.Shape[0];
+            var numClass = yExpected.Shape[1];
+            categoricalCrossentropyWithHierarchyGradient.ZeroMemory();
+            _wrapper.RunKernel("CategoricalCrossentropyWithHierarchyGradient", rows, new object[] { numClass, categoricalCrossentropyWithHierarchyGradient, yExpected, yPredicted });
         }
 
         public override void CosineSimilarityGradient(Tensor yExpected, Tensor yPredicted, int timeSeriesLength)
@@ -940,8 +968,8 @@ namespace SharpNet.GPU
         public override void HuberGradient(Tensor yExpected, Tensor yPredicted, float huberDelta)
         {
             var huberGradient = this;
-            int batchSize = yExpected.Shape[0];
-            _wrapper.RunKernel("HuberGradient", batchSize, new object[] { yExpected.MultDim0, huberDelta, huberGradient, yExpected, yPredicted });
+            int rows = yExpected.Shape[0];
+            _wrapper.RunKernel("HuberGradient", rows, new object[] { yExpected.MultDim0, huberDelta, huberGradient, yExpected, yPredicted });
         }
 
         public override void MseGradient(Tensor yExpected, Tensor yPredicted)
@@ -964,15 +992,15 @@ namespace SharpNet.GPU
         public override void MseOfLogGradient(Tensor yExpected, Tensor yPredicted, float epsilon)
         {
             var mseGradient = this;
-            int batchSize = yExpected.Shape[0];
-            _wrapper.RunKernel("MseOfLogGradient", batchSize, new object[] { yExpected.MultDim0, mseGradient, yExpected, yPredicted, epsilon });
+            int rows = yExpected.Shape[0];
+            _wrapper.RunKernel("MseOfLogGradient", rows, new object[] { yExpected.MultDim0, mseGradient, yExpected, yPredicted, epsilon });
         }
 
         public override void MaeGradient(Tensor yExpected, Tensor yPredicted)
         {
             var mseGradient = this;
-            int batchSize = yExpected.Shape[0];
-            _wrapper.RunKernel("MaeGradient", batchSize, new object[] { yExpected.MultDim0, mseGradient, yExpected, yPredicted });
+            int rows = yExpected.Shape[0];
+            _wrapper.RunKernel("MaeGradient", rows, new object[] { yExpected.MultDim0, mseGradient, yExpected, yPredicted });
         }
         #endregion
 

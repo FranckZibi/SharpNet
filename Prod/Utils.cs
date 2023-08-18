@@ -56,8 +56,26 @@ namespace SharpNet
         /// To be used with sigmoid activation layer.
         /// In a single row, each value will be in [0,1] range
         /// Support of multi labels (one element can belong to several numClass at the same time)
+        /// The expected Y value is a binary value: 0 or 1
         /// </summary>
         BinaryCrossentropy, // ok for loss, lower is better
+
+        /// <summary>
+        /// To be used with sigmoid activation layer.
+        /// In a single row, each value will be in [0,1] range
+        /// Support of multi labels (one element can belong to several numClass at the same time)
+        /// The expected Y value is a binary value: 0 or 1
+        /// </summary>
+        BCEWithFocalLoss, // ok for loss, lower is better
+
+
+        /// <summary>
+        /// To be used with sigmoid activation layer.
+        /// In a single row, each value will be in [0,1] range
+        /// Support of multi labels (one element can belong to several numClass at the same time)
+        /// The expected Y value is a continuous value in [0, 1] range (not a binary value: 0 or 1)
+        /// </summary>
+        BCEContinuousY, // ok for loss, lower is better
 
         /// <summary>
         /// To be used with softmax activation layer.
@@ -229,6 +247,8 @@ namespace SharpNet
                 case EvaluationMetricEnum.AUC:
                     return true; // higher is better
                 case EvaluationMetricEnum.BinaryCrossentropy:
+                case EvaluationMetricEnum.BCEContinuousY:
+                case EvaluationMetricEnum.BCEWithFocalLoss:
                 case EvaluationMetricEnum.CategoricalCrossentropy:
                 case EvaluationMetricEnum.SparseCategoricalCrossentropy:
                 case EvaluationMetricEnum.CategoricalCrossentropyWithHierarchy:
@@ -872,20 +892,19 @@ namespace SharpNet
         {
             return bool.TryParse(GetString(node, keyName), out var result) ? result : defaultValue;
         }
-        public static void ConfigureGlobalLog4netProperties(string logDirectory, string logFile)
+        public static void ConfigureGlobalLog4netProperties(string logDirectory, string logFile, bool overwriteIfExists = true)
         {
             lock (lockConfigureLog4netProperties)
             {
-                ConfigureLog4netProperties(logDirectory, logFile, GlobalContext.Properties);
-                XmlConfigurator.Configure(LogManager.GetRepository(Assembly.GetEntryAssembly()),
-                    new FileInfo(@"log4net.config"));
+                ConfigureLog4netProperties(logDirectory, logFile, GlobalContext.Properties, overwriteIfExists);
+                XmlConfigurator.Configure(LogManager.GetRepository(Assembly.GetEntryAssembly()), new FileInfo(@"log4net.config"));
             }
         }
-        public static void ConfigureThreadLog4netProperties(string logDirectory, string logFile)
+        public static void ConfigureThreadLog4netProperties(string logDirectory, string logFile, bool overwriteIfExists = true)
         {
             lock (lockConfigureLog4netProperties)
             {
-                ConfigureLog4netProperties(logDirectory, logFile, ThreadContext.Properties);
+                ConfigureLog4netProperties(logDirectory, logFile, ThreadContext.Properties, overwriteIfExists);
                 XmlConfigurator.Configure(LogManager.GetRepository(Assembly.GetEntryAssembly()), new FileInfo(@"log4net.config"));
             }
         }
@@ -1403,11 +1422,14 @@ namespace SharpNet
             }
         }
         private static readonly object lockConfigureLog4netProperties = new ();
-        private static void ConfigureLog4netProperties(string logDirectory, string logFile, ContextPropertiesBase properties)
+        private static void ConfigureLog4netProperties(string logDirectory, string logFile, ContextPropertiesBase properties, bool overwriteIfExists)
         {
             properties["threadid"] = Thread.CurrentThread.ManagedThreadId;
-            properties["logdirectory"] = logDirectory?.Replace("\\", "/") ?? "";
-            properties["logfile"] = logFile;
+            if (overwriteIfExists || properties["logdirectory"] == null || properties["logfile"] == null)
+            {
+                properties["logdirectory"] = logDirectory?.Replace("\\", "/") ?? "";
+                properties["logfile"] = logFile;
+            }
         }
 
 

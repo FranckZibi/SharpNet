@@ -171,8 +171,8 @@ public static class PlumeLabs88Utils
     
     public static void Run()
     {
-        Utils.ConfigureGlobalLog4netProperties(WorkingDirectory, "log");
-        Utils.ConfigureThreadLog4netProperties(WorkingDirectory, "log");
+        Utils.ConfigureGlobalLog4netProperties(WorkingDirectory, NAME);
+        Utils.ConfigureThreadLog4netProperties(WorkingDirectory, NAME);
 
         //using var m = ModelAndDatasetPredictions.Load(@"C:\Projects\Challenges\PlumeLabs88\dump", "C8C8A2D3E2", true);
         //(_, _, DataFrame predictionsInTargetFormat, _, _) =  m.DatasetSample.ComputePredictionsAndRankingScoreV2(m.DatasetSample.TestDataset(), m.Model, false, true);
@@ -316,13 +316,13 @@ public static class PlumeLabs88Utils
 
     public static void Launch_HPO(int numEpochs = 10, int maxAllowedSecondsForAllComputation = 0)
     {
-        Utils.ConfigureGlobalLog4netProperties(WorkingDirectory, "log");
-        Utils.ConfigureThreadLog4netProperties(WorkingDirectory, "log");
+        Utils.ConfigureGlobalLog4netProperties(WorkingDirectory, NAME);
+        Utils.ConfigureThreadLog4netProperties(WorkingDirectory, NAME);
         var searchSpace = new Dictionary<string, object>
         {
             
             //related to Dataset 
-            { "ShuffleDatasetBeforeEachEpoch", true},
+            { nameof(NetworkSample.ShuffleDatasetBeforeEachEpoch), true},
             { "NormalizeFeatureMean", new[] {/*0f,*/ 0.5f} },
             //{ "NormalizeFeatureMult", new[] { 1f, 0.8f, 1.2f} },
             //{ "NormalizeTargetMean", new[] {0f, 0.5f} },
@@ -331,27 +331,27 @@ public static class PlumeLabs88Utils
 
 
             //related to model
-            { "LossFunction", nameof(EvaluationMetricEnum.Mse)},
-            { "EvaluationMetrics", nameof(EvaluationMetricEnum.Mse)},
+            { nameof(NetworkSample.LossFunction), nameof(EvaluationMetricEnum.Mse)},
+            { nameof(NetworkSample.EvaluationMetrics), nameof(EvaluationMetricEnum.Mse)},
             //{ "KFold", 2},
-            //{ "PercentageInTraining", 0.9}, //will be automatically set to 1 if KFold is enabled
-            { "PercentageInTraining", 0.9}, //will be automatically set to 1 if KFold is enabled
-            { "BatchSize", new[] {100} },
-            { "NumEpochs", new[] { numEpochs } },
+            //{ nameof(AbstractDatasetSample.PercentageInTraining), 0.9}, //will be automatically set to 1 if KFold is enabled
+            { nameof(AbstractDatasetSample.PercentageInTraining), 0.9}, //will be automatically set to 1 if KFold is enabled
+            { nameof(NetworkSample.BatchSize), new[] {100} },
+            { nameof(NetworkSample.NumEpochs), new[] { numEpochs } },
             // Optimizer 
-            { "OptimizerType", new[] { "AdamW", } },
-            //{ "OptimizerType", new[] { "SGD"} },
-            { "AdamW_L2Regularization", new[] { 1e-5 /*, 1e-4, 1e-3, 1e-2, 1e-1*/ } }, //0.00001
-            { "SGD_usenesterov", new[] { true, false } },
-            //{ "lambdaL2Regularization", new[] { 0.0005, 0.001, 0.00005 } },
-            { "lambdaL2Regularization", new[] {0.001, 0.0005, 0.0001, 0.00005 } }, // 0.0001 or 0.001
-            //{"DefaultMobileBlocksDescriptionCount", new[]{5}},
+            { nameof(NetworkSample.OptimizerType), new[] { "AdamW", } },
+            //{ nameof(NetworkSample.OptimizerType), new[] { "SGD"} },
+            { nameof(NetworkSample.AdamW_L2Regularization), new[] { 1e-5 /*, 1e-4, 1e-3, 1e-2, 1e-1*/ } }, //0.00001
+            { nameof(NetworkSample.SGD_usenesterov), new[] { true, false } },
+            //{ nameof(NetworkSample.lambdaL2Regularization), new[] { 0.0005, 0.001, 0.00005 } },
+            { nameof(NetworkSample.lambdaL2Regularization), new[] {0.001, 0.0005, 0.0001, 0.00005 } }, // 0.0001 or 0.001
+            //{nameof(EfficientNetNetworkSample.DefaultMobileBlocksDescriptionCount), new[]{5}},
             {"LastActivationLayer", nameof(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU)},
             // Learning Rate
-            { "InitialLearningRate", new []{0.001, 0.01}}, //SGD: 0.01 //AdamW: 0.01 or 0.001
+            { nameof(NetworkSample.InitialLearningRate), new []{0.001, 0.01}}, //SGD: 0.01 //AdamW: 0.01 or 0.001
             // Learning Rate Scheduler
-            //{ "LearningRateSchedulerType", new[] { "OneCycle" } },
-            { "LearningRateSchedulerType", "CyclicCosineAnnealing" },
+            //{ nameof(NetworkSample.LearningRateSchedulerType), new[] { "OneCycle" } },
+            { nameof(NetworkSample.LearningRateSchedulerType), "CyclicCosineAnnealing" },
         };
         var hpo = new BayesianSearchHPO(searchSpace, () => ModelAndDatasetPredictionsSample.New(DefaultEfficientNetNetworkSample(), new PlumeLabs88DatasetSample()), WorkingDirectory);
         IScore bestScoreSoFar = null;

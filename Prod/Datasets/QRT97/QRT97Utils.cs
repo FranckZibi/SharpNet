@@ -14,7 +14,7 @@ namespace SharpNet.Datasets.QRT97;
 
 public static class QRT97Utils
 {
-    private const string NAME = "QRT97";
+    public const string NAME = "QRT97";
 
 
     #region public fields & properties
@@ -160,7 +160,7 @@ public static class QRT97Utils
         {
             //related to Dataset 
             //{"KFold", 3},
-            {"PercentageInTraining", 0.8}, //will be automatically set to 1 if KFold is enabled
+            {nameof(AbstractDatasetSample.PercentageInTraining), 0.8}, //will be automatically set to 1 if KFold is enabled
             //{"fillna_with_0", true},  //NaN are not supported in Device (GPU)
             {"use_DAY_ID", false},
             {"use_COUNTRY", true},
@@ -197,7 +197,7 @@ public static class QRT97Utils
         {
             //related to Dataset 
             {"KFold", 5},
-            //{"PercentageInTraining", 0.8}, //will be automatically set to 1 if KFold is enabled
+            //{nameof(AbstractDatasetSample.PercentageInTraining), 0.8}, //will be automatically set to 1 if KFold is enabled
           
             //related to model
             { "num_threads", -1},
@@ -248,7 +248,7 @@ public static class QRT97Utils
         {
             //related to Dataset 
             {"KFold", 5},
-            //{"PercentageInTraining", 0.8}, //will be automatically set to 1 if KFold is enabled
+            //{nameof(AbstractDatasetSample.PercentageInTraining), 0.8}, //will be automatically set to 1 if KFold is enabled
             
             //{"n_fold_svm", 5},
             {"use_DAY_ID", false},
@@ -283,25 +283,25 @@ public static class QRT97Utils
         {
             //Dataset specific
             //{ "KFold", 3 },
-            {"PercentageInTraining", new[]{0.8}},
+            {nameof(AbstractDatasetSample.PercentageInTraining), new[]{0.8}},
             
            //related to model
-           { "LossFunction", nameof(EvaluationMetricEnum.Mae)},
-           { "EvaluationMetrics", nameof(EvaluationMetricEnum.SpearmanCorrelation)},
+           { nameof(NetworkSample.LossFunction), nameof(EvaluationMetricEnum.Mae)},
+           { nameof(NetworkSample.EvaluationMetrics), nameof(EvaluationMetricEnum.SpearmanCorrelation)},
             {"fillna_with_0", true},  //NaN are not supported in Neural Networks
             // Optimizer 
-            { "OptimizerType", new[] { "AdamW" } },
-            //{ "OptimizerType", "SGD" },
-            { "AdamW_L2Regularization", new[] { 0.01 } },
-            //{ "SGD_usenesterov", new[] { true, false } },
-            //{ "lambdaL2Regularization", 0},
+            { nameof(NetworkSample.OptimizerType), new[] { "AdamW" } },
+            //{ nameof(NetworkSample.OptimizerType), "SGD" },
+            { nameof(NetworkSample.AdamW_L2Regularization), new[] { 0.01 } },
+            //{ nameof(NetworkSample.SGD_usenesterov), new[] { true, false } },
+            //{ nameof(NetworkSample.lambdaL2Regularization), 0},
 
             // Learning Rate
-            //{ "InitialLearningRate", AbstractHyperParameterSearchSpace.Range(1e-5f, 1f, AbstractHyperParameterSearchSpace.range_type.normal) },
-            { "InitialLearningRate", new[]{ 0.001 } },
+            //{ nameof(NetworkSample.InitialLearningRate), AbstractHyperParameterSearchSpace.Range(1e-5f, 1f, AbstractHyperParameterSearchSpace.range_type.normal) },
+            { nameof(NetworkSample.InitialLearningRate), new[]{ 0.001 } },
             // Learning Rate Scheduler
-            ////{ "LearningRateSchedulerType", new[] { "CyclicCosineAnnealing", "OneCycle", "Linear" } },
-            { "LearningRateSchedulerType", "CyclicCosineAnnealing"},
+            ////{ nameof(NetworkSample.LearningRateSchedulerType), new[] { "CyclicCosineAnnealing", "OneCycle", "Linear" } },
+            { nameof(NetworkSample.LearningRateSchedulerType), "CyclicCosineAnnealing"},
             //{ "EmbeddingDim", new[] { 4} },
             //{"weight_norm", new[]{true, false}},
             //{"leaky_relu", new[]{true, false}},
@@ -309,8 +309,8 @@ public static class QRT97Utils
             //{ "dropout_mid", new[] { 0, 0.3, 0.5 } },
             //{ "dropout_bottom", new[] { 0, 0.2, 0.4 } },
             
-            { "BatchSize", new[] { 1024,2048,4096 } },
-            { "NumEpochs", numEpochs },
+            { nameof(NetworkSample.BatchSize), new[] { 1024,2048,4096 } },
+            { nameof(NetworkSample.NumEpochs), numEpochs },
 
 
             { "hidden_size", 1024 },

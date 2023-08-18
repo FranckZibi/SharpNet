@@ -51,8 +51,8 @@ public class CFM84DatasetSample : AbstractDatasetSample
 
     static CFM84DatasetSample()
     {
-        Utils.ConfigureGlobalLog4netProperties(CFM84Utils.WorkingDirectory, "log");
-        Utils.ConfigureThreadLog4netProperties(CFM84Utils.WorkingDirectory, "log");
+        Utils.ConfigureGlobalLog4netProperties(CFM84Utils.WorkingDirectory, CFM84Utils.NAME);
+        Utils.ConfigureThreadLog4netProperties(CFM84Utils.WorkingDirectory, CFM84Utils.NAME);
         var sw = Stopwatch.StartNew();
         Log.Debug("Starting loading raw files");
         x_training_raw = DataFrame.read_csv_normalized(CFM84Utils.XTrainPath, ',', true, CFM84Utils.ColumnNameToType);

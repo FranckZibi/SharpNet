@@ -6,8 +6,8 @@ using System.Runtime.CompilerServices;
 using JetBrains.Annotations;
 using SharpNet.CPU;
 using SharpNet.GPU;
+using SharpNet.HyperParameters;
 using SharpNet.Layers;
-using SharpNet.Networks;
 
 namespace SharpNet.Data
 {
@@ -927,8 +927,9 @@ namespace SharpNet.Data
         /// <param name="yExpected">expected (true) values</param>
         /// <param name="yPredicted">what has been predicted by the ML</param>
         /// <param name="evaluationMetric"></param>
+        /// <param name="metricConfig"></param>
         /// <returns></returns>
-        public double ComputeEvaluationMetric(Tensor yExpected, Tensor yPredicted, EvaluationMetricEnum evaluationMetric)
+        public double ComputeEvaluationMetric(Tensor yExpected, Tensor yPredicted, EvaluationMetricEnum evaluationMetric, IMetricConfig metricConfig)
         {
             var buffer = this;
             switch (evaluationMetric)
@@ -940,13 +941,15 @@ namespace SharpNet.Data
                 case EvaluationMetricEnum.F1Micro:
                     return buffer.F1PrecisionRecallMicro(yExpected, yPredicted).f1;
                 default:
-                    ComputeBufferForEvaluationMetric(yExpected, yPredicted, evaluationMetric);
+                    ComputeLossBufferForEvaluationMetric(yExpected, yPredicted, evaluationMetric, metricConfig);
                     return BufferToEvaluationMetric(evaluationMetric, Count);
             }
         }
 
         #region BinaryCrossentropy & CategoricalCrossentropy &  SparseCategoricalCrossentropy
 
+        protected abstract void BCEContinuousYLossBuffer(Tensor yExpected, Tensor yPredicted);
+        protected abstract void BCEWithFocalLossLossBuffer(Tensor yExpected, Tensor yPredicted, float percentageInTrueClass, float gamma);
         protected abstract void BinaryCrossentropyLossBuffer([NotNull] Tensor yExpected, [NotNull] Tensor yPredicted);
         /// <summary>
         /// this = a buffer a vector of shape (batch_size)
@@ -973,7 +976,7 @@ namespace SharpNet.Data
         protected abstract void SparseCategoricalCrossentropyLossBuffer([NotNull] Tensor yExpectedSparse, [NotNull] Tensor yPredicted);
         public double SparseCategoricalCrossentropyLoss([NotNull] Tensor yExpectedSparse, [NotNull] Tensor yPredicted)
         {
-            ComputeBufferForEvaluationMetric(yExpectedSparse, yPredicted, EvaluationMetricEnum.SparseCategoricalCrossentropy);
+            ComputeLossBufferForEvaluationMetric(yExpectedSparse, yPredicted, EvaluationMetricEnum.SparseCategoricalCrossentropy, null);
             return BufferToEvaluationMetric(EvaluationMetricEnum.SparseCategoricalCrossentropy, Count);
         }
         #endregion
@@ -992,14 +995,14 @@ namespace SharpNet.Data
         protected abstract void ComputeSparseAccuracyBuffer([NotNull] Tensor yExpected, [NotNull] Tensor yPredicted);
         public double ComputeSparseAccuracy(Tensor yExpectedSparse, Tensor yPredicted)
         {
-            ComputeBufferForEvaluationMetric(yExpectedSparse, yPredicted, EvaluationMetricEnum.SparseAccuracy);
+            ComputeLossBufferForEvaluationMetric(yExpectedSparse, yPredicted, EvaluationMetricEnum.SparseAccuracy, null);
             return BufferToEvaluationMetric(EvaluationMetricEnum.SparseAccuracy, Count);
         }
 
         protected abstract void ComputeAccuracyCategoricalCrossentropyWithHierarchyBuffer([NotNull] Tensor yExpected, [NotNull] Tensor yPredicted);
         public double ComputeAccuracyCategoricalCrossentropyWithHierarchy(Tensor yExpected, Tensor yPredicted)
         {
-            ComputeBufferForEvaluationMetric(yExpected, yPredicted, EvaluationMetricEnum.AccuracyCategoricalCrossentropyWithHierarchy);
+            ComputeLossBufferForEvaluationMetric(yExpected, yPredicted, EvaluationMetricEnum.AccuracyCategoricalCrossentropyWithHierarchy, null);
             return BufferToEvaluationMetric(EvaluationMetricEnum.AccuracyCategoricalCrossentropyWithHierarchy, Count);
         }
         /// <summary>
@@ -1011,7 +1014,7 @@ namespace SharpNet.Data
         protected abstract void ComputeAccuracyBuffer([NotNull] Tensor yExpected, [NotNull] Tensor yPredicted);
         public double ComputeAccuracy([NotNull] Tensor yExpected, [NotNull] Tensor yPredicted)
         {
-            ComputeBufferForEvaluationMetric(yExpected, yPredicted, EvaluationMetricEnum.Accuracy);
+            ComputeLossBufferForEvaluationMetric(yExpected, yPredicted, EvaluationMetricEnum.Accuracy, null);
             return BufferToEvaluationMetric(EvaluationMetricEnum.Accuracy, Count);
         }
         private static bool IsSparseMetric(EvaluationMetricEnum metricEnum)
@@ -1098,7 +1101,7 @@ namespace SharpNet.Data
         {
             var buffer = this;
             Debug.Assert(buffer.Count == 1);
-            ComputeBufferForEvaluationMetric(yExpectedSparse, yPredicted, EvaluationMetricEnum.AUC);
+            ComputeLossBufferForEvaluationMetric(yExpectedSparse, yPredicted, EvaluationMetricEnum.AUC, null);
             return buffer.ContentAsFloatArray()[0];
         }
         #endregion
@@ -1114,7 +1117,55 @@ namespace SharpNet.Data
             return buffer.ContentAsFloatArray().Sum() / elementCountInBuffer;
         }
 
-        private void ComputeBufferForEvaluationMetric(Tensor yExpected, Tensor yPredicted, EvaluationMetricEnum evaluationMetric)
+
+        public void ComputeGradientForEvaluationMetric(Tensor yExpected, Tensor yPredicted, EvaluationMetricEnum evaluationMetric, IMetricConfig metricConfig)
+        {
+            var dyPredicted = this;
+            switch (evaluationMetric)
+            {
+                case EvaluationMetricEnum.BinaryCrossentropy:
+                case EvaluationMetricEnum.BCEContinuousY:
+                    //Debug.Assert(_layers.Last().IsSigmoidActivationLayer());
+                    //we compute: _dyPredicted = (1.0/numClass) * (yPredicted - yExpected)
+                    dyPredicted.BinaryCrossentropyGradient(yExpected, yPredicted);
+                    break;
+                case EvaluationMetricEnum.BCEWithFocalLoss:
+                    dyPredicted.BCEWithFocalLossGradient(yExpected, yPredicted, metricConfig.Get_BCEWithFocalLoss_PercentageInTrueClass(), metricConfig.Get_BCEWithFocalLoss_Gamma());
+                    break;
+                case EvaluationMetricEnum.CategoricalCrossentropy:
+                    //we compute: _dyPredicted = (yPredicted - yExpected)
+                    dyPredicted.CategoricalCrossentropyGradient(yExpected, yPredicted);
+                    break;
+                case EvaluationMetricEnum.SparseCategoricalCrossentropy:
+                    dyPredicted.SparseCategoricalCrossentropyGradient(yExpected, yPredicted);
+                    break;
+                case EvaluationMetricEnum.CategoricalCrossentropyWithHierarchy:
+                    dyPredicted.CategoricalCrossentropyWithHierarchyGradient(yExpected, yPredicted);
+                    break;
+                case EvaluationMetricEnum.Huber:
+                    dyPredicted.HuberGradient(yExpected, yPredicted, metricConfig.Get_Huber_Delta());
+                    break;
+                case EvaluationMetricEnum.Mse:
+                    dyPredicted.MseGradient(yExpected, yPredicted);
+                    break;
+                case EvaluationMetricEnum.Mae:
+                    dyPredicted.MaeGradient(yExpected, yPredicted);
+                    break;
+                default:
+                    throw new Exception("Invalid loss function " + metricConfig.GetLoss());
+            }
+        }
+
+
+        /// <summary>
+        /// method is public for testing purpose only
+        /// </summary>
+        /// <param name="yExpected"></param>
+        /// <param name="yPredicted"></param>
+        /// <param name="evaluationMetric"></param>
+        /// <param name="metricConfig"></param>
+        /// <exception cref="NotImplementedException"></exception>
+        public void ComputeLossBufferForEvaluationMetric(Tensor yExpected, Tensor yPredicted, EvaluationMetricEnum evaluationMetric, IMetricConfig metricConfig)
         {
             var buffer = this;
             switch (evaluationMetric)
@@ -1143,6 +1194,12 @@ namespace SharpNet.Data
                 case EvaluationMetricEnum.BinaryCrossentropy:
                     buffer.BinaryCrossentropyLossBuffer(yExpected, yPredicted);
                     return;
+                case EvaluationMetricEnum.BCEContinuousY:
+                    buffer.BCEContinuousYLossBuffer(yExpected, yPredicted);
+                    return;
+                case EvaluationMetricEnum.BCEWithFocalLoss:
+                    buffer.BCEWithFocalLossLossBuffer(yExpected, yPredicted, metricConfig.Get_BCEWithFocalLoss_PercentageInTrueClass(), metricConfig.Get_BCEWithFocalLoss_Gamma());
+                    return;
                 case EvaluationMetricEnum.CategoricalCrossentropy:
                     buffer.CategoricalCrossentropyLossBuffer(yExpected, yPredicted);
                     return;
@@ -1150,8 +1207,7 @@ namespace SharpNet.Data
                     buffer.CategoricalCrossentropyWithHierarchyLossBuffer(yExpected, yPredicted);
                     return;
                 case EvaluationMetricEnum.Huber:
-                    const float huberDelta = 1.0f;
-                    buffer.HuberLossBuffer(yExpected, yPredicted, huberDelta);
+                    buffer.HuberLossBuffer(yExpected, yPredicted, metricConfig.Get_Huber_Delta());
                     return;
                 case EvaluationMetricEnum.F1Micro:
                     throw new NotImplementedException();
@@ -1167,9 +1223,7 @@ namespace SharpNet.Data
                     buffer.MaeLossBuffer(yExpected, yPredicted);
                     return;
                 case EvaluationMetricEnum.MseOfLog:
-                    var epsilon = NetworkSample.Default_MseOfLog_Loss;
-                    Debug.Assert(epsilon > 0);
-                    buffer.MseOfLogLossBuffer(yExpected, yPredicted, epsilon);
+                    buffer.MseOfLogLossBuffer(yExpected, yPredicted, metricConfig.Get_MseOfLog_Epsilon());
                     return;
                 case EvaluationMetricEnum.MeanSquaredLogError:
                     buffer.MeanSquaredLogErrorLossBuffer(yExpected, yPredicted);
@@ -1241,6 +1295,39 @@ namespace SharpNet.Data
 
 
         #region Compute of Gradients (for backward propagation)
+
+
+        /// <summary>
+        /// Compute the output gradient when we are using binary cross entropy focal loss
+        /// and stores it in the 'this' tensor
+        /// </summary>
+        /// <param name="yExpected">the expected values for the prediction</param>
+        /// <param name="yPredicted">the observed values for the prediction</param>
+        /// <param name="percentageInTrueClass">the percentage of true elements in the dataset, will be used to compute the alpha coeff in focal loss (see https://arxiv.org/pdf/1708.02002.pdf)</param>
+        /// <param name="gamma">gamma coeff in focal loss (see https://arxiv.org/pdf/1708.02002.pdf)</param>
+        // ReSharper disable once UnusedParameter.Global
+        protected abstract void BCEWithFocalLossGradient(Tensor yExpected, Tensor yPredicted, float percentageInTrueClass, float gamma);
+
+
+        private void BinaryCrossentropyGradient(Tensor yExpected, Tensor yPredicted)
+        {
+            var binaryCrossentropyGradient = this;
+            //we compute: binaryCrossentropyGradient = (1.0/numClass) * (yPredicted - yExpected)
+            yPredicted.CopyTo(binaryCrossentropyGradient);
+            var numClass = yPredicted.Shape[1];
+            var multiplier = 1f / (numClass);
+            binaryCrossentropyGradient.AddTensor(-multiplier, yExpected, multiplier);
+        }
+
+        private void CategoricalCrossentropyGradient(Tensor yExpected, Tensor yPredicted)
+        {
+            var categoricalCrossentropyGradient = this;
+            //we compute: categoricalCrossentropyGradient = (yPredicted - yExpected)
+            yPredicted.CopyTo(categoricalCrossentropyGradient);
+            categoricalCrossentropyGradient.AddTensor(-1, yExpected, 1);
+        }
+
+
         /// <summary>
         /// Compute the output gradient when we are using categorical hierarchy for categories
         /// and stores it in the 'this' tensor
@@ -1498,6 +1585,5 @@ namespace SharpNet.Data
                 ? Reshape(-1, Shape[^1]) 
                 : Reshape(Shape[0], -1);
         }
-
     }
 }

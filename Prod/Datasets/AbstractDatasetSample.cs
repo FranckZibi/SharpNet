@@ -106,7 +106,7 @@ public abstract class AbstractDatasetSample : AbstractSample, IDisposable
         if (y != null)
         {
             var y_true_InTargetFormat = PredictionsInModelFormat_2_PredictionsInTargetFormat(DataFrame.New(y), model.ModelSample.GetObjective());
-            targetRankingScore = ComputeRankingEvaluationMetric(y_true_InTargetFormat, y_pred_InTargetFormat, model.ModelSample.GetRankingEvaluationMetric());
+            targetRankingScore = ComputeRankingEvaluationMetric(y_true_InTargetFormat, y_pred_InTargetFormat, model.ModelSample);
         }
         ISample.Log.Debug($"{nameof(ComputePredictionsAndRankingScoreV2)} took {start.Elapsed.TotalSeconds}s");
         return (y_pred_InModelFormat, modelLossScore, y_pred_InTargetFormat, targetRankingScore, path_pred_InModelFormat);
@@ -332,11 +332,20 @@ public abstract class AbstractDatasetSample : AbstractSample, IDisposable
     }
 
 
-    public IScore ComputeRankingEvaluationMetric(DataFrame y_true_InTargetFormat, DataFrame y_pred_InTargetFormat, EvaluationMetricEnum rankingEvaluationMetric)
+    public IScore ComputeRankingEvaluationMetric(DataFrame y_true_InTargetFormat, DataFrame y_pred_InTargetFormat, IMetricConfig metricConfig)
     {
         AssertNoIdColumns(y_true_InTargetFormat);
         AssertNoIdColumns(y_pred_InTargetFormat);
-        return DataFrame.ComputeEvaluationMetric(y_true_InTargetFormat, y_pred_InTargetFormat, rankingEvaluationMetric);
+        if (y_true_InTargetFormat == null || y_pred_InTargetFormat == null)
+        {
+            return null;
+        }
+        var y_true_tensor = y_true_InTargetFormat.FloatCpuTensor();
+        var y_pred_tensor = y_pred_InTargetFormat.FloatCpuTensor();
+        var rankingEvaluationMetric = metricConfig.GetRankingEvaluationMetric();
+        using var buffer = new CpuTensor<float>(y_true_tensor.ComputeMetricBufferShape(rankingEvaluationMetric));
+        var evaluationMetric = buffer.ComputeEvaluationMetric(y_true_tensor, y_pred_tensor, rankingEvaluationMetric, metricConfig);
+        return new Score((float)evaluationMetric, rankingEvaluationMetric);
     }
 
     /// <summary>

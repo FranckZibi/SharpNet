@@ -521,7 +521,7 @@ public class Natixis70DatasetSample : AbstractDatasetSample
             {
                 //related to Dataset 
                 {"KFold", 2},
-                //{"PercentageInTraining", 0.8}, //will be automatically set to 1 if KFold is enabled
+                //{nameof(AbstractDatasetSample.PercentageInTraining), 0.8}, //will be automatically set to 1 if KFold is enabled
                 { "TryToPredictAllHorizonAtTheSameTime", false},
                 { "MergeHorizonAndMarketIdInSameFeature",new[]{true/*, false*/} },
                 //{ "Normalization",new[] { "NONE", "DIVIDE_BY_ABS_MEAN"} },
@@ -559,7 +559,7 @@ public class Natixis70DatasetSample : AbstractDatasetSample
                 { "MergeHorizonAndMarketIdInSameFeature",new[]{true/*, false*/} },
                 //{ "Normalization",new[] { "NONE", "DIVIDE_BY_ABS_MEAN"} },
                 //{"KFold", 2},
-                {"PercentageInTraining", 0.8}, //will be automatically set to 1 if KFold is enabled
+                {nameof(AbstractDatasetSample.PercentageInTraining), 0.8}, //will be automatically set to 1 if KFold is enabled
 
                 //related to model
                 { "loss_function", nameof(CatBoostSample.loss_function_enum.RMSE)},
@@ -626,23 +626,23 @@ public class Natixis70DatasetSample : AbstractDatasetSample
         {
             //related to Dataset 
             //{"KFold", 2},
-            {"PercentageInTraining", 0.8}, //will be automatically set to 1 if KFold is enabled
+            {nameof(AbstractDatasetSample.PercentageInTraining), 0.8}, //will be automatically set to 1 if KFold is enabled
 
-            {"InitialLearningRate", AbstractHyperParameterSearchSpace.Range(0.003f, 0.2f, AbstractHyperParameterSearchSpace.range_type.normal)},
+            {nameof(NetworkSample.InitialLearningRate), AbstractHyperParameterSearchSpace.Range(0.003f, 0.2f, AbstractHyperParameterSearchSpace.range_type.normal)},
             {"StandardizeDoubleValues", false},
             //dataset 
             //{"Reviews_EmbeddingDim", new[]{0, 100, TOTAL_Reviews_EmbeddingDim}},
             
             //related to model
-            { "LossFunction", nameof(EvaluationMetricEnum.Rmse)},
-            //{ "EvaluationMetrics", nameof(EvaluationMetricEnum.Rmse)},
+            { nameof(NetworkSample.LossFunction), nameof(EvaluationMetricEnum.Rmse)},
+            //{ nameof(NetworkSample.EvaluationMetrics), nameof(EvaluationMetricEnum.Rmse)},
             // Optimizer 
-            {"OptimizerType", "AdamW"},
-            //{"AdamW_L2Regularization", AbstractHyperParameterSearchSpace.Range(0.003f, 0.01f)},
-            {"AdamW_L2Regularization", 0.004},
+            {nameof(NetworkSample.OptimizerType), "AdamW"},
+            //{nameof(NetworkSample.AdamW_L2Regularization), AbstractHyperParameterSearchSpace.Range(0.003f, 0.01f)},
+            {nameof(NetworkSample.AdamW_L2Regularization), 0.004},
             // Learning Rate Scheduler
-            {"LearningRateSchedulerType", new[]{ "CyclicCosineAnnealing"}},
-            {"OneCycle_PercentInAnnealing", 0.5},
+            {nameof(NetworkSample.LearningRateSchedulerType), new[]{ "CyclicCosineAnnealing"}},
+            {nameof(NetworkSample.OneCycle_PercentInAnnealing), 0.5},
             { "EmbeddingDim", new[]{10} },
             //{ "EmbeddingDim", 10 },
             //{"dropout_top", 0.1},
@@ -652,7 +652,7 @@ public class Natixis70DatasetSample : AbstractDatasetSample
             //run on GPU
             {"NetworkSample_1DCNN_UseGPU", true},
 
-            {"BatchSize", new[]{256} },
+            {nameof(NetworkSample.BatchSize), new[]{256} },
 
             //{"two_stage", new[]{true,false } },
             //{"Use_ConcatenateLayer", new[]{true,false } },
@@ -664,7 +664,7 @@ public class Natixis70DatasetSample : AbstractDatasetSample
             {"Use_AddLayer", true },
 
 
-            {"NumEpochs", numEpochs},
+            {nameof(NetworkSample.NumEpochs), numEpochs},
         };
 
         var hpo = new BayesianSearchHPO(searchSpace, () => ModelAndDatasetPredictionsSample.New(new NetworkSample_1DCNN(), new Natixis70DatasetSample()), WorkingDirectory);

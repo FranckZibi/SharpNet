@@ -99,8 +99,9 @@ namespace SharpNetTests
         private static double ComputeGradientAndReturnLoss(Network network, Tensor X, CpuTensor<float> yExpected)
         {
             var yPredicted = (CpuTensor<float>)network.Predict(X, true);
+            var metricConfig = new TestMetricConfig(lossMetric: EvaluationMetricEnum.CategoricalCrossentropy);
             //we compute gradients
-            network.PropagationManager.Backward(yExpected, yPredicted, EvaluationMetricEnum.CategoricalCrossentropy);
+            network.PropagationManager.Backward(yExpected, yPredicted, metricConfig);
             double result = 0;
             for (int i = 0; i < yExpected.Count; ++i)
             {

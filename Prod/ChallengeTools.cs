@@ -167,8 +167,8 @@ public static class ChallengeTools
     /// </summary>
     public static void Retrain(string workingDirectory, string modelName, int? n_splits = 3, double?percentageInTraining = null, bool retrainOnFullDataset = true, bool useAllAvailableCores = true, bool computeAndSavePredictions = true, bool computeValidationRankingScore = true, bool saveTrainedModel = true)
     {
-        Utils.ConfigureGlobalLog4netProperties(workingDirectory, $"{nameof(Retrain)}");
-        Utils.ConfigureThreadLog4netProperties(workingDirectory, $"{nameof(Retrain)}");
+        Utils.ConfigureGlobalLog4netProperties(workingDirectory, $"{nameof(Retrain)}", false);
+        Utils.ConfigureThreadLog4netProperties(workingDirectory, $"{nameof(Retrain)}", false);
 
 
         if (n_splits.HasValue && percentageInTraining.HasValue)

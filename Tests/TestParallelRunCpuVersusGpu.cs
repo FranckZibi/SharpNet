@@ -18,7 +18,7 @@ using SharpNetTests.NonReg;
 namespace SharpNetTests
 {
     [TestFixture]
-    public class TestParallelRunCpuVersusGpu
+    public partial class TestParallelRunCpuVersusGpu
     {
         private const int BatchSize = 9;
         private const int FiltersCount = 8;
@@ -974,29 +974,74 @@ namespace SharpNetTests
             var buffer = RandomTensor(new[] { batchSize });
             var yPredicted = RandomTensor(new[] { batchSize, numClass });
             var yExpected = RandomTensor(yPredicted.Shape);
-            TestAllForReturnValue(new[] { buffer, yExpected, yPredicted}, tensors => tensors[0].ComputeEvaluationMetric(tensors[1], tensors[2], evaluationMetric));
+            var metricConfig  = new TestMetricConfig(huber_Delta:1.0f);
+            TestAllForReturnValue(new[] { buffer, yExpected, yPredicted}, tensors => tensors[0].ComputeEvaluationMetric(tensors[1], tensors[2], evaluationMetric, metricConfig));
         }
 
         [TestCase(1, EvaluationMetricEnum.CategoricalCrossentropy)]
         [TestCase(1, EvaluationMetricEnum.BinaryCrossentropy)]
+        [TestCase(1, EvaluationMetricEnum.BCEContinuousY)]
+        [TestCase(1, EvaluationMetricEnum.BCEWithFocalLoss)]
         [TestCase(2, EvaluationMetricEnum.CategoricalCrossentropy)]
         [TestCase(2, EvaluationMetricEnum.BinaryCrossentropy)]
+        [TestCase(2, EvaluationMetricEnum.BCEContinuousY)]
+        [TestCase(2, EvaluationMetricEnum.BCEWithFocalLoss)]
         [TestCase(10, EvaluationMetricEnum.CategoricalCrossentropy)]
         public void TestComputeEvaluationMetricCategorical(int numClass, EvaluationMetricEnum evaluationMetric)
         {
-            const int batchSize = 1000;
-            var buffer = RandomTensor(new[] { batchSize });
-            var yExpected = TestCpuTensor.RandomOneHotTensor(new[] { batchSize, numClass }, _rand);
+            const int rows = 317;
+            var metricConfig = new TestMetricConfig(bceWithFocalLossPercentageInTrueClass: 0.43f, bceWithFocalLoss_Gamma: 1.5f);
+
+            var buffer = RandomTensor(new[] { rows });
+            var yExpected = TestCpuTensor.RandomOneHotTensor(new[] { rows, numClass }, _rand);
             var yPredicted = TestCpuTensor.RandomFloatTensor(yExpected.Shape, _rand, 0, 1);
-            TestAllForReturnValue(new[] { buffer, yExpected, yPredicted }, tensors => tensors[0].ComputeEvaluationMetric(tensors[1], tensors[2], evaluationMetric));
+            TestAllForReturnValue(new[] { buffer, yExpected, yPredicted }, tensors => tensors[0].ComputeEvaluationMetric(tensors[1], tensors[2], evaluationMetric, metricConfig));
+
+            buffer = RandomTensor(new[] { rows });
+            yExpected = TestCpuTensor.RandomOneHotTensor(new[] { rows, numClass }, _rand);
+            yPredicted = TestCpuTensor.RandomFloatTensor(yExpected.Shape, _rand, 0, 1);
+            TestAll(new[] { buffer, yExpected, yPredicted }, tensors => tensors[0].ComputeLossBufferForEvaluationMetric(tensors[1], tensors[2], evaluationMetric, metricConfig));
+
+            yExpected = TestCpuTensor.RandomOneHotTensor(new[] { rows, numClass }, _rand);
+            yPredicted = TestCpuTensor.RandomFloatTensor(yExpected.Shape, _rand, 0, 1);
+            var gradients = RandomTensor(yExpected.Shape);
+            TestAll(new[] { gradients, yExpected, yPredicted }, tensors => tensors[0].ComputeGradientForEvaluationMetric(tensors[1], tensors[2], evaluationMetric, metricConfig));
         }
+
+
+        [TestCase(1, EvaluationMetricEnum.BCEContinuousY)]
+        [TestCase(2, EvaluationMetricEnum.BCEContinuousY)]
+        [TestCase(1, EvaluationMetricEnum.BCEWithFocalLoss)]
+        [TestCase(2, EvaluationMetricEnum.BCEWithFocalLoss)]
+        public void TestComputeEvaluationMetricContinuousYBetween0And1(int numClass, EvaluationMetricEnum evaluationMetric)
+        {
+            const int rows = 317;
+            var metricConfig = new TestMetricConfig(bceWithFocalLossPercentageInTrueClass: 0.43f, bceWithFocalLoss_Gamma: 1.5f);
+
+            var buffer = RandomTensor(new[] { rows });
+            var yExpected = TestCpuTensor.RandomFloatTensor(new [] { rows, numClass }, _rand, 0, 1);
+            var yPredicted = TestCpuTensor.RandomFloatTensor(yExpected.Shape, _rand, 0, 1);
+            TestAllForReturnValue(new[] { buffer, yExpected, yPredicted }, tensors => tensors[0].ComputeEvaluationMetric(tensors[1], tensors[2], evaluationMetric, metricConfig));
+
+            buffer = RandomTensor(new[] { rows });
+            yExpected = TestCpuTensor.RandomFloatTensor(new[] { rows, numClass }, _rand, 0, 1);
+            yPredicted = TestCpuTensor.RandomFloatTensor(yExpected.Shape, _rand, 0, 1);
+            TestAll(new[] { buffer, yExpected, yPredicted }, tensors => tensors[0].ComputeLossBufferForEvaluationMetric(tensors[1], tensors[2], evaluationMetric, metricConfig));
+
+            yExpected = TestCpuTensor.RandomOneHotTensor(new[] { rows, numClass }, _rand);
+            yPredicted = TestCpuTensor.RandomFloatTensor(yExpected.Shape, _rand, 0, 1);
+            var gradients = RandomTensor(yExpected.Shape);
+            TestAll(new[] { gradients, yExpected, yPredicted }, tensors => tensors[0].ComputeGradientForEvaluationMetric(tensors[1], tensors[2], evaluationMetric, metricConfig));
+        }
+
+
         [Test]
         public void TestComputeCategoricalCrossentropyWithHierarchyEvaluationMetric()
         {
             var expected = TestCpuTensor.GetExpectedCategoricalCrossentropyWithHierarchy();
             var predicted = TestCpuTensor.GetPredictedCategoricalCrossentropyWithHierarchy();
             var buffer = RandomTensor(new[] { expected.Shape[0] });
-            TestAllForReturnValue(new[] { buffer, expected, predicted}, tensors => tensors[0].ComputeEvaluationMetric(tensors[1], tensors[2], EvaluationMetricEnum.CategoricalCrossentropyWithHierarchy));
+            TestAllForReturnValue(new[] { buffer, expected, predicted}, tensors => tensors[0].ComputeEvaluationMetric(tensors[1], tensors[2], EvaluationMetricEnum.CategoricalCrossentropyWithHierarchy, null));
         }
 
         [Test]
@@ -1049,7 +1094,8 @@ namespace SharpNetTests
             var expected = RandomTensor(predicted.Shape);
             var batchSize = shape[0];
             var huberLoss = RandomTensor(new []{ batchSize });
-            TestAll(new[] { huberLoss, expected, predicted }, tensors => tensors[0].HuberLossBuffer(tensors[1], tensors[2], 1.0f));
+            const float huberDelta= 1.0f;
+            TestAll(new[] { huberLoss, expected, predicted }, tensors => tensors[0].HuberLossBuffer(tensors[1], tensors[2], huberDelta));
         }
 
         [TestCase(new[]{10000,10})]
@@ -1063,7 +1109,8 @@ namespace SharpNetTests
             var predicted = RandomTensor(shape);
             var expected = RandomTensor(predicted.Shape);
             var huberGradient = RandomTensor(expected.Shape);
-            TestAll(new[] { huberGradient, expected, predicted}, tensors => tensors[0].HuberGradient(tensors[1], tensors[2], 1.0f));
+            const float huberDelta = 1.0f;
+            TestAll(new[] { huberGradient, expected, predicted}, tensors => tensors[0].HuberGradient(tensors[1], tensors[2], huberDelta));
         }
 
         //[TestCase(new[] { 10000, 1 })]
@@ -1219,7 +1266,8 @@ namespace SharpNetTests
             var expected = TestCpuTensor.RandomFloatTensor(predicted.Shape, _rand, 0.00001, +1.5);
             var batchSize = shape[0];
             var mseOfLogLoss = RandomTensor(new[] { batchSize });
-            TestAll(new[] { mseOfLogLoss, expected, predicted }, tensors => tensors[0].ComputeEvaluationMetric(tensors[1], tensors[2], EvaluationMetricEnum.MseOfLog));
+            var metricConfig = new TestMetricConfig(mseOfLog_Epsilon: 0.0123f);
+            TestAll(new[] { mseOfLogLoss, expected, predicted }, tensors => tensors[0].ComputeEvaluationMetric(tensors[1], tensors[2], EvaluationMetricEnum.MseOfLog, metricConfig));
         }
 
         [TestCase(new[] { 10000, 1 })]

@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Linq;
 using JetBrains.Annotations;
 using SharpNet.Data;
+using SharpNet.HyperParameters;
 using SharpNet.MathTools;
 
 namespace SharpNet;
@@ -13,7 +14,7 @@ public class EvaluationMetricAccumulatorForSingleEpoch : IDisposable
     private readonly TensorMemoryPool _memoryPool;
     private readonly int _count;
     private int _currentElementCount;
-    private readonly List<EvaluationMetricEnum> _metrics;
+    private readonly IMetricConfig _metricData;
     private Tensor _full_y_true;
     private Tensor _full_y_pred;
     private readonly Dictionary<EvaluationMetricEnum, DoubleAccumulator> _currentAccumulatedMetrics = new();
@@ -21,14 +22,14 @@ public class EvaluationMetricAccumulatorForSingleEpoch : IDisposable
     /// <summary>
     /// 
     /// </summary>
-    /// <param name="MemoryPool"></param>
+    /// <param name="memoryPool"></param>
     /// <param name="count">number of elements (rows) in the dataset</param>
-    /// <param name="metrics"></param>
-    public EvaluationMetricAccumulatorForSingleEpoch(TensorMemoryPool MemoryPool, int count, List<EvaluationMetricEnum> metrics)
+    /// <param name="metricConfig"></param>
+    public EvaluationMetricAccumulatorForSingleEpoch(TensorMemoryPool memoryPool, int count, IMetricConfig metricConfig)
     {
-        _memoryPool = MemoryPool;
+        _memoryPool = memoryPool;
         _count = count;
-        _metrics = metrics;
+        _metricData = metricConfig;
     }
 
     public void UpdateMetrics([NotNull] Tensor yExpected, [NotNull] Tensor yPredicted)
@@ -45,7 +46,7 @@ public class EvaluationMetricAccumulatorForSingleEpoch : IDisposable
             yPredicted = yPredicted.Reshape(newShape);
         }
 
-        if (_metrics.Any(RequireFullYToCompute))
+        if (_metricData.Metrics.Any(RequireFullYToCompute))
         {
             //we'll just update the tensors '_full_y_true' and '_full_y_pred' by appending to those tensors
             //the content of the tensors 'yExpected' and 'yPredicted'
@@ -63,14 +64,14 @@ public class EvaluationMetricAccumulatorForSingleEpoch : IDisposable
         else
         {
             Tensor buffer = null;
-            foreach (var metric in _metrics)
+            foreach (var metric in _metricData.Metrics)
             {
                 if (!_currentAccumulatedMetrics.ContainsKey(metric))
                 {
                     _currentAccumulatedMetrics[metric] = new DoubleAccumulator();
                 }
                 _memoryPool.GetFloatTensor(ref buffer, yExpected.ComputeMetricBufferShape(metric));
-                var metricValue = buffer.ComputeEvaluationMetric(yExpected, yPredicted, metric);
+                var metricValue = buffer.ComputeEvaluationMetric(yExpected, yPredicted, metric, _metricData);
                 _currentAccumulatedMetrics[metric].Add(metricValue, yExpected.Shape[0]);
             }
             _memoryPool.FreeFloatTensor(buffer);
@@ -100,25 +101,25 @@ public class EvaluationMetricAccumulatorForSingleEpoch : IDisposable
     }
 
 
-    public List<KeyValuePair<EvaluationMetricEnum, double>>  Metrics()
+    public List<KeyValuePair<EvaluationMetricEnum, double>> Metrics()
     {
         List<KeyValuePair<EvaluationMetricEnum, double>> res = new();
 
-        if (_metrics.Any(RequireFullYToCompute))
+        if (_metricData.Metrics.Any(RequireFullYToCompute))
         {
             Debug.Assert(_full_y_true != null);
             Debug.Assert(_full_y_pred!=null);
             Tensor buffer = null;
-            foreach (var metric in _metrics)
+            foreach (var metric in _metricData.Metrics)
             {
                 _memoryPool.GetFloatTensor(ref buffer, _full_y_pred.ComputeMetricBufferShape(metric));
-                res.Add(KeyValuePair.Create(metric, buffer.ComputeEvaluationMetric(_full_y_true, _full_y_pred, metric)));
+                res.Add(KeyValuePair.Create(metric, buffer.ComputeEvaluationMetric(_full_y_true, _full_y_pred, metric, _metricData)));
             }
             _memoryPool.FreeFloatTensor(buffer);
         }
         else
         {
-            foreach (var metric in _metrics)
+            foreach (var metric in _metricData.Metrics)
             {
                 res.Add(KeyValuePair.Create(metric, _currentAccumulatedMetrics[metric].Average));
             }

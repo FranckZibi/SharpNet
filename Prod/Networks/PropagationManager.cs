@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Linq;
 using JetBrains.Annotations;
 using SharpNet.Data;
+using SharpNet.HyperParameters;
 using SharpNet.Layers;
 
 namespace SharpNet.Networks
@@ -155,7 +156,7 @@ namespace SharpNet.Networks
             return _memoryPool.GetFloatTensor(outputShape);
         }
        
-        public void Backward([NotNull] Tensor yExpected, [NotNull] Tensor yPredicted, EvaluationMetricEnum evaluationMetric)
+        public void Backward([NotNull] Tensor yExpected, [NotNull] Tensor yPredicted, IMetricConfig metricConfig)
         {
             //Debug.Assert(yExpected.SameShape(yPredicted));
             var firstTrainableLayer = Layer.FirstTrainableLayer(_layers);
@@ -163,40 +164,7 @@ namespace SharpNet.Networks
 
             var dyPredicted = _memoryPool.GetFloatTensor(yPredicted.Shape);
 
-            switch (evaluationMetric)
-            {
-                case EvaluationMetricEnum.BinaryCrossentropy:
-                    Debug.Assert(_layers.Last().IsSigmoidActivationLayer());
-                    //we compute: _dyPredicted = (1.0/numClass) * (yPredicted - yExpected)
-                    yPredicted.CopyTo(dyPredicted);
-                    var numClass = yPredicted.Shape[1];
-                    var multiplier = 1f / (numClass);
-                    dyPredicted.AddTensor(-multiplier, yExpected, multiplier);
-                    break;
-                case EvaluationMetricEnum.CategoricalCrossentropy:
-                    //we compute: _dyPredicted = (yPredicted - yExpected)
-                    yPredicted.CopyTo(dyPredicted);
-                    dyPredicted.AddTensor(-1, yExpected, 1);
-                    break;
-                case EvaluationMetricEnum.SparseCategoricalCrossentropy:
-                    dyPredicted.SparseCategoricalCrossentropyGradient(yExpected, yPredicted);
-                    break;
-                case EvaluationMetricEnum.CategoricalCrossentropyWithHierarchy:
-                    dyPredicted.CategoricalCrossentropyWithHierarchyGradient(yExpected, yPredicted);
-                    break;
-                case EvaluationMetricEnum.Huber:
-                    const float huberDelta = 1.0f;
-                    dyPredicted.HuberGradient(yExpected, yPredicted, huberDelta);
-                    break;
-                case EvaluationMetricEnum.Mse:
-                    dyPredicted.MseGradient(yExpected, yPredicted);
-                    break;
-                case EvaluationMetricEnum.Mae:
-                    dyPredicted.MaeGradient(yExpected, yPredicted);
-                    break;
-                default:
-                    throw new Exception("Invalid loss function " + evaluationMetric);
-            }
+            dyPredicted.ComputeGradientForEvaluationMetric(yExpected, yPredicted, metricConfig.GetLoss(), metricConfig);
 
             var all_dY = new Tensor[_layers.Count];
             all_dY[lastLayerIndex] = dyPredicted;

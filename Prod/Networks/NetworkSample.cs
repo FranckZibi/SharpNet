@@ -151,6 +151,18 @@ namespace SharpNet.Networks
             return EvaluationMetrics;
         }
         public EvaluationMetricEnum LossFunction = EvaluationMetricEnum.DEFAULT_VALUE;
+
+
+        public float MseOfLog_Epsilon = 0.0008f;
+        public float Huber_Delta = 1.0f;
+
+        /// <summary>
+        /// the percent of elements in the True (y==1) class
+        /// the goal is to recalibrate the loss if one class (y==1 or y==0) is over-represented
+        /// </summary>
+        public float BCEWithFocalLoss_PercentageInTrueClass = 0.5f;
+        public float BCEWithFocalLoss_Gamma = 0;
+
         public List<EvaluationMetricEnum> EvaluationMetrics = new();
 
         public CompatibilityModeEnum CompatibilityMode = CompatibilityModeEnum.SharpNet;
@@ -389,18 +401,20 @@ namespace SharpNet.Networks
                 }
             }
 
-            if (CutoutPatchPercentage <= 0)
+            if (LossFunction != EvaluationMetricEnum.BCEWithFocalLoss)
             {
-                CutoutCount = 0;
+                BCEWithFocalLoss_PercentageInTrueClass = 0.5f; //balanced dataset
+                BCEWithFocalLoss_Gamma = 0f;
             }
-            if (ColumnsCutoutPatchPercentage <= 0)
-            {
-                ColumnsCutoutCount = 0;
-            }
-            if (RowsCutoutPatchPercentage <= 0)
-            {
-                RowsCutoutCount = 0;
-            }
+
+            if (CutoutPatchPercentage <= 0) { CutoutCount = 0; }
+            if (CutoutCount == 0) { CutoutPatchPercentage = 0; }
+
+            if (ColumnsCutoutPatchPercentage <= 0) { ColumnsCutoutCount = 0; }
+            if (ColumnsCutoutCount == 0) { ColumnsCutoutPatchPercentage = 0; }
+
+            if (RowsCutoutPatchPercentage <= 0) { RowsCutoutCount = 0; }
+            if (RowsCutoutCount == 0) { RowsCutoutPatchPercentage = 0; }
 
             if (LossFunction == EvaluationMetricEnum.DEFAULT_VALUE)
             {
@@ -566,9 +580,6 @@ namespace SharpNet.Networks
             TensorFlow,
         }
 
-        public const float Default_MseOfLog_Loss = 0.0008f;
-
-        
         
         #region DataAugmentation
 
@@ -783,5 +794,14 @@ namespace SharpNet.Networks
         {
             return new Network(this, datasetSample, workingDirectory, modelName, true);
         }
+
+
+        #region IMetricConfig interface
+        public override float Get_MseOfLog_Epsilon() => MseOfLog_Epsilon;
+        public override float Get_Huber_Delta() => Huber_Delta;
+        public override float Get_BCEWithFocalLoss_PercentageInTrueClass() => BCEWithFocalLoss_PercentageInTrueClass;
+        public override float Get_BCEWithFocalLoss_Gamma() => BCEWithFocalLoss_Gamma;
+        #endregion
+
     }
 }

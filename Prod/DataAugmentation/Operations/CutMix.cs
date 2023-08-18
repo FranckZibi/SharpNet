@@ -35,7 +35,7 @@ namespace SharpNet.DataAugmentation.Operations
             //CutMix V2 : we ensure that we keep at least 50% of the original image when mixing with another one
             //validated on 18-aug-2019
             var lambda = 0.5 + 0.5 * (float)Utils.BetaDistribution(alphaCutMix, alphaCutMix, rand);
-            //var lambda = (float)Utils.BetaDistribution(_alphaCutMix, _alphaCutMix, rand);
+            //var lambda = (float)Utils.BetaDistribution(alphaCutMix, alphaCutMix, rand);
 
             var miniBatchShape = xOriginalMiniBatch.Shape;
             var miniBatchSize = miniBatchShape[0];

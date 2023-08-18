@@ -75,8 +75,8 @@ public static class EffiSciences95Utils
     // ReSharper disable once UnusedMember.Global
     public static void InferenceUnlabeledEffiSciences95(string modelDirectory, string modelName, bool useAllAvailableCores)
     {
-        Utils.ConfigureGlobalLog4netProperties(WorkingDirectory, "log");
-        Utils.ConfigureThreadLog4netProperties(WorkingDirectory, "log");
+        Utils.ConfigureGlobalLog4netProperties(WorkingDirectory, NAME);
+        Utils.ConfigureThreadLog4netProperties(WorkingDirectory, NAME);
         const bool isLabeled = false;
 
         using var network = Network.LoadTrainedNetworkModel(modelDirectory, modelName, useAllAvailableCores: useAllAvailableCores);
@@ -147,34 +147,34 @@ public static class EffiSciences95Utils
     // ReSharper disable once UnusedMember.Global
     public static void Launch_HPO(int numEpochs = 10, int maxAllowedSecondsForAllComputation = 0)
     {
-        Utils.ConfigureGlobalLog4netProperties(WorkingDirectory, "log");
-        Utils.ConfigureThreadLog4netProperties(WorkingDirectory, "log");
+        Utils.ConfigureGlobalLog4netProperties(WorkingDirectory, NAME);
+        Utils.ConfigureThreadLog4netProperties(WorkingDirectory, NAME);
         var searchSpace = new Dictionary<string, object>
         {
             //related to Dataset 
             //{"KFold", 2},
-            { "PercentageInTraining", 0.9}, //will be automatically set to 1 if KFold is enabled
+            { nameof(AbstractDatasetSample.PercentageInTraining), 0.9}, //will be automatically set to 1 if KFold is enabled
 
             //related to model
-            { "LossFunction", nameof(EvaluationMetricEnum.CategoricalCrossentropy)},
-            { "EvaluationMetrics", nameof(EvaluationMetricEnum.Accuracy)},
-            { "BatchSize", new[] {64 /*, 96*/} },
-            { "NumEpochs", new[] { numEpochs } },
+            { nameof(NetworkSample.LossFunction), nameof(EvaluationMetricEnum.CategoricalCrossentropy)},
+            { nameof(NetworkSample.EvaluationMetrics), nameof(EvaluationMetricEnum.Accuracy)},
+            { nameof(NetworkSample.BatchSize), new[] {64 /*, 96*/} },
+            { nameof(NetworkSample.NumEpochs), new[] { numEpochs } },
             // Optimizer 
-            //{ "OptimizerType", new[] { "AdamW"} },
-            //{ "SGD_usenesterov", new[] { true, false } },
-            //{ "lambdaL2Regularization", new[] { 0.0005, 0.001, 0.00005 } },
-            { "lambdaL2Regularization", new[] { 0.0005 /*, 0.001, 0.00005*/ } },
-            { "DefaultMobileBlocksDescriptionCount", new[]{4, 5}},
+            //{ nameof(NetworkSample.OptimizerType), new[] { "AdamW"} },
+            //{ nameof(NetworkSample.SGD_usenesterov), new[] { true, false } },
+            //{ nameof(NetworkSample.lambdaL2Regularization), new[] { 0.0005, 0.001, 0.00005 } },
+            { nameof(NetworkSample.lambdaL2Regularization), new[] { 0.0005 /*, 0.001, 0.00005*/ } },
+            { nameof(EfficientNetNetworkSample.DefaultMobileBlocksDescriptionCount), new[]{4, 5}},
             // Learning Rate
-            { "InitialLearningRate", new []{0.01 /*, 0.015, 0.005*/}},
+            { nameof(NetworkSample.InitialLearningRate), new []{0.01 /*, 0.015, 0.005*/}},
             // Learning Rate Scheduler
-            //{ "LearningRateSchedulerType", new[] { "OneCycle" } },
-            //{ "LearningRateSchedulerType", "CyclicCosineAnnealing" },
+            //{ nameof(NetworkSample.LearningRateSchedulerType), new[] { "OneCycle" } },
+            //{ nameof(NetworkSample.LearningRateSchedulerType), "CyclicCosineAnnealing" },
 
 
-            { "WidthShiftRangeInPercentage", new[] {0.1}},
-            { "HeightShiftRangeInPercentage", new[] {0.1}},
+            { nameof(NetworkSample.WidthShiftRangeInPercentage), new[] {0.1}},
+            { nameof(NetworkSample.HeightShiftRangeInPercentage), new[] {0.1}},
             { "MinEnlargeForBox", new[] {3/*,3*/}},
             { "MaxEnlargeForBox", new[] {10}},
             { "EnlargeOldBoxToYoungBoxShape", new[] { /*false,*/ true} },
@@ -182,13 +182,13 @@ public static class EffiSciences95Utils
     
 
             // DataAugmentation
-            //{ "HorizontalFlip", new[] { true /*, false*/} }, //true
-            //{ "VerticalFlip", new[] { false /*, true*/} }, //false
-            //{ "AlphaMixup", new[] { 0.0 /*, 0.5, 1.0*/ } }, //0.0
-            { "AlphaCutMix", new[] { 1.0, 2.0 } }, //0.0
-            //{ "CutoutPatchPercentage", new[] { 0.0, 0.15, 0.3} },
+            //{ nameof(NetworkSample.HorizontalFlip), new[] { true /*, false*/} }, //true
+            //{ nameof(NetworkSample.VerticalFlip), new[] { false /*, true*/} }, //false
+            //{ nameof(NetworkSample.AlphaMixup), new[] { 0.0 /*, 0.5, 1.0*/ } }, //0.0
+            { nameof(NetworkSample.AlphaCutMix), new[] { 1.0, 2.0 } }, //0.0
+            //{ nameof(NetworkSample.CutoutPatchPercentage), new[] { 0.0, 0.15, 0.3} },
             //{ "RotationRangeInDegrees", new[] { 0.0, 5.0, 10.0} },
-            //{ "ZoomRange", new[] { 0.05} },
+            //{ nameof(NetworkSample.ZoomRange), new[] { 0.05} },
             //{ "EqualizeOperationProbability", new[] { 0.0, 0.2} },
             //{ "AutoContrastOperationProbability", new[] { 1.0} },
       

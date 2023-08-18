@@ -51,8 +51,8 @@ namespace SharpNet.HPO
             {
                 Directory.CreateDirectory(workingDirectory);
             }
-            Utils.ConfigureGlobalLog4netProperties(workingDirectory, "log");
-            Utils.ConfigureThreadLog4netProperties(workingDirectory, "log");
+            Utils.ConfigureGlobalLog4netProperties(workingDirectory, "log", false);
+            Utils.ConfigureThreadLog4netProperties(workingDirectory, "log", false);
 
 
             Log.Info($"Performing Hyper-Parameter Optimization in directory {workingDirectory}");

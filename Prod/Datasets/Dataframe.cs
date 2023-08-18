@@ -328,18 +328,7 @@ public sealed class DataFrame
             File.WriteAllText(path, newContent);
         }
     }
-    public static IScore ComputeEvaluationMetric(DataFrame y_true_df, DataFrame y_pred_df, EvaluationMetricEnum metric)
-    {
-        if (y_true_df == null || y_pred_df == null)
-        {
-            return null;
-        }
-        var y_true_tensor = y_true_df.FloatCpuTensor();
-        var y_pred_tensor = y_pred_df.FloatCpuTensor();
-        using var buffer = new CpuTensor<float>(y_true_tensor.ComputeMetricBufferShape(metric));
-        var evaluationMetric = buffer.ComputeEvaluationMetric(y_true_tensor, y_pred_tensor, metric);
-        return new Score((float)evaluationMetric, metric);
-    }
+
     public static DataFrame MergeVertically(DataFrame top, DataFrame bottom)
     {
         if (top == null)

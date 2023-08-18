@@ -554,7 +554,7 @@ namespace SharpNet.Networks
             void CallBackAfterEachMiniBatch(Tensor yExpectedMiniBatch, Tensor yPredictedMiniBatch)
             {
                 MemoryPool.GetFloatTensor(ref _buffer, new[] { yExpectedMiniBatch.Shape[0] });
-                var blockLoss = _buffer.ComputeEvaluationMetric(yExpectedMiniBatch, yPredictedMiniBatch, Sample.GetLoss());
+                var blockLoss = _buffer.ComputeEvaluationMetric(yExpectedMiniBatch, yPredictedMiniBatch, Sample.GetLoss(), Sample);
                 learningRateFinder.AddLossForLastBlockId(blockLoss);
             }
             MiniBatchGradientDescentForSingleEpoch(trainingDataSet, miniBatchSizeForAllWorkers, learningRateFinder, CallBackAfterEachMiniBatch, returnPredictionsForFullDataset: false, computeMetricsForFullDataset: false);
@@ -591,7 +591,7 @@ namespace SharpNet.Networks
             {
                 save = (_, _, _, _, modelNameForEpoch) => Save(WorkingDirectory, modelNameForEpoch);
             }
-
+            
             //FindBestLearningRate(trainingDataset, 1e-8, 10, Sample.BatchSize);
 
             if (ModelSample.GetLoss() == EvaluationMetricEnum.DEFAULT_VALUE)
@@ -1025,7 +1025,7 @@ namespace SharpNet.Networks
             }
 
             var metricAccumulatorForSingleEpoch = computeMetricsForFullDataset
-                ? new EvaluationMetricAccumulatorForSingleEpoch(MemoryPool, dataSet.Count, Sample.Metrics)
+                ? new EvaluationMetricAccumulatorForSingleEpoch(MemoryPool, dataSet.Count, Sample)
                 : null;
 
             //last time we display a progress on the screen for the current min batch descent
@@ -1174,7 +1174,7 @@ namespace SharpNet.Networks
                 PropagationManager.Forward(all_x_miniBatch, yPredicted_miniBatch_master, isTraining);
                 if (isTraining)
                 {
-                    PropagationManager.Backward(yExpected_miniBatch_master, yPredicted_miniBatch_master, Sample.GetLoss());
+                    PropagationManager.Backward(yExpected_miniBatch_master, yPredicted_miniBatch_master, Sample);
                 }
 
                 // we ensure that all slaves have finished

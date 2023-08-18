@@ -99,22 +99,22 @@ public class WasYouStayWorthItsPriceDatasetSample : AbstractDatasetSample
         {
             //related to Dataset 
             {"KFold", 2},
-            //{"PercentageInTraining", 0.8}, //will be automatically set to 1 if KFold is enabled
+            //{nameof(AbstractDatasetSample.PercentageInTraining), 0.8}, //will be automatically set to 1 if KFold is enabled
 
             //dataset 
             //{"StandardizeDoubleValues", new[]{true, false} },
             //{"Reviews_EmbeddingDim", new[]{0, 100, TOTAL_Reviews_EmbeddingDim}},
 
             //related to model
-            { "LossFunction", nameof(EvaluationMetricEnum.CategoricalCrossentropy)},
-            { "EvaluationMetrics", nameof(EvaluationMetricEnum.F1Micro)},
-            {"InitialLearningRate", AbstractHyperParameterSearchSpace.Range(0.003f, 0.2f, AbstractHyperParameterSearchSpace.range_type.normal)},
+            { nameof(NetworkSample.LossFunction), nameof(EvaluationMetricEnum.CategoricalCrossentropy)},
+            { nameof(NetworkSample.EvaluationMetrics), nameof(EvaluationMetricEnum.F1Micro)},
+            {nameof(NetworkSample.InitialLearningRate), AbstractHyperParameterSearchSpace.Range(0.003f, 0.2f, AbstractHyperParameterSearchSpace.range_type.normal)},
             // Optimizer 
-            {"OptimizerType", "AdamW"},
-            //{"AdamW_L2Regularization", AbstractHyperParameterSearchSpace.Range(0.003f, 0.01f)},
-            {"AdamW_L2Regularization", 0.004},
+            {nameof(NetworkSample.OptimizerType), "AdamW"},
+            //{nameof(NetworkSample.AdamW_L2Regularization), AbstractHyperParameterSearchSpace.Range(0.003f, 0.01f)},
+            {nameof(NetworkSample.AdamW_L2Regularization), 0.004},
             // Learning Rate Scheduler
-            {"LearningRateSchedulerType", new[]{ "OneCycle"}},
+            {nameof(NetworkSample.LearningRateSchedulerType), new[]{ "OneCycle"}},
             { "EmbeddingDim", new[]{10} },
             //{ "EmbeddingDim", 10 },
 
@@ -125,7 +125,7 @@ public class WasYouStayWorthItsPriceDatasetSample : AbstractDatasetSample
             //run on GPU
             {"NetworkSample_1DCNN_UseGPU", true},
 
-            {"BatchSize", new[]{256} },
+            {nameof(NetworkSample.BatchSize), new[]{256} },
 
             //{"two_stage", new[]{true,false } },
             //{"Use_ConcatenateLayer", new[]{true,false } },
@@ -136,7 +136,7 @@ public class WasYouStayWorthItsPriceDatasetSample : AbstractDatasetSample
             {"Use_AddLayer", true },
 
 
-            {"NumEpochs", numEpochs},
+            {nameof(NetworkSample.NumEpochs), numEpochs},
         };
 
         var hpo = new BayesianSearchHPO(searchSpace, () => ModelAndDatasetPredictionsSample.New(new NetworkSample_1DCNN(), new WasYouStayWorthItsPriceDatasetSample()), WorkingDirectory);
@@ -153,7 +153,7 @@ public class WasYouStayWorthItsPriceDatasetSample : AbstractDatasetSample
         {
             //related to Dataset 
             {"KFold", 2},
-            //{"PercentageInTraining", 0.8}, //will be automatically set to 1 if KFold is enabled
+            //{nameof(AbstractDatasetSample.PercentageInTraining), 0.8}, //will be automatically set to 1 if KFold is enabled
 
             //related to model
             {"loss_function", nameof(CatBoostSample.loss_function_enum.MultiClass)},
@@ -189,9 +189,9 @@ public class WasYouStayWorthItsPriceDatasetSample : AbstractDatasetSample
         {
             //related to Dataset 
             {"KFold", 2},
-            //{"PercentageInTraining", 0.8}, //will be automatically set to 1 if KFold is enabled
+            //{nameof(AbstractDatasetSample.PercentageInTraining), 0.8}, //will be automatically set to 1 if KFold is enabled
             {"Reviews_EmbeddingDim", TOTAL_Reviews_EmbeddingDim},
-            {"PercentageInTraining", 0.8}, //will be automatically set to 1 if KFold is enabled
+            {nameof(AbstractDatasetSample.PercentageInTraining), 0.8}, //will be automatically set to 1 if KFold is enabled
             //!D {"KFold", new[]{2}},
 
             //related to model

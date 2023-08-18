@@ -680,6 +680,26 @@ extern "C" {
 		}
 	}
 
+
+	__global__ void BCEContinuousYLossBuffer(int N, int numClass, float* lossBuffer, const float* __restrict yExpectedOneHot, const float* __restrict yPredicted)
+	{
+		int i = blockIdx.x * blockDim.x + threadIdx.x;
+		if (i < N) {
+			float loss = 0;
+			int startIndex = i * numClass;
+			int endIndexExcluded = startIndex + numClass;
+			for (int j = startIndex; j < endIndexExcluded; ++j)
+			{
+				float predicted = yPredicted[j];
+				float expected = yExpectedOneHot[j];
+				//if ((predicted>0.01)&&(predicted<0.99f))
+				if ((predicted > 0) && (predicted < 1))
+					loss -= logf(1 - fabsf(predicted - expected)) / numClass;
+			}
+			lossBuffer[i] = loss;
+		}
+	}
+
 	__global__ void CategoricalCrossentropyLossBuffer(int N, int nummClass, float *lossBuffer, const float* __restrict yExpectedOneHot, const float* __restrict yPredicted)
 	{
 		int i = blockIdx.x * blockDim.x + threadIdx.x;
@@ -761,12 +781,77 @@ extern "C" {
 		}
 	}
 
-	__global__ void HuberLossBuffer(int batchSize, int lineSize, float huberDelta, float* lossBuffer, const float* __restrict yExpected, const float* __restrict yPredicted)
+	__global__ void BCEWithFocalLossLossBuffer(int rows, int numClass, float percentageInTrueClass, float gamma, float* bceWithFocalLossLossBuffer, const float* __restrict yExpected, const float* __restrict yPredicted)
 	{
 		int i = blockIdx.x * blockDim.x + threadIdx.x;
-		if (i < batchSize) {
-			int startIndex = i * lineSize;
-			int endIndexExcluded = startIndex + lineSize;
+		if (i < rows) {
+
+			int startIndex = i * numClass;
+			int endIndexExcluded = startIndex + numClass;
+			float loss = 0;
+
+			float imbalancedCoeffForTrueClass = 1 / (2 * percentageInTrueClass);
+			float imbalancedCoeffForFalseClass = 1 / (2 * (1 - percentageInTrueClass));
+
+			for (int idx = startIndex; idx < endIndexExcluded; ++idx)
+			{
+				//the gradient value for standard binary cross entropy (without focal loss)
+				float absNonScaledGradient = fabsf(yPredicted[idx] - yExpected[idx]);
+				float nonScaledLoss = -logf(fmaxf(1 - absNonScaledGradient, 1e-6f));
+				float focalLossCoeff = 1.0f;
+				if (gamma > 0)
+				{
+					//we need to adjust the loss value for focal loss
+					float maxValueForNonScaledGradient = fmaxf(yExpected[idx], 1 - yExpected[idx]);
+					focalLossCoeff = powf(absNonScaledGradient / maxValueForNonScaledGradient, gamma);
+				}
+
+				// we take into account the imbalance between the true and false class
+				// if one class is over represented, we reduce the loss value for this class
+				float imbalancedCoeffForCurrentClass = imbalancedCoeffForFalseClass + yExpected[idx] * (imbalancedCoeffForTrueClass - imbalancedCoeffForFalseClass);
+
+				loss += focalLossCoeff * imbalancedCoeffForCurrentClass * nonScaledLoss;
+			}
+			bceWithFocalLossLossBuffer[i] = loss / numClass;
+		}
+	}
+
+	__global__ void BCEWithFocalLossGradient(int rows, int numClass, float percentageInTrueClass, float gamma, float* bceWithFocalLossGradient, const float* __restrict yExpected, const float* __restrict yPredicted)
+	{
+		int i = blockIdx.x * blockDim.x + threadIdx.x;
+		if (i < rows) {
+			int startIndex = i * numClass;
+			int endIndexExcluded = startIndex + numClass;
+			float imbalancedCoeffForTrueClass = 1 / (2 * percentageInTrueClass);
+			float imbalancedCoeffForFalseClass = 1 / (2 * (1 - percentageInTrueClass));
+
+			for (int idx = startIndex; idx < endIndexExcluded; ++idx)
+			{
+				//the gradient value for standard binary cross entropy (without focal loss)
+				float nonScaledGradient = yPredicted[idx] - yExpected[idx];
+				float focalLossCoeff = 1;
+				if (gamma > 0)
+				{
+					//we need to adjust the gradient value for focal loss
+					float maxValueForNonScaledGradient = fmaxf(yExpected[idx], 1 - yExpected[idx]);
+					focalLossCoeff = (gamma + 1) * powf(fabsf(nonScaledGradient) / maxValueForNonScaledGradient, gamma);
+				}
+
+				// we take into account the imbalance between the true and false class
+				// if one class is over represented, we reduce the gradient value for this class
+				float imbalancedCoeffForCurrentClass = imbalancedCoeffForFalseClass + yExpected[idx] * (imbalancedCoeffForTrueClass - imbalancedCoeffForFalseClass);
+
+				bceWithFocalLossGradient[idx] = (focalLossCoeff * imbalancedCoeffForCurrentClass * nonScaledGradient)/numClass;
+			}
+		}
+	}
+
+	__global__ void HuberLossBuffer(int rows, int cols, float huberDelta, float* lossBuffer, const float* __restrict yExpected, const float* __restrict yPredicted)
+	{
+		int i = blockIdx.x * blockDim.x + threadIdx.x;
+		if (i < rows) {
+			int startIndex = i * cols;
+			int endIndexExcluded = startIndex + cols;
 			float loss = 0;
 			for (int j = startIndex; j < endIndexExcluded; ++j)
 			{
@@ -780,33 +865,33 @@ extern "C" {
 		}
 	}
 
-	__global__ void HuberGradient(int batchSize, int lineSize, float huberDelta, float* huberGradient, const float* __restrict yExpected, const float* __restrict yPredicted)
+	__global__ void HuberGradient(int rows, int cols, float huberDelta, float* huberGradient, const float* __restrict yExpected, const float* __restrict yPredicted)
 	{
 		int i = blockIdx.x * blockDim.x + threadIdx.x;
-		if (i < batchSize) {
-			int startIndex = i * lineSize;
-			int endIndexExcluded = startIndex + lineSize;
+		if (i < rows) {
+			int startIndex = i * cols;
+			int endIndexExcluded = startIndex + cols;
 			for (int j = startIndex; j < endIndexExcluded; ++j)
 			{
 				float diff = yPredicted[j] - yExpected[j];
-				huberGradient[j] = fmaxf(fminf(diff, huberDelta), -huberDelta) / lineSize;
+				huberGradient[j] = fmaxf(fminf(diff, huberDelta), -huberDelta) / cols;
 			}
 		}
 	}
 
-	__global__ void MseLossBuffer(int batchSize, int lineSize, float* lossBuffer, const float* __restrict yExpected, const float* __restrict yPredicted)
+	__global__ void MseLossBuffer(int rows, int cols, float* lossBuffer, const float* __restrict yExpected, const float* __restrict yPredicted)
 	{
 		int i = blockIdx.x * blockDim.x + threadIdx.x;
-		if (i < batchSize) {
-			int startIndex = i * lineSize;
-			int endIndexExcluded = startIndex + lineSize;
+		if (i < rows) {
+			int startIndex = i * cols;
+			int endIndexExcluded = startIndex + cols;
 			float loss = 0;
 			for (int j = startIndex; j < endIndexExcluded; ++j)
 			{
 				float diff = yExpected[j] - yPredicted[j];
 				loss += diff * diff;
 			}
-			lossBuffer[i] = loss / lineSize;
+			lossBuffer[i] = loss / cols;
 		}
 	}
 
