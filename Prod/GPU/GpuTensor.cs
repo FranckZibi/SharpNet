@@ -833,12 +833,11 @@ namespace SharpNet.GPU
 
     protected override void SparseCategoricalCrossentropyLossBuffer(Tensor yExpectedSparse, Tensor yPredicted)
     {
-        var buffer = this;
         (yExpectedSparse, yPredicted, _) = ReformatTo2DTensorsSparse(yExpectedSparse, yPredicted);
         //yExpectedSparse shape:    (batchSize*timeSteps, 1)
         //yPredicted shape:         (batchSize*timeSteps, numClass)
-        Debug.Assert(buffer.Shape.Length == 1);
-        Debug.Assert(yExpectedSparse.Count == buffer.Shape[0]);
+        Debug.Assert(this.Shape.Length == 1);
+        Debug.Assert(yExpectedSparse.Count == this.Shape[0]);
         CallCudaForLossBuffer(yExpectedSparse, yPredicted, EvaluationMetricEnum.SparseCategoricalCrossentropy);
     }
 

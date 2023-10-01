@@ -27,6 +27,14 @@ public class EfficientNetNetworkSample : NetworkSample
     public double BatchNormMomentum = 0.99;
     public double BatchNormEpsilon = 0.001;
     /// <summary>
+    /// dropout rate before final classifier layer
+    /// </summary>
+    public float TopDropoutRate = 0.2f;
+    /// <summary>
+    /// dropout rate at skip connections
+    /// </summary>
+    public float SkipConnectionsDropoutRate = 0.2f;
+    /// <summary>
     /// name of the trained network to load the weights from.
     /// used for transfer learning
     /// </summary>
@@ -146,18 +154,13 @@ public class EfficientNetNetworkSample : NetworkSample
 
     }
 
-    /// <summary>
-    /// 
-    /// </summary>
     /// <param name="widthCoefficient">scaling coefficient for network width</param>
     /// <param name="depthCoefficient">scaling coefficient for network depth</param>
-    /// <param name="defaultResolution">default input image size</param>
-    /// <param name="dropoutRate">dropout rate before final classifier layer</param>
+    /// <param name="topDropoutRate">dropout rate before final classifier layer</param>
     /// <param name="blocks">A list of BlockDescription to construct block modules</param>
-    /// <param name="dropConnectRate">dropout rate at skip connections</param>
+    /// <param name="skipConnectionsDropoutRate">dropout rate at skip connections</param>
     /// <param name="depthDivisor"></param>
-    /// <param name="workingDirectory"></param>
-    /// <param name="modelName">model name</param>
+    /// <param name="network"></param>
     /// <param name="includeTop">whether to include the fully-connected layer at the top of the network</param>
     /// <param name="weights"></param>
     /// <param name="inputShape_CHW">optional shape tuple, only to be specified if `includeTop` is False.</param>
@@ -173,45 +176,11 @@ public class EfficientNetNetworkSample : NetworkSample
     /// </param>
     /// <param name="numClass">optional number of classes to classify images  into, only to be specified if `includeTop` is True, and if no `weights` argument is specified</param>
     /// <returns></returns>
-    private Network EfficientNet(
-        float widthCoefficient,
-        float depthCoefficient,
-        // ReSharper disable once UnusedParameter.Local
-        int defaultResolution,
-        float dropoutRate,
-        float dropConnectRate,
-        int depthDivisor,
-        List<MobileBlocksDescription> blocks,
-        string workingDirectory,
-        string modelName,
-        bool includeTop,
-        string weights,
-        int[] inputShape_CHW,
-        POOLING_BEFORE_DENSE_LAYER pooling,
-        int numClass //= 1000
-    )
-    {
-        return EfficientNet(
-            widthCoefficient,
-            depthCoefficient,
-            dropoutRate,
-            dropConnectRate,
-            depthDivisor,
-            blocks,
-            BuildNetworkWithoutLayers(workingDirectory, modelName),
-            includeTop,
-            weights,
-            inputShape_CHW,
-            pooling,
-            numClass
-            );
-    }
-
     private Network  EfficientNet(
             float widthCoefficient,
             float depthCoefficient,
-            float dropoutRate,
-            float dropConnectRate,
+            float topDropoutRate,
+            float skipConnectionsDropoutRate,
             int depthDivisor,
             List<MobileBlocksDescription> blocks,
             Network network, /* network without layers */
@@ -257,10 +226,10 @@ public class EfficientNetNetworkSample : NetworkSample
             for (int bidx = 0; bidx < block_arg.NumRepeat; ++bidx)
             {
                 var layerPrefix = "block" + (idx + 1) + (char)('a' + bidx) + "_";
-                var dropRate = (dropConnectRate * blockNum) / numBlocksTotal;
+                var blockSkipConnectionsDropoutRate = (skipConnectionsDropoutRate * blockNum) / numBlocksTotal;
                 //The first block needs to take care of stride and filter size increase.
                 var mobileBlocksDescription = bidx == 0 ? block_arg : block_arg.WithStride(1, 1);
-                AddMBConvBlock(network, mobileBlocksDescription, dropRate, layerPrefix);
+                AddMBConvBlock(network, mobileBlocksDescription, blockSkipConnectionsDropoutRate, layerPrefix);
                 ++blockNum;
             }
         }
@@ -273,9 +242,9 @@ public class EfficientNetNetworkSample : NetworkSample
         if (includeTop)
         {
             network.GlobalAvgPooling("avg_pool");
-            if (dropoutRate > 0)
+            if (topDropoutRate > 0)
             {
-                network.Dropout(dropoutRate, "top_dropout");
+                network.Dropout(topDropoutRate, "top_dropout");
             }
 
             network.Flatten();
@@ -318,9 +287,9 @@ public class EfficientNetNetworkSample : NetworkSample
     /// </summary>
     /// <param name="network"></param>
     /// <param name="block_args"></param>
-    /// <param name="dropRate"></param>
+    /// <param name="blockSkipConnectionsDropoutRate"></param>
     /// <param name="layerPrefix"></param>
-    private void AddMBConvBlock(Network network, MobileBlocksDescription block_args, float dropRate, string layerPrefix)
+    private void AddMBConvBlock(Network network, MobileBlocksDescription block_args, float blockSkipConnectionsDropoutRate, string layerPrefix)
     {
         int inputChannels = network.Layers.Last().OutputShape(1)[1];
         var inputLayerIndex = network.LastLayerIndex;
@@ -359,14 +328,13 @@ public class EfficientNetNetworkSample : NetworkSample
         network.BatchNorm(BatchNormMomentum, BatchNormEpsilon, layerPrefix + "project_bn");
         if (block_args.IdSkip && block_args.RowStride == 1 && block_args.ColStride == 1 && block_args.OutputFilters == inputChannels)
         {
-            if (dropRate > 0.000001)
+            if (blockSkipConnectionsDropoutRate > 0.000001)
             {
-                network.Dropout(dropRate, layerPrefix + "drop");
+                network.Dropout(blockSkipConnectionsDropoutRate, layerPrefix + "drop");
             }
             network.AddLayer(network.LastLayerIndex, inputLayerIndex, layerPrefix + "add");
         }
     }
-
 
     /// <summary>
     /// construct an EfficientNet B0 network for CIFAR10 training
@@ -385,8 +353,6 @@ public class EfficientNetNetworkSample : NetworkSample
         net.SetNumClass(10);
         return net;
     }
-
-
 
     public override void BuildLayers(Network nn, AbstractDatasetSample datasetSample)
     {
@@ -428,9 +394,6 @@ public class EfficientNetNetworkSample : NetworkSample
 
     }
 
-    
-
-
     public Network EfficientNetB0(
         string workingDirectory,
         bool includeTop, //= True,
@@ -458,7 +421,7 @@ public class EfficientNetNetworkSample : NetworkSample
             int numClass = 1000,
             POOLING_BEFORE_DENSE_LAYER pooling = POOLING_BEFORE_DENSE_LAYER.NONE)
     {
-        return EfficientNet(1.0f, 1.0f, 0.2f, 0.2f, 8, blocks, network, includeTop, weights, inputShape_CHW, pooling, numClass);
+        return EfficientNet(1.0f, 1.0f, TopDropoutRate, SkipConnectionsDropoutRate, 8, blocks, network, includeTop, weights, inputShape_CHW, pooling, numClass);
     }
 
     public Network EfficientNetB1(
@@ -470,7 +433,7 @@ public class EfficientNetNetworkSample : NetworkSample
         int numClass = 1000,
         POOLING_BEFORE_DENSE_LAYER pooling = POOLING_BEFORE_DENSE_LAYER.NONE)
     {
-        return EfficientNet(1.0f, 1.0f, /*224, */0.2f, 0.2f, 8, blocks, network, includeTop, weights, inputShape_CHW, pooling, numClass);
+        return EfficientNet(1.0f, 1.0f, /*224, */ TopDropoutRate, SkipConnectionsDropoutRate, 8, blocks, network, includeTop, weights, inputShape_CHW, pooling, numClass);
     }
 
     public Network EfficientNetB2(
@@ -482,7 +445,7 @@ public class EfficientNetNetworkSample : NetworkSample
         int numClass = 1000,
         POOLING_BEFORE_DENSE_LAYER pooling = POOLING_BEFORE_DENSE_LAYER.NONE)
     {
-        return EfficientNet(1.1f, 1.2f, 0.3f, 0.2f, 8, blocks, network, includeTop, weights, inputShape_CHW, pooling, numClass);
+        return EfficientNet(1.1f, 1.2f, 1.5f* TopDropoutRate, SkipConnectionsDropoutRate, 8, blocks, network, includeTop, weights, inputShape_CHW, pooling, numClass);
     }
 
 
@@ -495,7 +458,7 @@ public class EfficientNetNetworkSample : NetworkSample
         int numClass = 1000,
         POOLING_BEFORE_DENSE_LAYER pooling = POOLING_BEFORE_DENSE_LAYER.NONE)
     {
-        return EfficientNet(1.2f, 1.4f, /*300,*/ 0.3f, 0.2f, 8, blocks, network, includeTop, weights, inputShape_CHW, pooling, numClass);
+        return EfficientNet(1.2f, 1.4f, /*300,*/ 1.5f* TopDropoutRate, SkipConnectionsDropoutRate, 8, blocks, network, includeTop, weights, inputShape_CHW, pooling, numClass);
     }
 
     public Network EfficientNetB4(
@@ -507,7 +470,7 @@ public class EfficientNetNetworkSample : NetworkSample
         int numClass = 1000,
         POOLING_BEFORE_DENSE_LAYER pooling = POOLING_BEFORE_DENSE_LAYER.NONE)
     {
-        return EfficientNet(1.4f, 1.8f, /*380,*/ 0.4f, 0.2f, 8, blocks, network, includeTop, weights, inputShape_CHW, pooling, numClass);
+        return EfficientNet(1.4f, 1.8f, /*380,*/ 2* TopDropoutRate, SkipConnectionsDropoutRate, 8, blocks, network, includeTop, weights, inputShape_CHW, pooling, numClass);
     }
 
     public Network EfficientNetB5(
@@ -519,7 +482,7 @@ public class EfficientNetNetworkSample : NetworkSample
         int numClass = 1000,
         POOLING_BEFORE_DENSE_LAYER pooling = POOLING_BEFORE_DENSE_LAYER.NONE)
     {
-        return EfficientNet(1.6f, 2.2f, /*456,*/ 0.4f, 0.2f, 8, blocks, network, includeTop, weights, inputShape_CHW, pooling, numClass);
+        return EfficientNet(1.6f, 2.2f, /*456,*/ 2* TopDropoutRate, SkipConnectionsDropoutRate, 8, blocks, network, includeTop, weights, inputShape_CHW, pooling, numClass);
     }
 
     public Network EfficientNetB6(
@@ -531,7 +494,7 @@ public class EfficientNetNetworkSample : NetworkSample
         int numClass = 1000,
         POOLING_BEFORE_DENSE_LAYER pooling = POOLING_BEFORE_DENSE_LAYER.NONE)
     {
-        return EfficientNet(1.8f, 2.6f, /*528, */0.5f, 0.2f, 8, blocks, network, includeTop, weights, inputShape_CHW, pooling, numClass);
+        return EfficientNet(1.8f, 2.6f, /*528, */ 2.5f* TopDropoutRate, SkipConnectionsDropoutRate, 8, blocks, network, includeTop, weights, inputShape_CHW, pooling, numClass);
     }
 
     public Network EfficientNetB7(
@@ -543,19 +506,7 @@ public class EfficientNetNetworkSample : NetworkSample
         int numClass = 1000,
         POOLING_BEFORE_DENSE_LAYER pooling = POOLING_BEFORE_DENSE_LAYER.NONE)
     {
-        return EfficientNet(2.0f, 3.1f, /*600,*/ 0.5f, 0.2f, 8, blocks, network, includeTop, weights, inputShape_CHW, pooling, numClass);
-    }
-
-    public Network EfficientNetL2(
-        string workingDirectory,
-        bool includeTop, //= True,
-        string weights, //= 'imagenet',
-        int[] inputShape_CHW, //= None,
-        POOLING_BEFORE_DENSE_LAYER pooling, //= None,
-        int numClass //= 1000
-    )
-    {
-        return EfficientNet(4.3f, 5.3f, 800, 0.5f, 0.2f, 8, MobileBlocksDescription.Default(), workingDirectory, "efficientnet-l2", includeTop, weights, inputShape_CHW, pooling, numClass);
+        return EfficientNet(2.0f, 3.1f, /*600,*/ 2.5f* TopDropoutRate, SkipConnectionsDropoutRate, 8, blocks, network, includeTop, weights, inputShape_CHW, pooling, numClass);
     }
 
     public static string GetKerasModelPath(string modelFileName)

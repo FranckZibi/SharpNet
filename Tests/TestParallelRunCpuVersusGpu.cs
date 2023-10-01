@@ -18,7 +18,7 @@ using SharpNetTests.NonReg;
 namespace SharpNetTests
 {
     [TestFixture]
-    public partial class TestParallelRunCpuVersusGpu
+    public class TestParallelRunCpuVersusGpu
     {
         private const int BatchSize = 9;
         private const int FiltersCount = 8;

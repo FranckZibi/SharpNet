@@ -12,8 +12,6 @@ public static class SampleUtils
     ///     save the model (and associated predictions) in disk
     /// Else
     ///     remove all files associated with the model
-    /// If 'resumeCsvPathIfAny' is not null
-    ///     store train statistics of the model in CSV file 'resumeCsvPathIfAny'
     /// </summary>
     /// <param name="modelAndDatasetPredictionsSample">the 'model sample' and dataset to use for training the model</param>
     /// <param name="workingDirectory">the directory where the 'model sample' and 'dataset description' is located</param>

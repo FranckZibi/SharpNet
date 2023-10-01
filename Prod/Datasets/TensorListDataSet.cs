@@ -11,10 +11,13 @@ public class TensorListDataSet : DataSet
     #region private fields
     private readonly int[] _elementIdToCategoryIndex;
     private readonly List<CpuTensor<float>> _xList;
+    [CanBeNull] private readonly List<CpuTensor<float>> _augmentedXList;
     [CanBeNull] private readonly CpuTensor<float> _yInMemoryDataSet;
     #endregion
 
-    public TensorListDataSet([NotNull] List<CpuTensor<float>> xList,
+    public TensorListDataSet([NotNull]
+        List<CpuTensor<float>> xList,
+        [CanBeNull] List<CpuTensor<float>> augmentedXList, //the augmented version of 'x'
         [CanBeNull] CpuTensor<float> y,
         string name = "",
         Objective_enum objective = Objective_enum.Regression,
@@ -35,6 +38,9 @@ public class TensorListDataSet : DataSet
             separator)
     {
         _xList = xList;
+        _augmentedXList = augmentedXList;
+        Debug.Assert(_augmentedXList == null || _xList.Count == _augmentedXList.Count);
+
         _yInMemoryDataSet = y;
 
         if (IsRegressionProblem || y == null)
@@ -66,7 +72,14 @@ public class TensorListDataSet : DataSet
             //same number of channels / same height  / same width
             //only the first dimension (batch size) can be different
             //Debug.Assert(_xList[elementId].Count == xBuffer.MultDim0);
-            _xList[elementId].CopyTo(0, xBuffer, xBuffer.Idx(indexInBuffer), xBuffer.MultDim0);
+            var listToUse = _xList;
+
+            if (withDataAugmentation && isTraining && _augmentedXList!=null && FirstRandom.Next(5) == 0)
+            {
+                listToUse = _augmentedXList;
+            }
+
+            listToUse[elementId].CopyTo(0, xBuffer, xBuffer.Idx(indexInBuffer), xBuffer.MultDim0);
         }
         if (yBuffer != null)
         {

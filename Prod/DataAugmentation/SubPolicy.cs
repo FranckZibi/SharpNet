@@ -28,7 +28,7 @@ namespace SharpNet.DataAugmentation
 
             if (subPolicy.Count == 0)
             {
-                xOriginalMiniBatch.CopyTo(xDataAugmentedMiniBatch);
+                xOriginalMiniBatch.RowSlice(indexInMiniBatch, 1).CopyTo(xDataAugmentedMiniBatch.RowSlice(indexInMiniBatch, 1));
                 return;
             }
             var nbRows = xOriginalMiniBatch.Shape[2];

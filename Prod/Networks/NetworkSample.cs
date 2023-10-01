@@ -31,7 +31,7 @@ namespace SharpNet.Networks
         }
         #endregion
 
-        #region Hyper-Parameters
+        
         /// <summary>
         /// The convolution algo to be used
         /// </summary>
@@ -48,7 +48,7 @@ namespace SharpNet.Networks
         //when ShuffleDatasetBeforeEachEpoch is true, consider that the dataset is built from block of 'ShuffleDatasetBeforeEachEpochBlockSize' element (that must be kept in same order)
         public int ShuffleDatasetBeforeEachEpochBlockSize = 1;
         public Optimizer.OptimizationEnum OptimizerType = Optimizer.OptimizationEnum.VanillaSGD;
-        #endregion
+
 
         #region Learning Rate Hyper-Parameters
 
@@ -89,6 +89,14 @@ namespace SharpNet.Networks
 
         public double MinimumRankingScoreToSaveModel = double.NaN;
 
+
+        /// <summary>
+        /// if set:
+        ///  we'll only save the model after the epoch that gives the better results:
+        ///     better ranking score in validation dataset (if a validation dataset is provided)
+        ///     better ranking score in training dataset (if no validation dataset is provided)
+        /// </summary>
+        public bool use_best_model = true;
 
         public override IScore GetMinimumRankingScoreToSaveModel()
         {
@@ -408,13 +416,13 @@ namespace SharpNet.Networks
             }
 
             if (CutoutPatchPercentage <= 0) { CutoutCount = 0; }
-            if (CutoutCount == 0) { CutoutPatchPercentage = 0; }
+            if (CutoutPatchPercentage > 0) { CutoutCount = Math.Max(CutoutCount, 1); }
 
             if (ColumnsCutoutPatchPercentage <= 0) { ColumnsCutoutCount = 0; }
-            if (ColumnsCutoutCount == 0) { ColumnsCutoutPatchPercentage = 0; }
+            if (ColumnsCutoutPatchPercentage > 0) { ColumnsCutoutCount = Math.Max(ColumnsCutoutCount, 1); }
 
             if (RowsCutoutPatchPercentage <= 0) { RowsCutoutCount = 0; }
-            if (RowsCutoutCount == 0) { RowsCutoutPatchPercentage = 0; }
+            if (RowsCutoutPatchPercentage > 0) { RowsCutoutCount = Math.Max(RowsCutoutCount, 1); }
 
             if (LossFunction == EvaluationMetricEnum.DEFAULT_VALUE)
             {
@@ -703,6 +711,10 @@ namespace SharpNet.Networks
         /// the % of the max(width,height) of the CutMix mask to apply to the input picture (see: https://arxiv.org/pdf/1905.04899.pdf)
         /// </summary>
         public double AlphaCutMix = 0.0;
+
+        public double AlphaRowsCutMix = 0.0;
+        public double AlphaColumnsCutMix = 0.0;
+
 
         /// <summary>
         /// The alpha coefficient used to compute lambda in Mixup

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
 using JetBrains.Annotations;
 using log4net;
@@ -97,6 +98,45 @@ namespace SharpNet.HPO
             Task.WaitAll(threadTasks);
         }
 
+        private void SaveSampleScoreToCsv(ISample sample, IScore actualScore)
+        {
+            var fileName = Path.Combine(_workingDirectory, "hpo_" + System.Diagnostics.Process.GetCurrentProcess().Id + ".csv");
+            if (!File.Exists(fileName))
+            {
+                var header = "";
+                foreach (var (parameterName, parameterSearchSpace) in SearchSpace.OrderBy(x => x.Key))
+                {
+                    if (!parameterSearchSpace.IsConstant)
+                    {
+                        if (header.Length != 0)
+                        {
+                            header += ",";
+                        }
+                        header += parameterName;
+                    }
+                }
+                header += "," + actualScore.Metric;
+                File.WriteAllText(fileName, "Sep=,"+Environment.NewLine+header + Environment.NewLine);
+            }
+
+            var sb = new StringBuilder();
+            foreach (var (parameterName, parameterSearchSpace) in SearchSpace.OrderBy(x=>x.Key))
+            {
+                if (parameterSearchSpace.IsConstant)
+                {
+                    continue;
+                }
+                if (sb.Length != 0)
+                {
+                    sb.Append(",");
+                } 
+                var parameterValue = sample.Get(parameterName);
+                sb.Append(parameterValue);
+            }
+            sb.Append("," + actualScore.Value);
+            File.AppendAllText(fileName, sb + Environment.NewLine);
+        }
+
         protected virtual void RegisterSampleScore(ISample sample, int sampleId, IScore actualScore, double elapsedTimeInSeconds)
         {
             _allActualScores.Add(actualScore.Value);
@@ -159,6 +199,7 @@ namespace SharpNet.HPO
                             BestSampleFoundSoFar = sample;
                             ScoreOfBestSampleFoundSoFar = score;
                         }
+                        SaveSampleScoreToCsv(sample, score);
                         RegisterSampleScore(sample, sampleId, score, sw.Elapsed.TotalSeconds);
                     }
                     Log.Debug("ended new computation");
@@ -190,9 +231,13 @@ namespace SharpNet.HPO
         private string StatisticsDescription()
         {
             string res = "";
-            foreach (var e in SearchSpace.OrderBy(e => e.Key))
+            foreach ((string key, AbstractHyperParameterSearchSpace value) in SearchSpace.OrderBy(e => e.Key))
             {
-                res += "Stats for " + e.Key + ":" + Environment.NewLine + e.Value;
+                if (value.IsConstant)
+                {
+                    continue;
+                }
+                res += "Stats for " + key + ":" + Environment.NewLine + value;
             }
             return res;
         }

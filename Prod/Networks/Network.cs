@@ -601,8 +601,6 @@ namespace SharpNet.Networks
             int miniBatchSizeForAllWorkers = Sample.BatchSize;
             var learningRateComputer = Sample.GetLearningRateComputer();
 
-            List<KeyValuePair<EvaluationMetricEnum, double>> trainingMetrics = null;
-            List<KeyValuePair<EvaluationMetricEnum, double>> validationMetrics = null;
             try
             {
                 Debug.Assert(Sample.TypeSize == trainingDataset.TypeSize);
@@ -656,7 +654,7 @@ namespace SharpNet.Networks
 
                     #region Mini Batch gradient descent
                     var learningRateAtEpochStart = learningRateComputer.LearningRate(epoch, 0, lrMultiplicativeFactorFromReduceLrOnPlateau);
-                    (_, trainingMetrics) = MiniBatchGradientDescentForSingleEpoch(trainingDataset, miniBatchSizeForAllWorkers, learningRateComputer, null, returnPredictionsForFullDataset: false, computeMetricsForFullDataset: true);
+                    var (_, trainingMetrics) = MiniBatchGradientDescentForSingleEpoch(trainingDataset, miniBatchSizeForAllWorkers, learningRateComputer, null, returnPredictionsForFullDataset: false, computeMetricsForFullDataset: true);
                     #endregion
 
                     //We display stats about the just finished epoch
@@ -667,6 +665,7 @@ namespace SharpNet.Networks
 
                     StartTimer("Fit_LossAndAccuracy", ForwardPropagationTrainingTime);
                     var lossAndAccuracyMsg = MetricsToString(trainingMetrics, "");
+                    List<KeyValuePair<EvaluationMetricEnum, double>> validationMetrics = null;
                     if (validationDatasetIfAny != null)
                     {
                         //We compute the validation loss&accuracy
@@ -749,36 +748,11 @@ namespace SharpNet.Networks
             }
 
 
-            //!D TODO : try to return training & validation score if available
-            IScore trainLossIfAvailable = null;
-            IScore validationLossIfAvailable = null;
-            IScore trainRankingMetricIfAvailable = null;
-            IScore validationRankingMetricIfAvailable = null;
-
-            var lossMetric = Sample.GetLoss();
-            var rankingMetric = Sample.GetRankingEvaluationMetric();
-            if (trainingMetrics != null && TryGet(trainingMetrics, lossMetric, out var metricValue) )
-            {
-                trainLossIfAvailable = new Score((float)metricValue, lossMetric);
-            }
-            if (trainingMetrics != null && TryGet(trainingMetrics, rankingMetric, out metricValue))
-            {
-                trainRankingMetricIfAvailable = new Score((float)metricValue, rankingMetric);
-            }
-            if (validationMetrics != null && TryGet(validationMetrics, lossMetric, out metricValue))
-            {
-                validationLossIfAvailable = new Score((float)metricValue, lossMetric);
-            }
-            if (validationMetrics != null && TryGet(validationMetrics, rankingMetric, out metricValue))
-            {
-                validationRankingMetricIfAvailable = new Score((float)metricValue, rankingMetric);
-            }
-
             return (null, null, null, null, null, null,
-                trainLossIfAvailable,
-                validationLossIfAvailable,
-                trainRankingMetricIfAvailable,
-                validationRankingMetricIfAvailable);
+                ModelScore(Sample.GetLoss(), false), //trainLossIfAvailable,
+                ModelScore(Sample.GetLoss(), true),  //validationLossIfAvailable,
+                ModelScore(Sample.GetRankingEvaluationMetric(), false), //trainRankingMetricIfAvailable,
+                ModelScore(Sample.GetRankingEvaluationMetric(), true)); //validationRankingMetricIfAvailable
         }
 
         private bool ShouldSaveNetwork(ILearningRateComputer learningRateComputer, Dictionary<DateTime, List<string>> savedNetworks, int epoch)
@@ -799,8 +773,6 @@ namespace SharpNet.Networks
                      || ShouldStopTrainingBecauseOfEarlyStopping(EpochData, Sample.EarlyStoppingRounds, Sample.GetLoss())
                      ;
         }
-
-
 
         /// <summary>
         /// check if we have just reached an epoch with a new best validation score that is high enough that we should save the network and the predictions
@@ -829,44 +801,62 @@ namespace SharpNet.Networks
         private bool IsNewBestIterationToSave()
         {
             return CurrentRankingValidationScore() != null
-                   && EpochBestRankingValidationScore() == EpochData.Count
+                   && BestValidationRankingScore().epochBestScore == EpochData.Count
                    && Sample.GetMinimumRankingScoreToSaveModel() != null
                    && CurrentRankingValidationScore().IsBetterThan(Sample.GetMinimumRankingScoreToSaveModel());
         }
 
-        private int EpochBestRankingValidationScore()
+        /// <summary>
+        /// return the epoch (between 1 and EpochData.Count) with the best validation ranking score and the associate score
+        /// returns -1 if no validation ranking score is available
+        /// </summary>
+        /// <returns></returns>
+        private (int epochBestScore, IScore bestScore) BestValidationRankingScore() => ModelBestScore(Sample.GetRankingEvaluationMetric(), true);
+
+        private IScore ModelScore(EvaluationMetricEnum metric, bool useValidationDataset)
         {
+            if (Sample.use_best_model)
+            {
+                return ModelBestScore(metric, useValidationDataset).bestScore;
+            }
+            for (int i = EpochData.Count-1; i >=0;--i)
+            {
+                var knownMetrics = useValidationDataset ? EpochData[i].ValidationMetrics : EpochData[i].TrainingMetrics;
+                if (knownMetrics.TryGetValue(metric, out var score) && !double.IsNaN(score))
+                {
+                    return new Score((float)score, metric);
+                }
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// return the epoch (between 1 and EpochData.Count) with the best score for metric 'metric'
+        /// will use the validation Dataset score if useValidationDataset==true, and the training dataset score otherwise
+        /// returns -1 if no score for metric 'metric' is available for the required dataset
+        /// </summary>
+        /// <param name="metric"></param>
+        /// <param name="useValidationDataset">true for validation Dataset, false for training Dataset</param>
+        /// <returns></returns>
+        private (int epochBestScore, IScore bestScore) ModelBestScore(EvaluationMetricEnum metric, bool useValidationDataset)
+        {
+            int epochBestScore = -1;
             IScore bestScore = null;
-            int epochBestScore = -1;    
             for (int i = 0; i < EpochData.Count; ++i)
             {
-                if (!EpochData[i].ValidationMetrics.TryGetValue(Sample.GetRankingEvaluationMetric(), out var rankingScore) || double.IsNaN(rankingScore))
+                var knownMetrics = useValidationDataset ? EpochData[i].ValidationMetrics : EpochData[i].TrainingMetrics;
+                if (!knownMetrics.TryGetValue(metric, out var score) || double.IsNaN(score))
                 {
                     continue;
                 }
-                var epochValidationScore = new Score((float)rankingScore, Sample.GetRankingEvaluationMetric());
-                if (bestScore == null || epochValidationScore.IsBetterThan(bestScore))
+                var epochScore = new Score((float)score, metric);
+                if (bestScore == null || epochScore.IsBetterThan(bestScore))
                 {
-                    bestScore = epochValidationScore;
-                    epochBestScore = i+1;
+                    bestScore = epochScore;
+                    epochBestScore = i + 1;
                 }
             }
-            return epochBestScore;
-        }
-
-
-        private static bool TryGet(List<KeyValuePair<EvaluationMetricEnum, double>> availableMetrics, EvaluationMetricEnum metric, out double metricValue)
-        {
-            foreach(var a in availableMetrics)
-            {
-                if (a.Key == metric)
-                {
-                    metricValue = a.Value;
-                    return true;
-                }
-            }
-            metricValue = double.NaN;
-            return false;
+            return (epochBestScore, bestScore);
         }
 
         /// <summary>

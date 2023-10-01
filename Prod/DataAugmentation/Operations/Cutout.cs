@@ -49,6 +49,9 @@ namespace SharpNet.DataAugmentation.Operations
             }
 
             int cutoutPatchLength = (int)Math.Round(cutoutPatchPercentage * Math.Max(nbRows, nbCols), 0.0);
+            //!D To test: cutoutPatchLength = rand.Next(0, cutoutPatchLength + 1);  //add some randomness to 'cutoutPatchLength'
+
+
             if (cutoutPatchLength <= 0)
             {
                 return null;
@@ -90,7 +93,9 @@ namespace SharpNet.DataAugmentation.Operations
                 throw new ArgumentException($"invalid {nameof(columnsCutoutPatchPercentage)}: {columnsCutoutPatchPercentage}");
             }
 
+            
             int numberOfColumnsToCutout = (int)Math.Round(columnsCutoutPatchPercentage * nbCols, 0.0);
+            //!D to test: numberOfColumnsToCutout = rand.Next(0, numberOfColumnsToCutout + 1);  //add some randomness to 'numberOfColumnsToCutout'
             if (numberOfColumnsToCutout <= 0)
             {
                 return null;
@@ -119,7 +124,9 @@ namespace SharpNet.DataAugmentation.Operations
                 throw new ArgumentException($"invalid {nameof(rowsCutoutPatchPercentage)}: {rowsCutoutPatchPercentage}");
             }
 
+            
             int numberOfRowsToCutout = (int)Math.Round(rowsCutoutPatchPercentage * nbRows, 0.0);
+            //!D to test: numberOfRowsToCutout = rand.Next(0, numberOfRowsToCutout + 1);  //add some randomness to 'numberOfRowsToCutout'
             if (numberOfRowsToCutout <= 0)
             {
                 return null;

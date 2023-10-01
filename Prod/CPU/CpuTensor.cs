@@ -1820,13 +1820,13 @@ namespace SharpNet.CPU
             var bufferPointer = (float*)buffer.Pointer;
             var yExpectedCpu = yExpected.AsFloatCpu;
             var yPredictedCpu = yPredicted.AsFloatCpu;
-            Parallel.For(0, batchSize, row => bufferPointer[row] = ComputeSingleAccuracy(yExpectedCpu, yPredictedCpu, row, out _));
+            Parallel.For(0, batchSize, row => bufferPointer[row] = ComputeSingleAccuracy(yExpectedCpu, yPredictedCpu, row));
         }
 
-        private static float ComputeSingleAccuracy(CpuTensor<float> yExpected, CpuTensor<float> yPredicted, int row, out int maxIndexPredicted)
+        private static float ComputeSingleAccuracy(CpuTensor<float> yExpected, CpuTensor<float> yPredicted, int row)
         {
             Debug.Assert(yExpected.SameShape(yPredicted));
-            maxIndexPredicted = 0;
+            int maxIndexPredicted = 0;
             var numClass = yExpected.Shape[1];
             if (numClass == 1)
             {
@@ -1864,7 +1864,6 @@ namespace SharpNet.CPU
             var yExpectedSpan = yExpectedSparse.AsReadonlyFloatCpuSpan;
             var yPredictedSpan = yPredicted.AsReadonlyFloatCpuSpan;
             var numClass = yPredicted.MultDim0;
-            double totalLoss = 0;
             for (int row = 0; row < yExpectedSpan.Length; ++row)
             {
                 var yClass = Utils.NearestInt(yExpectedSpan[row]);
@@ -1872,22 +1871,8 @@ namespace SharpNet.CPU
                 Debug.Assert(yClass < numClass);
                 float predicted = yPredictedSpan[row * numClass + yClass];
                 bufferSpan[row]= -MathF.Log(predicted);
-                totalLoss += -MathF.Log(predicted);
             }
         }
-
-        /*
-                        case EvaluationMetricEnum.Mse:
-                            return (1.0 / (batchSize* yPredicted.MultDim0)) * yPredicted.AsFloatCpu.Merge(yExpected.AsFloatCpu, (prediction, expected) => (float)(Math.Pow(expected - prediction, 2))).NaNSum();
-                        case EvaluationMetricEnum.Rmse:
-                            return Math.Sqrt(buffer.ComputeEvaluationMetric(yExpected, yPredicted, EvaluationMetricEnum.Mse));
-                        case EvaluationMetricEnum.Mae:
-                            return (1.0 / (batchSize* yPredicted.MultDim0)) * yPredicted.AsFloatCpu.Merge(yExpected.AsFloatCpu, (prediction, expected) => (Math.Abs(expected - prediction))).NaNSum();
-                        case EvaluationMetricEnum.MseOfLog:
-                            return (1.0 / (batchSize* yPredicted.MultDim0)) * yPredicted.AsFloatCpu.Merge(yExpected.AsFloatCpu, (prediction, expected) => (float)(Math.Pow(Math.Log(expected) - Math.Log(Math.Max(prediction, NetworkSample.Default_MseOfLog_Loss)), 2) / Math.Max(prediction, NetworkSample.Default_MseOfLog_Loss))).NaNSum();
-                        case EvaluationMetricEnum.MeanSquaredLogError:
-                            return (1.0f / (batchSize* yPredicted.MultDim0)) * yPredicted.AsFloatCpu.Merge(yExpected.AsFloatCpu, (prediction, expected) => (float) Math.Pow(Math.Log(1 + expected) - Math.Log(1 + prediction), 2f)).NaNSum();
-        */
 
         protected override void CategoricalCrossentropyLossBuffer(Tensor yExpectedOneHot, Tensor yPredicted)
         {
@@ -3098,10 +3083,6 @@ namespace SharpNet.CPU
                 }
                 content[row] = rowResult/ rowDivider;
             }
-        }
-        private double NaNSum()
-        {
-            return AsReadonlyFloatCpuSpan.Select(x => float.IsNaN(x) ? 0 : x).Sum();
         }
         private void Update(Tensor a, Tensor b, Func<T, T, T, T> funcInput)
         {

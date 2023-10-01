@@ -179,6 +179,8 @@ namespace SharpNet.DataAugmentation
 
             //we can not use CutMix && Mixup at the same time: if they are both enabled we need to disable one of them (randomly)
             var alphaCutMix = _sample.AlphaCutMix;
+            var alphaColumnsCutMix = _sample.AlphaColumnsCutMix;
+            var alphaRowsCutMix = _sample.AlphaRowsCutMix;
             var alphaMixup = _sample.AlphaMixup;
             if (alphaCutMix > 0 && alphaMixup > 0)
             {
@@ -189,17 +191,19 @@ namespace SharpNet.DataAugmentation
                 }
                 else
                 {
-                    alphaCutMix = 0; //We disable CutMix
+                    alphaCutMix = alphaRowsCutMix = alphaColumnsCutMix = 0; //We disable CutMix
                 }
             }
 
             result.Add(CutMix.ValueOf(alphaCutMix, indexInMiniBatch, xOriginalMiniBatch, rand));
+            result.Add(CutMix.ValueOfColumnsCutMix(alphaColumnsCutMix, indexInMiniBatch, xOriginalMiniBatch, rand));
+            result.Add(CutMix.ValueOfRowsCutMix(alphaRowsCutMix, indexInMiniBatch, xOriginalMiniBatch, rand));
+
             result.Add(Mixup.ValueOf(alphaMixup, indexInMiniBatch, xOriginalMiniBatch, rand));
             for (int i = 0; i < _sample.CutoutCount; i++)
             {
                 result.Add(Cutout.ValueOf(_sample.CutoutPatchPercentage, rand, nbRows, nbCols));
             }
-
             for (int i = 0; i < _sample.ColumnsCutoutCount; i++)
             {
                 result.Add(Cutout.ValueOfColumnsCutout(_sample.ColumnsCutoutPatchPercentage, rand, nbRows, nbCols));

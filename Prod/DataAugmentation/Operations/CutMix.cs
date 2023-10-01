@@ -56,40 +56,97 @@ namespace SharpNet.DataAugmentation.Operations
             int indexToMixWithForCutMix = (indexInMiniBatch + 1) % miniBatchSize;
             return new CutMix(rowStart, rowEnd, colStart, colEnd, indexToMixWithForCutMix, xOriginalMiniBatch);
         }
+
+        public static CutMix ValueOfRowsCutMix(double alphaRowsCutMix, int indexInMiniBatch, CpuTensor<float> xOriginalMiniBatch, Random rand)
+        {
+            if (alphaRowsCutMix <= 0.0)
+            {
+                return null;
+            }
+            var miniBatchShape = xOriginalMiniBatch.Shape;
+            var miniBatchSize = miniBatchShape[0];
+            var nbRows = miniBatchShape[2];
+            var nbCols = miniBatchShape[3];
+
+            var percentageFromOriginalElement = (float)Utils.BetaDistribution(alphaRowsCutMix, alphaRowsCutMix, rand);
+            int numberOfRowsToCutMix = (int)Math.Round((1-percentageFromOriginalElement) * nbRows, 0.0);
+            if (numberOfRowsToCutMix <= 0)
+            {
+                return null;
+            }
+
+            //the CutMix rows will be centered at 'rowMiddle'
+            //its size will be between '1 x nbCols' (only 1 row will be entirely CutMix) to 'numberOfRowsToCutMix x nbCols' (maximum size)
+            var rowMiddle = rand.Next(nbRows);
+            var rowStart = Math.Max(0, rowMiddle - numberOfRowsToCutMix / 2);
+            var rowEnd = Math.Min(nbRows - 1, rowStart + numberOfRowsToCutMix - 1);
+            int indexToMixWithForCutMix = (indexInMiniBatch + 1) % miniBatchSize;
+            return new CutMix(rowStart, rowEnd, 0, nbCols-1, indexToMixWithForCutMix, xOriginalMiniBatch);
+        }
+
+
+        public static CutMix ValueOfColumnsCutMix(double alphaColumnsCutMix, int indexInMiniBatch, CpuTensor<float> xOriginalMiniBatch, Random rand)
+        {
+            if (alphaColumnsCutMix <= 0.0)
+            {
+                return null;
+            }
+            var miniBatchShape = xOriginalMiniBatch.Shape;
+            var miniBatchSize = miniBatchShape[0];
+            var nbRows = miniBatchShape[2];
+            var nbCols = miniBatchShape[3];
+
+            var percentageFromOriginalElement = (float)Utils.BetaDistribution(alphaColumnsCutMix, alphaColumnsCutMix, rand);
+            int numberOfColumnsToCutMix = (int)Math.Round((1 - percentageFromOriginalElement) * nbCols, 0.0);
+            if (numberOfColumnsToCutMix <= 0)
+            {
+                return null;
+            }
+
+            //the cutout columns will be centered at 'colMiddle'
+            //its size will be between 'nbRows x 1' (only 1 column will be entirely CutMix) to 'nbRows x numberOfColumnsToCutMix' (maximum size)
+            var colMiddle = rand.Next(nbCols);
+
+            var colStart = Math.Max(0, colMiddle - numberOfColumnsToCutMix / 2);
+            var colEnd = Math.Min(nbCols - 1, colStart + numberOfColumnsToCutMix - 1);
+            int indexToMixWithForCutMix = (indexInMiniBatch + 1) % miniBatchSize;
+            return new CutMix(0, nbRows-1, colStart, colEnd, indexToMixWithForCutMix, xOriginalMiniBatch);
+        }
+
         public override void UpdateY(CpuTensor<float> yOriginalMiniBatch, CpuTensor<float> yDataAugmentedMiniBatch, int indexInMiniBatch, Func<int, int> indexInMiniBatchToCategoryIndex)
         {
             // if CutMix has been used, wee need to update the expected output ('y' tensor)
             
 
-            //special case:  when the y tensor is of shape (batchSizae, 1)
+            //special case:  when the y tensor is of shape (batchSize, 1)
             if (yOriginalMiniBatch.Shape.Length == 2 && yOriginalMiniBatch.Shape[1] == 1)
             {
                 var originalValue = yOriginalMiniBatch.Get(indexInMiniBatch, 0);
-                var cutMixValue = yOriginalMiniBatch.Get(_indexInMiniBatchForCutMix, 0);
-                if (originalValue != cutMixValue)
+                var otherValue = yOriginalMiniBatch.Get(_indexInMiniBatchForCutMix, 0);
+                if (originalValue != otherValue)
                 {
-                    var cutMixLambda = CutMixLambda;
+                    var percentageFromOriginalElement = PercentageFromOriginalElement;
 
                     // We need to update the expected y value at 'indexInMiniBatch':
-                    // the udpated y value is:
-                    //      'cutMixLambda' * y value of the element at 'indexInMiniBatch'
-                    //      +'1-cutMixLambda' * y value of the element at 'indexInMiniBatchForCutMix'
-                    yDataAugmentedMiniBatch.Set(indexInMiniBatch, 0, cutMixLambda * originalValue + (1 - cutMixLambda) * cutMixValue);
+                    // the updated y value is:
+                    //      'percentageTakenFromOtherElement' * y value of the element at 'indexInMiniBatch' (original element)
+                    //      +'1-percentageTakenFromOtherElement' * y value of the element at 'indexInMiniBatchForCutMix' (other element)
+                    yDataAugmentedMiniBatch.Set(indexInMiniBatch, 0, percentageFromOriginalElement * originalValue + (1-percentageFromOriginalElement) * otherValue);
                 }
                 return;
             }
 
             var originalCategoryIndex = indexInMiniBatchToCategoryIndex(indexInMiniBatch);
-            var cutMixCategoryIndex = indexInMiniBatchToCategoryIndex(_indexInMiniBatchForCutMix);
-            if (originalCategoryIndex != cutMixCategoryIndex)
+            var otherCategoryIndex = indexInMiniBatchToCategoryIndex(_indexInMiniBatchForCutMix);
+            if (originalCategoryIndex != otherCategoryIndex)
             {
                 // We need to update the expected y using CutMix lambda
                 // the associated y is:
-                //        'cutMixLambda' % of the category of the element at 'indexInMiniBatch'
-                //      '1-cutMixLambda' % of the category of the element at 'indexInMiniBatchForCutMix'
-                var cutMixLambda = CutMixLambda;
-                yDataAugmentedMiniBatch.Set(indexInMiniBatch, originalCategoryIndex, cutMixLambda);
-                yDataAugmentedMiniBatch.Set(indexInMiniBatch, cutMixCategoryIndex, 1f - cutMixLambda);
+                //      'percentageTakenFromOtherElement' % of the category of the element at 'indexInMiniBatch' (original element)
+                //      '1-percentageTakenFromOtherElement' % of the category of the element at 'indexInMiniBatchForCutMix' (other element)
+                var percentageFromOriginalElement = PercentageFromOriginalElement;
+                yDataAugmentedMiniBatch.Set(indexInMiniBatch, originalCategoryIndex, percentageFromOriginalElement);
+                yDataAugmentedMiniBatch.Set(indexInMiniBatch, otherCategoryIndex, 1-percentageFromOriginalElement);
             }
         }
         public override float AugmentedValue(int indexInMiniBatch, int channel,
@@ -100,19 +157,21 @@ namespace SharpNet.DataAugmentation.Operations
             //this CutMix check must be performed *before* the Cutout check
             if (rowOutput >= _rowStart && rowOutput <= _rowEnd && colOutput >= _colStart && colOutput <= _colEnd)
             {
+                //we take the value from the other element
                 return _xOriginalMiniBatch.Get(_indexInMiniBatchForCutMix, channel, rowInput, colInput);
             }
+            //we take the value from the original element
             return xInputMiniBatch.Get(indexInMiniBatch, channel, rowInput, colInput);
         }
 
-        private float CutMixLambda
+        private float PercentageFromOriginalElement
         {
             get
             {
                 int nbRows = _xOriginalMiniBatch.Shape[2];
                 int nbCols = _xOriginalMiniBatch.Shape[3];
-                float cutMixLambda = 1f - ((float)((_rowEnd - _rowStart + 1) * (_colEnd - _colStart + 1))) / (nbCols * nbRows);
-                return cutMixLambda;
+                float percentageFromOriginalElement = 1f - ((float)((_rowEnd - _rowStart + 1) * (_colEnd - _colStart + 1))) / (nbCols * nbRows);
+                return percentageFromOriginalElement;
             }
         }
     }

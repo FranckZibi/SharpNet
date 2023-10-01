@@ -6,6 +6,7 @@ using System.Drawing.Imaging;
 using System.IO;
 using System.Runtime.InteropServices;
 using SharpNet.CPU;
+using SharpNet.MathTools;
 using Image = System.Drawing.Image;
 using Rectangle = System.Drawing.Rectangle;
 using Size = System.Drawing.Size;
@@ -50,6 +51,14 @@ namespace SharpNet.Pictures
                 default: throw new ArgumentException(Marshal.SizeOf(typeof(T)) + " size is not supported");
             }
         }
+
+        // ReSharper disable once UnusedMember.Global
+        public static void SaveTensor2D_to_GreyscaleBitmap(CpuTensor<float> tensor2D, string fileName)
+        {
+            using var bmp = Tensor2D_to_GreyscaleBitmap(tensor2D.Reshape(-1, tensor2D.Shape[^1]).AsFloatCpu);
+            Save(bmp, fileName);
+        }
+
         public static bool IsPicture(string fullName)
         {
             var toLower = (fullName ?? "").ToLowerInvariant();
@@ -147,5 +156,46 @@ namespace SharpNet.Pictures
             }
             return matrix;
         }
+        private static Bitmap Tensor2D_to_GreyscaleBitmap(CpuTensor<float> tensor2D)
+        {
+            Debug.Assert(tensor2D.Shape.Length == 2);
+            var h = tensor2D.Shape[0];
+            var w = tensor2D.Shape[1];
+            var bmp = new Bitmap(w, h, PixelFormat.Format24bppRgb);
+            var rect = new Rectangle(0, 0, w, h);
+            // Lock the bitmap's bits.  
+            var bmpData = bmp.LockBits(rect, ImageLockMode.WriteOnly, bmp.PixelFormat);
+            var rgbValues = new byte[bmpData.Stride * bmpData.Height];
+            int index = 0;
+            var spanContent = tensor2D.SpanContent;
+            var acc = new DoubleAccumulator();
+            acc.Add(spanContent);
+            var minValue = acc.Min;
+            var maxValue = acc.Max;
+            int idx = 0;
+            for (int rowIndex = 0; rowIndex < h; rowIndex++)
+            {
+                for (int colIndex = 0; colIndex < w; colIndex++)
+                {
+                    float val = spanContent[idx++];
+
+                    byte byteVal = 0;
+                    if (minValue != maxValue)
+                    {
+                        byteVal = (byte)(255 * (val - minValue) / (maxValue - minValue));
+                    }
+                    rgbValues[index + 2] = byteVal; //R
+                    rgbValues[index + 1] = byteVal; //G
+                    rgbValues[index] = byteVal; //B
+                    index += 3;
+                }
+                index += bmpData.Stride - w * 3;
+            }
+            Marshal.Copy(rgbValues, 0, bmpData.Scan0, rgbValues.Length);
+            // Unlock the bits.
+            bmp.UnlockBits(bmpData);
+            return bmp;
+        }
+
     }
 }

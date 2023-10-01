@@ -73,6 +73,7 @@ namespace SharpNetTests.NonReg
         /// <param name="originalWidth"></param>
         /// <param name="resizedHeight"></param>
         /// <param name="resizedWidth"></param>
+        // ReSharper disable once UnusedMember.Local
         private static void PreferredResizedSizeForYoloV3(int originalHeight, int originalWidth, out int resizedHeight, out int resizedWidth)
         {
             const double capacity = 608 * 608;
@@ -433,7 +434,7 @@ namespace SharpNetTests.NonReg
             var X = TestNetworkPropagation.numpy_array_for_tests(1024, 128, embedding_dim);
             var Y = TestNetworkPropagation.y_numpy_array_for_tests(X.Shape[0], 3);
 
-            int batchSize = 32;
+            const int batchSize = 32;
             //const int  gpuDeviceId = -1;
             const int gpuDeviceId = 0;
             var network = TestNetwork.NewForTests(

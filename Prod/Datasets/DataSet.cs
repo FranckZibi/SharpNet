@@ -822,6 +822,24 @@ namespace SharpNet.Datasets
 
             //TODO: ensure that there is no NaN or Infinite in xDataAugmentedMiniBatch and yDataAugmentedMiniBatch
 
+            //uncomment to save the augmented pictures
+            /*
+            for(int miniBatchIdx =0;miniBatchIdx < miniBatchSize; miniBatchIdx++)
+            {
+                int elementId = MiniBatchIdxToElementId(miniBatchIdx);
+                var y_true_Original = ((float)Math.Round(yOriginalMiniBatch.SpanContent[miniBatchIdx], 2)).ToString(CultureInfo.InvariantCulture).Replace(".", "_");
+                var y_true_Updated = ((float)Math.Round(yDataAugmentedMiniBatch.SpanContent[miniBatchIdx],2)).ToString(CultureInfo.InvariantCulture).Replace(".", "_");
+                var singleElementOriginal = (CpuTensor<float>)all_xOriginalNotAugmentedMiniBatch[0].RowSlice(miniBatchIdx, 1);
+                var prefix = isTraining ? "train_" : "test_";
+                PictureTools.SaveTensor2D_to_GreyscaleBitmap(singleElementOriginal, Path.Combine(NetworkSample.DefaultWorkingDirectory, "DataDebug", prefix + elementId.ToString("D5") + "_original_" + y_true_Original + "_" + y_true_Updated));
+                if (dataAugmentationSample.UseDataAugmentation && withDataAugmentation)
+                {
+                    var singleElementUpdated = (CpuTensor<float>)all_xDataAugmentedMiniBatch[0].RowSlice(miniBatchIdx, 1);
+                    PictureTools.SaveTensor2D_to_GreyscaleBitmap(singleElementUpdated, Path.Combine(NetworkSample.DefaultWorkingDirectory, "DataDebug", prefix + elementId.ToString("D5")+ "_updated_" + y_true_Original + "_"+ y_true_Updated));
+                }
+            }
+            */
+
             alreadyComputedMiniBatchId = miniBatchId;
             return maxElementsToLoad;
         }
