@@ -144,6 +144,15 @@ public abstract class AbstractDatasetSample : AbstractSample, IDisposable
         return _cacheInputShape_CHW;
     }
 
+
+    public virtual int[] X_Shape(int batchSize)
+    {
+        var inputShapeOfSingleElement = GetInputShapeOfSingleElement();
+        return new[] { batchSize }.Concat(inputShapeOfSingleElement).ToArray();
+    }
+    public abstract int[] Y_Shape(int batchSize);
+
+
     public int FeatureByElement()
     {
         return Utils.Product(GetInputShapeOfSingleElement());
@@ -180,6 +189,45 @@ public abstract class AbstractDatasetSample : AbstractSample, IDisposable
     /// <returns>list of target feature names </returns>
     public abstract string[] TargetLabels { get; }
     public abstract string[] CategoricalFeatures { get; }
+
+
+    public virtual List<HashSet<string>> GetCategoricalColumnSharingSameValues()
+    {
+        return new List<HashSet<string>>();
+    }
+
+
+
+
+    public Dictionary<string, int> GetCategoricalFeature_to_IndexInGetCategoricalColumnSharingSameValues()
+    {
+        Dictionary<string, int> res  =new();
+        var groups = GetCategoricalColumnSharingSameValues();
+        for (int i = 0; i < groups.Count; ++i)
+        {
+            foreach (var feature in groups[i])
+            {
+                res[feature] = i;
+            }
+        }
+
+        return res;
+    }
+    public Dictionary<string, HashSet<string>> GetCategoricalFeature_to_CategoricalColumnSharingSameValues()
+    {
+        Dictionary<string, HashSet<string>> res = new();
+        var groups = GetCategoricalColumnSharingSameValues();
+        foreach (var t in groups)
+        {
+            foreach (var feature in t)
+            {
+                res[feature] = t;
+            }
+        }
+        return res;
+    }
+
+
     public abstract int NumClass { get; }
     // new string[0] for regression problems
     public abstract string[] TargetLabelDistinctValues { get; }
@@ -215,15 +263,20 @@ public abstract class AbstractDatasetSample : AbstractSample, IDisposable
     /// </summary>
     /// <param name="defaultEmbeddingDim"></param>
     /// <returns></returns>
-    public (int[] vocabularySizes, int[] embeddingDims, int[] indexesInLastDimensionToUse) EmbeddingDescription(int defaultEmbeddingDim)
+    public (int[] vocabularySizes, int[] embeddingDims, int[] indexesInLastDimensionToUse, int[] embeddingTensorIndex) EmbeddingDescription(int defaultEmbeddingDim)
     {
         List<int> vocabularySizes = new();
         List<int> embeddingDims = new();
         List<int> indexesInLastDimensionToUse = new();
+        List<int> embeddingTensorIndex = new();
 
         string[] columnNames = GetColumnNames();
 
+        var groupIndex_to_EmbeddingTensorIndex =new Dictionary<int, int>();
+        var columnName_to_GroupIndex = GetCategoricalFeature_to_IndexInGetCategoricalColumnSharingSameValues();
+
         var columnNamesLength = columnNames?.Length??0;
+        int embeddingTensorCount = 0;
         for (var i = 0; i < columnNamesLength; i++)
         {
             // ReSharper disable once PossibleNullReferenceException
@@ -232,9 +285,10 @@ public abstract class AbstractDatasetSample : AbstractSample, IDisposable
             if (IsIdColumn(column))
             {
                 //we'll discard Id columns
-                indexesInLastDimensionToUse.Add(i);
-                embeddingDims.Add(0); //0 embedding dim :  the feature will be discarded
                 vocabularySizes.Add(1);
+                embeddingDims.Add(0); //0 embedding dim :  the feature will be discarded
+                indexesInLastDimensionToUse.Add(i);
+                embeddingTensorIndex.Add(embeddingTensorCount++);
                 continue;
             }
 
@@ -242,11 +296,26 @@ public abstract class AbstractDatasetSample : AbstractSample, IDisposable
             {
                 continue;
             }
-            indexesInLastDimensionToUse.Add(i);
-            embeddingDims.Add(EmbeddingForColumn(column, defaultEmbeddingDim));
+            
             vocabularySizes.Add(1 + CountOfDistinctCategoricalValues(column));
+            embeddingDims.Add(EmbeddingForColumn(column, defaultEmbeddingDim));
+            indexesInLastDimensionToUse.Add(i);
+
+
+            if (columnName_to_GroupIndex.TryGetValue(column, out var groupIndex))
+            {
+                if (!groupIndex_to_EmbeddingTensorIndex.ContainsKey(groupIndex))
+                {
+                    groupIndex_to_EmbeddingTensorIndex[groupIndex] = embeddingTensorCount++;
+                }
+                embeddingTensorIndex.Add(groupIndex_to_EmbeddingTensorIndex[groupIndex]);
+            }
+            else
+            {
+                embeddingTensorIndex.Add(embeddingTensorCount++);
+            }
         }
-        return (vocabularySizes.ToArray(), embeddingDims.ToArray(), indexesInLastDimensionToUse.ToArray());
+        return (vocabularySizes.ToArray(), embeddingDims.ToArray(), indexesInLastDimensionToUse.ToArray(), embeddingTensorIndex.ToArray());
     }
    
     public cudnnActivationMode_t GetActivationForLastLayer(Objective_enum objective)

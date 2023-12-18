@@ -55,13 +55,16 @@ public sealed class EmbeddingLayer : Layer
     ///         each wordIndex element must be in [0, VocabularySize-1]
     ///     embeddingDim:
     ///         Dimension of the dense embedding
-    ///     indexInLastDimensionToUse:
-    ///         index in last dimension of input tensor where to find the index of the embedding to use
+    ///     featureIndexInLastDimensionToUse:
+    ///         index in last dimension of input tensor where to find the index of the feature to embed
+    ///     embeddingTensorIndex:
+    ///         index of the embedding tensor to use (in field 'EmbeddingTensors')
     /// </summary>
-    private readonly List<(int vocabularySize, int embeddingDim, int indexInLastDimensionToUse)> _embeddingDescriptions;
+    private readonly List<(int vocabularySize, int embeddingDim, int indexInLastDimensionToUse, int embeddingTensorIndex)> EmbeddingDescriptions;
+
+    private readonly List<(int vocabularySize, int embeddingDim)> EmbeddingTensorShapes;
 
 
-    
     /// <summary>
     /// regularization hyper parameter. 0 if no L2 regularization
     /// </summary>
@@ -81,35 +84,40 @@ public sealed class EmbeddingLayer : Layer
 
 
 
-    public static List<(int vocabularySize, int embeddingDim, int indexInLastDimensionToUse)> ToEmbeddingLayerDescription(
+    public static List<(int vocabularySize, int embeddingDim, int indexInLastDimensionToUse, int embeddingTensorIndex)> ToEmbeddingLayerDescription(
         int[] vocabularySizes,
         int[] embeddingDims,
-        int[] indexesInLastDimensionToUse)
+        int[] indexesInLastDimensionToUse, 
+        int[] embeddingTensorIndex)
     {
-        List<(int vocabularySize, int embeddingDim, int indexInLastDimensionToUse)> result = new();
+        List<(int vocabularySize, int embeddingDim, int indexInLastDimensionToUse, int embeddingTensorIndex)> result = new();
         if (vocabularySizes.Length != embeddingDims.Length || vocabularySizes.Length != indexesInLastDimensionToUse.Length)
         {
             throw new ArgumentException($"input are not the same length : {vocabularySizes.Length} vs {embeddingDims.Length} vs {indexesInLastDimensionToUse.Length}");
         }
         for (int i = 0; i < vocabularySizes.Length; i++)
         {
-            result.Add((vocabularySizes[i], embeddingDims[i], indexesInLastDimensionToUse[i]));
+            result.Add((vocabularySizes[i], embeddingDims[i], indexesInLastDimensionToUse[i], embeddingTensorIndex[i]));
         }
         return result;
     }
 
+    
+
     #region constructor
     public EmbeddingLayer(
-        IEnumerable<(int, int, int)> embeddingDescriptions,
+        IEnumerable<(int vocabularySize, int embeddingDim, int indexInLastDimensionToUse, int embeddingTensorIndex)> embeddingDescriptions,
         double lambdaL2Regularization,
         float clipValueForGradients,
         bool divideGradientsByTimeSteps,
         bool trainable, Network network, string layerName) : base(network, layerName)
     {
-        _embeddingDescriptions = embeddingDescriptions.OrderBy(t => t.Item3).ToList();
-        if (_embeddingDescriptions[0].indexInLastDimensionToUse < 0 && _embeddingDescriptions.Count != 1)
+        EmbeddingDescriptions = embeddingDescriptions.OrderBy(t => t.indexInLastDimensionToUse).ToList();
+        EmbeddingTensorShapes = ExtractEmbeddingTensorShapes(EmbeddingDescriptions);
+
+        if (EmbeddingDescriptions[0].indexInLastDimensionToUse < 0 && EmbeddingDescriptions.Count != 1)
         {
-            throw new ArgumentException($"only 1 element is allowed if indexesInLastDimensionToUse = {_embeddingDescriptions[0].indexInLastDimensionToUse}");
+            throw new ArgumentException($"only 1 element is allowed if indexesInLastDimensionToUse = {EmbeddingDescriptions[0].indexInLastDimensionToUse}");
         }
         LambdaL2Regularization = lambdaL2Regularization;
         ClipValueForGradients = clipValueForGradients;
@@ -118,13 +126,35 @@ public sealed class EmbeddingLayer : Layer
         Trainable = trainable;
 
         //trainable params
-        int weightColumns = _embeddingDescriptions.Select(t=>t.vocabularySize*t.embeddingDim).Sum();
+        int weightColumns = EmbeddingTensorShapes.Select(t=>t.vocabularySize*t.embeddingDim).Sum();
         _weights = GetFloatTensor(new[] { 1, weightColumns });
         _weightGradients = GetFloatTensor(_weights.Shape);
 
         _optimizer = Sample.GetOptimizer(_weights.Shape, null, MemoryPool);
         ResetParameters(false);
     }
+
+    private static List<(int vocabularySize, int embeddingDim)> ExtractEmbeddingTensorShapes(List<(int vocabularySize, int embeddingDim, int indexInLastDimensionToUse, int embeddingTensorIndex)> embeddingDescriptions)
+    {
+        IDictionary<int, (int vocabularySize, int embeddingDim)> allEmbeddingTensors = new Dictionary<int, (int vocabularySize, int embeddingDim)>();
+        foreach (var c in embeddingDescriptions)
+        {
+            if (!allEmbeddingTensors.ContainsKey(c.embeddingTensorIndex))
+            {
+                allEmbeddingTensors[c.embeddingTensorIndex] = (c.vocabularySize, c.embeddingDim);
+            }
+            else
+            {
+                var observedTensor = allEmbeddingTensors[c.embeddingTensorIndex];
+                if (observedTensor.vocabularySize != c.vocabularySize || observedTensor.embeddingDim != c.embeddingDim)
+                {
+                    throw new ArgumentException($"embedding tensor {c.embeddingTensorIndex} has already been defined with different vocabularySize or embeddingDim");
+                }
+            }
+        }
+        return allEmbeddingTensors.OrderBy(t => t.Key).Select(t => t.Value).ToList();
+    }
+
     #endregion
 
     #region forward and backward propagation
@@ -136,7 +166,7 @@ public sealed class EmbeddingLayer : Layer
         Debug.Assert(y.Shape.Length != 3 || x.Shape[1] == y.Shape[1]); //same timeSteps
         Debug.Assert(!ShouldEmbedEachElementOfLastDimension || x.Shape[1] == y.Shape[1]); //same timeSteps
         int deltaForIndexesInLastDimensionToUse = 0;
-        var allWeights = Split(_weights);
+        var allEmbeddingTensors = Split(_weights);
 
         var xOriginalShape = (int[])x.Shape.Clone();
         var yOriginalShape = (int[])y.Shape.Clone();
@@ -162,18 +192,19 @@ public sealed class EmbeddingLayer : Layer
 
         if (ShouldEmbedEachElementOfLastDimension)
         {
-            Debug.Assert(allWeights.Count == 1);
-            y.WordEmbeddingForwardPropagation(x, allWeights[0], 0, 0, 0, 0);
+            Debug.Assert(allEmbeddingTensors.Count == 1);
+            y.WordEmbeddingForwardPropagation(x, allEmbeddingTensors[0], 0, 0, 0, 0);
         }
         else
         {
-            for (var i = 0; i < allWeights.Count; i++)
+            for (var i = 0; i < EmbeddingDescriptions.Count; i++)
             {
-                var xIndexInLastDimensionToUse = _embeddingDescriptions[i].indexInLastDimensionToUse;
-                int copyCountBeforeIndex = (i == 0) ? xIndexInLastDimensionToUse : (xIndexInLastDimensionToUse - _embeddingDescriptions[i-1].indexInLastDimensionToUse - 1);
-                int copyCountAfterIndex = (i == allWeights.Count - 1) ? x.Shape[2] - xIndexInLastDimensionToUse - 1 : 0;
-                y.WordEmbeddingForwardPropagation(x, allWeights[i], xIndexInLastDimensionToUse, deltaForIndexesInLastDimensionToUse + xIndexInLastDimensionToUse, copyCountBeforeIndex, copyCountAfterIndex);
-                deltaForIndexesInLastDimensionToUse += allWeights[i].Shape[1] - 1;
+                var embeddingTensor = allEmbeddingTensors[EmbeddingDescriptions[i].embeddingTensorIndex];
+                var xIndexInLastDimensionToUse = EmbeddingDescriptions[i].indexInLastDimensionToUse;
+                int copyCountBeforeIndex = (i == 0) ? xIndexInLastDimensionToUse : (xIndexInLastDimensionToUse - EmbeddingDescriptions[i-1].indexInLastDimensionToUse - 1);
+                int copyCountAfterIndex = (i == EmbeddingDescriptions.Count - 1) ? x.Shape[2] - xIndexInLastDimensionToUse - 1 : 0;
+                y.WordEmbeddingForwardPropagation(x, embeddingTensor, xIndexInLastDimensionToUse, deltaForIndexesInLastDimensionToUse + xIndexInLastDimensionToUse, copyCountBeforeIndex, copyCountAfterIndex);
+                deltaForIndexesInLastDimensionToUse += embeddingTensor.Shape[1] - 1;
             }
         }
 
@@ -185,7 +216,7 @@ public sealed class EmbeddingLayer : Layer
     {
         var res = new List<Tensor>();
         int nextIdxInWeights = 0;
-        foreach(var (vocabularySize, embeddingDim, _) in _embeddingDescriptions)
+        foreach(var (vocabularySize, embeddingDim) in EmbeddingTensorShapes)
         {
             var shape = new[] { vocabularySize, embeddingDim};
             res.Add(w.Slice(nextIdxInWeights, shape));
@@ -193,7 +224,7 @@ public sealed class EmbeddingLayer : Layer
         }
         return res;
     }
-    private bool ShouldEmbedEachElementOfLastDimension => _embeddingDescriptions[0].indexInLastDimensionToUse == -1;
+    private bool ShouldEmbedEachElementOfLastDimension => EmbeddingDescriptions[0].indexInLastDimensionToUse == -1;
 
     public override void BackwardPropagation(List<Tensor> allX, Tensor y_NotUsed, Tensor dy, List<Tensor> allDx)
     {
@@ -205,7 +236,9 @@ public sealed class EmbeddingLayer : Layer
 
         //we compute dW
         int deltaForIndexesInLastDimensionToUse = 0;
-        var allWeightGradients = Split(_weightGradients);
+        var allEmbeddingTensorsGradients = Split(_weightGradients);
+
+        
 
 
         var xOriginalShape = (int[])x.Shape.Clone();
@@ -235,18 +268,19 @@ public sealed class EmbeddingLayer : Layer
 
         if (ShouldEmbedEachElementOfLastDimension)
         {
-            Debug.Assert(allWeightGradients.Count == 1);
-            allWeightGradients[0].WordEmbeddingBackwardPropagation(x, dx, dy, 0, 0, 0, 0);
+            Debug.Assert(allEmbeddingTensorsGradients.Count == 1);
+            allEmbeddingTensorsGradients[0].WordEmbeddingBackwardPropagation(x, dx, dy, 0, 0, 0, 0);
         }
         else
         {
-            for (var i = 0; i < allWeightGradients.Count; i++)
+            for (var i = 0; i < EmbeddingDescriptions.Count; i++)
             {
-                var dxIndexInLastDimensionToUse = _embeddingDescriptions[i].indexInLastDimensionToUse;
-                int copyCountBeforeIndex = (i == 0) ? dxIndexInLastDimensionToUse : (dxIndexInLastDimensionToUse - _embeddingDescriptions[i - 1].indexInLastDimensionToUse - 1);
-                int copyCountAfterIndex = (i == allWeightGradients.Count - 1) ? dx.Shape[2] - dxIndexInLastDimensionToUse - 1 : 0;
-                allWeightGradients[i].WordEmbeddingBackwardPropagation(x, dx, dy, dxIndexInLastDimensionToUse, deltaForIndexesInLastDimensionToUse + dxIndexInLastDimensionToUse, copyCountBeforeIndex, copyCountAfterIndex);
-                deltaForIndexesInLastDimensionToUse += allWeightGradients[i].Shape[1] - 1;
+                var embeddingTensorsGradients = allEmbeddingTensorsGradients[EmbeddingDescriptions[i].embeddingTensorIndex];
+                var dxIndexInLastDimensionToUse = EmbeddingDescriptions[i].indexInLastDimensionToUse;
+                int copyCountBeforeIndex = (i == 0) ? dxIndexInLastDimensionToUse : (dxIndexInLastDimensionToUse - EmbeddingDescriptions[i - 1].indexInLastDimensionToUse - 1);
+                int copyCountAfterIndex = (i == EmbeddingDescriptions.Count - 1) ? dx.Shape[2] - dxIndexInLastDimensionToUse - 1 : 0;
+                embeddingTensorsGradients.WordEmbeddingBackwardPropagation(x, dx, dy, dxIndexInLastDimensionToUse, deltaForIndexesInLastDimensionToUse + dxIndexInLastDimensionToUse, copyCountBeforeIndex, copyCountAfterIndex);
+                deltaForIndexesInLastDimensionToUse += embeddingTensorsGradients.Shape[1] - 1;
             }
         }
 
@@ -338,15 +372,17 @@ public sealed class EmbeddingLayer : Layer
             .Add(nameof(VocabularySizes), VocabularySizes)
             .Add(nameof(EmbeddingDims), EmbeddingDims)
             .Add(nameof(IndexesInLastDimensionToUse), IndexesInLastDimensionToUse)
+            .Add(nameof(EmbeddingTensorIndex), EmbeddingTensorIndex)
             .Add(nameof(LambdaL2Regularization), LambdaL2Regularization)
             .Add(nameof(ClipValueForGradients), ClipValueForGradients)
             .Add(nameof(DivideGradientsByTimeSteps), DivideGradientsByTimeSteps)
             .ToString();
     }
 
-    public int[] VocabularySizes => _embeddingDescriptions.Select(t => t.vocabularySize).ToArray();
-    public int[] EmbeddingDims => _embeddingDescriptions.Select(t => t.embeddingDim).ToArray();
-    public int[] IndexesInLastDimensionToUse => _embeddingDescriptions.Select(t => t.indexInLastDimensionToUse).ToArray();
+    public int[] VocabularySizes => EmbeddingDescriptions.Select(t => t.vocabularySize).ToArray();
+    public int[] EmbeddingDims => EmbeddingDescriptions.Select(t => t.embeddingDim).ToArray();
+    public int[] IndexesInLastDimensionToUse => EmbeddingDescriptions.Select(t => t.indexInLastDimensionToUse).ToArray();
+    public int[] EmbeddingTensorIndex => EmbeddingDescriptions.Select(t => t.embeddingTensorIndex).ToArray();
 
     public static EmbeddingLayer Deserialize(IDictionary<string, object> serialized, Network network)
     {
@@ -359,9 +395,12 @@ public sealed class EmbeddingLayer : Layer
         int[] IndexesInLastDimensionToUse = serialized.ContainsKey("IndexInLastDimensionToUse")
             ? new[] { (int)serialized["IndexInLastDimensionToUse"] }
             : (int[])serialized[nameof(IndexesInLastDimensionToUse)];
+        int[] EmbeddingTensorIndex = serialized.ContainsKey("EmbeddingTensorIndex")
+            ? new[] { (int)serialized["EmbeddingTensorIndex"] }
+            : (int[])serialized[nameof(EmbeddingTensorIndex)];
 
         return new EmbeddingLayer(
-            ToEmbeddingLayerDescription(VocabularySizes, EmbeddingDims, IndexesInLastDimensionToUse),
+            ToEmbeddingLayerDescription(VocabularySizes, EmbeddingDims, IndexesInLastDimensionToUse, EmbeddingTensorIndex),
             (double)serialized[nameof(LambdaL2Regularization)],
             (float)serialized[nameof(ClipValueForGradients)],
             (bool)serialized[nameof(DivideGradientsByTimeSteps)],
@@ -374,9 +413,7 @@ public sealed class EmbeddingLayer : Layer
 
     public override int[] OutputShape(int batchSize)
     {
-        var prevLayerOutputShape = PrevLayer.OutputShape(batchSize);
-        var outputShape = (int[])prevLayerOutputShape.Clone();
-        outputShape[0] = batchSize;
+        var outputShape = Utils.CloneShapeWithNewCount(PrevLayer.OutputShape(batchSize), batchSize);
         if (ShouldEmbedEachElementOfLastDimension)
         {
             Debug.Assert(IndexesInLastDimensionToUse.Length == 1);

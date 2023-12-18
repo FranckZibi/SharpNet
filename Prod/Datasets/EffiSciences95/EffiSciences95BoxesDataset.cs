@@ -34,12 +34,10 @@ public class EffiSciences95BoxesDataset
         }
     }
 
-    public string DocumentDirectory => GetDocumentDirectory(_isLabeled);
-    
     public static string GetDocumentDirectory(bool isLabeled) => isLabeled ? LabeledDocumentDirectory : UnlabeledDocumentDirectory;
 
 
-    public string Path => _isLabeled ? EffiSciences95Utils.LabeledPath : EffiSciences95Utils.UnlabeledPath;
+    private string Path => _isLabeled ? EffiSciences95Utils.LabeledPath : EffiSciences95Utils.UnlabeledPath;
 
 
     /// <summary>
@@ -48,13 +46,13 @@ public class EffiSciences95BoxesDataset
     public void YoundOldAccuracyHpo()
     {
         var bestAccuracy = ComputeYoungOrOldAccuracy();
-        var bestHpo = (double[])EffiSciences95Row.default_hpo.Clone();
+        var bestHpo = (double[])EffiSciences95Row.DefaultHyperParameters.Clone();
         Console.WriteLine($"Young/Old Accuracy : {bestAccuracy}");
 
         void Process()
         {
             var r = new Random(Thread.CurrentThread.ManagedThreadId);
-            var current = (double[])EffiSciences95Row.default_hpo.Clone();
+            var current = (double[])EffiSciences95Row.DefaultHyperParameters.Clone();
             for (int i = 0; i < 10000; ++i)
             {
                 for (int j = 0; j < current.Length; ++j)
@@ -93,7 +91,7 @@ public class EffiSciences95BoxesDataset
         File.WriteAllText(Path, sb.ToString());
     }
 
-    public double ComputeYoungOrOldAccuracy(double[] hpo = null)
+    private double ComputeYoungOrOldAccuracy(double[] hpo = null)
     {
         int total = 0;
         int ok = 0;
@@ -107,7 +105,6 @@ public class EffiSciences95BoxesDataset
                 ++ok;
             }
         }
-        //Console.WriteLine($"total = {total}, ok = {ok}");
         return ok / (double)Math.Max(total,1);
     }
 }

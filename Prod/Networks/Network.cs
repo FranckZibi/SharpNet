@@ -58,7 +58,7 @@ namespace SharpNet.Networks
             //a slave network will have access to only one resource (1 Cpu or 1 GPU)
             Debug.Assert(masterNetworkIfAny == null || Sample.ResourceIds.Count == 1);
 
-            _masterNetworkIfAny = masterNetworkIfAny;
+            MasterNetworkIfAny = masterNetworkIfAny;
             GpuWrapper = UseGPU ? GPUWrapper.FromDeviceId(Sample.ResourceIds[0]) : null;
             _swComputeMetrics = new Stopwatch();
             CreateWorkingDirectoryIfNeeded();
@@ -129,11 +129,11 @@ namespace SharpNet.Networks
         public Network Input_and_Embedding_if_required(AbstractDatasetSample datasetSample, int embeddingDim, double lambdaL2Regularization, float clipValueForGradients= 0, string layerName = "")
         {
             Input(datasetSample.GetInputShapeOfSingleElement(), layerName);
-            var (vocabularySizes, embeddingDims, indexesInLastDimensionToUse) = datasetSample.EmbeddingDescription(embeddingDim);
+            var (vocabularySizes, embeddingDims, indexesInLastDimensionToUse, embeddingTensorIndex) = datasetSample.EmbeddingDescription(embeddingDim);
             if (indexesInLastDimensionToUse.Length != 0)
             {
                 //We need to add an embedding layer to manage categorical features
-                Embedding(vocabularySizes, embeddingDims, indexesInLastDimensionToUse, lambdaL2Regularization, clipValueForGradients);
+                Embedding(vocabularySizes, embeddingDims, indexesInLastDimensionToUse, embeddingTensorIndex, lambdaL2Regularization, clipValueForGradients);
             }
             return this;
         }
@@ -153,15 +153,19 @@ namespace SharpNet.Networks
         public Network Embedding(int[] vocabularySizes,
                 int[] embeddingDims,
                 int[] indexesInLastDimensionToUse,
+                int[] embeddingTensorIndex,
                 double lambdaL2Regularization,
                 float clipValueForGradients = 0f,
+
                 bool divideGradientsByTimeSteps = false,
+                //bool divideGradientsByTimeSteps = true,
+
                 string layerName = "")
             {
             Debug.Assert(Layers.Count >= 1);
             Debug.Assert(Layers.Last().IsInputLayer);
 
-            Layers.Add(new EmbeddingLayer(EmbeddingLayer.ToEmbeddingLayerDescription(vocabularySizes, embeddingDims, indexesInLastDimensionToUse), lambdaL2Regularization, clipValueForGradients, divideGradientsByTimeSteps, true, this, layerName));
+            Layers.Add(new EmbeddingLayer(EmbeddingLayer.ToEmbeddingLayerDescription(vocabularySizes, embeddingDims, indexesInLastDimensionToUse, embeddingTensorIndex), lambdaL2Regularization, clipValueForGradients, divideGradientsByTimeSteps, true, this, layerName));
             return this;
         }
         public Network SwitchSecondAndThirdDimension(bool addOneDimensionInOutputShape, string layerName = "")

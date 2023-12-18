@@ -26,12 +26,8 @@ public sealed class MappedDataSet : WrappedDataSet
         _original.LoadAt(_elementIdToOriginalElementId[subElementId], indexInBuffer, xBuffer, yBuffer, withDataAugmentation, isTraining);
     }
 
-    public override int[] Y_Shape()
-    {
-        var mapped_y_shape = (int[])_original.Y_Shape().Clone();
-        mapped_y_shape[0] = Count;
-        return mapped_y_shape;
-    }
+    public override int[] X_Shape(int batchSize) => _original.X_Shape(batchSize);
+    public override int[] Y_Shape(int batchSize) => _original.Y_Shape(batchSize);
 
     public override int Count => _elementIdToOriginalElementId.Count;
 

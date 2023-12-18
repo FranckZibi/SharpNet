@@ -810,11 +810,20 @@ namespace SharpNet.GPU
         }
 
         //!D TODO : use GPU for computation
-        public override void ComputeAUCBuffer(Tensor yExpectedSparse, Tensor yPredicted)
+        public override void ComputeAUCBuffer(Tensor yExpected, Tensor yPredicted)
         {
             var buffer = this;
             var cpuBuffer = new CpuTensor<float>(buffer.Shape);
-            cpuBuffer.ComputeAUCBuffer(yExpectedSparse.ToCpuFloat(), yPredicted.ToCpuFloat());
+            cpuBuffer.ComputeAUCBuffer(yExpected.ToCpuFloat(), yPredicted.ToCpuFloat());
+            cpuBuffer.CopyTo(buffer);
+        }
+
+        //!D TODO : use GPU for computation
+        public override void ComputeAveragePrecisionScoreBuffer(Tensor yExpected, Tensor yPredicted)
+        {
+            var buffer = this;
+            var cpuBuffer = new CpuTensor<float>(buffer.Shape);
+            cpuBuffer.ComputeAveragePrecisionScoreBuffer(yExpected.ToCpuFloat(), yPredicted.ToCpuFloat());
             cpuBuffer.CopyTo(buffer);
         }
 

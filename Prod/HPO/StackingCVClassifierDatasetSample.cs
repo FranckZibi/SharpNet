@@ -166,6 +166,8 @@ namespace SharpNet.HPO
             return new StackingCVClassifierDatasetSample(_trainingDataFrameDataSet, _inferenceDataFrameDataSet, KFold);
         }
 
+        public override int[] X_Shape(int batchSize) => throw new NotImplementedException(); //!D TODO
+        public override int[] Y_Shape(int batchSize) => throw new NotImplementedException(); //!D TODO
 
         public override int NumClass => _trainingDataFrameDataSet.DatasetSample.NumClass;
 

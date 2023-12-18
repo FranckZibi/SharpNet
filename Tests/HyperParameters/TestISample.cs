@@ -27,6 +27,8 @@ public class TestISample
         public override string[] TargetLabels => throw new NotImplementedException();
         public override DataSet TestDataset() => throw new NotImplementedException();
         public override DataSet FullTrainingAndValidation() => throw new NotImplementedException();
+        public override int[] X_Shape(int batchSize) => throw new NotImplementedException();
+        public override int[] Y_Shape(int batchSize) => throw new NotImplementedException();
     }
 
     [Test]

@@ -17,29 +17,28 @@ public static class EffiSciences95Utils
 {
     public const string NAME = "EffiSciences95";
 
-
     #region public fields & properties
-    public static readonly ILog Log = LogManager.GetLogger(typeof(EffiSciences95Utils));
+    private static readonly ILog Log = LogManager.GetLogger(typeof(EffiSciences95Utils));
     #endregion
 
     #region load of datasets
 
     public static readonly int[] Shape_CHW = { 3, 218, 178 };
 
-    public static string WorkingDirectory => Path.Combine(Utils.ChallengesPath, NAME);
+    private static string WorkingDirectory => Path.Combine(Utils.ChallengesPath, NAME);
     public static string DataDirectory => Path.Combine(WorkingDirectory, "Data");
     // ReSharper disable once MemberCanBePrivate.Global
 
-    public static string IDMDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "ImageDatabaseManagement");
-    public static string LabeledPath = Path.Combine(IDMDirectory, "EffiSciences95_Labeled.csv");
-    public static string UnlabeledPath = Path.Combine(IDMDirectory, "EffiSciences95_Unlabeled.csv");
+    public static readonly string IDMDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "ImageDatabaseManagement");
+    public static readonly string LabeledPath = Path.Combine(IDMDirectory, "EffiSciences95_Labeled.csv");
+    public static readonly string UnlabeledPath = Path.Combine(IDMDirectory, "EffiSciences95_Unlabeled.csv");
 
 
-    public static string Labeled_TextTargetPath => Path.Combine(DataDirectory, "Labeled_TextTarget.csv");
-    public static string Unlabeled_TextTargetPath => Path.Combine(DataDirectory, "Unlabeled_TextTarget.csv");
+    private static string Labeled_TextTargetPath => Path.Combine(DataDirectory, "Labeled_TextTarget.csv");
+    private static string Unlabeled_TextTargetPath => Path.Combine(DataDirectory, "Unlabeled_TextTarget.csv");
 
-    public static string LabeledDirectory => Path.Combine(DataDirectory, "Labeled");
-    public static string UnlabeledDirectory => Path.Combine(DataDirectory, "Unlabeled");
+    private static string LabeledDirectory => Path.Combine(DataDirectory, "Labeled");
+    private static string UnlabeledDirectory => Path.Combine(DataDirectory, "Unlabeled");
 
     #endregion
 
@@ -102,11 +101,8 @@ public static class EffiSciences95Utils
             }
             sb.Append(id + "," + prediction+ Environment.NewLine);
         }
-
-        var correl = Math.Round(lr.PearsonCorrelationCoefficient, 4);
-        var predictionPaths = Path.Combine(WorkingDirectory, modelName +"_predict_tests_correl_"+correl+".csv");
+        var predictionPaths = Path.Combine(WorkingDirectory, modelName +"_predict_tests.csv");
         Log.Info($"Saving predictions in file {predictionPaths}");
-        Log.Info($"Observed correlation with Text Target (should be 0): {correl}");
         File.WriteAllText(predictionPaths, sb.ToString());
     }
 

@@ -335,10 +335,11 @@ public class TimeSeriesDataset : DataSet, ITimeSeriesDataSet
         }
     }
 
-    public override int[] Y_Shape()
+    public override int[] X_Shape(int batchSize)
     {
-        return _yTimeSeriesDataset?.Shape;
+        throw new NotImplementedException(); //TODO
     }
+    public override int[] Y_Shape(int batchSize) => Utils.CloneShapeWithNewCount(_yTimeSeriesDataset?.Shape, batchSize);
 
     public override CpuTensor<float> LoadFullY()
     {

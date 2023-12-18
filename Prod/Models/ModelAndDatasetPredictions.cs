@@ -65,12 +65,16 @@ public sealed class ModelAndDatasetPredictions : IDisposable
         var kfoldModel = new KFoldModel(kfoldSample, embeddedModel.WorkingDirectory, kfoldModelName, DatasetSample, embeddedModel.ModelSample);
         return new ModelAndDatasetPredictions(modelAndDatasetPredictionsSample, kfoldModel);
     }
-    public static ModelAndDatasetPredictions Load(string workingDirectory, string modelName, bool useAllAvailableCores)
+    public static ModelAndDatasetPredictions Load(string workingDirectory, string modelName, bool useAllAvailableCores, Action<IDictionary<string, string>> contentUpdater = null)
     {
         var start = Stopwatch.StartNew();
-        var modelAndDatasetSample = ModelAndDatasetPredictionsSample.Load(workingDirectory, modelName, useAllAvailableCores);
+        var modelAndDatasetPredictionsSample = ModelAndDatasetPredictionsSample.Load(workingDirectory, modelName, useAllAvailableCores, contentUpdater);
         ISample.Log.Debug($"{nameof(ModelAndDatasetPredictionsSample.Load)} of model '{modelName}' took {start.Elapsed.TotalSeconds}s");
-        return new ModelAndDatasetPredictions(modelAndDatasetSample, workingDirectory, modelName, true);
+        if (contentUpdater != null)
+        {
+            modelName = modelAndDatasetPredictionsSample.ComputeHash();
+        }
+        return new ModelAndDatasetPredictions(modelAndDatasetPredictionsSample, workingDirectory, modelName, true);
     }
     public static ModelAndDatasetPredictions LoadWithKFold(string workingDirectory, string modelName, int n_splits, bool useAllAvailableCores)
     {

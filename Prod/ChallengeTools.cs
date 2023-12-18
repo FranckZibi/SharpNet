@@ -162,13 +162,37 @@ public static class ChallengeTools
     }
 
 
+
+    public static void RetrainWithContentUpdate(string workingDirectory, string modelName, Action<IDictionary<string, string>> contentUpdater, bool useAllAvailableCores = true)
+    {
+        var sw = Stopwatch.StartNew();
+        ISample.Log.Info($"Retraining model '{modelName}' with update on parameters ");
+        using var modelAndDataset = ModelAndDatasetPredictions.Load(workingDirectory, modelName, useAllAvailableCores, contentUpdater);
+        Model.Log.Info($"Training Model '{modelAndDataset.Model.ModelName}' (= Model '{modelName}' with contentUpdater");
+        modelAndDataset.Fit(true, true, true);
+        ISample.Log.Info($"Model {modelName} retrained in {sw.Elapsed.TotalSeconds}");
+    }
     /// <summary>
     /// retrain some models 
     /// </summary>
-    public static void Retrain(string workingDirectory, string modelName, int? n_splits = 3, double?percentageInTraining = null, bool retrainOnFullDataset = true, bool useAllAvailableCores = true, bool computeAndSavePredictions = true, bool computeValidationRankingScore = true, bool saveTrainedModel = true)
+    /// <param name="workingDirectory"></param>
+    /// <param name="modelName"></param>
+    /// <param name="n_splits"></param>
+    /// <param name="percentageInTraining"></param>
+    /// <param name="retrainOnFullDataset"></param>
+    /// <param name="useAllAvailableCores"></param>
+    /// <param name="computeAndSavePredictions"></param>
+    /// <param name="computeValidationRankingScore"></param>
+    /// <param name="saveTrainedModel"></param>
+    /// <returns>the name of the retrained model</returns>
+    /// <exception cref="ArgumentException"></exception>
+    public static string Retrain(string workingDirectory, string modelName, int? n_splits = 3, double?percentageInTraining = null, bool retrainOnFullDataset = true, bool useAllAvailableCores = true, bool computeAndSavePredictions = true, bool computeValidationRankingScore = true, bool saveTrainedModel = true)
     {
-        Utils.ConfigureGlobalLog4netProperties(workingDirectory, $"{nameof(Retrain)}", false);
-        Utils.ConfigureThreadLog4netProperties(workingDirectory, $"{nameof(Retrain)}", false);
+
+        string newModelName = "";
+
+        //Utils.ConfigureGlobalLog4netProperties(workingDirectory, $"{nameof(Retrain)}", false);
+        //Utils.ConfigureThreadLog4netProperties(workingDirectory, $"{nameof(Retrain)}", false);
 
 
         if (n_splits.HasValue && percentageInTraining.HasValue)
@@ -192,6 +216,7 @@ public static class ChallengeTools
             var swKfold = Stopwatch.StartNew();
             using var mKFold = ModelAndDatasetPredictions.LoadWithKFold(workingDirectory, modelName, n_splits.Value, useAllAvailableCores);
             ISample.Log.Info($"Training Model '{mKFold.Model.ModelName}' (= Model '{modelName}' with KFold={n_splits})");
+            newModelName = mKFold.Model.ModelName;
             mKFold.Fit(computeAndSavePredictions, computeValidationRankingScore, saveTrainedModel);
             mKFold.Save(workingDirectory, modelName);
             ISample.Log.Info($"Model '{mKFold.Model.ModelName}' trained in {swKfold.Elapsed.TotalSeconds}");
@@ -201,6 +226,7 @@ public static class ChallengeTools
             var swPercentageInTraining = Stopwatch.StartNew();
             using var modelAndDataset = ModelAndDatasetPredictions.LoadWithNewPercentageInTrainingNoKFold(percentageInTraining.Value, workingDirectory, modelName, useAllAvailableCores);
             Model.Log.Info($"Training Model '{modelAndDataset.Model.ModelName}' (= Model '{modelName}' with {Math.Round(100* percentageInTraining.Value,1)}% in training no KFold)");
+            newModelName = modelAndDataset.Model.ModelName;
             modelAndDataset.Fit(computeAndSavePredictions, computeValidationRankingScore, saveTrainedModel);
             ISample.Log.Info($"Model '{modelAndDataset.Model.ModelName}' trained in {swPercentageInTraining.Elapsed.TotalSeconds}");
         }
@@ -209,11 +235,13 @@ public static class ChallengeTools
             var swRetrainOnFullDataset = Stopwatch.StartNew();
             using var modelAndDatasetOnFullDataset = ModelAndDatasetPredictions.LoadWithNewPercentageInTrainingNoKFold(1.0, workingDirectory, modelName, useAllAvailableCores);
             Model.Log.Info($"Training Model '{modelAndDatasetOnFullDataset.Model.ModelName}' (= Model '{modelName}' on full Dataset no KFold)");
+            newModelName = modelAndDatasetOnFullDataset.Model.ModelName;
             modelAndDatasetOnFullDataset.Fit(computeAndSavePredictions, computeValidationRankingScore, saveTrainedModel);
             ISample.Log.Info($"Model '{modelAndDatasetOnFullDataset.Model.ModelName}' trained in {swRetrainOnFullDataset.Elapsed.TotalSeconds}");
         }
         ISample.Log.Info($"Model {modelName} retrained in {sw.Elapsed.TotalSeconds}");
         //KaggleDaysDatasetSample.Enrich(@"C:\Projects\Challenges\KaggleDays\catboost\a_KFOLD_modelformat_predict_test_.csv"); return;
         //}
+        return newModelName;
     }
 }

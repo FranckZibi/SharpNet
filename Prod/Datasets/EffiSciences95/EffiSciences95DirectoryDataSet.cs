@@ -15,8 +15,6 @@ public class EffiSciences95DirectoryDataSet : DirectoryDataSet
 
     public static EffiSciences95DirectoryDataSet ValueOf(EffiSciences95DatasetSample datasetSample, bool isLabeled, int maxElementCount = -1)
     {
-        //maxElementCount = 100; //!D
-
         var idToBoxes = new EffiSciences95BoxesDataset(isLabeled).Content;
         // ReSharper disable once ConditionIsAlwaysTrueOrFalse
         var idToTextLabel = isLabeled?EffiSciences95Utils.IdToTextTarget(isLabeled):null;
@@ -29,7 +27,7 @@ public class EffiSciences95DirectoryDataSet : DirectoryDataSet
         for(int id=0;id<=EffiSciences95Utils.MaxId(isLabeled);++id)
         {
             int textLabel = -1;
-            var box = idToBoxes.ContainsKey(id) ? idToBoxes[id] : null;
+            var box = idToBoxes.TryGetValue(id, out var toBox) ? toBox : null;
             if (box!= null && (box.IsEmpty || !box.HasBeenValidated))
             {
                 box = null;
@@ -109,27 +107,15 @@ public class EffiSciences95DirectoryDataSet : DirectoryDataSet
         var boxToRemove0 = _boxes[elementId];
         var rectBoxToRemove = boxToRemove0.Shape;
 
-        if (boxToRemove0.Label == "o" && _datasetSample.EnlargeOldBoxToYoungBoxShape)
+        var otherBox = FindBiggerBoxWithLabels(boxToRemove0);
+        if (otherBox != null)
         {
-            var otherBox = FindBiggerBoxWithLabels(boxToRemove0, "y", 20);
-            if (otherBox != null)
-            {
-                rectBoxToRemove.Y -= (otherBox.Height - boxToRemove0.Height) / 2;
-                rectBoxToRemove.Height = otherBox.Height;
-                rectBoxToRemove.X -= (otherBox.Width - boxToRemove0.Width) / 2;
-                rectBoxToRemove.Width = otherBox.Width;
-            }
+            rectBoxToRemove.Y -= (otherBox.Height - boxToRemove0.Height) / 2;
+            rectBoxToRemove.Height = otherBox.Height;
+            rectBoxToRemove.X -= (otherBox.Width - boxToRemove0.Width) / 2;
+            rectBoxToRemove.Width = otherBox.Width;
         }
         ClearBitmap(res, rectBoxToRemove);
-
-        if (_datasetSample.AddNewBoxOfOtherCategory)
-        {
-            var otherCategoryBox = RandomBoxWithLabels(boxToRemove0.Label == "o"?"y":"o", 20);
-            if (otherCategoryBox != null)
-            {
-                ClearBitmap(res, otherCategoryBox.Shape);
-            }
-        }
         return res;
     }
 
@@ -167,31 +153,16 @@ public class EffiSciences95DirectoryDataSet : DirectoryDataSet
         }
     }
 
-
-    private EffiSciences95Row RandomBoxWithLabels(string mandatoryLabel, int remainingTries)
+    private EffiSciences95Row FindBiggerBoxWithLabels(EffiSciences95Row box)
     {
-        for (int i = 0; i <= remainingTries; ++i)
+        for (int i = 0; i <= 20; ++i)
         {
+            //we look for a bigger box containing "young"
             var otherBox = _boxes[_r.Next(_boxes.Count)];
-            if (otherBox != null && !otherBox.IsEmpty && otherBox.Label == mandatoryLabel)
-            {
-                return otherBox;
-            }
-        }
-        return null;
-
-    }
-    private EffiSciences95Row FindBiggerBoxWithLabels(EffiSciences95Row box, string mandatoryLabel, int remainingTries)
-    {
-        for (int i = 0; i <= remainingTries; ++i)
-        {
-
-            var otherBox = _boxes[_r.Next(_boxes.Count)];
-            if (otherBox == null || otherBox.IsEmpty || otherBox.Label != mandatoryLabel)
+            if (otherBox == null || otherBox.IsEmpty || otherBox.Label != "y")
             {
                 continue;
             }
-
             if (otherBox.Width >= box.Width && otherBox.Height >= box.Height)
             {
                 return otherBox;

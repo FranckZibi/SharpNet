@@ -21,7 +21,7 @@ namespace SharpNetWebApplication
         private static readonly ILog Log = LogManager.GetLogger(typeof(Startup));
         
         #region private fields
-        private static Network _network;
+        private static Network Network;
         private static readonly List<string> ToProcess =  new ();
         #endregion
         #region public fields
@@ -30,10 +30,10 @@ namespace SharpNetWebApplication
 
         private static void ComputationThread()
         {
-            _network = CancelDatabase.GetDefaultNetwork();
+            Network = CancelDatabase.GetDefaultNetwork();
 
             Log.Info("ComputationThread is starting");
-            Log.Info(_network.Summary());
+            Log.Info(Network.Summary());
             for (;;)
             {
                 var picturePaths = new List<string>();
@@ -44,7 +44,7 @@ namespace SharpNetWebApplication
                 }
                 if (picturePaths.Count != 0)
                 {
-                    var predictions = CancelDatabase.PredictCancelsWithProba(_network, picturePaths);
+                    var predictions = CancelDatabase.PredictCancelsWithProba(Network, picturePaths);
                     for (var index = 0; index < predictions.Count; index++)
                     {
                         if (!Cache.TryGetValue(picturePaths[index], out var cancelIdentification))

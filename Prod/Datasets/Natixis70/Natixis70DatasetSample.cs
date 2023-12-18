@@ -212,6 +212,11 @@ public class Natixis70DatasetSample : AbstractDatasetSample
         }
 
     }
+
+    public override int[] X_Shape(int batchSize) => throw new NotImplementedException(); //!D TODO
+    public override int[] Y_Shape(int batchSize) => throw new NotImplementedException(); //!D TODO
+
+
     public override string IdColumn => "" ;
     public override string[] TargetLabels => PredictionHeader.Trim(',').Split(',');
 

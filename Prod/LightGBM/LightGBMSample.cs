@@ -62,6 +62,8 @@ public class LightGBMSample : AbstractModelSample
                 return EvaluationMetricEnum.Huber;
             case "auc":
                 return EvaluationMetricEnum.AUC;
+            case "average_precision":
+                return EvaluationMetricEnum.AveragePrecisionScore;
             case "binary":
                 return EvaluationMetricEnum.BinaryCrossentropy;
             case "multiclass":
@@ -69,6 +71,24 @@ public class LightGBMSample : AbstractModelSample
                 return EvaluationMetricEnum.CategoricalCrossentropy;
             case "accuracy":
                 return EvaluationMetricEnum.Accuracy;
+            default:
+                throw new NotImplementedException($"can't manage metric {metric}");
+        }
+    }
+
+    public static string ToStringMetric(EvaluationMetricEnum metric)
+    {
+        switch (metric)
+        {
+            case EvaluationMetricEnum.DEFAULT_VALUE: return "";
+            case EvaluationMetricEnum.Rmse: return "rmse";
+            case EvaluationMetricEnum.Mae:  return "mae";
+            case EvaluationMetricEnum.Huber : return "huber";
+            case EvaluationMetricEnum.AUC: return  "auc";
+            case EvaluationMetricEnum.AveragePrecisionScore: return "average_precision";
+            case EvaluationMetricEnum.BinaryCrossentropy: return  "binary" ;
+            case EvaluationMetricEnum.CategoricalCrossentropy: return "cross_entropy";
+            case EvaluationMetricEnum.Accuracy: return  "accuracy";
             default:
                 throw new NotImplementedException($"can't manage metric {metric}");
         }
@@ -108,10 +128,10 @@ public class LightGBMSample : AbstractModelSample
             min_data_in_leaf = 2;
         }
 
-        if (objective == objective_enum.DEFAULT_VALUE)
-        {
-            throw new ArgumentException("objective must always be set");
-        }
+        //if (objective == objective_enum.DEFAULT_VALUE)
+        //{
+        //    throw new ArgumentException("objective must always be set");
+        //}
 
         if (IsMultiClassClassificationProblem())
         {
@@ -159,29 +179,23 @@ public class LightGBMSample : AbstractModelSample
         categorical_feature = (categoricalFeatures.Length >= 1) ? ("name:" + string.Join(',', categoricalFeatures)) : "";
     }
 
-    public void AddExtraMetricToComputeForTraining()
-    {
-        switch (objective)
-        {
-            case objective_enum.multiclass:
-                metric = "multi_logloss,multi_error";
-                first_metric_only = true;
-                break;
-            case objective_enum.binary:
-                metric = "binary_logloss,binary_error";
-                first_metric_only = true;
-                break;
-        }
-    }
     public (IScore trainLossIfAvailable, IScore validationLossIfAvailable, IScore trainRankingMetricIfAvailable, IScore validationRankingMetricIfAvailable) ExtractScores(IEnumerable<string> linesFromLog)
     {
-        List<string> tokenAndMandatoryTokenAfterToken = new() { "training", null, "valid_1", null };
+        //the first element will always be the loss, the following will be the ranking metrics
+        var lossAndMetrics = new List<string> { ToStringMetric(GetLoss()) };
         var allMetrics = (metric ?? "").Split(',');
-        if (allMetrics.Length >= 2)
+        if (allMetrics.Length >= 1 && allMetrics[0].Length >= 1 && !lossAndMetrics.Contains(allMetrics[0]))
         {
-            tokenAndMandatoryTokenAfterToken = new List<string> { "training", allMetrics[0], "valid_1", allMetrics[0], "training", allMetrics[1], "valid_1", allMetrics[1] };
+            lossAndMetrics.Add(allMetrics[0]);
         }
-
+        List<string> tokenAndMandatoryTokenAfterToken = new();
+        foreach (var m in lossAndMetrics)
+        {
+            tokenAndMandatoryTokenAfterToken.Add("training");
+            tokenAndMandatoryTokenAfterToken.Add(m);
+            tokenAndMandatoryTokenAfterToken.Add("valid_1");
+            tokenAndMandatoryTokenAfterToken.Add(m);
+        }
         var extractedScoresFromLogs = Utils.ExtractValuesFromOutputLog(linesFromLog, 2, tokenAndMandatoryTokenAfterToken.ToArray());
 
         var trainLossValue = extractedScoresFromLogs[0];
@@ -191,17 +205,16 @@ public class LightGBMSample : AbstractModelSample
 
         var trainMetricValue = (extractedScoresFromLogs.Length >= 3) ? extractedScoresFromLogs[2] : double.NaN;
         Score trainRankingMetricIfAvailable = null;
-        if (IsClassification && !double.IsNaN(trainMetricValue))
+        if (!double.IsNaN(trainMetricValue) && lossAndMetrics.Count>=2)
         {
-            var trainErrorValue = (float)trainMetricValue;
-            trainRankingMetricIfAvailable = new Score(1 - trainErrorValue, EvaluationMetricEnum.Accuracy);
+            trainRankingMetricIfAvailable = new Score((float)trainMetricValue, ToEvaluationMetricEnum(lossAndMetrics[1]));
         }
         var validationMetricValue = (extractedScoresFromLogs.Length >= 4) ? extractedScoresFromLogs[3] : double.NaN;
         Score validationRankingMetricIfAvailable = null;
-        if (IsClassification && !double.IsNaN(validationMetricValue))
+        if (!double.IsNaN(validationMetricValue) && lossAndMetrics.Count >= 2)
         {
             var validationErrorValue = (float)validationMetricValue;
-            validationRankingMetricIfAvailable = new Score(1 - validationErrorValue, EvaluationMetricEnum.Accuracy);
+            validationRankingMetricIfAvailable = new Score((float)validationMetricValue, ToEvaluationMetricEnum(lossAndMetrics[1]));
         }
         return (trainLossIfAvailable, validationLossIfAvailable, trainRankingMetricIfAvailable, validationRankingMetricIfAvailable);
     }
@@ -687,6 +700,7 @@ public class LightGBMSample : AbstractModelSample
     //minimal number of data inside one bin
     //use this to avoid one-data-one-bin (potential over-fitting)
     //constraints: min_data_in_bin > 0
+    //default: 3
     public int min_data_in_bin = DEFAULT_VALUE;
 
     //number of data that sampled to construct feature discrete bins

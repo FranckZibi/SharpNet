@@ -77,13 +77,18 @@ namespace SharpNetTests
             //new NonReg.TestBenchmark().TestGPUBenchmark_Memory();new NonReg.TestBenchmark().TestGPUBenchmark_Speed();
             //new NonReg.TestBenchmark().TestGPUBenchmark_Speed();
             //new NonReg.TestBenchmark().BenchmarkDataAugmentation();
-            
+
             //SharpNet.Datasets.EffiSciences95.EffiSciences95Utils.InferenceUnlabeledEffiSciences95("C:/Projects/Challenges/EffiSciences95/", "F1040C26F7_FULL", true); return;
             //SharpNet.Datasets.EffiSciences95.EffiSciences95Utils.Launch_HPO(30, -1); return;
+            
             //SharpNet.Networks.Transformers.TextTransformersUtils.Run();  return;
+            //SharpNet.Networks.Transformers.MyNameIsGrootUtils.Run();  return;
+
             //SharpNet.Datasets.PlumeLabs88.PlumeLabs88Utils.Run();
             //SharpNet.Datasets.CFM84.CFM84Utils.Run();return;
-            SharpNet.Datasets.Biosonar85.Biosonar85Utils.Run();return;
+            //SharpNet.Datasets.Biosonar85.Biosonar85Utils.Run();return;
+            //SharpNet.Datasets.SNCF89.SNCF89Utils.Run(); return;
+            //SharpNet.Datasets.BNP104.BNP104Utils.Run(); return;
         }
 
 

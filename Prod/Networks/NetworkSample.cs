@@ -50,6 +50,15 @@ namespace SharpNet.Networks
         public Optimizer.OptimizationEnum OptimizerType = Optimizer.OptimizationEnum.VanillaSGD;
 
 
+        #region debugging options
+
+        /// <summary>
+        /// when set to true, will log all forward and backward propagation
+        /// </summary>
+        public bool LogNetworkPropagation { get; set; } = false;
+        #endregion
+
+
         #region Learning Rate Hyper-Parameters
 
         public double InitialLearningRate;

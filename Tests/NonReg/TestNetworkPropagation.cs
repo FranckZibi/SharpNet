@@ -257,7 +257,7 @@ namespace SharpNetTests.NonReg
             network.Sample.WithSGD(momentum, false);
             Debug.Assert(network.Layers.Count == 0);
             network.Input(maxWordsBySentence, -1, -1)
-                .Embedding(new [] { vocabularySize }, new[] { embeddingDim }, new[] { -1 }, 0.0)
+                .Embedding(new [] { vocabularySize }, new[] { embeddingDim }, new[] { -1 }, new[] { 0 }, 0.0)
                 .Flatten()
                 .Dense(1, 0.0, false)
                 .Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID);
@@ -298,7 +298,7 @@ namespace SharpNetTests.NonReg
 
             Debug.Assert(network.Layers.Count == 0);
             network.Input(maxWordsBySentence, -1, -1)
-                .Embedding(new [] { vocabularySize }, new[] { embeddingDim }, new[] { -1 }, 0.0)
+                .Embedding(new [] { vocabularySize }, new[] { embeddingDim }, new[] { -1 }, new[] { 0 }, 0.0)
                 .GlobalAvgPoolingOnHeight()
                 .Dense(4, 0.0, false).Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU)
                 .Dense(1, 0.0, false).Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID);

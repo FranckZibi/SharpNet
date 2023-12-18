@@ -237,6 +237,12 @@ public class WasYouStayWorthItsPriceDatasetSample : AbstractDatasetSample
     public override Objective_enum GetObjective() => Objective_enum.Classification;
     //public override  IScore MinimumScoreToSaveModel => new Score(0.32f, GetRankingEvaluationMetric());
     public override string[] CategoricalFeatures => new [] { "host_2", "host_3", "host_4", "host_5", "property_10", "property_15", "property_4", "property_5", "property_7"};
+
+
+    public override int[] X_Shape(int batchSize) => throw new NotImplementedException(); //!D TODO
+    public override int[] Y_Shape(int batchSize) => throw new NotImplementedException(); //!D TODO
+
+
     public override string IdColumn => "id";
     public override string[] TargetLabels => new[] { "max_rating_class" };
     public override DataSet TestDataset()

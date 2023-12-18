@@ -94,6 +94,7 @@ public class EvaluationMetricAccumulatorForSingleEpoch : IDisposable
             case EvaluationMetricEnum.PearsonCorrelation:
             case EvaluationMetricEnum.SpearmanCorrelation:
             case EvaluationMetricEnum.AUC:
+            case EvaluationMetricEnum.AveragePrecisionScore:
                 return true;
             default:
                 return false;

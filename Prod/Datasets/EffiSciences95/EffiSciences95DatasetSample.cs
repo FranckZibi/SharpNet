@@ -1,5 +1,7 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 // ReSharper disable ConvertToConstant.Global
+// ReSharper disable FieldCanBeMadeReadOnly.Global
 
 namespace SharpNet.Datasets.EffiSciences95;
 
@@ -12,8 +14,6 @@ public class EffiSciences95DatasetSample : AbstractDatasetSample
     #region Hyper-Parameters
     public int MinEnlargeForBox = 0;
     public int MaxEnlargeForBox = 3;
-    public bool EnlargeOldBoxToYoungBoxShape = true;
-    public bool AddNewBoxOfOtherCategory = false;
     #endregion
 
     public EffiSciences95DatasetSample() : base(new HashSet<string>())
@@ -31,6 +31,9 @@ public class EffiSciences95DatasetSample : AbstractDatasetSample
         return EffiSciences95Utils.Shape_CHW;
     }
 
+    public override int[] X_Shape(int batchSize) => throw new NotImplementedException(); //!D TODO
+    public override int[] Y_Shape(int batchSize) => throw new NotImplementedException(); //!D TODO
+
     public override int NumClass => TargetLabelDistinctValues.Length;
     public override string[] TargetLabelDistinctValues => new[] {"old" , "young"};
 
@@ -39,7 +42,6 @@ public class EffiSciences95DatasetSample : AbstractDatasetSample
         if (_lazyTestDataset == null || _lazyFullTrainingAndValidation.Disposed)
         {
             _lazyTestDataset = null;
-            //_LazyTestDataset = EffiSciences95DirectoryDataSet.ValueOf(false);
         }
         return _lazyTestDataset;
     }
@@ -63,20 +65,7 @@ public class EffiSciences95DatasetSample : AbstractDatasetSample
         {
             return false;
         }
-
-        if (!EnlargeOldBoxToYoungBoxShape && !AddNewBoxOfOtherCategory)
-        {
-            if (Utils.RandomCoinFlip())
-            {
-                EnlargeOldBoxToYoungBoxShape = true;
-                AddNewBoxOfOtherCategory = false;
-            }
-            else
-            {
-                EnlargeOldBoxToYoungBoxShape = false;
-                AddNewBoxOfOtherCategory = true;
-            }
-        }
+       
         return true;
     }
 

@@ -60,7 +60,7 @@ namespace SharpNet.Datasets
             if (xBuffer != null)
             {
                 Debug.Assert(indexInBuffer >= 0 && indexInBuffer < xBuffer.Shape[0]);
-                Debug.Assert(xBuffer.SameShapeExceptFirstDimension(X_Shape));
+                Debug.Assert(xBuffer.SameShapeExceptFirstDimension(X_Shape(Count)));
                 Debug.Assert(yBuffer == null || xBuffer.Shape[0] == yBuffer.Shape[0]); //same batch size
                 Debug.Assert(yBuffer == null || yBuffer.SameShapeExceptFirstDimension(_yUnivariateTimeSeriesDataSet.Shape));
                 var xSrc = _univariateTimeSeries.Span.Slice(elementId*_stride, xBuffer.MultDim0);
@@ -97,17 +97,13 @@ namespace SharpNet.Datasets
 
         }
 
-        public override int[] Y_Shape()
-        {
-            return _yUnivariateTimeSeriesDataSet.Shape;
-        }
+        public override int[] X_Shape(int batchSize) => new[] { batchSize, _timeSteps, 1 };
+        public override int[] Y_Shape(int batchSize) => Utils.CloneShapeWithNewCount(_yUnivariateTimeSeriesDataSet.Shape, batchSize);
 
         public override CpuTensor<float> LoadFullY()
         {
             return _yUnivariateTimeSeriesDataSet;
         }
-
-        private int[] X_Shape => new []{Count, _timeSteps, 1};
 
         public override string ToString()
         {

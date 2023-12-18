@@ -97,10 +97,8 @@ namespace SharpNet.Datasets
             }
         }
 
-        public override int[] Y_Shape()
-        {
-            return new[] { Count, NumClass };
-        }
+        public override int[] X_Shape(int batchSize) => throw new NotImplementedException(); //!D TODO
+        public override int[] Y_Shape(int batchSize) =>new[] { batchSize, NumClass };
 
         public override int ElementIdToCategoryIndex(int elementId)
         {

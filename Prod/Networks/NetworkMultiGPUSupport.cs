@@ -39,7 +39,7 @@ namespace SharpNet.Networks
         /// if current network is a master network:
         ///     null
         /// </summary>
-        private readonly Network _masterNetworkIfAny;
+        private readonly Network MasterNetworkIfAny;
         /// <summary>
         /// Tensor x_miniBatch_cpu_slave,
         /// Tensor yExpected_miniBatch_cpu_slave,
@@ -51,7 +51,7 @@ namespace SharpNet.Networks
         private Tensor _yPredicted_miniBatch_slave;
         #endregion
 
-        public bool IsMaster => _masterNetworkIfAny == null;
+        public bool IsMaster => MasterNetworkIfAny == null;
 
         private enum SLAVE_NETWORK_STATUS
         {
@@ -155,7 +155,7 @@ namespace SharpNet.Networks
                 {
                     return 1 + _slaveNetworks.Count;
                 }
-                return _masterNetworkIfAny.DegreeOfParallelism;
+                return MasterNetworkIfAny.DegreeOfParallelism;
             }
         }
         private void AddGradientFromSlaveNetwork(Network slave)
@@ -246,13 +246,13 @@ namespace SharpNet.Networks
             Debug.Assert(!all_x_miniBatch_cpu_slave[0].UseGPU);
             Debug.Assert(!yExpected_miniBatch_cpu_slave.UseGPU);
             Debug.Assert(yPredicted_miniBatch_master.UseGPU == UseGPU);
-            Debug.Assert(_masterNetworkIfAny._compactedParametersIfAny != null);
+            Debug.Assert(MasterNetworkIfAny._compactedParametersIfAny != null);
             Debug.Assert(_compactedParametersIfAny != null);
 
             //TODO try to do this copy in the master network and not in the slave network
             //We copy the weights from the master network to the slave network
             StartTimer("CopyWeights_Master2Slave", isTraining ? ForwardPropagationTrainingTime : ForwardPropagationInferenceTime);
-            _masterNetworkIfAny._compactedParametersIfAny.CopyTo(_compactedParametersIfAny);
+            MasterNetworkIfAny._compactedParametersIfAny.CopyTo(_compactedParametersIfAny);
             StopTimer("CopyWeights_Master2Slave", isTraining ? ForwardPropagationTrainingTime : ForwardPropagationInferenceTime);
 
             //we initialize '_xMiniBatch' & '_yExpected_miniBatch_slave'

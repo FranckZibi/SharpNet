@@ -100,10 +100,8 @@ public class TensorListDataSet : DataSet
         return _yInMemoryDataSet;
     }
 
-    public override int[] Y_Shape()
-    {
-        return _yInMemoryDataSet?.Shape;
-    }
+    public override int[] X_Shape(int batchSize) => throw new NotImplementedException(); //!D TODO
+    public override int[] Y_Shape(int batchSize) => Utils.CloneShapeWithNewCount(_yInMemoryDataSet?.Shape, batchSize);
 
     public override int Count => _xList.Count;
 

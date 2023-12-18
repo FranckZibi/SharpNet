@@ -674,6 +674,10 @@ public sealed class DataFrame
     /// <exception cref="ArgumentException"></exception>
     public void RenameInPlace(string originalColumnName, string newColumnName)
     {
+        if (originalColumnName == newColumnName)
+        {
+            return;
+        }
         if (!Columns.Contains(originalColumnName) || Columns.Contains(newColumnName))
         {
             throw new ArgumentException($"can't rename column {originalColumnName} to {newColumnName} because of existing columns {string.Join(' ', Columns)}");
@@ -972,7 +976,13 @@ public sealed class DataFrame
         {
             Directory.CreateDirectory(directory);
         }
-        File.WriteAllText(path + ".tmp", addHeader ? string.Join(sep, Columns) : "");
+
+        var header = string.Join(sep, Columns);
+        if (index.HasValue)
+        {
+            header = "index" + sep + header;
+        }
+        File.WriteAllText(path + ".tmp", addHeader ? header : "");
         var sbBuffer = new StringBuilder();
 
         // initialize the StringBuilder buffer at buffer[row - index_of_first_element_in_buffer]

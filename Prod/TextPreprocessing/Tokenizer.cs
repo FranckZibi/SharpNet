@@ -341,6 +341,10 @@ namespace SharpNet.TextPreprocessing
                     {
                         _wordToWordIndex[_oovToken] = newWordIndex++; // the word index of oov token will always be 1
                     }
+
+                    //!D var sentence = new List<string>{ "my", "name", "is", "groot" }; 
+                    //!D foreach (var e in _wordToWordCount.OrderBy(e => sentence.IndexOf(e.Key)))
+
                     foreach (var e in _wordToWordCount.OrderByDescending(e => e.Value))
                     {
                         _wordToWordIndex[e.Key] = newWordIndex++;

@@ -34,12 +34,6 @@ namespace SharpNet.Networks
         }
 
         /// <summary>
-        /// when set to true, will log all forward and backward propagation
-        /// </summary>
-        // ReSharper disable once MemberCanBePrivate.Global
-        public bool LogPropagation { get; set; }
-
-        /// <summary>
         /// = ForwardPropagation
         /// </summary>
         /// <param name="allXForInputLayers">for each InputLayer in the Network, the associate input of this Input Layer</param>
@@ -103,7 +97,7 @@ namespace SharpNet.Networks
                 }
 
 
-                if (LogPropagation)
+                if (layer.GetNetwork().Sample.LogNetworkPropagation)
                 {
                     layer.LogDebug(Environment.NewLine+ "--------------------------------------------------------------------"
                                    + Environment.NewLine + "Forward: "
@@ -209,7 +203,7 @@ namespace SharpNet.Networks
                 //computes 'dx' and weight gradients of current layer
                 layer.BackwardPropagation(allX, y, dy, dxBuffer);
 
-                if (LogPropagation)
+                if (layer.GetNetwork().Sample.LogNetworkPropagation)
                 {
                     layer.LogDebug("backward: "+layer);
                     if (layer.WeightGradients != null)

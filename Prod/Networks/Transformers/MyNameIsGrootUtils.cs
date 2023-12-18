@@ -11,34 +11,30 @@ using SharpNet.HyperParameters;
 
 namespace SharpNet.Networks.Transformers;
 
-public static class TextTransformersUtils
+public static class MyNameIsGrootUtils
 {
-    private const string NAME = "TextTransformers";
+    public const string NAME = "MyNameIsGroot";
 
 
     #region public fields & properties
-    private static readonly ILog Log = LogManager.GetLogger(typeof(TextTransformersUtils));
+    private static readonly ILog Log = LogManager.GetLogger(typeof(MyNameIsGrootUtils));
     #endregion
 
     public static string WorkingDirectory => Path.Combine(Utils.ChallengesPath, NAME);
-    private static string DataDirectory => Path.Combine(WorkingDirectory, "Data");
-    // ReSharper disable once MemberCanBePrivate.Global
 
-    //public static string XTrainPath => Path.Combine(DataDirectory, "input_gpt_dev.txt");
-    public static string XTrainPath => Path.Combine(DataDirectory, "victor_hugo_v1.txt");
 
     private static string GenerateText(Network nn, int textLength, double maxAllowedError)
     {
         var outputShape = nn.YPredicted_MiniBatch_Shape(1);
         var max_length = outputShape[1];
         var vocab_size = outputShape[2];
-        var datasetSample = new CharLevelTransformersDatasetSample() { max_length = max_length, vocab_size = vocab_size };
+        var datasetSample = new MyNameIsGrootDatasetSample() { max_length = max_length, vocab_size = vocab_size };
         var tokenizer = datasetSample.GetTokenizer();
 
         var xInputSingleRow = new CpuTensor<float>(new[] { 1, max_length});
         var xInputSingleRowSpan = xInputSingleRow.SpanContent;
 
-        var fulltext = datasetSample.GetText(-1);
+        var fulltext = datasetSample.GetText();
         var r = new Random();
         int randomStartIdx = r.Next(fulltext.Length/2 - max_length-1);
 
@@ -103,8 +99,56 @@ public static class TextTransformersUtils
 
         //CharLevelTransformerInference();
         //Retrain();
-        LaunchNeuralNetworkHPO(1);
+        //LaunchNeuralNetworkHPO(1);
         //SpeedTest();
+        PredictNextWord("97B423C404", "my name is", 1, 0.0);
+        //PredictNextWord("97B423C404", "groot is my", 50, 0.0);
+    }
+
+    private static string PredictNextWord(string networkName, string startingText, int nbTokenToPredictAfterText,double maxAllowedError)
+    {
+        using var nn = Network.LoadTrainedNetworkModel(WorkingDirectory, networkName);
+        nn.Sample.LogNetworkPropagation = true;
+        //nn.Sample.SetResourceId(-1);
+        var datasetSample = (MyNameIsGrootDatasetSample)ModelAndDatasetPredictionsSample.LoadDatasetSample(WorkingDirectory, networkName);
+        var max_length = datasetSample.max_length;
+        var tokenizer = datasetSample.GetTokenizer();
+
+        var xInputSingleRow = new CpuTensor<float>(new[] { 1, max_length });
+        var xInputSingleRowSpan = xInputSingleRow.SpanContent;
+
+        Log.Info($"Starting text = {startingText}");
+        var r = new Random();
+
+        List<int> startingTextSequence = tokenizer.TextsToSequences(new[] { startingText })[0].ToList();
+
+        int[] newSequence = new int[max_length + nbTokenToPredictAfterText];
+        int idxFromStartingText = startingTextSequence.Count-1;
+        for (int j = max_length-1; j >=0; --j)
+        {
+            newSequence[j] = (idxFromStartingText>=0)?startingTextSequence[idxFromStartingText--] :0;
+        }
+
+        int nextIndexToGenerate = max_length;
+        while (nextIndexToGenerate < newSequence.Length)
+        {
+            //we know the sequence newSequence[nextIndexToGenerate-max_length] to newSequence[nextIndexToGenerate-1]
+            //we want to compute next sequence item at position newSequence[nextIndexToGenerate]
+
+            for (int i = 0; i < max_length; i++)
+            {
+                xInputSingleRowSpan[i] = newSequence[nextIndexToGenerate - max_length + i];
+            }
+
+            var prediction = nn.Predict(xInputSingleRow, false);
+            var proba = prediction.ContentAsFloatArray();
+            var indexNextToken = GetIndexPrediction(proba, r, maxAllowedError);
+            newSequence[nextIndexToGenerate] = indexNextToken;
+            ++nextIndexToGenerate;
+        }
+        var generateText = tokenizer.SequenceToText(newSequence.Skip(max_length));
+        Log.Info($"Generated text = {generateText}");
+        return generateText;
     }
 
     public static void CharLevelTransformerInference()
@@ -140,48 +184,62 @@ public static class TextTransformersUtils
             //related to Dataset
             //{"MaxCharacterLengthForTraining", 1000 },
             //{ "KFold", 3 },
-            {nameof(AbstractDatasetSample.PercentageInTraining), new[]{0.9}},
+            {nameof(AbstractDatasetSample.PercentageInTraining), new[]{0.5}},
+            {nameof(AbstractDatasetSample.ShuffleDatasetBeforeSplit), true},
 
             //related to model
-            {nameof(NetworkSample.LossFunction), nameof(EvaluationMetricEnum.SparseCategoricalCrossentropy)},
-            {nameof(NetworkSample.EvaluationMetrics), nameof(EvaluationMetricEnum.SparseAccuracy)},
+            //{nameof(NetworkSample.LossFunction), nameof(EvaluationMetricEnum.SparseCategoricalCrossentropy)},
+            //{nameof(NetworkSample.EvaluationMetrics), nameof(EvaluationMetricEnum.SparseAccuracy)},
+            {nameof(NetworkSample.LossFunction), nameof(EvaluationMetricEnum.CategoricalCrossentropy)},
+            {nameof(NetworkSample.EvaluationMetrics), nameof(EvaluationMetricEnum.Accuracy)},
             {nameof(NetworkSample.CompatibilityMode), "TensorFlow"},
-            {"max_length", new[]{256 } },
-            {"embedding_dim", new[]{384} },
+            {"max_length", new[]{3} },
+            
+            {"embedding_dim", new[]{2} },
+            
+
             //{"max_length", 256},
             //{"embedding_dim", 384},
             //{"max_length", 256},
             //{"embedding_dim", 64},
             //{"layer_norm_epsilon", new[]{1e-5, 1e-6 } },
-            {"encoder_num_transformer_blocks", new[]{4 /*,6*/ } },
-            {"encoder_num_heads", new[]{1,4,8} },
+            {"encoder_num_transformer_blocks", new[]{1 /*,6*/ } },
+            {"encoder_num_heads", new[]{1} },
             {"encoder_mha_use_bias_Q_V_K", false},
-            {"encoder_mha_use_bias_O", new[]{true,false } },
-            {"encoder_mha_dropout", new[]{0.2f,0f ,0.1f} },
-            {"encoder_feed_forward_dim", 4*64},
-            {"encoder_feed_forward_dropout", new[]{0.2f,0f,0.1f }},
+            //{"encoder_mha_use_bias_O", new[]{true,false } },
+            //{"encoder_mha_dropout", new[]{0.2f,0f ,0.1f} },
+
+            
+            //{"encoder_add_layer_norm_before_mha", false},
+
+            {"encoder_feed_forward_dim", 1},
+            //{"encoder_feed_forward_dropout", new[]{0.2f,0f,0.1f }},
             {"encoder_use_causal_mask", true},
-            //{"vocab_size", 58},   //shakespeare
-            {"vocab_size", 81},     // victor hugo 
+            {"vocab_size", 4},
             // Optimizer 
             { nameof(NetworkSample.OptimizerType), "AdamW" },
             //{ nameof(NetworkSample.AdamW_L2Regularization), 0.01},
             // Learning Rate
-            { nameof(NetworkSample.InitialLearningRate), new[]{ 0.01 /*,0.05,0.001*/ } },
+            { nameof(NetworkSample.InitialLearningRate), new[]{0.05} },
             // Learning Rate Scheduler
             //{ nameof(NetworkSample.LearningRateSchedulerType), new[] { "CyclicCosineAnnealing", "OneCycle", "Linear" } },
-            { nameof(NetworkSample.LearningRateSchedulerType), "CyclicCosineAnnealing"},
+            { nameof(NetworkSample.LearningRateSchedulerType), "Constant"},
             //{ nameof(NetworkSample.LearningRateSchedulerType), "Constant"},
-            { nameof(NetworkSample.BatchSize), new[]{64 } },
+            { nameof(NetworkSample.BatchSize), new[]{256} },
             { nameof(NetworkSample.NumEpochs), numEpochs },
             
 
         };
 
-        //var hpo = new BayesianSearchHPO(searchSpace, () => ModelAndDatasetPredictionsSample.New(new TransformerNetworkSample(), new CharLevelTransformersDatasetSample()), WorkingDirectory);
-        var hpo = new RandomSearchHPO(searchSpace, () => ModelAndDatasetPredictionsSample.New(new TransformerNetworkSample(), new CharLevelTransformersDatasetSample()), WorkingDirectory);
+        var hpo = new RandomSearchHPO(searchSpace, () => ModelAndDatasetPredictionsSample.New(GetModelSample(), new MyNameIsGrootDatasetSample()), WorkingDirectory);
         IScore bestScoreSoFar = null;
         hpo.Process(t => SampleUtils.TrainWithHyperParameters((ModelAndDatasetPredictionsSample)t, WorkingDirectory, false, ref bestScoreSoFar), maxAllowedSecondsForAllComputation);
     }
 
+    private static TransformerNetworkSample GetModelSample()
+    {
+        var res = new TransformerNetworkSample();
+        //res.SetResourceId(-1); //CPU
+        return res;
+    }
 }

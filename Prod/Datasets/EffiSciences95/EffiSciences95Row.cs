@@ -2,6 +2,7 @@
 using System.Drawing;
 using System.Globalization;
 using System.Linq;
+// ReSharper disable InconsistentNaming
 
 namespace SharpNet.Datasets.EffiSciences95;
 
@@ -13,61 +14,60 @@ public class EffiSciences95Row
         return ComputeYoungProba() > ComputeOldProba() ? "y?" : "o?";
     }
 
-    //public static readonly double[] default_hpo = new [] { 2, 1.6, 0.5, 0.67, 2.1, 0.67, 2.25, 0.5, 0.67, 0.67, 0.67, };
-    public static readonly double[] default_hpo = new[] { 2, 1.647, 0.517, 0.717, 2.086, 0.67, 2.613, 0.519, 0.67, 0.602, 0.802};
+    public static readonly double[] DefaultHyperParameters = { 2, 1.647, 0.517, 0.717, 2.086, 0.67, 2.613, 0.519, 0.67, 0.602, 0.802};
 
-    public double ComputeYoungProba(double[] hpo = null)
+    public double ComputeYoungProba(double[] hyperParameters = null)
     {
-        hpo = hpo ?? default_hpo;
+        hyperParameters ??= DefaultHyperParameters;
         var scale = Scale;
         var dens = DescDensity.Split("_").Select(e=> double.Parse(e, CultureInfo.InvariantCulture)).ToArray();
          var (a, b, c, d) = (dens[0],dens[1],dens[2],dens[3]);
          var proba = 1.0;
-         if (scale < hpo[0])
+         if (scale < hyperParameters[0])
          {
              proba *= scale / 2;
          }
-         if (scale < hpo[1])
+         if (scale < hyperParameters[1])
          {
-             proba *= hpo[2];
+             proba *= hyperParameters[2];
          }
          if (a < c)
          {
-             proba *= hpo[3];
+             proba *= hyperParameters[3];
          }
          if (b < d)
          {
-             proba *= hpo[3];
+             proba *= hyperParameters[3];
          }
          return proba;
     }
 
-    public double ComputeOldProba(double[] hpo = null)
+    public double ComputeOldProba(double[] hyperParameters = null)
     {
-        hpo = hpo ?? default_hpo;
+        hyperParameters ??= DefaultHyperParameters;
         var scale = Scale;
         var dens = DescDensity.Split("_").Select(e => double.Parse(e, CultureInfo.InvariantCulture)).ToArray();
         var (a, b, c, d) = (dens[0], dens[1], dens[2], dens[3]);
         var proba = 1.0;
-        if (scale > hpo[4])
+        if (scale > hyperParameters[4])
         {
-            proba *= hpo[5];
-            if (scale > hpo[6])
+            proba *= hyperParameters[5];
+            if (scale > hyperParameters[6])
             {
-                proba *= hpo[7];
+                proba *= hyperParameters[7];
             }
         }
         if (a > b)
         {
-            proba *= hpo[8];
+            proba *= hyperParameters[8];
         }
         if (a > c)
         {
-            proba *= hpo[9];
+            proba *= hyperParameters[9];
         }
         if (b > d)
         {
-            proba *= hpo[10];
+            proba *= hyperParameters[10];
         }
 
         return proba;
@@ -98,35 +98,23 @@ public class EffiSciences95Row
         this.Date = date ?? DateTime.Now.ToString(EffiSciences95BoxesDataset.dateTimeFormat);
     }
 
-    public string FileSuffix
-    {
-        get
-        {
-            var rect = Shape;
-            return rect.Height + "x" + rect.Width
-                   + "_" + (100 * ConfidenceLevel)
-                   + "_" + DescDensity;
-        }
-    }
-
-    public int No;
+    public readonly int No;
     public string Label;
-    public int Col_start;
-    public int Row_start;
-    public int Width;
-    public int Height;
-    public double Scale;
-    public double Density;
-    public string DescDensity;
-    public string FreeText;
-    public double ConfidenceLevel;
-    public string Document;
-    public string Date;
+    private readonly int Col_start;
+    private readonly int Row_start;
+    public readonly int Width;
+    public readonly int Height;
+    private readonly double Scale;
+    private readonly double Density;
+    private readonly string DescDensity;
+    private readonly string FreeText;
+    public readonly double ConfidenceLevel;
+    public readonly string Document;
+    private readonly string Date;
 
     public override string ToString()
     {
-        return No + ";" + Label + ";" + +Col_start + ";" + Row_start + ";" + Width + ";" + Height 
-               + ";" + Scale + ";" + Density + ";" + DescDensity + ";" + FreeText + ";" + ConfidenceLevel + ";" + Document + ";" + Date;
+        return No + ";" + Label + ";" + +Col_start + ";" + Row_start + ";" + Width + ";" + Height + ";" + Scale + ";" + Density + ";" + DescDensity + ";" + FreeText + ";" + ConfidenceLevel + ";" + Document + ";" + Date;
     }
 
     public static EffiSciences95Row ValueOfLine(string line)
@@ -136,7 +124,7 @@ public class EffiSciences95Row
             return null;
         }
         var splitted = line.Split(";");
-        if (splitted.Count() != 13)
+        if (splitted.Length != 13)
         {
             throw new Exception($"invalid line {line}");
         }
@@ -162,7 +150,7 @@ public class EffiSciences95Row
     public Rectangle Shape => new (Col_start, Row_start, Width, Height);
 
     public bool HasBeenValidated => Label == "y" || Label == "o";
-    public bool HasBeenDiscarded => Label == "e";
+    private bool HasBeenDiscarded => Label == "e";
 
 
     public bool IsClearlyBetterThan(EffiSciences95Row other)

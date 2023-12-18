@@ -1,7 +1,4 @@
 ﻿using System;
-using System.Diagnostics;
-using System.Linq;
-using System.Xml;
 
 namespace SharpNet.ObjectDetection
 {
@@ -42,21 +39,6 @@ namespace SharpNet.ObjectDetection
         public BoundingBox UpSampling(double rowFactor, double colFactor)
         {
             return new BoundingBox(colFactor*_colCenter, rowFactor*_rowCenter, colFactor*_width, rowFactor*_height);
-        }
-        public static BoundingBox FromPascalVOC(XmlNode node, int imageHeight, int imageWidth)
-        {
-            Debug.Assert(imageHeight >= 1);
-            Debug.Assert(imageWidth >= 1);
-            int colStart = Utils.GetInt(node, "xmin", -1);
-            int colEnd = Utils.GetInt(node, "xmax", -1);
-            int rowStart = Utils.GetInt(node, "ymin", -1);
-            int rowEnd = Utils.GetInt(node, "ymax", -1);
-            Debug.Assert(new[] { colStart, colEnd, rowStart, rowEnd }.Min() >= 0);
-            var colCenter = (colEnd + colStart + 1.0) / (2.0 * imageWidth);
-            var rowCenter = (rowEnd + rowStart + 1.0) / (2.0 * imageHeight);
-            var width = (colEnd - colStart + 1.0) / imageWidth;
-            var height = (rowEnd - rowStart + 1.0) / (2.0 * imageHeight);
-            return new BoundingBox(colCenter, rowCenter, width, height);
         }
         public double Intersection(BoundingBox other)
         {

@@ -219,6 +219,8 @@ public class CFM60DatasetSample : DatasetSampleForTimeSeries
     public bool Use_EndOfTrimester_flag = true;  //validated on 19-jan-2021: -0.0501 (with other changes)
     #endregion
 
+    public override int[] X_Shape(int batchSize) => throw new NotImplementedException(); //!D TODO
+    public override int[] Y_Shape(int batchSize) => throw new NotImplementedException(); //!D TODO
 
 
     /// <summary>

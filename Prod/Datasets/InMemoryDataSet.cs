@@ -34,6 +34,7 @@ public class InMemoryDataSet : DataSet
             idColumn, 
             separator)
     {
+        Debug.Assert(x != null);
         Debug.Assert(y==null || AreCompatible_X_Y(x, y));
         //Debug.Assert(x.Shape[1] == columnNames.Length);
 
@@ -90,10 +91,8 @@ public class InMemoryDataSet : DataSet
         return _yInMemoryDataSet;
     }
 
-    public override int[] Y_Shape()
-    {
-        return _yInMemoryDataSet?.Shape;
-    }
+    public override int[] X_Shape(int batchSize) => Utils.CloneShapeWithNewCount(_x.Shape, batchSize);
+    public override int[] Y_Shape(int batchSize) => Utils.CloneShapeWithNewCount(_yInMemoryDataSet?.Shape, batchSize);
 
     public override int Count => _x.Shape[0];
 

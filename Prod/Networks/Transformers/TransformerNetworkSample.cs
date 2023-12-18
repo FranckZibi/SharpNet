@@ -111,7 +111,7 @@ public class TransformerNetworkSample : NetworkSample
                 }
                 int timeSteps = inputShape[0];
                 nn.Input(timeSteps, -1, -1);
-                nn.Embedding(new[] { datasetSample.NumClass }, new[] { embedding_dim }, new[] { -1 }, 0.0);
+                nn.Embedding(new[] { datasetSample.NumClass }, new[] { embedding_dim }, new[] { -1 }, new[] { 0 }, 0.0);
             }
             else
             {

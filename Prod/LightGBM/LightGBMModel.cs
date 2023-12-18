@@ -71,11 +71,11 @@ namespace SharpNet.LightGBM
                 {nameof(LightGbmSample.is_provide_training_metric), true},
             });
 
-            tmpLightGBMSample.AddExtraMetricToComputeForTraining();
             tmpLightGBMSample.Save(tmpLightGBMSamplePath);
             LogForModel($"Training model '{ModelName}' with training dataset '{Path.GetFileNameWithoutExtension(train_XYDatasetPath_InModelFormat)}" + (string.IsNullOrEmpty(validation_XYDatasetPath_InModelFormat) ? "" : $" and validation dataset {Path.GetFileNameWithoutExtension(validation_XYDatasetPath_InModelFormat)}'"));
             var linesFromLog = Utils.Launch(WorkingDirectory, ExePath, "config=" + tmpLightGBMSamplePath, Log, true);
             var (trainLossIfAvailable, validationLossIfAvailable, trainRankingMetricIfAvailable, validationRankingMetricIfAvailable) = tmpLightGBMSample.ExtractScores(linesFromLog);
+            //(IScore trainLossIfAvailable, IScore validationLossIfAvailable, IScore trainRankingMetricIfAvailable, IScore validationRankingMetricIfAvailable) = (null, null, null, null);
 
             Utils.TryDelete(tmpLightGBMSamplePath);
 
@@ -105,6 +105,7 @@ namespace SharpNet.LightGBM
                 }
                 var columns = Utils.ReadCsv(datasetPath).First();
                 columns = Utils.Without(columns, datasetSample.IdColumn).ToArray();
+                columns = Utils.Without(columns, "y").ToArray();
                 columns = Utils.Without(columns, datasetSample.TargetLabels).ToArray();
 
                 var contribPath = Path.Combine(TempPath, ModelName + "_contrib_" + Path.GetFileNameWithoutExtension(datasetPath) + ".txt");

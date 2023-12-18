@@ -1106,6 +1106,17 @@ namespace SharpNet.Data
         }
         #endregion
 
+        #region AveragePrecisionScore
+        public abstract void ComputeAveragePrecisionScoreBuffer([NotNull] Tensor yExpected, [NotNull] Tensor yPredicted);
+        public double ComputeAveragePrecisionScore(Tensor yExpectedSparse, Tensor yPredicted)
+        {
+            var buffer = this;
+            Debug.Assert(buffer.Count == 1);
+            ComputeLossBufferForEvaluationMetric(yExpectedSparse, yPredicted, EvaluationMetricEnum.AveragePrecisionScore, null);
+            return buffer.ContentAsFloatArray()[0];
+        }
+        #endregion
+
         // ReSharper disable once UnusedParameter.Global
         private double BufferToEvaluationMetric(EvaluationMetricEnum evaluationMetric, int elementCountInBuffer)
         {
@@ -1188,6 +1199,9 @@ namespace SharpNet.Data
                 case EvaluationMetricEnum.AUC:
                     buffer.ComputeAUCBuffer(yExpected, yPredicted);
                     return;
+                case EvaluationMetricEnum.AveragePrecisionScore:
+                    buffer.ComputeAveragePrecisionScoreBuffer(yExpected, yPredicted);
+                    return;
                 case EvaluationMetricEnum.AccuracyCategoricalCrossentropyWithHierarchy:
                     buffer.ComputeAccuracyCategoricalCrossentropyWithHierarchyBuffer(yExpected, yPredicted);
                     return;
@@ -1236,6 +1250,10 @@ namespace SharpNet.Data
         public int[] ComputeMetricBufferShape(EvaluationMetricEnum metricEnum)
         {
             if (metricEnum == EvaluationMetricEnum.AUC)
+            {
+                return new[] { 1 };
+            }
+            if (metricEnum == EvaluationMetricEnum.AveragePrecisionScore)
             {
                 return new[] { 1 };
             }

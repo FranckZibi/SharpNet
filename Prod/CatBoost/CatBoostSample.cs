@@ -37,9 +37,7 @@ public class CatBoostSample : AbstractModelSample
         var validationValue = extractedScores[use_best_model ? 2 : 1];
         var trainLossIfAvailable = double.IsNaN(trainValue) ? null : new Score((float)trainValue, GetLoss());
         var validationLossIfAvailable = double.IsNaN(validationValue) ? null : new Score((float)validationValue, GetLoss());
-        IScore trainRankingMetricIfAvailable = null;
-        IScore validationRankingMetricIfAvailable = null;
-        return (trainLossIfAvailable, validationLossIfAvailable, trainRankingMetricIfAvailable, validationRankingMetricIfAvailable);
+        return (trainLossIfAvailable, validationLossIfAvailable, null, null);
     }
     #region Common parameters
 
@@ -50,7 +48,7 @@ public class CatBoostSample : AbstractModelSample
     public enum loss_function_enum { RMSE, Logloss, MAE, CrossEntropy, Quantile, LogLinQuantile, Lq, MultiRMSE, MultiClass, MultiClassOneVsAll, MultiLogloss, MultiCrossEntropy, MAPE, Poisson, PairLogit, PairLogitPairwise, QueryRMSE, QuerySoftMax, Tweedie, YetiRank, YetiRankPairwise, StochasticFilter, StochasticRank, DEFAULT_VALUE = AbstractSample.DEFAULT_VALUE}
     public loss_function_enum loss_function = loss_function_enum.DEFAULT_VALUE;
 
-    public enum metric_enum { RMSE, Logloss, MAE, CrossEntropy, Quantile, LogLinQuantile, Lq, MultiClass, MultiClassOneVsAll, ultiLogloss, MultiCrossEntropy, MAPE, Poisson, PairLogit, PairLogitPairwise, QueryRMSE, QuerySoftMax, Tweedie, SMAPE, Recall, Precision, F1, TotalF1, Accuracy, BalancedAccuracy, BalancedErrorRate, Kappa, WKappa, LogLikelihoodOfPrediction, AUC, QueryAUC, R2, FairLoss, NumErrors, MCC, BrierScore, HingeLoss, HammingLoss, ZeroOneLoss, MSLE, edianAbsoluteError, Huber, Expectile, MultiRMSE, PairAccuracy, AverageGain, PFound, NDCG, DCG, FilteredDCG, NormalizedGini, PrecisionAt, RecallAt, MAP, CtrFactor, DEFAULT_VALUE = AbstractSample.DEFAULT_VALUE } 
+    public enum metric_enum { RMSE, Logloss, MAE, CrossEntropy, Quantile, LogLinQuantile, Lq, MultiClass, MultiClassOneVsAll, ultiLogloss, MultiCrossEntropy, MAPE, Poisson, PairLogit, PairLogitPairwise, QueryRMSE, QuerySoftMax, Tweedie, SMAPE, Recall, Precision, F1, TotalF1, Accuracy, BalancedAccuracy, BalancedErrorRate, Kappa, WKappa, LogLikelihoodOfPrediction, AUC, PRAUC, QueryAUC, R2, FairLoss, NumErrors, MCC, BrierScore, HingeLoss, HammingLoss, ZeroOneLoss, MSLE, edianAbsoluteError, Huber, Expectile, MultiRMSE, PairAccuracy, AverageGain, PFound, NDCG, DCG, FilteredDCG, NormalizedGini, PrecisionAt, RecallAt, MAP, CtrFactor, DEFAULT_VALUE = AbstractSample.DEFAULT_VALUE } 
     public metric_enum eval_metric = metric_enum.DEFAULT_VALUE;
 
     /// <summary>
@@ -317,10 +315,10 @@ public class CatBoostSample : AbstractModelSample
             diffusion_temperature = DEFAULT_VALUE;
         }
 
-        if (loss_function == loss_function_enum.DEFAULT_VALUE)
-        {
-            throw new ArgumentException("loss_function must always be specified");
-        }
+        //if (loss_function == loss_function_enum.DEFAULT_VALUE)
+        //{
+        //    throw new ArgumentException("loss_function must always be specified");
+        //}
         if (eval_metric == metric_enum.DEFAULT_VALUE)
         {
             SetRankingEvaluationMetric(GetLoss());
@@ -359,6 +357,8 @@ public class CatBoostSample : AbstractModelSample
                 return EvaluationMetricEnum.CategoricalCrossentropy;
             case metric_enum.Accuracy:
                 return EvaluationMetricEnum.Accuracy;
+            case metric_enum.PRAUC:
+                return EvaluationMetricEnum.AveragePrecisionScore;
             default:
                 throw new NotImplementedException($"can't manage {nameof(eval_metric)} {eval_metric}");
         }
@@ -384,6 +384,9 @@ public class CatBoostSample : AbstractModelSample
                 return;
             case EvaluationMetricEnum.CategoricalCrossentropy:
                 eval_metric = metric_enum.MultiClass;
+                return;
+            case EvaluationMetricEnum.AveragePrecisionScore:
+                eval_metric = metric_enum.PRAUC;
                 return;
             default:
                 throw new NotImplementedException($"can't set {nameof(eval_metric)} {rankingEvaluationMetric}");

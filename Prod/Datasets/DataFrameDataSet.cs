@@ -73,10 +73,10 @@ public class DataFrameDataSet : DataSet
             yDataFrameDataSet.CopyTo(yDataFrameDataSet.Idx(elementId), yBuffer, yBuffer.Idx(indexInBuffer), yBuffer.MultDim0);
         }
     }
-    public override int[] Y_Shape()
-    {
-        return yDataFrameDataSet?.Shape;
-    }
+
+    public override int[] X_Shape(int batchSize) => Utils.CloneShapeWithNewCount(_x.Shape, batchSize);
+    public override int[] Y_Shape(int batchSize) => Utils.CloneShapeWithNewCount(yDataFrameDataSet?.Shape, batchSize);
+
     public override CpuTensor<float> LoadFullY()
     {
         return yDataFrameDataSet;

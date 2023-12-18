@@ -294,6 +294,10 @@ public class KaggleDaysDatasetSample : AbstractDatasetSample
     public override string[] TargetLabelDistinctValues => new[] { "y" };
     public override Objective_enum GetObjective() => Objective_enum.Classification;
     public override string[] CategoricalFeatures => new[] { "channel_grouping", "country", "region", "device_category", "category", "name", "market" };
+
+    public override int[] X_Shape(int batchSize) => throw new NotImplementedException(); //!D TODO
+    public override int[] Y_Shape(int batchSize) => throw new NotImplementedException(); //!D TODO
+
     public override string IdColumn => "session_id";
     public override string[] TargetLabels => new[] { "y" };
     public override DataSet TestDataset()

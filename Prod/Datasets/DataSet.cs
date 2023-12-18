@@ -129,7 +129,27 @@ namespace SharpNet.Datasets
         /// <param name="isTraining"></param>
         public abstract void LoadAt(int elementId, int indexInBuffer, [CanBeNull] CpuTensor<float> xBuffer,
             [CanBeNull] CpuTensor<float> yBuffer, bool withDataAugmentation, bool isTraining);
-        public abstract int[] Y_Shape();
+
+
+        public virtual int[] X_Shape(int batchSize)
+        {
+            if (GetDatasetSample() != null)
+            {
+                return GetDatasetSample().X_Shape(batchSize);
+            }
+            throw new NotImplementedException($"The method {nameof(X_Shape)} must be overriden for class {GetType()}");
+        }
+
+        public virtual int[] Y_Shape(int batchSize)
+        {
+            if (GetDatasetSample() != null)
+            {
+                return GetDatasetSample().Y_Shape(batchSize);
+            }
+            throw new NotImplementedException($"The method {nameof(Y_Shape)} must be overriden for class {GetType()}");
+        }
+
+
         /// <summary>
         /// number of elements in DataSet
         /// </summary>
@@ -146,7 +166,7 @@ namespace SharpNet.Datasets
 
         public virtual CpuTensor<float> LoadFullY()
         {
-            var yBuffer = new CpuTensor<float>(Y_Shape());
+            var yBuffer = new CpuTensor<float>(Y_Shape(Count));
             for (int elementId = 0; elementId < Count; elementId++)
             {
                 LoadAt(elementId, elementId, (CpuTensor<float>)null, yBuffer, false, false);

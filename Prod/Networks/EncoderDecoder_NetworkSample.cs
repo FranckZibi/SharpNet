@@ -212,7 +212,7 @@ public class EncoderDecoder_NetworkSample: NetworkSample
             nn.Input(Decoder_TimeSteps, ((DatasetSampleForTimeSeries)datasetSample).GetInputSize(false), -1);
             if (Pid_EmbeddingDim >= 1)
             {
-                nn.Embedding(new[] { CFM60Entry.DISTINCT_PID_COUNT }, new[] { Pid_EmbeddingDim }, new[] { 0 }, nn.Sample.lambdaL2Regularization, ClipValueForGradients, DivideGradientsByTimeSteps);
+                nn.Embedding(new[] { CFM60Entry.DISTINCT_PID_COUNT }, new[] { Pid_EmbeddingDim }, new[] { 0 }, new[] { 0 }, nn.Sample.lambdaL2Regularization, ClipValueForGradients, DivideGradientsByTimeSteps);
             }
             nn.DecoderLayer(encoderLayerIndex, Decoder_NumLayers, Decoder_DropoutRate);
         }

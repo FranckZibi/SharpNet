@@ -45,11 +45,6 @@ public class PlumeLabs88DirectoryDataSet : DataSet
         }
     }
 
-    public override int[] Y_Shape()
-    {
-        return _yPlumeLabs88DirectoryDataSet?.Shape;
-    }
-
     public override CpuTensor<float> LoadFullY()
     {
         return _yPlumeLabs88DirectoryDataSet;

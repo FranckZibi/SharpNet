@@ -79,10 +79,8 @@ public sealed class RandomizeColumnDataSet : DataSet
         }
     }
 
-    public override int[] Y_Shape()
-    {
-        return _original.Y_Shape();
-    }
+    public override int[] X_Shape(int batchSize) =>_original.X_Shape(batchSize);
+    public override int[] Y_Shape(int batchSize) => _original.Y_Shape(batchSize);
 
     public override int Count => _original.Count;
     public override AbstractDatasetSample GetDatasetSample() => _original.GetDatasetSample();

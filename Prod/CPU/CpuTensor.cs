@@ -1938,7 +1938,21 @@ namespace SharpNet.CPU
 
         protected override void BinaryCrossentropyLossBuffer(Tensor yExpected, Tensor yPredicted)
         {
-            MergeInPlaceByRow(yPredicted.AsFloatCpu, yExpected.AsFloatCpu, (prediction, expected) => -expected * MathF.Log(prediction) - (1 - expected) * MathF.Log(1 - prediction) , yPredicted.MultDim0);
+            MergeInPlaceByRow(yPredicted.AsFloatCpu, yExpected.AsFloatCpu, (y_pred, y_true) => BinaryCrossentropyLossBufferSingle(y_true, y_pred) , yPredicted.MultDim0);
+        }
+
+        private static float BinaryCrossentropyLossBufferSingle(float y_true, float y_pred)
+        {
+            const float epsilon = 1e-9f;
+            if (y_true > (1-epsilon))
+            {
+                return -MathF.Log(Math.Max(epsilon, y_pred));
+            }
+            if (y_true < epsilon)
+            {
+                return -MathF.Log(Math.Max(epsilon, 1 - y_pred));
+            }
+            return -y_true * MathF.Log(Math.Max(epsilon, y_pred)) - (1 - y_true) * MathF.Log(Math.Max(epsilon, 1 - y_pred));
         }
 
         protected override void BCEContinuousYLossBuffer(Tensor yExpected, Tensor yPredicted)
@@ -2060,6 +2074,39 @@ namespace SharpNet.CPU
                 auc /= (falseCount * (batchSize - falseCount));
             }
             buffer.AsFloatCpu[0] = (float)auc;
+        }
+
+        public override void ComputeAveragePrecisionScoreBuffer(Tensor yExpected, Tensor yPredicted)
+        {
+            var buffer = this;
+            Debug.Assert(buffer.Count == 1);
+            Debug.Assert(yExpected.SameShape(yPredicted));
+            Debug.Assert(yExpected.Shape.Length == 2);
+            Debug.Assert(yExpected.Shape[1] == 1);
+
+            var y_true_cpu = yExpected.AsFloatCpu.SpanContent;
+            var y_pred_cpu = yPredicted.AsFloatCpu.SpanContent;
+
+            List<Tuple<float, float>> data = new(y_true_cpu.Length);
+            float trueCount = 0;
+            for (var i = 0; i < y_true_cpu.Length; ++i)
+            {
+                data.Add(Tuple.Create(y_true_cpu[i], y_pred_cpu[i]));
+                trueCount += y_true_cpu[i];
+            }
+            data.Sort((a, b) => b.Item2.CompareTo(a.Item2));
+            float cumSum = 0;
+            float res = 0;
+            float recall_i_minus_1 = 0f;
+            for (int i = 0; i < y_true_cpu.Length; ++i)
+            {
+                cumSum+= data[i].Item1;
+                float precision_i = cumSum / (i + 1);
+                float recall_i = trueCount<=0?1:(cumSum / trueCount);
+                res+= precision_i*(recall_i- recall_i_minus_1);
+                recall_i_minus_1 = recall_i;
+            }
+            buffer.AsFloatCpu[0] = res;
         }
 
 

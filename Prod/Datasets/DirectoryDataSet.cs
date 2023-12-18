@@ -138,10 +138,8 @@ namespace SharpNet.Datasets
             }
         }
 
-        public override int[] Y_Shape()
-        {
-            return Y_DirectoryDataSet.Shape;
-        }
+        public override int[] X_Shape(int batchSize) => throw new NotImplementedException(); //!D TODO
+        public override int[] Y_Shape(int batchSize) => Utils.CloneShapeWithNewCount(Y_DirectoryDataSet.Shape, batchSize);
 
         public override CpuTensor<float> LoadFullY()
         {

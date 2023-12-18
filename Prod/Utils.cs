@@ -158,6 +158,10 @@ namespace SharpNet
         //Area Under the Curve, see: https://en.wikipedia.org/wiki/Receiver_operating_characteristic
         AUC, // works only for metric (to rank submission), do not work as a loss function, higher s better
 
+        //Average Precision Score, see : https://scikit-learn.org/stable/modules/generated/sklearn.metrics.average_precision_score.html
+        AveragePrecisionScore, // works only for metric (to rank submission), do not work as a loss function, higher s better
+
+
         DEFAULT_VALUE = AbstractSample.DEFAULT_VALUE, // default value, do not use
     }
 
@@ -169,6 +173,10 @@ namespace SharpNet
 
         public static int[] CloneShapeWithNewCount(int[] shape, int newCount)
         {
+            if (shape == null)
+            {
+                return null;
+            }
             var result = (int[])shape.Clone();
             result[0] = newCount;
             return result;
@@ -245,6 +253,7 @@ namespace SharpNet
                 case EvaluationMetricEnum.PearsonCorrelation:
                 case EvaluationMetricEnum.SpearmanCorrelation:
                 case EvaluationMetricEnum.AUC:
+                case EvaluationMetricEnum.AveragePrecisionScore:
                     return true; // higher is better
                 case EvaluationMetricEnum.BinaryCrossentropy:
                 case EvaluationMetricEnum.BCEContinuousY:
@@ -1367,9 +1376,12 @@ namespace SharpNet
             process.WaitForExit();
             if (!string.IsNullOrEmpty(errorDataReceived) || process.ExitCode != 0)
             {
-                var errorMsg = "Error in " + engineName + " " + errorDataReceived;
-                log.Fatal(errorMsg);
-                throw new Exception(errorMsg);
+                if (!(errorDataReceived??"").Contains("is not implemented on GPU"))
+                {
+                    var errorMsg = "Error in " + engineName + " " + errorDataReceived;
+                    log.Fatal(errorMsg);
+                    throw new Exception(errorMsg);
+                }
             }
             return outputLines;
         }

@@ -441,7 +441,7 @@ namespace SharpNetTests
             const int vocabularySize = 3;
             foreach(var timeSteps in new []{1,100})
             foreach(var inputSize in new[] {1,7})
-            foreach(var embeddingDim in new[] {0, 10})
+            foreach(var embeddingDim in new[] {0, 1, 10})
             {
                 for (int indexInLastDimensionToUse = 0; indexInLastDimensionToUse<inputSize;++indexInLastDimensionToUse)
                 { 
@@ -460,7 +460,7 @@ namespace SharpNetTests
             const int vocabularySize = 50;
             foreach (var timeSteps in new[] { 1, 100 })
             foreach (var inputSize in new[] { 1, 7 })
-            foreach (var embeddingDim in new[] { 0, 10 })
+            foreach (var embeddingDim in new[] { 0, 1, 10 })
             {
                 for (int indexInLastDimensionToUse = 0; indexInLastDimensionToUse < inputSize; ++indexInLastDimensionToUse)
                 {
@@ -1163,6 +1163,17 @@ namespace SharpNetTests
             var buffer = RandomTensor(new[] {1});
             TestAllForReturnValue(new[] { buffer, y_true, y_pred }, tensors => tensors[0].ComputeAUC(tensors[1], tensors[2]));
         }
+
+
+        [Test]
+        public void TestAveragePrecisionScore()
+        {
+            var y_true = TestCpuTensor.RandomIntValuesTensor(new[] { 128, 1 }, _rand, 0, 2);
+            var y_pred = TestCpuTensor.RandomFloatTensor(y_true.Shape, _rand, 0, 1.0);
+            var buffer = RandomTensor(new[] { 1 });
+            TestAllForReturnValue(new[] { buffer, y_true, y_pred }, tensors => tensors[0].ComputeAveragePrecisionScore(tensors[1], tensors[2]));
+        }
+
 
         [Test]
         public void TestComputeSparseAccuracy_3D()

@@ -43,7 +43,6 @@ public class TestDatasetEncoder
             IdColumn = idColumn;
             TargetLabels = targetLabels;
         }
-
         public override int NumClass => 1;
         public override string[] TargetLabelDistinctValues => new string[0];
         public override Objective_enum GetObjective() => Objective_enum.Regression;
@@ -52,5 +51,8 @@ public class TestDatasetEncoder
         public override string[] TargetLabels { get; }
         public override DataSet TestDataset() { throw new NotImplementedException(); }
         public override DataSet FullTrainingAndValidation() => throw new NotImplementedException();
+        public override int[] X_Shape(int batchSize) => throw new NotImplementedException();
+        public override int[] Y_Shape(int batchSize) => throw new NotImplementedException();
+
     }
 }

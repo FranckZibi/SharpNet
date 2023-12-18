@@ -49,6 +49,8 @@ public class DatasetEncoder
     /// </summary>
     // ReSharper disable once NotAccessedField.Local
     private int _inverseTransformCallCount = 0;
+
+    public Dictionary<string, HashSet<string>> CategoricalFeature_to_CategoricalColumnSharingSameValues = new();
     #endregion
 
     /// <summary>
@@ -67,7 +69,10 @@ public class DatasetEncoder
         DatasetObjective = datasetSample.GetObjective();
         _standardizeDoubleValues = standardizeDoubleValues;
         _allDataFrameAreAlreadyNormalized = allDataFrameAreAlreadyNormalized;
+        CategoricalFeature_to_CategoricalColumnSharingSameValues = datasetSample.GetCategoricalFeature_to_CategoricalColumnSharingSameValues();
     }
+
+
     public ColumnStatistics this[string featureName] => _columnStats[featureName];
     public DataFrame Fit_Transform(DataFrame string_df)
     {
@@ -103,7 +108,7 @@ public class DatasetEncoder
         {
             if (!_columnStats.ContainsKey(c))
             {
-                _columnStats[c] = new ColumnStatistics(IsCategoricalColumn(c), TargetLabels.Contains(c), Equals(IdColumn, c), _standardizeDoubleValues, _allDataFrameAreAlreadyNormalized);
+                _columnStats[c] = GetExistingColumnStatisticsFromFamily(c) ?? new ColumnStatistics(IsCategoricalColumn(c), TargetLabels.Contains(c), Equals(IdColumn, c), _standardizeDoubleValues, _allDataFrameAreAlreadyNormalized);
             }
         }
     
@@ -123,12 +128,29 @@ public class DatasetEncoder
                 var c = df.Columns[index];
                 if (!_columnStats.ContainsKey(c) && IsCategoricalColumn(c))
                 {
-                    _columnStats[c] = new ColumnStatistics(IsCategoricalColumn(c), TargetLabels.Contains(c), Equals(IdColumn, c), _standardizeDoubleValues, _allDataFrameAreAlreadyNormalized);
+                    Log.Info($"fitting missing categorical column {c}");
+                    _columnStats[c] = GetExistingColumnStatisticsFromFamily(c)??new ColumnStatistics(IsCategoricalColumn(c), TargetLabels.Contains(c), Equals(IdColumn, c), _standardizeDoubleValues, _allDataFrameAreAlreadyNormalized);
                     FitColumn(df, index);
                 }
             }
         }
     }
+
+    private ColumnStatistics GetExistingColumnStatisticsFromFamily(string columnName)
+    {
+        if (CategoricalFeature_to_CategoricalColumnSharingSameValues.TryGetValue(columnName, out var group))
+        {
+            foreach (var categoricalColumnSharingSameValues in group)
+            {
+                if (_columnStats.TryGetValue(categoricalColumnSharingSameValues, out var columnStatistics))
+                {
+                    return columnStatistics;
+                }
+            }
+        }
+        return null;
+    }
+
     // ReSharper disable once MemberCanBePrivate.Global
     public DataFrame Transform(DataFrame df)
     {
@@ -270,10 +292,11 @@ public class DatasetEncoder
         {
             return true;
         }
-        if (DatasetObjective == Objective_enum.Classification && TargetLabels.Contains(columnName))
-        {
-            return true;
-        }
+        //!D 
+        //if (DatasetObjective == Objective_enum.Classification && TargetLabels.Contains(columnName))
+        //{
+        //    return true;
+        //}
         return false;
     }
 }

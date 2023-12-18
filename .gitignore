@@ -89,6 +89,10 @@ __pycache__/
 Tests/TensorFlow/*
 ImageScanSplitter/Install/Dump/*
 SharpNet/Tests/Data/*
+Prod/Datasets/SNCF89/*
+Prod/Datasets/BNP104/*
+Prod/Datasets/CFM84/*
+Prod/Datasets/QRT97/*
 
 StampExpert/Templates/FRANCE/*
 StampExpert/Tests/Speed*/*

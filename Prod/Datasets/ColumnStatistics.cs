@@ -68,25 +68,28 @@ public class ColumnStatistics
         ++Count;
         if (IsCategorical)
         {
-            if (!_allDataFrameAreAlreadyNormalized)
+            lock(this)
             {
-                val_before_encoding = Utils.NormalizeCategoricalFeatureValue(val_before_encoding);
-            }
-            if (val_before_encoding.Length == 0)
-            {
-                ++CountEmptyElements;
-                return;
-            }
-            //it is a categorical column, we add it to the dictionary
-            if (!_distinctCategoricalValueToCount.ContainsKey(val_before_encoding))
-            {
-                _distinctCategoricalValueToCount[val_before_encoding] = 1;
-                _distinctCategoricalValues.Add(val_before_encoding);
-                _distinctCategoricalValueToIndex[val_before_encoding] = _distinctCategoricalValues.Count - 1;
-            }
-            else
-            {
-                ++_distinctCategoricalValueToCount[val_before_encoding];
+                if (!_allDataFrameAreAlreadyNormalized)
+                {
+                    val_before_encoding = Utils.NormalizeCategoricalFeatureValue(val_before_encoding);
+                }
+                if (val_before_encoding.Length == 0)
+                {
+                    ++CountEmptyElements;
+                    return;
+                }
+                //it is a categorical column, we add it to the dictionary
+                if (!_distinctCategoricalValueToCount.ContainsKey(val_before_encoding))
+                {
+                    _distinctCategoricalValueToCount[val_before_encoding] = 1;
+                    _distinctCategoricalValues.Add(val_before_encoding);
+                    _distinctCategoricalValueToIndex[val_before_encoding] = _distinctCategoricalValues.Count - 1;
+                }
+                else
+                {
+                    ++_distinctCategoricalValueToCount[val_before_encoding];
+                }
             }
             return;
         }
@@ -106,6 +109,10 @@ public class ColumnStatistics
 
         if (IsCategorical)
         {
+            if (float.IsNaN(val_before_encoding))
+            {
+                val_before_encoding = -1; //!D missing category
+            }
             var str_val_before_encoding = val_before_encoding.ToString(CultureInfo.InvariantCulture);
             //it is a categorical column, we add it to the dictionary
             if (!_distinctCategoricalValueToCount.ContainsKey(str_val_before_encoding))
@@ -113,6 +120,7 @@ public class ColumnStatistics
                 _distinctCategoricalValueToCount[str_val_before_encoding] = 1;
                 _distinctCategoricalValues.Add(str_val_before_encoding);
                 _distinctCategoricalValueToIndex[str_val_before_encoding] = Utils.NearestInt(val_before_encoding);
+                
                 Debug.Assert(MathF.Abs(Utils.NearestInt(val_before_encoding) - val_before_encoding) < 1e-5f);
             }
             else
@@ -144,7 +152,7 @@ public class ColumnStatistics
             }
             if (val_before_encoding.Length == 0 || !_distinctCategoricalValueToCount.ContainsKey(val_before_encoding))
             {
-                return -1;
+                return double.NaN;
             }
             return _distinctCategoricalValueToIndex[val_before_encoding];
         }

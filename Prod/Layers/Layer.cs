@@ -89,6 +89,8 @@ namespace SharpNet.Layers
         public virtual bool InputNeededForBackwardPropagation => true;
 
 
+        public Network GetNetwork() => Network;
+
         /// <summary>
         /// update all weights of the layer thanks to the weight (& bias)  gradients computed in the backward propagation step
         /// only used in master network
@@ -314,9 +316,7 @@ namespace SharpNet.Layers
             {
                 LazyOutputShape = PrevLayer.OutputShape(batchSize);
             }
-            var result = (int[])LazyOutputShape.Clone();
-            result[0] = batchSize;
-            return result;
+            return Utils.CloneShapeWithNewCount(LazyOutputShape, batchSize);
         }
         public virtual void Dispose()
         {

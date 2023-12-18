@@ -444,6 +444,20 @@ namespace SharpNetTests.CPU
             Assert.AreEqual(expected_value, observedLoss, 1e-6);
         }
 
+        [TestCase(new[] { 0f, 0f, 1f, 1f }, new[] { 0.1f, 0.4f, 0.35f, 0.8f}, 0.8333333333333333f)]
+        [TestCase(new[] { 0f, 0f, 0f, 0f }, new[] { 0.1f, 0.4f, 0.35f, 0.8f}, 0f)]
+        [TestCase(new[] { 1f, 1f, 1f, 1f }, new[] { 0.1f, 0.4f, 0.35f, 0.8f}, 1f)]
+        [TestCase(new[] { 0f, 0f, 1f, 0f, 1f, 1f, 0, 1f, 1f, 1f }, new[] { 0.65f, 0.1f, 0.15f, 0.43f, 0.97f, 0.24f, 0.82f, 0.7f, 0.32f, 0.84f }, 0.7688492063492063f)]
+        public void Test_ComputeEvaluationMetric_AveragePrecisionScore(float[] y_true_array, float[] y_pred_array, float expected_value)
+        {
+            var y_true = CpuTensor<float>.New(y_true_array, 1);
+            var y_pred = CpuTensor<float>.New(y_pred_array, 1);
+            const EvaluationMetricEnum metric = EvaluationMetricEnum.AveragePrecisionScore;
+            var buffer = new CpuTensor<float>(y_pred.ComputeMetricBufferShape(metric));
+            var observedLoss = buffer.ComputeEvaluationMetric(y_true, y_pred, metric, null);
+            Assert.AreEqual(expected_value, observedLoss, 1e-6);
+        }
+
         [Test]
         public void TestComputeCategoricalCrossentropyWithHierarchyLoss()
         {

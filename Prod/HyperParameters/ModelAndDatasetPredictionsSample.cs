@@ -14,9 +14,9 @@ namespace SharpNet.HyperParameters
             FixErrors();
         }
     
-        public static AbstractDatasetSample LoadDatasetSample(string workingDirectory, string modelName)
+        public static AbstractDatasetSample LoadDatasetSample(string workingDirectory, string modelName, Action<IDictionary<string, string>> contentUpdater = null)
         {
-            return (AbstractDatasetSample)ISample.Load(workingDirectory, ModelAndDatasetSampleIndexToSampleName(modelName, 1));
+            return (AbstractDatasetSample)ISample.Load(workingDirectory, ModelAndDatasetSampleIndexToSampleName(modelName, 1), contentUpdater);
         }
 
         public static PredictionsSample LoadPredictions(string workingDirectory, string modelName)
@@ -34,10 +34,10 @@ namespace SharpNet.HyperParameters
             }
         }
 
-        public static ModelAndDatasetPredictionsSample Load(string workingDirectory, string modelName, bool useAllAvailableCores)
+        public static ModelAndDatasetPredictionsSample Load(string workingDirectory, string modelName, bool useAllAvailableCores, Action<IDictionary<string, string>> contentUpdater = null)
         {
-            var modelSample = AbstractModelSample.LoadModelSample(workingDirectory, ModelAndDatasetSampleIndexToSampleName(modelName, 0), useAllAvailableCores);
-            var datasetSample = LoadDatasetSample(workingDirectory, modelName);
+            var modelSample = AbstractModelSample.LoadModelSample(workingDirectory, ModelAndDatasetSampleIndexToSampleName(modelName, 0), useAllAvailableCores, contentUpdater);
+            var datasetSample = LoadDatasetSample(workingDirectory, modelName, contentUpdater);
             var predictionsSample = LoadPredictions(workingDirectory, modelName);
 
             return new ModelAndDatasetPredictionsSample(
@@ -142,10 +142,10 @@ namespace SharpNet.HyperParameters
             {
                 return false;
             }
-            if (ModelSample.GetObjective() != DatasetSample.GetObjective())
-            {
-                return false;
-            }
+            //if (ModelSample.GetObjective() != DatasetSample.GetObjective())
+            //{
+            //    return false;
+            //}
             return true;
         }
     }

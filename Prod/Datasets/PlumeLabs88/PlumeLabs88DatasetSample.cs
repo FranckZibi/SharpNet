@@ -48,6 +48,10 @@ public class PlumeLabs88DatasetSample : AbstractDatasetSample
         return res;
     }
 
+    public override int[] X_Shape(int batchSize) => throw new NotImplementedException(); //!D TODO
+    public override int[] Y_Shape(int batchSize) => throw new NotImplementedException(); //!D TODO
+
+
     public int DatasetMaxId(bool isTrainingDataset) { return isTrainingDataset ? MaxIdTraining : MaxIdTest; }
 
     public override string[] CategoricalFeatures { get; } = {  };

@@ -79,7 +79,7 @@ public interface ISample
     }
 
     #region serialization and deserialization
-    public static ISample Load(string workingDirectory, string sampleName)
+    public static ISample Load(string workingDirectory, string sampleName, Action<IDictionary<string,string>> contentUpdater = null)
     {
         var allMatchingFiles = new DirectoryInfo(workingDirectory).GetFileSystemInfos(sampleName + ".*.conf").Union(new DirectoryInfo(workingDirectory).GetFileSystemInfos(sampleName + "_conf.*.json")).Select(t=>t.Name).OrderBy(x=>x).ToList();
         if (allMatchingFiles.Count >= 2)
@@ -98,6 +98,10 @@ public interface ISample
         var classType = sampleClassName_to_type[className];
         var sample = (ISample)Activator.CreateInstance(classType, true);
         var content = fileName.ToLower().EndsWith("json") ? LoadJsonConfig(filePath) : LoadTextConfig(filePath);
+        if (contentUpdater != null)
+        {
+            contentUpdater(content);
+        }
         sample?.Set(Utils.FromString2String_to_String2Object(content));
         return sample;
     }

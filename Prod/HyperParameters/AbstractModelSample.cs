@@ -38,6 +38,7 @@ public abstract class AbstractModelSample : AbstractSample, IMetricConfig
             case EvaluationMetricEnum.SparseCategoricalCrossentropy:
             case EvaluationMetricEnum.F1Micro:
             case EvaluationMetricEnum.AUC:
+            case EvaluationMetricEnum.AveragePrecisionScore:
                 return Objective_enum.Classification;
 
             case EvaluationMetricEnum.Huber:
@@ -47,6 +48,9 @@ public abstract class AbstractModelSample : AbstractSample, IMetricConfig
             case EvaluationMetricEnum.Mae:
             case EvaluationMetricEnum.Rmse:
                 return Objective_enum.Regression;
+
+            case EvaluationMetricEnum.DEFAULT_VALUE:
+                throw new ArgumentException($"loss function has not been set, please set it to a valid value and relaunch");
             default:
                 throw new ArgumentException($"invalid loss function {GetLoss()}");
         }
@@ -95,9 +99,9 @@ public abstract class AbstractModelSample : AbstractSample, IMetricConfig
     public abstract Model NewModel(AbstractDatasetSample datasetSample, string workingDirectory, string modelName);
     public abstract void Use_All_Available_Cores();
 
-    public static AbstractModelSample LoadModelSample(string workingDirectory, string sampleName, bool useAllAvailableCores)
+    public static AbstractModelSample LoadModelSample(string workingDirectory, string sampleName, bool useAllAvailableCores, Action<IDictionary<string, string>> contentUpdater = null)
     {
-        var sample = (AbstractModelSample)ISample.Load(workingDirectory, sampleName);
+        var sample = (AbstractModelSample)ISample.Load(workingDirectory, sampleName, contentUpdater);
         if (useAllAvailableCores)
         {
             sample.Use_All_Available_Cores();

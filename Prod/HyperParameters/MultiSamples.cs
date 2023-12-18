@@ -108,7 +108,12 @@ public abstract class MultiSamples : ISample
     }
     public bool IsCategoricalHyperParameter(string hyperParameterName)
     {
-        return FirstSampleWithField(hyperParameterName).IsCategoricalHyperParameter(hyperParameterName);
+        var firstSampleWithField = FirstSampleWithField(hyperParameterName);
+        if (firstSampleWithField == null)
+        {
+            throw new ArgumentException($"hyper parameter {hyperParameterName} not found");
+        }
+        return firstSampleWithField.IsCategoricalHyperParameter(hyperParameterName);
     }
 
     protected virtual string SampleIndexToSampleName(string modelName, int sampleIndex)

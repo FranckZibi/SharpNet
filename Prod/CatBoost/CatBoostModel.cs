@@ -58,7 +58,7 @@ namespace SharpNet.CatBoost
             }
 
             string datasetColumnDescriptionPath = trainDatasetPath_InModelFormat + ".co";
-            to_column_description(datasetColumnDescriptionPath, trainDataset, addTargetColumnAsFirstColumn, false);
+            to_column_description(datasetColumnDescriptionPath, trainDataset, addTargetColumnAsFirstColumn, includeIdColumns, false);
 
             var tempModelSamplePath = CatBoostSample.ToPath(TempPath, ModelName);
             string arguments = "fit " +
@@ -209,7 +209,7 @@ namespace SharpNet.CatBoost
             string datasetPath = dataset.to_csv_in_directory(DatasetPath, addTargetColumnAsFirstColumn, includeIdColumns, overwriteIfExists);
 
             string datasetColumnDescriptionPath = datasetPath + ".co";
-            to_column_description(datasetColumnDescriptionPath, dataset, addTargetColumnAsFirstColumn, false);
+            to_column_description(datasetColumnDescriptionPath, dataset, addTargetColumnAsFirstColumn, includeIdColumns, false);
 
 
             var predictionResultPath = Path.Combine(TempPath, ModelName + "_predict_" + Path.GetFileNameWithoutExtension(datasetPath) + ".tsv");
@@ -267,7 +267,7 @@ namespace SharpNet.CatBoost
         private static readonly object Lock_to_column_description = new();
 
 
-        private static void to_column_description([JetBrains.Annotations.NotNull] string path, DataSet dataset, bool addTargetColumnAsFirstColumn, bool overwriteIfExists = false)
+        private static void to_column_description([JetBrains.Annotations.NotNull] string path, DataSet dataset, bool addTargetColumnAsFirstColumn, bool includeIdColumns, bool overwriteIfExists = false)
         {
             lock (Lock_to_column_description)
             {
@@ -290,7 +290,10 @@ namespace SharpNet.CatBoost
                     {
                         sb.Append($"{nextColumnIdx}\tCateg"+Environment.NewLine); //this column is a categorical feature
                     }
-                    ++nextColumnIdx;
+                    if (includeIdColumns || string.IsNullOrEmpty(dataset.IdColumn) || !Equals(dataset.IdColumn, columnName))
+                    {
+                        ++nextColumnIdx;
+                    }
                 }
                 Log.Debug($"Saving dataset column description in path {path}");
                 var fileContent = sb.ToString().Trim();

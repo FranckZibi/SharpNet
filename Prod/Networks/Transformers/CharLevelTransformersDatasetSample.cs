@@ -7,7 +7,7 @@ using SharpNet.TextPreprocessing;
 
 namespace SharpNet.Networks.Transformers;
 
-public class CharLevelTransformersDatasetSample : AbstractDatasetSample
+public class CharLevelTransformersDatasetSample : TransformerDatasetSample
 {
     #region private static fields
 
@@ -21,9 +21,6 @@ public class CharLevelTransformersDatasetSample : AbstractDatasetSample
     #endregion
 
     #region HyperParameters
-    public int vocab_size = 65;
-    public int max_length = 32; // == timeSteps
-
     /// <summary>
     /// the maximum size fo the text that will be used for training the network
     /// -1 means the full text (default value)
@@ -88,7 +85,7 @@ public class CharLevelTransformersDatasetSample : AbstractDatasetSample
 
     public override DataSet FullTrainingAndValidation()
     {
-        return new CharLevelDataset(
+        return new TransformerDataset(
             this,
             "CharLevel",
             GetText(MaxCharacterLengthForTraining),
