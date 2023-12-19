@@ -12,9 +12,29 @@ using SharpNet.Networks;
 
 namespace SharpNet.Datasets.EffiSciences95;
 
-// ReSharper disable once UnusedType.Global
+
+/// <summary>
+/// this is the main class of the project, it launches the different steps needed to produce the prediction file
+/// </summary>
 public static class EffiSciences95Utils
 {
+    public static void Run()
+    {
+        //find the coordinates of the box with the labels (old or young) for each picture in directory 'Labeled' (training dataset)
+        //and stores those coordinates in a file 'EffiSciences95_Labeled.csv'
+        LabelFinder.FindLabelCoordinates("Labeled");
+        //find the coordinates of the box with the labels (old or young) for each pictures in directory 'Unlabeled' (test dataset)
+        //and stores those coordinates in a file 'EffiSciences95_Unlabeled.csv'
+        LabelFinder.FindLabelCoordinates("Unlabeled");
+        // launch a hyper parameter search (for 1 hour) using an EfficientNet Neural Network (with 30 epochs) to train on the Labeled dataset
+        // Each picture will have the box with the label removed before being used as a training picture
+        // (see method 'OriginalElementContent' in class 'EffiSciences95DirectoryDataSet')
+        Launch_HPO(30, 3600);
+        //create the prediction file for the test dataset (Unlabeled) using the best deep learning model found at the previous step (here: 'F1040C26F7')
+        InferenceUnlabeledEffiSciences95(WorkingDirectory, "F1040C26F7", true);
+    }
+
+
     public const string NAME = "EffiSciences95";
 
     #region public fields & properties
@@ -22,72 +42,48 @@ public static class EffiSciences95Utils
     #endregion
 
     #region load of datasets
-
     public static readonly int[] Shape_CHW = { 3, 218, 178 };
-
     private static string WorkingDirectory => Path.Combine(Utils.ChallengesPath, NAME);
     public static string DataDirectory => Path.Combine(WorkingDirectory, "Data");
     // ReSharper disable once MemberCanBePrivate.Global
 
     public static readonly string IDMDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "ImageDatabaseManagement");
-    public static readonly string LabeledPath = Path.Combine(IDMDirectory, "EffiSciences95_Labeled.csv");
-    public static readonly string UnlabeledPath = Path.Combine(IDMDirectory, "EffiSciences95_Unlabeled.csv");
-
-
-    private static string Labeled_TextTargetPath => Path.Combine(DataDirectory, "Labeled_TextTarget.csv");
-    private static string Unlabeled_TextTargetPath => Path.Combine(DataDirectory, "Unlabeled_TextTarget.csv");
-
-    private static string LabeledDirectory => Path.Combine(DataDirectory, "Labeled");
-    private static string UnlabeledDirectory => Path.Combine(DataDirectory, "Unlabeled");
-
     #endregion
 
-    public static string IdToPath(int id, bool isLabeled)
+    public static string PictureIdToPath(int pictureId, string directory)
     {
-        return isLabeled ? Path.Combine(LabeledDirectory, $"{id}.jpg") : Path.Combine(UnlabeledDirectory, $"{id}.jpg");
+        return Path.Combine(DataDirectory, directory, $"{pictureId}.jpg");
     }
-
-    public static int MaxId(bool isLabeled)
+    public static int MaxPictureId(string directory)
     {
-        return isLabeled ? 19999 : 69729;
+        return (directory=="Labeled") ? 19999 : 69729;
     }
-
-    public static Dictionary<int, int> IdToTextTarget(bool isLabeled)
+    public static Dictionary<int, int> LoadPredictionFile(string predictionFile)
     {
         Dictionary<int, int> res = new();
-        foreach (var l in Utils.ReadCsv(isLabeled?Labeled_TextTargetPath:Unlabeled_TextTargetPath).Skip(1))
+        foreach (var l in Utils.ReadCsv(Path.Combine(DataDirectory, predictionFile)).Skip(1))
         {
             res[int.Parse(l[0])] = int.Parse(l[1]);
         }
         return res;
     }
-
-
-    // ReSharper disable once UnusedMember.Global
-    public static void Run()
-    {
-        BoxFinder.FindBox(false);
-    }
-
-
-
-    // ReSharper disable once UnusedMember.Global
-    public static void InferenceUnlabeledEffiSciences95(string modelDirectory, string modelName, bool useAllAvailableCores)
+    /// <summary>
+    /// this method creates a prediction file for the test dataset (Unlabeled) using the deep learning model 'modelName' in directory 'modelDirectory'
+    /// </summary>
+    private static void InferenceUnlabeledEffiSciences95(string modelDirectory, string modelName, bool useAllAvailableCores)
     {
         Utils.ConfigureGlobalLog4netProperties(WorkingDirectory, NAME);
         Utils.ConfigureThreadLog4netProperties(WorkingDirectory, NAME);
-        const bool isLabeled = false;
-
         using var network = Network.LoadTrainedNetworkModel(modelDirectory, modelName, useAllAvailableCores: useAllAvailableCores);
         using var datasetSample = new EffiSciences95DatasetSample();
-        using var unlabeledDataset = EffiSciences95DirectoryDataSet.ValueOf(datasetSample, isLabeled);
+        using var unlabeledDataset = EffiSciences95DirectoryDataSet.ValueOf(datasetSample, "Unlabeled");
         Log.Info($"computing predictions of model {modelName} on dataset of {unlabeledDataset.Count} rows");
         var p = network.Predict(unlabeledDataset, 64);
         var sb = new StringBuilder();
         sb.Append("index,labels"+ Environment.NewLine);
 
 
-        var idToTextTarget = IdToTextTarget(false);
+        var idToTextTarget = LoadPredictionFile("Unlabeled_TextTarget.csv");
         LinearRegression lr = new();
         for (int id = 0; id < p.Shape[0]; ++id)
         {
@@ -95,9 +91,9 @@ public static class EffiSciences95Utils
             var predictionWithProba = rowWithPrediction.ContentAsFloatArray();
             int prediction = predictionWithProba[0] > predictionWithProba[1] ? 0 : 1;
 
-            if (idToTextTarget.ContainsKey(id))
+            if (idToTextTarget.TryGetValue(id, out var value))
             {
-                lr.Add(idToTextTarget[id], prediction);
+                lr.Add(value, prediction);
             }
             sb.Append(id + "," + prediction+ Environment.NewLine);
         }
@@ -105,13 +101,11 @@ public static class EffiSciences95Utils
         Log.Info($"Saving predictions in file {predictionPaths}");
         File.WriteAllText(predictionPaths, sb.ToString());
     }
-
-
     /// <summary>
-    /// The default EfficientNet Hyper-Parameters for CIFAR10
+    /// The default EfficientNet Hyper-Parameters for the Deep Learning model
     /// </summary>
     /// <returns></returns>
-    public static EfficientNetNetworkSample DefaultEfficientNetNetworkSample()
+    private static EfficientNetNetworkSample DefaultEfficientNetNetworkSample()
     {
         var config = (EfficientNetNetworkSample)new EfficientNetNetworkSample()
         {
@@ -139,9 +133,12 @@ public static class EffiSciences95Utils
         return config;
 
     }
-
-    // ReSharper disable once UnusedMember.Global
-    public static void Launch_HPO(int numEpochs = 10, int maxAllowedSecondsForAllComputation = 0)
+    /// <summary>
+    /// the method uses a Bayesian Search to find the best hyper-parameters for the EfficientNet Deep Learning model
+    /// </summary>
+    /// <param name="numEpochs"></param>
+    /// <param name="maxAllowedSecondsForAllComputation"></param>
+    private static void Launch_HPO(int numEpochs = 10, int maxAllowedSecondsForAllComputation = 0)
     {
         Utils.ConfigureGlobalLog4netProperties(WorkingDirectory, NAME);
         Utils.ConfigureThreadLog4netProperties(WorkingDirectory, NAME);
@@ -175,8 +172,6 @@ public static class EffiSciences95Utils
             { "MaxEnlargeForBox", new[] {10}},
             { "EnlargeOldBoxToYoungBoxShape", new[] { /*false,*/ true} },
             { "AddNewBoxOfOtherCategory", new[] { false /*, true*/} },
-    
-
             // DataAugmentation
             //{ nameof(NetworkSample.HorizontalFlip), new[] { true /*, false*/} }, //true
             //{ nameof(NetworkSample.VerticalFlip), new[] { false /*, true*/} }, //false

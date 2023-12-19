@@ -9,18 +9,27 @@ using SharpNet.Pictures;
 
 namespace SharpNet.Datasets.EffiSciences95;
 
-public static class BoxFinder
+
+/// <summary>
+/// this class is in charge of finding the coordinates of the label in the picture
+/// </summary>
+public static class LabelFinder
 {
-    public static void FindBox(bool isLabeled)
+    /// <summary>
+    /// for each picture in directory 'directory' (either "Labeled" or "Unlabeled"),
+    /// this method computes the estimate coordinates of the box containing the label ("old" or "young")
+    /// </summary>
+    /// <param name="directory">either Labeled or Unlabeled</param>
+    public static void FindLabelCoordinates(string directory)
     {
         var cache = new RGBColorFactoryWithCache(false);
         using var datasetSample = new EffiSciences95DatasetSample();
-        var dataset = new EffiSciences95BoxesDataset(isLabeled);
+        var dataset = new EffiSciences95LabelCoordinatesDataset(directory);
 
         int totalProcessed = 0;
-        void ProcessFileName(int fileNameIndex)
+        void ProcessFileName(int id)
         {
-            var srcPath = Path.Combine(EffiSciences95Utils.DataDirectory, isLabeled?"Labeled":"Unlabeled", fileNameIndex + ".jpg");
+            var srcPath = Path.Combine(EffiSciences95Utils.DataDirectory, directory, id + ".jpg");
             if (!File.Exists(srcPath))
             {
                 return;
@@ -39,20 +48,20 @@ public static class BoxFinder
             using var bmp = new Bitmap(srcPath);
             var bmpContent = BitmapContent.ValueFomSingleRgbBitmap(bmp);
             var rgbColorContent = bmpContent.RGBColorContent(cache);
-            var roots = kmeanRoots;
+            var roots = KMeanRoots;
 
-            var kmeanTextColorIndex = MatrixTools.ToKMeanTextColorIndex(rgbColorContent, roots, ColorDistances, hyperParam3, 2);
-            var bestBox = EffiSciences95Row.Empty(fileNameIndex, "");
+            var KMeanIndex = MatrixTools.ToKMeanIndex(rgbColorContent, roots, ColorDistances, HyperParam3, 2);
+            var bestLabelCoordinate = EffiSciences95LabelCoordinates.Empty(id, "");
 
             
             for (int i = 0; i < roots.Count; ++i)
             {
-                var m = MatrixTools.ExtractBoolMatrix(kmeanTextColorIndex, i);
+                var m = MatrixTools.ExtractBoolMatrix(KMeanIndex, i);
                 MatrixTools.RemoveSingleIsolatedElements(m);
                 var countMatrix = MatrixTools.CreateCountMatrix(m);
-                var allBoxes = LookForDigits(isLabeled, fileNameIndex, i, m, countMatrix, 0, m.GetLength(0) - 1, 0, m.GetLength(1) - 1);
+                var allLabelCoordinates = LookForLabelCoordinates(directory, id, i, m, countMatrix, 0, m.GetLength(0) - 1, 0, m.GetLength(1) - 1);
 
-                if (allBoxes.Count == 0)
+                if (allLabelCoordinates.Count == 0)
                 {
                     continue;
                 }
@@ -61,49 +70,31 @@ public static class BoxFinder
                 {
                     continue;
                 }
-
-                List<EffiSciences95Row> boxesToDrawRectangles = new();
-
-                allBoxes = allBoxes.OrderByDescending(a => a.ConfidenceLevel).ToList().Take(2).ToList();
-
-                foreach (var box in allBoxes)
+                allLabelCoordinates = allLabelCoordinates.OrderByDescending(a => a.ConfidenceLevel).ToList().Take(2).ToList();
+                foreach (var labelCoordinate in allLabelCoordinates)
                 {
-                    if (bestBox.IsEmpty || box.ConfidenceLevel > bestBox.ConfidenceLevel)
+                    if (bestLabelCoordinate.IsEmpty || labelCoordinate.ConfidenceLevel > bestLabelCoordinate.ConfidenceLevel)
                     {
-                        bestBox = box;
-                        boxesToDrawRectangles.Add(box);
+                        bestLabelCoordinate = labelCoordinate;
                     }
                 }
             }
 
-            EffiSciences95Row existing;
+            EffiSciences95LabelCoordinates existing;
             lock (dataset)
             {
-                if (!dataset.Content.TryGetValue(bestBox.No, out existing))
+                if (!dataset.Content.TryGetValue(bestLabelCoordinate.No, out existing))
                 {
                     // ReSharper disable once RedundantAssignment
                     existing = null;
                 }
             }
 
-            if (bestBox.IsClearlyBetterThan(existing))
+            if (bestLabelCoordinate.IsClearlyBetterThan(existing))
             {
-                if (existing != null && Utils.FileExist(existing.Document))
-                {
-                    Utils.TryDelete(existing.Document);
-                }
-
                 lock (dataset)
                 {
-                    dataset.Content[bestBox.No] = bestBox;
-                }
-
-                if (isLabeled && !bestBox.IsEmpty)
-                { 
-                    //we do not save the box 'old' / 'young' for the unlabeled dataset
-                    using var bmpFamily2 = bmpContent.AsBitmap();
-                    using var bmpFamily3 = bmpFamily2.Clone(bestBox.Shape, bmpFamily2.PixelFormat);
-                    PictureTools.SavePng(bmpFamily3, bestBox.Document);
+                    dataset.Content[bestLabelCoordinate.No] = bestLabelCoordinate;
                 }
             }
         }
@@ -113,10 +104,18 @@ public static class BoxFinder
     }
 
 
-    private static readonly double[] hyperParam1 = { 0.2, 0.25, 0.2, 0.1, 0.1}; private static readonly double[] hyperParam2 = { 0.7, 0.7, 0.7, 0.55, 0.55}; private static readonly double[] hyperParam3 = { 0.5,0.4,0.5,0.03,0.3}; private static readonly double[] hyperParam4 = { 1.0, 1.0, 1.0, 0.9, 0.9}; private static readonly Func<RGBColor, RGBColor, double>[] ColorDistances = { RGBColor.LabColorDistance, RGBColor.LabColorDistance, RGBColor.YellowLabColorDistance, RGBColor.BlackLabColorDistance, RGBColor.WhiteLabColorDistance}; private static readonly List<RGBColor> kmeanRoots = new() { new(20, 20, 190), new(220, 30, 30), new(255, 255, 0), new(0, 0, 0), new(250, 250, 250) };
+    private static readonly double[] hyperParam1 = { 0.2, 0.25, 0.2, 0.1, 0.1 }; private static readonly double[] HyperParam2 = { 0.7, 0.7, 0.7, 0.55, 0.55}; private static readonly double[] HyperParam3 = { 0.5,0.4,0.5,0.03,0.3}; private static readonly double[] HyperParam4 = { 1.0, 1.0, 1.0, 0.9, 0.9}; private static readonly Func<RGBColor, RGBColor, double>[] ColorDistances = { RGBColor.LabColorDistance, RGBColor.LabColorDistance, RGBColor.YellowLabColorDistance, RGBColor.BlackLabColorDistance, RGBColor.WhiteLabColorDistance}; private static readonly List<RGBColor> KMeanRoots = new() { new(20, 20, 190), new(220, 30, 30), new(255, 255, 0), new(0, 0, 0), new(250, 250, 250) };
 
 
     private static readonly object LockObject = new ();
+
+    /// <summary>
+    /// compute the probability that the rectangle 'rect' contains a valid label (either old or young)
+    /// </summary>
+    /// <param name="rect"></param>
+    /// <param name="countMatrix"></param>
+    /// <param name="i"></param>
+    /// <returns></returns>
     private static double ComputeConfidenceLevel(Rectangle rect, int[,] countMatrix, int i)
     {
         var row_start = rect.Top;
@@ -127,12 +126,12 @@ public static class BoxFinder
         var top_right_percentage = MatrixTools.Density(countMatrix, row_start, row_end - rect.Height / 2, col_start + rect.Width / 2, col_end);
         var bottom_left_percentage = MatrixTools.Density(countMatrix, row_start + rect.Height / 2, row_end, col_start, col_end - rect.Width / 2);
         var bottom_right_percentage = MatrixTools.Density(countMatrix, row_start + rect.Height / 2, row_end, col_start + rect.Width / 2, col_end);
-        double p = hyperParam4[i];
+        double p = HyperParam4[i];
         foreach (var d in new[] {top_left_percentage, top_right_percentage, bottom_left_percentage,bottom_right_percentage})
         {
-            p *= DensityToProba(d, i);
+            p *= Density_to_ValidLabelCoordinatesProbability(d, i);
         }
-        p *= FormatToProba(rect.Height, rect.Width);
+        p *= LabelCoordinates_to_Probability(rect.Height, rect.Width);
         return p;
     }
 
@@ -192,7 +191,7 @@ public static class BoxFinder
 
 
     
-    private static double FormatToProba(int height, int width)
+    private static double LabelCoordinates_to_Probability(int height, int width)
     {
         double high = 0.0;
         foreach (var d in OldFormat.Union(YoungFormat))
@@ -204,27 +203,29 @@ public static class BoxFinder
         }
         return high;
     }
-    private static double DensityToProba(double d, int i)
+
+    
+    private static double Density_to_ValidLabelCoordinatesProbability(double density, int i)
     {
         var a = hyperParam1[i];
-        var b = hyperParam2[i];
-        if (d >= a && d <= b)
+        var b = HyperParam2[i];
+        if (density >= a && density <= b)
         {
             return 1.0;
         }
-        if (d < a)
+        if (density < a)
         {
-            return Math.Max(0.25, d / a);
+            return Math.Max(0.25, density / a);
         }
-        if (d > b)
+        if (density > b)
         {
-            return Math.Max(0.25, b / d);
+            return Math.Max(0.25, b / density);
         }
         return 1.0;
     }
 
 
-    private static bool ValidRowForDigits(bool[,] m, int[,] countMatrix, int row, int col_start, int col_end)
+    private static bool ValidRowForLabel(int[,] countMatrix, int row, int col_start, int col_end)
     {
         int nonEmptyElements = MatrixTools.RowCount(countMatrix, row, col_start, col_end);
         if (nonEmptyElements < 3)
@@ -246,7 +247,7 @@ public static class BoxFinder
     }
 
 
-    private static bool ValidColForDigits(bool[,] m, int[,] countMatrix, int col, int row_start, int row_end)
+    private static bool ValidColForLabel(bool[,] m, int[,] countMatrix, int col, int row_start, int row_end)
     {
         int nonEmptyElements = MatrixTools.ColCount(countMatrix, col, row_start, row_end);
         if (nonEmptyElements < 5)
@@ -270,20 +271,20 @@ public static class BoxFinder
     }
 
 
-    private static List<EffiSciences95Row> LookForDigits(bool isLabeled, int fileNameIndex, int i, bool[,] m, int[,] countMatrix, int row_start, int row_end, int col_start, int col_end)
+    private static List<EffiSciences95LabelCoordinates> LookForLabelCoordinates(string directory, int fileNameIndex, int i, bool[,] m, int[,] countMatrix, int row_start, int row_end, int col_start, int col_end)
     {
-        var res = new List<EffiSciences95Row>();
+        var res = new List<EffiSciences95LabelCoordinates>();
         var validRows = new bool[row_end-row_start+1];
         for (int row = row_start; row <= row_end; ++row)
         {
-            validRows[row - row_start] = ValidRowForDigits(m, countMatrix, row, col_start, col_end);
+            validRows[row - row_start] = ValidRowForLabel(countMatrix, row, col_start, col_end);
         }
         MatrixTools.MakeValidIfHasValidWithinDistance(validRows,3);
 
         var validCols= new bool[col_end - col_start + 1];
         for (int col = col_start; col <= col_end; ++col)
         {
-            validCols[col - col_start] = ValidColForDigits(m, countMatrix, col, row_start, row_end);
+            validCols[col - col_start] = ValidColForLabel(m, countMatrix, col, row_start, row_end);
         }
         MatrixTools.MakeValidIfHasValidWithinDistance(validCols,8);
 
@@ -323,8 +324,6 @@ public static class BoxFinder
             {
                 --row_end0;
             }
-
-
             while (col_start0 < col_end0 && MatrixTools.ColCount(countMatrix, col_start0, row_start0, row_end0) == 0)
             {
                 ++col_start0;
@@ -333,9 +332,6 @@ public static class BoxFinder
             {
                 --col_end0;
             }
-
-
-
             int height0 = row_end0 - row_start0 + 1;
             int width0 = col_end0 - col_start0 + 1;
             if (width0 < height0)
@@ -344,7 +340,7 @@ public static class BoxFinder
             }
 
             var density = MatrixTools.Density(countMatrix, row_start0, row_end0, col_start0, col_end0);
-            if (density < hyperParam1[i] - 0.1 || density > hyperParam2[i] + 0.1)
+            if (density < hyperParam1[i] - 0.1 || density > HyperParam2[i] + 0.1)
             {
                 return res;
             }
@@ -358,26 +354,20 @@ public static class BoxFinder
 
 
             var rect = new Rectangle(col_start0, row_start0, width0, height0);
-            var row = new EffiSciences95Row(fileNameIndex,
+            var row = new EffiSciences95LabelCoordinates(fileNameIndex,
                 "",
                 col_start0, row_start0, width0, height0,
-                Math.Round(width0 / (double)Math.Max(height0,1),3), //scale
                 Math.Round(density,3),
                 densityDesc,
-                i.ToString(),
-                Math.Round(ComputeConfidenceLevel(rect, countMatrix, i),3),
-                Path.Combine(EffiSciences95BoxesDataset.GetDocumentDirectory(isLabeled), fileNameIndex + ".png")
+                Math.Round(ComputeConfidenceLevel(rect, countMatrix, i),3)
             );
-            row.Label = row.GuessLabel();
-            return new List<EffiSciences95Row> { row };
+            return new List<EffiSciences95LabelCoordinates> { row };
         }
         foreach (var colInterval in validColsIntervals)
         foreach (var rowInterval in validRowsIntervals)
         {
-            res.AddRange(LookForDigits(isLabeled, fileNameIndex, i, m, countMatrix, rowInterval.Item1, rowInterval.Item2, colInterval.Item1, colInterval.Item2));
+            res.AddRange(LookForLabelCoordinates(directory, fileNameIndex, i, m, countMatrix, rowInterval.Item1, rowInterval.Item2, colInterval.Item1, colInterval.Item2));
         }
-
         return res;
     }
-
 }

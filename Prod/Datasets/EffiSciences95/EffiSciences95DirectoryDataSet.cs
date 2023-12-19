@@ -1,55 +1,58 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Drawing;
 using SharpNet.Pictures;
 
 namespace SharpNet.Datasets.EffiSciences95;
 
+/// <summary>
+/// this class is used to load each picture of a dataset (see method: OriginalElementContent).
+/// Before returning the picture, it will remove the label (old or young) appearing in the picture
+/// </summary>
 public class EffiSciences95DirectoryDataSet : DirectoryDataSet
 {
-    private readonly List<EffiSciences95Row> _boxes;
+    private readonly List<EffiSciences95LabelCoordinates> _labelCoordinates;
     private readonly EffiSciences95DatasetSample _datasetSample;
-
     private readonly Random _r = new (Utils.RandomSeed());
 
-    public static EffiSciences95DirectoryDataSet ValueOf(EffiSciences95DatasetSample datasetSample, bool isLabeled, int maxElementCount = -1)
+
+    public static EffiSciences95DirectoryDataSet ValueOf(EffiSciences95DatasetSample datasetSample, string directory, int maxElementCount = -1)
     {
-        var idToBoxes = new EffiSciences95BoxesDataset(isLabeled).Content;
-        // ReSharper disable once ConditionIsAlwaysTrueOrFalse
-        var idToTextLabel = isLabeled?EffiSciences95Utils.IdToTextTarget(isLabeled):null;
+        //we load the coordinates of the box containing the label ("old" or "young") for each picture (as computed in method FindLabelCoordinates in class LabelFinder)
+        var idToLabelCoordinatesInPicture = new EffiSciences95LabelCoordinatesDataset(directory).Content;
+        // the known label from the Labeled (train) dataset
+        var pictureId_to_TrainLabel = (directory == "Labeled")?EffiSciences95Utils.LoadPredictionFile("Labeled_TextTarget.csv") :null;
         
         List<List<string>> elementIdToPaths = new();
-        List<string> elementIdToId = new();
-        List<int> elementIdToCategoryIndex = new();
-        List<EffiSciences95Row> boxes = new();
+        List<string> elementId_to_pictureId = new();
+        List<int> elementId_to_label = new();
+        List<EffiSciences95LabelCoordinates> allLabelCoordinatesInPictures = new();
 
-        for(int id=0;id<=EffiSciences95Utils.MaxId(isLabeled);++id)
+        for(int pictureId=0;pictureId<=EffiSciences95Utils.MaxPictureId(directory);++pictureId)
         {
-            int textLabel = -1;
-            var box = idToBoxes.TryGetValue(id, out var toBox) ? toBox : null;
-            if (box!= null && (box.IsEmpty || !box.HasBeenValidated))
+            var labelCoordinatesInPicture = idToLabelCoordinatesInPicture.TryGetValue(pictureId, out var tmp) ? tmp : null;
+            if (labelCoordinatesInPicture!= null && (labelCoordinatesInPicture.IsEmpty || !labelCoordinatesInPicture.HasKnownLabel))
             {
-                box = null;
+                labelCoordinatesInPicture = null;
             }
-            if (isLabeled)
+            // for Labeled (train) dataset:
+            //    0 or 1
+            // for Unlabeled (test) dataset:
+            //    -1
+            int label = -1; 
+            if (directory=="Labeled")
             {
-                if (!idToTextLabel.ContainsKey(id))
-                {
-                    // ReSharper disable once ConditionIsAlwaysTrueOrFalse
-                    throw new Exception($"no label for {EffiSciences95Utils.IdToPath(id, isLabeled)}");
-                }
-                if (box == null)
+                if (labelCoordinatesInPicture == null)
                 {
                     continue; //for training, we need to know the box shape for each picture to remove it while training
                 }
-                textLabel = idToTextLabel[id];
+                // we extract the label for this training pictureId
+                label = pictureId_to_TrainLabel[pictureId];
             }
-
-            elementIdToPaths.Add(new List<string> { EffiSciences95Utils.IdToPath(id, isLabeled) });
-            elementIdToId.Add(id.ToString());
-            elementIdToCategoryIndex.Add(textLabel);
-            boxes.Add(box);
+            elementIdToPaths.Add(new List<string> { EffiSciences95Utils.PictureIdToPath(pictureId, directory) });
+            elementId_to_pictureId.Add(pictureId.ToString());
+            elementId_to_label.Add(label);
+            allLabelCoordinatesInPictures.Add(labelCoordinatesInPicture);
             if (maxElementCount != -1 && elementIdToPaths.Count >= maxElementCount)
             {
                 break;
@@ -58,22 +61,15 @@ public class EffiSciences95DirectoryDataSet : DirectoryDataSet
 
         return new EffiSciences95DirectoryDataSet(
             datasetSample,
-            boxes,
+            allLabelCoordinatesInPictures,
             elementIdToPaths,
-            elementIdToId,
-            elementIdToCategoryIndex);
+            elementId_to_pictureId,
+            elementId_to_label);
     }
-
-    private static readonly List<Tuple<float, float>> PrecomputedMeanAndVolatilityForEachChannel = new()
-    {
-        Tuple.Create(128.42516f, 79.42157f),
-        Tuple.Create(107.48822f, 74.195564f),
-        Tuple.Create(97.46115f, 73.76817f)
-    };
 
     private EffiSciences95DirectoryDataSet(
         EffiSciences95DatasetSample datasetSample,
-        List<EffiSciences95Row> boxes,
+        List<EffiSciences95LabelCoordinates> labelCoordinates,
         List<List<string>> elementIdToPaths,
         List<string> y_IDs,
         List<int> elementIdToCategoryIndex
@@ -91,29 +87,33 @@ public class EffiSciences95DirectoryDataSet : DirectoryDataSet
             y_IDs.ToArray(), null)
     {
         _datasetSample = datasetSample;
-        _boxes = boxes;
+        _labelCoordinates = labelCoordinates;
     }
 
 
+    /// <summary>
+    /// return a picture (from the training (Labeled) or test (Unlabeled) dataset) after removing the box that seems to contain the label 
+    /// </summary>
+    /// <returns></returns>
     public override BitmapContent OriginalElementContent(int elementId, int channels, int targetHeight, int targetWidth, bool withDataAugmentation, bool isTraining)
     {
         var res = base.OriginalElementContent(elementId, channels, targetHeight, targetWidth, withDataAugmentation, isTraining);
-        if (res == null || !isTraining || _boxes[elementId] == null || _boxes[elementId].IsEmpty)
+        if (res == null || !isTraining || _labelCoordinates[elementId] == null || _labelCoordinates[elementId].IsEmpty)
         {
             return res;
         }
 
         //we need to draw a black box on the picture
-        var boxToRemove0 = _boxes[elementId];
-        var rectBoxToRemove = boxToRemove0.Shape;
+        var labelCoordinateToRemove0 = _labelCoordinates[elementId];
+        var rectBoxToRemove = labelCoordinateToRemove0.Shape;
 
-        var otherBox = FindBiggerBoxWithLabels(boxToRemove0);
-        if (otherBox != null)
+        var otherLabelCoordinate = FindBiggerBoxWithLabels(labelCoordinateToRemove0);
+        if (otherLabelCoordinate != null)
         {
-            rectBoxToRemove.Y -= (otherBox.Height - boxToRemove0.Height) / 2;
-            rectBoxToRemove.Height = otherBox.Height;
-            rectBoxToRemove.X -= (otherBox.Width - boxToRemove0.Width) / 2;
-            rectBoxToRemove.Width = otherBox.Width;
+            rectBoxToRemove.Y -= (otherLabelCoordinate.Height - labelCoordinateToRemove0.Height) / 2;
+            rectBoxToRemove.Height = otherLabelCoordinate.Height;
+            rectBoxToRemove.X -= (otherLabelCoordinate.Width - labelCoordinateToRemove0.Width) / 2;
+            rectBoxToRemove.Width = otherLabelCoordinate.Width;
         }
         ClearBitmap(res, rectBoxToRemove);
         return res;
@@ -121,7 +121,6 @@ public class EffiSciences95DirectoryDataSet : DirectoryDataSet
 
     private void ClearBitmap(BitmapContent res, Rectangle rect)
     {
-        Debug.Assert(_datasetSample.MaxEnlargeForBox >= _datasetSample.MinEnlargeForBox);
         if (_datasetSample.MaxEnlargeForBox > 0)
         {
             int min = _datasetSample.MinEnlargeForBox;
@@ -143,33 +142,40 @@ public class EffiSciences95DirectoryDataSet : DirectoryDataSet
         var span = res.SpanContent;
         for (int c = 0; c < res.GetChannels(); ++c)
         {
-            //!D TO CHECK: var meanValue = (byte)PrecomputedMeanAndVolatilityForEachChannel[c].Item1;
             for (int row = row_Start; row <= row_End; ++row)
             {
                 int idx = res.Idx(c, row, col_Start);
                 span.Slice(idx, width).Clear();
-                //TODO: TO CHECK: for (int col = idx; col < idx + width; ++col) {span[col] = meanValue;}
             }
         }
     }
 
-    private EffiSciences95Row FindBiggerBoxWithLabels(EffiSciences95Row box)
+    /// <summary>
+    /// return an element from the training dataset containing "young" and with a box label bigger than the one in 'box'
+    /// </summary>
+    /// <returns></returns>
+    private EffiSciences95LabelCoordinates FindBiggerBoxWithLabels(EffiSciences95LabelCoordinates box)
     {
         for (int i = 0; i <= 20; ++i)
         {
-            //we look for a bigger box containing "young"
-            var otherBox = _boxes[_r.Next(_boxes.Count)];
-            if (otherBox == null || otherBox.IsEmpty || otherBox.Label != "y")
+            //we look for a bigger box containing "young" from the training (Labeled) dataset
+            var otherLabelCoordinate = _labelCoordinates[_r.Next(_labelCoordinates.Count)];
+            if (otherLabelCoordinate == null || otherLabelCoordinate.IsEmpty || otherLabelCoordinate.Label != "y")
             {
                 continue;
             }
-            if (otherBox.Width >= box.Width && otherBox.Height >= box.Height)
+            if (otherLabelCoordinate.Width >= box.Width && otherLabelCoordinate.Height >= box.Height)
             {
-                return otherBox;
+                return otherLabelCoordinate;
             }
         }
-
         return null;
-
     }
+
+    private static readonly List<Tuple<float, float>> PrecomputedMeanAndVolatilityForEachChannel = new()
+        {
+            Tuple.Create(128.42516f, 79.42157f),
+            Tuple.Create(107.48822f, 74.195564f),
+            Tuple.Create(97.46115f, 73.76817f)
+        };
 }
