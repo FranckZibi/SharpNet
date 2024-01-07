@@ -6,12 +6,10 @@ namespace SharpNet.Datasets;
 
 public sealed class MappedDataSet : WrappedDataSet
 {
-    private readonly DataSet _original;
     private readonly IReadOnlyList<int> _elementIdToOriginalElementId;
         
     public MappedDataSet(DataSet original, IReadOnlyList<int> elementIdToOriginalElementId) : base(original, null)
     {
-        _original = original;
         _elementIdToOriginalElementId = new List<int>(elementIdToOriginalElementId);
     }
 
@@ -25,9 +23,6 @@ public sealed class MappedDataSet : WrappedDataSet
     {
         _original.LoadAt(_elementIdToOriginalElementId[subElementId], indexInBuffer, xBuffer, yBuffer, withDataAugmentation, isTraining);
     }
-
-    public override int[] X_Shape(int batchSize) => _original.X_Shape(batchSize);
-    public override int[] Y_Shape(int batchSize) => _original.Y_Shape(batchSize);
 
     public override int Count => _elementIdToOriginalElementId.Count;
 

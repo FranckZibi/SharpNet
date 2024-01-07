@@ -941,9 +941,9 @@ namespace SharpNet.Networks
         public override (DataFrame, string) PredictWithPath(DataSet dataset, bool removeAllTemporaryFilesAtEnd)
         {
             var cpuTensor = Predict(dataset, Sample.BatchSize);
-            if (dataset.GetDatasetSample() != null && dataset.GetDatasetSample().TargetLabels.Length == cpuTensor.Shape[1])
+            if (dataset.DatasetSample.TargetLabels.Length == cpuTensor.Shape[1])
             {
-                return (DataFrame.New(cpuTensor, dataset.GetDatasetSample().TargetLabels), "");
+                return (DataFrame.New(cpuTensor, dataset.DatasetSample.TargetLabels), "");
             }
             return (DataFrame.New(cpuTensor), "");
         }

@@ -7,17 +7,15 @@ namespace SharpNet.Datasets;
 
 public abstract class WrappedDataSet : DataSet
 {
-    private readonly DataSet _original;
+    protected readonly DataSet _original;
 
     protected WrappedDataSet(DataSet original, [CanBeNull] string[] Y_IDs)
         : base(original.Name,
-            original.Objective,
+            original.DatasetSample,
             original.MeanAndVolatilityForEachChannel,
             original.ResizeStrategy,
             original.ColumnNames,
-            original.IsCategoricalColumn,
             Y_IDs,
-            original.IdColumn, 
             original.Separator)
     {
         _original = original;
@@ -33,13 +31,12 @@ public abstract class WrappedDataSet : DataSet
         _original.LoadAt(subElementId, indexInBuffer, xBuffer, yBuffer, withDataAugmentation, isTraining);
     }
     public override int Count => _original.Count;
-
-    public override int ElementIdToCategoryIndex(int elementId) { return _original.ElementIdToCategoryIndex(elementId); }
+    public override int[] X_Shape(int batchSize) => _original.X_Shape(batchSize);
+    public override int[] Y_Shape(int batchSize) => _original.Y_Shape(batchSize);
+    public override int ElementIdToCategoryIndex(int elementId) => _original.ElementIdToCategoryIndex(elementId);
     public override bool CanBeSavedInCSV => _original.CanBeSavedInCSV;
     public override bool UseRowIndexAsId => _original.UseRowIndexAsId;
-    public override List<int[]> XMiniBatch_Shape(int[] shapeForFirstLayer) { return _original.XMiniBatch_Shape(shapeForFirstLayer); }
-    public override AbstractDatasetSample GetDatasetSample() => _original.GetDatasetSample();
-
+    public override List<int[]> XMiniBatch_Shape(int[] shapeForFirstLayer) => _original.XMiniBatch_Shape(shapeForFirstLayer);
     public override int[] IdToValidationKFold(int n_splits, int countMustBeMultipleOf)
     {
         if (Count != _original.Count)

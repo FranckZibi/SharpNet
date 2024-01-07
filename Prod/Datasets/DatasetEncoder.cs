@@ -50,7 +50,6 @@ public class DatasetEncoder
     /// </summary>
     // ReSharper disable once NotAccessedField.Local
     private int _inverseTransformCallCount = 0;
-
     private readonly Dictionary<string, HashSet<string>> CategoricalFeature_to_CategoricalColumnSharingSameValues = new();
     #endregion
 
@@ -112,28 +111,6 @@ public class DatasetEncoder
     
         Parallel.For(0, df.Columns.Length, columnIdxIdDataFrame => FitColumn(df, columnIdxIdDataFrame));
     }
-    public void FitMissingCategoricalColumns(params DataFrame[] dfs)
-    {
-        foreach (var df in dfs)
-        {
-            if (df == null)
-            {
-                continue;
-            }
-
-            for (var index = 0; index < df.Columns.Length; index++)
-            {
-                var c = df.Columns[index];
-                if (!_columnStats.ContainsKey(c) && _datasetSample.IsCategoricalColumn(c))
-                {
-                    Log.Info($"fitting missing categorical column {c}");
-                    _columnStats[c] = GetExistingColumnStatisticsFromFamily(c)??new ColumnStatistics(_datasetSample.IsCategoricalColumn(c), _datasetSample.TargetLabels.Contains(c), Equals(_datasetSample.IdColumn, c), _standardizeDoubleValues, _allDataFrameAreAlreadyNormalized);
-                    FitColumn(df, index);
-                }
-            }
-        }
-    }
-
     private ColumnStatistics GetExistingColumnStatisticsFromFamily(string columnName)
     {
         if (CategoricalFeature_to_CategoricalColumnSharingSameValues.TryGetValue(columnName, out var group))
@@ -247,7 +224,6 @@ public class DatasetEncoder
         return DataFrame.New(decodedContent, float_df.Columns);
     }
 
-
     private void FitColumn(DataFrame df, int columnIdxIdDataFrame)
     {
         var rows = df.Shape[0];
@@ -284,18 +260,5 @@ public class DatasetEncoder
         }
 
     }
-    //private bool IsCategoricalColumn(string columnName)
-    //{
-
-    //    if (CategoricalFeatures.Contains(columnName) || Equals(IdColumn, columnName))
-    //    {
-    //        return true;
-    //    }
-    //    //!D 
-    //    //if (DatasetObjective == Objective_enum.Classification && TargetLabels.Contains(columnName))
-    //    //{
-    //    //    return true;
-    //    //}
-    //    return false;
-    //}
+    
 }

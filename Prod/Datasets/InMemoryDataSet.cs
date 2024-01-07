@@ -12,26 +12,48 @@ public class InMemoryDataSet : DataSet
     private readonly int[] _elementIdToCategoryIndex;
     private readonly CpuTensor<float> _x;
     [CanBeNull] private readonly CpuTensor<float> _yInMemoryDataSet;
+    private ConstDatasetSample constDatasetSample;
+    private CpuTensor<float> x;
+    private CpuTensor<float> y;
+    private string name;
+    private List<Tuple<float, float>> meanAndVolatilityForEachChannel;
+    private ResizeStrategyEnum none;
+    private string[] strings;
+    private string[] y_IDs;
+    private char separator;
     #endregion
-    
-    public InMemoryDataSet([NotNull] CpuTensor<float> x,
+
+
+    private static ConstDatasetSample NewConstDatasetSample(
+        [NotNull] CpuTensor<float> x,
+        [CanBeNull] CpuTensor<float> y,
+        Objective_enum objective,
+        Func<string, bool> isCategoricalColumn,
+        [CanBeNull] string idColumn)
+    {
+        string[] targetLabels = {"y"};
+        int[] x_shape_for_1_batchSize = (int[])x.Shape.Clone();
+        int[] y_shape_for_1_batchSize = (y==null)?(new[]{1,1}): (int[])y.Shape.Clone();
+        y_shape_for_1_batchSize[0] = 1;
+        int numClass = y_shape_for_1_batchSize[^1]; 
+        return new ConstDatasetSample(idColumn, targetLabels, x_shape_for_1_batchSize, y_shape_for_1_batchSize, numClass, objective, isCategoricalColumn);
+    }
+
+    public InMemoryDataSet(
+        [NotNull] AbstractDatasetSample datasetSample,
+        [NotNull] CpuTensor<float> x,
         [CanBeNull] CpuTensor<float> y,
         string name = "",
-        Objective_enum objective = Objective_enum.Regression,
         List<Tuple<float, float>> meanAndVolatilityForEachChannel = null,
         string[] columnNames = null,
-        Func<string, bool> isCategoricalColumn = null,
         [CanBeNull] string[] y_IDs = null,
-        [CanBeNull] string idColumn = null,
         char separator = ',')
         : base(name,
-            objective,
-            meanAndVolatilityForEachChannel, 
+            datasetSample,
+            meanAndVolatilityForEachChannel,
             ResizeStrategyEnum.None,
             columnNames ?? new string[0],
-            isCategoricalColumn,
             y_IDs,
-            idColumn, 
             separator)
     {
         Debug.Assert(x != null);
@@ -62,6 +84,30 @@ public class InMemoryDataSet : DataSet
             }
         }
     }
+
+
+    public InMemoryDataSet([NotNull] CpuTensor<float> x,
+        [CanBeNull] CpuTensor<float> y,
+        string name = "",
+        Objective_enum objective = Objective_enum.Regression,
+        List<Tuple<float, float>> meanAndVolatilityForEachChannel = null,
+        string[] columnNames = null,
+        Func<string, bool> isCategoricalColumn = null,
+        [CanBeNull] string[] y_IDs = null,
+        [CanBeNull] string idColumn = null,
+        char separator = ',')
+        : this(
+            NewConstDatasetSample(x, y, objective, isCategoricalColumn, idColumn), 
+            x,
+            y,
+            name,
+            meanAndVolatilityForEachChannel,
+            columnNames ?? new string[0],
+            y_IDs,
+            separator)
+    {
+    }
+
     public override void LoadAt(int elementId, int indexInBuffer, CpuTensor<float> xBuffer, CpuTensor<float> yBuffer, bool withDataAugmentation, bool isTraining)
     {
         if (xBuffer != null)
@@ -106,10 +152,6 @@ public class InMemoryDataSet : DataSet
     }
 
     public CpuTensor<float> X => _x;
-    public override AbstractDatasetSample GetDatasetSample()
-    {
-        return null;
-    }
     public override string ToString()
     {
         return _x + " => " + _yInMemoryDataSet;

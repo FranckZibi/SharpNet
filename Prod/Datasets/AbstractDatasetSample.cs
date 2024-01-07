@@ -97,7 +97,6 @@ public abstract class AbstractDatasetSample : AbstractSample, IDisposable
     /// <returns>list of target feature names </returns>
     public abstract string[] TargetLabels { get; }
     public abstract bool IsCategoricalColumn(string columnName);
-    public abstract int[] Y_Shape(int batchSize);
     public abstract int NumClass { get; }
     public abstract Objective_enum GetObjective();
     public abstract DataSet TestDataset();
@@ -156,6 +155,7 @@ public abstract class AbstractDatasetSample : AbstractSample, IDisposable
         res[0] = batchSize;
         return res;
     }
+    public virtual int[] Y_Shape(int batchSize) => new[] { batchSize, NumClass };
     public virtual string[] GetColumnNames()
     {
         if (_cacheColumns == null)

@@ -226,10 +226,14 @@ namespace SharpNet.Datasets
             return network;
         }
 
+        public const int DefaultHeight = 400;
+        public const int DefaultWidth = 470;
+
+
         public static List<Tuple<string, double>> PredictCancelsWithProba(Network network, List<string> picturePaths)
         {
             var result = new List<Tuple<string, double>>();
-            using var dataSet = DirectoryDataSet.FromFiles(picturePaths, Hierarchy.RootPrediction().Length, CancelMeanAndVolatilityForEachChannel, ResizeStrategyEnum.BiggestCropInOriginalImageToKeepSameProportion);
+            using var dataSet = DirectoryDataSet.FromFiles(picturePaths, Hierarchy.RootPrediction().Length, new []{3, DefaultHeight, DefaultWidth},CancelMeanAndVolatilityForEachChannel, ResizeStrategyEnum.BiggestCropInOriginalImageToKeepSameProportion);
             var p = network.Predict(dataSet, Math.Min(32, dataSet.Count));
             for (int elementId = 0; elementId < p.Shape[0]; ++elementId)
             {
@@ -441,7 +445,7 @@ namespace SharpNet.Datasets
                 yExpected, 
                 "Cancel", 
                 Objective_enum.Classification,
-                3,
+                new []{3, DefaultHeight, DefaultWidth},
                 numClass,
                 CancelMeanAndVolatilityForEachChannel,
                 resizeStrategy,

@@ -141,7 +141,7 @@ public class Biosonar85DatasetSample : AbstractDatasetSample
     private static readonly ILog Log = LogManager.GetLogger(typeof(Biosonar85DatasetSample));
     #endregion
 
-    public enum InputDataTypeEnum { PNG_1CHANNEL, PNG_1CHANNEL_V2, TRANSFORMERS_3D, NETWORK_4D, LIBROSA_FEATURES, MEL_SPECTROGRAM_64_401, MEL_SPECTROGRAM_128_401, MEL_SPECTROGRAM_SMALL_128_401, MEL_SPECTROGRAM_256_801 }
+    public enum InputDataTypeEnum { PNG_1CHANNEL_V2, TRANSFORMERS_3D, NETWORK_4D, LIBROSA_FEATURES, MEL_SPECTROGRAM_64_401, MEL_SPECTROGRAM_128_401, MEL_SPECTROGRAM_SMALL_128_401, MEL_SPECTROGRAM_256_801 }
 
     
 
@@ -166,7 +166,6 @@ public class Biosonar85DatasetSample : AbstractDatasetSample
         Utils.ConfigureThreadLog4netProperties(Biosonar85Utils.WorkingDirectory, Biosonar85Utils.NAME);
     }
 
-    public override int[] Y_Shape(int batchSize) => throw new NotImplementedException(); //!D TODO
     public override int NumClass => 1;
     public override string IdColumn => "id";
     public override string[] TargetLabels { get; } = { "pos_label" };
@@ -278,8 +277,6 @@ public class Biosonar85DatasetSample : AbstractDatasetSample
                 return X_Shape(xTrainBin_TRANSFORMERS_3D, batchSize).ToArray();
             case InputDataTypeEnum.NETWORK_4D:
                 return X_Shape(xTrainBin_TRANSFORMERS_3D, batchSize);
-            case InputDataTypeEnum.PNG_1CHANNEL:
-                return new[] { batchSize, 129, 401 };
             case InputDataTypeEnum.PNG_1CHANNEL_V2:
                 return X_Shape(xTrainBin_PNG_1CHANNEL_V2, batchSize);
             case InputDataTypeEnum.MEL_SPECTROGRAM_64_401:
@@ -330,17 +327,6 @@ public class Biosonar85DatasetSample : AbstractDatasetSample
                         Log.Info($"Loading of raw files took {sw.Elapsed.Seconds}s");
                     }
                     return (trainDataset_NETWORK_4D, testDataset_NETWORK_4D);
-                case InputDataTypeEnum.PNG_1CHANNEL:
-                    if (trainDataset_PNG_1CHANNEL == null)
-                    {
-                        var meanAndVolatilityForEachChannelTrain = new List<Tuple<float, float>> { Tuple.Create(121.41582f, 38.465096f) };
-                        trainDataset_PNG_1CHANNEL = Biosonar85Utils.LoadPng(PNG_train_directory, Y_train_path, true, meanAndVolatilityForEachChannelTrain);
-                        //var meanAndVolatilityForEachChannelTest = new List<Tuple<float, float>> { Tuple.Create(115.38992f, 27.096777f) };
-                        var meanAndVolatilityForEachChannelTest = meanAndVolatilityForEachChannelTrain;
-                        testDataset_PNG_1CHANNEL = Biosonar85Utils.LoadPng(PNG_test_directory, Y_test_path, false, meanAndVolatilityForEachChannelTest);
-                        Log.Info($"Loading of raw files took {sw.Elapsed.Seconds}s");
-                    }
-                    return (trainDataset_PNG_1CHANNEL, testDataset_PNG_1CHANNEL);
                 case InputDataTypeEnum.PNG_1CHANNEL_V2:
                     if (trainDataset_PNG_1CHANNEL_V2 == null)
                     {

@@ -156,13 +156,13 @@ public class TimeSeriesDataset : DataSet, ITimeSeriesDataSet
     public TimeSeriesDataset(string name, TimeSeriesSinglePoint[] entries, EncoderDecoder_NetworkSample networkSample, 
         DatasetSampleForTimeSeries datasetSample, TimeSeriesDataset trainingDataSetOldIfAny = null)
         : base(name,
-            datasetSample.GetObjective(),
+            datasetSample,
             null,
             ResizeStrategyEnum.None,
             datasetSample.GetColumnNames(),
-            datasetSample.IsCategoricalColumn,
+            //datasetSample.IsCategoricalColumn,
             null,
-            datasetSample.IdColumn, 
+            //datasetSample.IdColumn, 
             ',')
     {
         EncoderDecoder_NetworkSample = networkSample;
@@ -416,10 +416,5 @@ public class TimeSeriesDataset : DataSet, ITimeSeriesDataSet
             }
             idx += count;
         }
-    }
-
-    public override AbstractDatasetSample GetDatasetSample()
-    {
-        return DatasetSampleForTimeSeries;
     }
 }

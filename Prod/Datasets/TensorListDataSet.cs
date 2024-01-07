@@ -15,6 +15,21 @@ public class TensorListDataSet : DataSet
     [CanBeNull] private readonly CpuTensor<float> _yInMemoryDataSet;
     #endregion
 
+
+    private static ConstDatasetSample NewConstDatasetSample(
+        [NotNull] List<CpuTensor<float>> xList,
+        [CanBeNull] CpuTensor<float> y,
+        Objective_enum objective,
+        Func<string, bool> isCategoricalColumn,
+        [CanBeNull] string idColumn)
+    {
+        string[] targetLabels = { "y" };
+        int[] x_shape_for_1_batchSize = (int[])xList[0].Shape.Clone();
+        int[] y_shape_for_1_batchSize = (y == null) ? (new[] { 1, 1 }) : (int[])y.Shape.Clone();
+        y_shape_for_1_batchSize[0] = 1;
+        int numClass = y_shape_for_1_batchSize[^1];
+        return new ConstDatasetSample(idColumn, targetLabels, x_shape_for_1_batchSize, y_shape_for_1_batchSize, numClass, objective, isCategoricalColumn);
+    }
     public TensorListDataSet([NotNull]
         List<CpuTensor<float>> xList,
         [CanBeNull] List<CpuTensor<float>> augmentedXList, //the augmented version of 'x'
@@ -28,13 +43,14 @@ public class TensorListDataSet : DataSet
         [CanBeNull] string idColumn = null,
         char separator = ',')
         : base(name,
-            objective,
+            NewConstDatasetSample(xList, y, objective, isCategoricalColumn, idColumn),
+            //objective,
             meanAndVolatilityForEachChannel,
             ResizeStrategyEnum.None,
             columnNames ?? new string[0],
-            isCategoricalColumn,
+            //isCategoricalColumn,
             y_IDs,
-            idColumn,
+            //idColumn,
             separator)
     {
         _xList = xList;
@@ -112,11 +128,6 @@ public class TensorListDataSet : DataSet
             throw new Exception("can't return a category index for regression");
         }
         return _elementIdToCategoryIndex[elementId];
-    }
-
-    public override AbstractDatasetSample GetDatasetSample()
-    {
-        return null;
     }
     public override string ToString()
     {

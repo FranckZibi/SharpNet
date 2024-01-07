@@ -19,7 +19,6 @@ public class DataFrameDataSet : DataSet
 
     #region public fields and properties
     public DataFrame XDataFrame { get; }
-    public AbstractDatasetSample DatasetSample { get; }
     #endregion
 
     public DataFrameDataSet(
@@ -28,16 +27,16 @@ public class DataFrameDataSet : DataSet
         [CanBeNull] DataFrame y_df,
         [CanBeNull] string[] y_IDs)
         : base(datasetSample.Name,
-            datasetSample.GetObjective(),
+            datasetSample,
+            //datasetSample.GetObjective(),
             null,
             ResizeStrategyEnum.None,
             x_df.Columns,
-            datasetSample.IsCategoricalColumn,
+            //datasetSample.IsCategoricalColumn,
             y_IDs,
-            datasetSample.IdColumn, 
+            //datasetSample.IdColumn, 
             datasetSample.GetSeparator())
     {
-        DatasetSample = datasetSample;
         Debug.Assert(y_df == null || AreCompatible_X_Y(x_df.FloatTensor, y_df.FloatTensor));
 
         if (IsRegressionProblem || y_df == null)
@@ -93,9 +92,5 @@ public class DataFrameDataSet : DataSet
     public override string ToString()
     {
         return XDataFrame + " => " + YDataFrame_InModelFormat;
-    }
-    public override AbstractDatasetSample GetDatasetSample()
-    {
-        return DatasetSample;
     }
 }

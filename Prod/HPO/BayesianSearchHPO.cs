@@ -65,23 +65,21 @@ public class BayesianSearchHPO : AbstractHpo
         _surrogateModel = BuildCatBoostSurrogateModel(_workingDirectory, surrogateModelName);
     }
 
-    // ReSharper disable once UnusedMember.Global
-    public static InMemoryDataSet LoadSurrogateTrainingDataset(string dataFramePath, Func<string,bool> isCategoricalColumn = null)
-    {
-        var df = DataFrame.read_float_csv(dataFramePath);
-        var x_df = df.Drop("y");
-        var x = x_df.FloatCpuTensor();
-        var y_df = df["y"];
-        var y = y_df.FloatCpuTensor();
-        return new InMemoryDataSet(x, y, "", Objective_enum.Regression, null, columnNames: x_df.Columns, isCategoricalColumn);
-    }
-    // ReSharper disable once UnusedMember.Global
-    public static InMemoryDataSet LoadSurrogateValidationDataset(string dataFramePath, Func<string, bool> isCategoricalColumn = null)
-    {
-        var df = DataFrame.read_float_csv(dataFramePath);
-        var x = df.FloatCpuTensor();
-        return new InMemoryDataSet(x, null, "", Objective_enum.Regression, null, columnNames: df.Columns, isCategoricalColumn);
-    }
+    //public static InMemoryDataSet LoadSurrogateTrainingDataset(string dataFramePath, Func<string,bool> isCategoricalColumn = null)
+    //{
+    //    var df = DataFrame.read_float_csv(dataFramePath);
+    //    var x_df = df.Drop("y");
+    //    var x = x_df.FloatCpuTensor();
+    //    var y_df = df["y"];
+    //    var y = y_df.FloatCpuTensor();
+    //    return new InMemoryDataSet(x, y, "", Objective_enum.Regression, null, columnNames: x_df.Columns, isCategoricalColumn);
+    //}
+    //public static InMemoryDataSet LoadSurrogateValidationDataset(string dataFramePath, Func<string, bool> isCategoricalColumn = null)
+    //{
+    //    var df = DataFrame.read_float_csv(dataFramePath);
+    //    var x = df.FloatCpuTensor();
+    //    return new InMemoryDataSet(x, null, "", Objective_enum.Regression, null, columnNames: df.Columns, isCategoricalColumn);
+    //}
 
     protected override (ISample, int, string) Next
     {

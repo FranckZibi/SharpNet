@@ -54,7 +54,6 @@ public class MyNameIsGrootDatasetSample : TransformerDatasetSample
     public override string IdColumn => null;
     public override string[] TargetLabels { get; } = {"y"};
     public override bool IsCategoricalColumn(string columnName) => DefaultIsCategoricalColumn(columnName);
-
     public override Objective_enum GetObjective()
     {
         return Objective_enum.Classification;

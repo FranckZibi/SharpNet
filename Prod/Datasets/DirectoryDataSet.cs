@@ -2,6 +2,7 @@
 using SharpNet.Pictures;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
@@ -30,6 +31,7 @@ namespace SharpNet.Datasets
         public static DirectoryDataSet FromFiles(
             List<string> picturePaths,
             int numClass,
+            int[] input_CHW,
             List<Tuple<float, float>> meanAndVolatilityForEachChannel,
             ResizeStrategyEnum resizeStrategy)
         {
@@ -48,7 +50,7 @@ namespace SharpNet.Datasets
                 null,
                 "FromFiles", 
                 Objective_enum.Classification,
-                3,
+                input_CHW,
                 numClass,
                 meanAndVolatilityForEachChannel,
                 resizeStrategy,
@@ -56,27 +58,68 @@ namespace SharpNet.Datasets
                 rowInTargetFormatPredictionToID.ToArray(), null);
         }
 
+
+
+        private static ConstDatasetSample NewConstDatasetSample(
+            int[] input_CHW,
+            [CanBeNull] CpuTensor<float> expectedYIfAny,
+            Objective_enum objective,
+            Func<string, bool> isCategoricalColumn,
+            [CanBeNull] string idColumn,
+            int numClass)
+        {
+            string[] targetLabels = { "y" };
+            Debug.Assert(input_CHW.Length == 3);
+            int[] x_shape_for_1_batchSize = {1, input_CHW[0], input_CHW[1], input_CHW[2] };
+            int[] y_shape_for_1_batchSize = (expectedYIfAny == null) ? (new[] { 1, numClass }) : (int[])expectedYIfAny.Shape.Clone();
+            y_shape_for_1_batchSize[0] = 1;
+            //int numClass = y_shape_for_1_batchSize[^1];
+            return new ConstDatasetSample(idColumn, targetLabels, x_shape_for_1_batchSize, y_shape_for_1_batchSize, numClass, objective, isCategoricalColumn);
+        }
+
         #region constructor
+
         public DirectoryDataSet(List<List<string>> elementIdToPaths,
             List<int> elementIdToCategoryIndex,
             CpuTensor<float> expectedYIfAny,
             string name,
             Objective_enum objective,
-            int channels,
+            int[] input_CHW,
             int numClass,
             List<Tuple<float, float>> meanAndVolatilityForEachChannel,
             ResizeStrategyEnum resizeStrategy,
             string[] featureNames,
             string[] y_IDs,
             string idColumn)
-            : base(name,
-                objective, 
-                meanAndVolatilityForEachChannel, 
+            : this(
+                NewConstDatasetSample(input_CHW, expectedYIfAny, objective, null, idColumn, numClass),
+                elementIdToPaths,
+                elementIdToCategoryIndex,
+                expectedYIfAny,
+                name,
+                meanAndVolatilityForEachChannel,
                 resizeStrategy,
-                featureNames?? new string[0],
-                null,
+                featureNames,
+                y_IDs)
+        {
+        }
+
+        protected DirectoryDataSet(
+            AbstractDatasetSample datasetSample,
+            List<List<string>> elementIdToPaths,
+            List<int> elementIdToCategoryIndex,
+            CpuTensor<float> expectedYIfAny,
+            string name,
+            List<Tuple<float, float>> meanAndVolatilityForEachChannel,
+            ResizeStrategyEnum resizeStrategy,
+            string[] featureNames,
+            string[] y_IDs)
+            : base(name,
+                datasetSample,
+                meanAndVolatilityForEachChannel,
+                resizeStrategy,
+                featureNames ?? new string[0],
                 y_IDs,
-                idColumn, 
                 ',')
         {
             _elementIdToPaths.AddRange(elementIdToPaths);
@@ -85,6 +128,7 @@ namespace SharpNet.Datasets
             if (meanAndVolatilityForEachChannel == null)
             {
                 // ReSharper disable once RedundantAssignment
+                int channels = datasetSample.X_Shape(1)[1]; // X shape: (batchSize, channels, height, width)
                 meanAndVolatilityForEachChannel = ComputeMeanAndVolatilityForEachChannel(channels);
                 throw new ArgumentException("please update mean and volatility for dataSet " + name);
             }
@@ -96,7 +140,7 @@ namespace SharpNet.Datasets
             }
             else
             {
-                Y_DirectoryDataSet = CpuTensor<float>.CreateOneHotTensor(ElementIdToCategoryIndex, Count, numClass);
+                Y_DirectoryDataSet = CpuTensor<float>.CreateOneHotTensor(ElementIdToCategoryIndex, Count, datasetSample.NumClass);
             }
         }
         #endregion
@@ -138,7 +182,6 @@ namespace SharpNet.Datasets
             }
         }
 
-        public override int[] X_Shape(int batchSize) => throw new NotImplementedException(); //!D TODO
         public override int[] Y_Shape(int batchSize) => Utils.CloneShapeWithNewCount(Y_DirectoryDataSet.Shape, batchSize);
 
         public override CpuTensor<float> LoadFullY()
@@ -252,11 +295,6 @@ namespace SharpNet.Datasets
         {
             UpdateStatus(ref nbPerformed);
             OriginalElementContent(elementId, channels ,- 1,-1, false, false).UpdateWith_Sum_SumSquare_Count_For_Each_Channel(_sum_SumSquare_Count_For_Each_Channel);
-        }
-
-        public override AbstractDatasetSample GetDatasetSample()
-        {
-            return null;
         }
     }
 }

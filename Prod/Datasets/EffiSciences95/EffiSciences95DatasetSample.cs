@@ -1,6 +1,4 @@
-﻿using System;
-
-// ReSharper disable ConvertToConstant.Global
+﻿// ReSharper disable ConvertToConstant.Global
 // ReSharper disable FieldCanBeMadeReadOnly.Global
 
 namespace SharpNet.Datasets.EffiSciences95;
@@ -31,16 +29,8 @@ public class EffiSciences95DatasetSample : AbstractDatasetSample
     public override bool IsCategoricalColumn(string columnName) => DefaultIsCategoricalColumn(columnName);
 
 
-    public override Objective_enum GetObjective()
-    {
-        return Objective_enum.Classification;
-    }
-    public override int[] X_Shape(int batchSize)
-    {
-        return new []{ batchSize,  3, 218, 178 };
-    }
-    public override int[] Y_Shape(int batchSize) => throw new NotImplementedException(); //!D TODO
-
+    public override Objective_enum GetObjective() => Objective_enum.Classification;
+    public override int[] X_Shape(int batchSize) => new []{ batchSize, 3, 218, 178 };
     public override int NumClass => EffiSciences95Utils.TargetLabelDistinctValues.Length;
 
     public override DataSet TestDataset()

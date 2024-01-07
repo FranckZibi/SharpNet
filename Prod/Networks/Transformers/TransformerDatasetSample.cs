@@ -4,7 +4,7 @@ namespace SharpNet.Networks.Transformers;
 
 public abstract class TransformerDatasetSample : AbstractDatasetSample
 {
-    #region Hyperparameters
+    #region HyperParameters
     public int vocab_size = 4;
     public int max_length = 3; // == timeSteps
     #endregion

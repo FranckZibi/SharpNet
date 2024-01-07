@@ -21,6 +21,7 @@ namespace SharpNet.Datasets
 {
     public abstract class DataSet : IDisposable
     {
+
         #region private & protected fields
         protected static readonly ILog Log = LogManager.GetLogger(typeof(DataSet));
         /// <summary>
@@ -44,37 +45,38 @@ namespace SharpNet.Datasets
         private long alreadyComputedMiniBatchId = -1;
         private readonly Random[] _rands;
 
-        [NotNull] private readonly Func<string, bool> _isCategoricalColumn;
+        //[NotNull] private readonly Func<string, bool> _isCategoricalColumn;
         #endregion
 
         #region constructor
         protected DataSet(string name,
-            Objective_enum objective,
+            [NotNull] AbstractDatasetSample datasetSample,
+            //Objective_enum objective,
             List<Tuple<float, float>> meanAndVolatilityForEachChannel,
             ResizeStrategyEnum resizeStrategy,
             [NotNull] string[] columnNames,
-            [CanBeNull] Func<string, bool> isCategoricalColumn = null,
+            //[CanBeNull] Func<string, bool> isCategoricalColumn = null,
             [CanBeNull] string[] y_IDs = null,
-            [CanBeNull] string idColumn = null,
+            //[CanBeNull] string idColumn = null,
             char separator = ',')
         {
+            DatasetSample = datasetSample;
             Name = name;
-            Objective = objective;
             MeanAndVolatilityForEachChannel = meanAndVolatilityForEachChannel;
             ResizeStrategy = resizeStrategy;
             ColumnNames = columnNames;
-            _isCategoricalColumn = isCategoricalColumn ?? ((columnName) => Equals(columnName, idColumn));
+            //_isCategoricalColumn = isCategoricalColumn ?? ((columnName) => Equals(columnName, idColumn));
 
             Separator = separator;
             if (y_IDs != null)
             {
-                if (string.IsNullOrEmpty(idColumn))
+                if (string.IsNullOrEmpty(datasetSample.IdColumn))
                 {
-                    throw new ArgumentException($"{nameof(idColumn)} must be provided if Y_IDS columns is needed");
+                    throw new ArgumentException($"{nameof(datasetSample.IdColumn)} must be provided if Y_IDS columns is needed");
                 }
             }
             Y_IDs = y_IDs;
-            IdColumn = idColumn;
+            //IdColumn = idColumn;
 
             _rands = new Random[2 * Environment.ProcessorCount];
             for (int i = 0; i < _rands.Length; ++i)
@@ -101,6 +103,7 @@ namespace SharpNet.Datasets
         /// </summary>
         [NotNull] public string[] ColumnNames { get; }
         //[NotNull] public string[] CategoricalFeatures { get; }
+        [NotNull] public AbstractDatasetSample DatasetSample { get; }
 
 
         /// <summary>
@@ -108,16 +111,18 @@ namespace SharpNet.Datasets
         /// or null if there is not such column
         /// </summary>
         [CanBeNull] public string[] Y_IDs { get; }
+
         /// <summary>
         /// name of the Y_ID column in the prediction file in target format,
         /// or null if there is not such column
         /// </summary>
-        [CanBeNull] public string IdColumn { get; }
+        [CanBeNull]
+        public string IdColumn => DatasetSample.IdColumn;
 
         /// <summary>
         /// the type of use of the dataset : Regression or Classification
         /// </summary>
-        public Objective_enum Objective { get; }
+        public Objective_enum Objective => DatasetSample.GetObjective();
         public string Name { get; }
         public ResizeStrategyEnum ResizeStrategy { get; }
         public char Separator { get; }
@@ -140,24 +145,15 @@ namespace SharpNet.Datasets
 
         public virtual int[] X_Shape(int batchSize)
         {
-            if (GetDatasetSample() != null)
-            {
-                return GetDatasetSample().X_Shape(batchSize);
-            }
-            throw new NotImplementedException($"The method {nameof(X_Shape)} must be overriden for class {GetType()}");
+            return DatasetSample.X_Shape(batchSize);
         }
 
         public virtual int[] Y_Shape(int batchSize)
         {
-            if (GetDatasetSample() != null)
-            {
-                return GetDatasetSample().Y_Shape(batchSize);
-            }
-            throw new NotImplementedException($"The method {nameof(Y_Shape)} must be overriden for class {GetType()}");
+            return DatasetSample.Y_Shape(batchSize);
         }
 
-
-        public bool IsCategoricalColumn(string columnName) => _isCategoricalColumn(columnName);
+        public bool IsCategoricalColumn(string columnName) => DatasetSample.IsCategoricalColumn(columnName);
 
 
         /// <summary>
@@ -171,8 +167,6 @@ namespace SharpNet.Datasets
         /// <returns>the associated category id, or -1 if the category is not known</returns>
         public abstract int ElementIdToCategoryIndex(int elementId);
         #endregion
-
-        public abstract AbstractDatasetSample GetDatasetSample();
 
         public virtual CpuTensor<float> LoadFullY()
         {
@@ -520,7 +514,7 @@ namespace SharpNet.Datasets
         public virtual bool CanBeSavedInCSV => true;
         /// <summary>
         /// true if we should use the row index as the id of the row
-        /// false if you should actualy retrieved the Id of the row
+        /// false if you should actually retrieved the Id of the row
         /// </summary>
         public virtual bool UseRowIndexAsId => false;
         /// <summary>

@@ -74,21 +74,21 @@ public class EffiSciences95DirectoryDataSet : DirectoryDataSet
         List<string> y_IDs,
         List<int> elementIdToCategoryIndex
     )
-        : base(elementIdToPaths, 
+        : base(
+            datasetSample,
+            elementIdToPaths, 
             elementIdToCategoryIndex, 
             null,
             EffiSciences95Utils.NAME, 
-            Objective_enum.Classification, 
-            3,
-            2,
             PrecomputedMeanAndVolatilityForEachChannel,
             ResizeStrategyEnum.None, 
-            null, //idColumn
-            y_IDs.ToArray(), null)
+            null,
+            y_IDs.ToArray())
     {
         _datasetSample = datasetSample;
         _labelCoordinates = labelCoordinates;
     }
+
 
 
     /// <summary>

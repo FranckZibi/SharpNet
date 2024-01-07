@@ -5,9 +5,8 @@ using SharpNet.CPU;
 
 namespace SharpNet.Datasets;
 
-public sealed class RandomizeColumnDataSet : DataSet
+public sealed class RandomizeColumnDataSet : WrappedDataSet
 {
-    private readonly DataSet _original;
     private readonly List<string> _columnNameToRandomize;
     private readonly Random _r;
     private CpuTensor<float> tmp = null;
@@ -28,17 +27,8 @@ public sealed class RandomizeColumnDataSet : DataSet
     
 
     public RandomizeColumnDataSet(DataSet original, List<string> columnNameToRandomize, Random r)
-        : base(original.Name,
-            original.Objective,
-            original.MeanAndVolatilityForEachChannel,
-            original.ResizeStrategy,
-            original.ColumnNames,
-            original.IsCategoricalColumn,
-            original.Y_IDs,
-            original.IdColumn, 
-            original.Separator)
+        : base(original, original.Y_IDs)
     {
-        _original = original;
         _columnNameToRandomize = columnNameToRandomize;
         _r = r;
 
@@ -79,14 +69,6 @@ public sealed class RandomizeColumnDataSet : DataSet
         }
     }
 
-    public override int[] X_Shape(int batchSize) =>_original.X_Shape(batchSize);
-    public override int[] Y_Shape(int batchSize) => _original.Y_Shape(batchSize);
-
-    public override int Count => _original.Count;
-    public override AbstractDatasetSample GetDatasetSample() => _original.GetDatasetSample();
-
-
-    public override int ElementIdToCategoryIndex(int elementId) { return _original.ElementIdToCategoryIndex(elementId); }
     #region Dispose pattern
     protected override void Dispose(bool disposing)
     {

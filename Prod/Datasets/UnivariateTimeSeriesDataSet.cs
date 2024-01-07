@@ -14,11 +14,18 @@ namespace SharpNet.Datasets
         private readonly int _timeSteps;
         private readonly int _stride;
         #endregion
-
+        private static ConstDatasetSample NewConstDatasetSample(int timeSteps) 
+        {
+            string[] targetLabels = { "y" };
+            int[] x_shape_for_1_batchSize = { 1, timeSteps, 1 };
+            int[] y_shape_for_1_batchSize = { 1, 1 };
+            int numClass = y_shape_for_1_batchSize[^1];
+            return new ConstDatasetSample(null, targetLabels, x_shape_for_1_batchSize, y_shape_for_1_batchSize, numClass, Objective_enum.Regression, null);
+        }
         public UnivariateTimeSeriesDataSet(Memory<float> univariateTimeSeries, int timeSteps, int stride, 
             string name = "", List<Tuple<float, float>> meanAndVolatilityForEachChannel = null)
-            : base(name, 
-                Objective_enum.Regression,
+            : base(name,
+                NewConstDatasetSample(timeSteps),
                 meanAndVolatilityForEachChannel,
                 ResizeStrategyEnum.None,
                 new string[0])
@@ -108,6 +115,5 @@ namespace SharpNet.Datasets
         {
             return X_Shape + " => " + _yUnivariateTimeSeriesDataSet;
         }
-        public override AbstractDatasetSample GetDatasetSample() => null;
     }
 }

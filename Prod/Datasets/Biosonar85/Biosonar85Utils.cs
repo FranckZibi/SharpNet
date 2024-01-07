@@ -282,44 +282,6 @@ public static class Biosonar85Utils
         return (xShape, n_fft, hop_len, f_min, f_max, top_db);
     }
 
-
-
-    public static DirectoryDataSet LoadPng(string pngDirectory, string csvPath, bool hasLabels, List<Tuple<float, float>> meanAndVolatilityForEachChannel)
-    {
-        const int numClass = 1;
-        var df = DataFrame.read_csv(csvPath, columnNameToType: (s => s == "id" ? typeof(string) : typeof(float)));
-        var y_IDs = df.StringColumnContent("id");
-        var elementIdToPaths = new List<List<string>>();
-        foreach (var wavFilename in y_IDs)
-        {
-            elementIdToPaths.Add(new List<string> { Path.Combine(pngDirectory, wavFilename.Replace("wav", "png")) });
-        }
-        var elementIdToCategoryIndex = Enumerable.Repeat(0, y_IDs.Length).ToList();
-        var labels = hasLabels ? df.FloatColumnContent("pos_label") : new float[y_IDs.Length];
-
-        //y_IDs = y_IDs.Take(128).ToArray();
-        //elementIdToCategoryIndex = elementIdToCategoryIndex.Take(y_IDs.Length).ToList();
-        //elementIdToPaths = elementIdToPaths.Take(y_IDs.Length).ToList();
-        //labels = labels.Take(y_IDs.Length).ToArray();
-
-        var expectedYIfAny = new CpuTensor<float>(new[] { y_IDs.Length, numClass }, labels);
-
-        var dataset = new Biosonar85DirectoryDataSet(
-            elementIdToPaths,
-            elementIdToCategoryIndex,
-            expectedYIfAny,
-            NAME,
-            Objective_enum.Classification,
-            1, // channels
-            numClass,
-            meanAndVolatilityForEachChannel,
-            ResizeStrategyEnum.None,
-            new string[0], //featureNames
-            y_IDs
-        );
-        return dataset;
-    }
-   
     public static InMemoryDataSet Load(string xFileName, [CanBeNull] string yFileNameIfAny, string csvPath, float mean = 0f, float stdDev = 1f)
     {
         

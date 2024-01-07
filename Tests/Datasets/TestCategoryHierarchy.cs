@@ -118,7 +118,7 @@ namespace SharpNetTests.Datasets
                 null,
                 path,
                 Objective_enum.Classification,
-                3,
+                new []{3,-1 /* height */,-1 /* width */}, //!D update with actual height and width
                 numClass,
                 CancelDatabase.CancelMeanAndVolatilityForEachChannel,
                 ResizeStrategyEnum.BiggestCropInOriginalImageToKeepSameProportion,

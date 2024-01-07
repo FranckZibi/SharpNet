@@ -44,7 +44,6 @@ public class PlumeLabs88DatasetSample : AbstractDatasetSample
         res[2] = res[3] = TargetHeightAndWidth;
         return res;
     }
-    public override int[] Y_Shape(int batchSize) => throw new NotImplementedException(); //!D TODO
     public override int NumClass => 8;
 
     public int DatasetMaxId(bool isTrainingDataset) { return isTrainingDataset ? MaxIdTraining : MaxIdTest; }
