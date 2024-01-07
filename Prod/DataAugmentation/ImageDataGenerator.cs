@@ -22,7 +22,6 @@ namespace SharpNet.DataAugmentation
             AUTO_AUGMENT_CIFAR10_CUTOUT_CUTMIX_MIXUP,
             AUTO_AUGMENT_CIFAR10_AND_MANDATORY_CUTMIX,
             AUTO_AUGMENT_CIFAR10_AND_MANDATORY_MIXUP,
-            AUTO_AUGMENT_SVHN,
             AUTO_AUGMENT_IMAGENET,
             RAND_AUGMENT,
             // ReSharper disable once UnusedMember.Global
@@ -86,11 +85,6 @@ namespace SharpNet.DataAugmentation
                     Debug.Assert(_sample.VerticalFlip == false);
                     //Debug.Assert(_config.Rotate180Degrees == false);
                     return new AutoAugment(indexInMiniBatch, xOriginalMiniBatch, meanAndVolatilityForEachChannel, indexInOriginalMiniBatchToImageStatistic(indexInMiniBatch), rand, 0, 0, 0.5, 0, 0, _sample.HorizontalFlip, _sample.VerticalFlip, _sample.Rotate180Degrees).GetSubPolicyImageNet();
-                case DataAugmentationEnum.AUTO_AUGMENT_SVHN:
-                    Debug.Assert(_sample.HorizontalFlip == false);
-                    Debug.Assert(_sample.VerticalFlip == false);
-                    //Debug.Assert(_config.Rotate180Degrees == false);
-                    return new AutoAugment(indexInMiniBatch, xOriginalMiniBatch, meanAndVolatilityForEachChannel, indexInOriginalMiniBatchToImageStatistic(indexInMiniBatch), rand, 0, 0, 0.5, 0, 0, _sample.HorizontalFlip, _sample.VerticalFlip, _sample.Rotate180Degrees).GetSubPolicySVHN();
                 case DataAugmentationEnum.RAND_AUGMENT:
                     return new RandAugment(indexInMiniBatch, xOriginalMiniBatch, meanAndVolatilityForEachChannel, indexInOriginalMiniBatchToImageStatistic(indexInMiniBatch), rand, 0.5, 0, 0).CreateSubPolicy(_sample.RandAugment_N, _sample.RandAugment_M);
                 case DataAugmentationEnum.NO_AUGMENTATION:

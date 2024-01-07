@@ -26,12 +26,6 @@ namespace SharpNet.DataAugmentation
         /// CIFAR-10:
         ///     WRN-28-2:   N=3, M=4
         ///     WRN-28-10:  N=3, M=5
-        /// SVHN (small training set):
-        ///     WRN-28-2:   N=3, M=9
-        ///     WRN-28-10:  N=3, M=9
-        /// SVHN (full training set):
-        ///     WRN-28-2:   N=3, M=5
-        ///     WRN-28-10:  N=3, M=7
         /// ImageNet:
         ///     ResNet50:   N=2, M=9
         /// COCO:

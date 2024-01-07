@@ -47,6 +47,52 @@ namespace SharpNet.Datasets
         [NotNull] private readonly Func<string, bool> _isCategoricalColumn;
         #endregion
 
+        #region constructor
+        protected DataSet(string name,
+            Objective_enum objective,
+            List<Tuple<float, float>> meanAndVolatilityForEachChannel,
+            ResizeStrategyEnum resizeStrategy,
+            [NotNull] string[] columnNames,
+            [CanBeNull] Func<string, bool> isCategoricalColumn = null,
+            [CanBeNull] string[] y_IDs = null,
+            [CanBeNull] string idColumn = null,
+            char separator = ',')
+        {
+            Name = name;
+            Objective = objective;
+            MeanAndVolatilityForEachChannel = meanAndVolatilityForEachChannel;
+            ResizeStrategy = resizeStrategy;
+            ColumnNames = columnNames;
+            _isCategoricalColumn = isCategoricalColumn ?? ((columnName) => Equals(columnName, idColumn));
+
+            Separator = separator;
+            if (y_IDs != null)
+            {
+                if (string.IsNullOrEmpty(idColumn))
+                {
+                    throw new ArgumentException($"{nameof(idColumn)} must be provided if Y_IDS columns is needed");
+                }
+            }
+            Y_IDs = y_IDs;
+            IdColumn = idColumn;
+
+            _rands = new Random[2 * Environment.ProcessorCount];
+            for (int i = 0; i < _rands.Length; ++i)
+            {
+                _rands[i] = new Random(i);
+            }
+
+            //var invalidCategoricalFeatures = Utils.Without(categoricalFeatures, ColumnNames);
+            //if (invalidCategoricalFeatures.Count != 0)
+            //{
+            //    Log.Error($"{invalidCategoricalFeatures.Count} invalid CategoricalFeatures: {string.Join(' ', invalidCategoricalFeatures)} => IGNORING");
+            //    categoricalFeatures = Utils.Intersect(categoricalFeatures, ColumnNames).ToArray();
+            //}
+            //CategoricalFeatures = categoricalFeatures;
+
+        }
+        #endregion
+
 
         #region public properties
         public List<Tuple<float, float>> MeanAndVolatilityForEachChannel { get; }
@@ -77,52 +123,7 @@ namespace SharpNet.Datasets
         public char Separator { get; }
         #endregion
 
-        #region constructor
-        protected DataSet(string name,
-            Objective_enum objective,
-            List<Tuple<float, float>> meanAndVolatilityForEachChannel,
-            ResizeStrategyEnum resizeStrategy,
-            [NotNull] string[] columnNames,
-            [CanBeNull] Func<string,bool> isCategoricalColumn = null,
-            [CanBeNull] string[] y_IDs = null,
-            [CanBeNull] string idColumn = null,
-            char separator = ',')
-        {
-            Name = name;
-            Objective = objective;
-            MeanAndVolatilityForEachChannel = meanAndVolatilityForEachChannel;
-            ResizeStrategy = resizeStrategy;
-            ColumnNames = columnNames;
-            _isCategoricalColumn = isCategoricalColumn??((columnName)=>Equals(columnName, idColumn));
-
-            Separator = separator;
-            if (y_IDs != null)
-            {
-                if (string.IsNullOrEmpty(idColumn))
-                {
-                    throw new ArgumentException($"{nameof(idColumn)} must be provided if Y_IDS columns is needed");
-                }
-            }
-            Y_IDs = y_IDs;
-            IdColumn = idColumn;
-
-            _rands = new Random[2 * Environment.ProcessorCount];
-            for (int i = 0; i < _rands.Length; ++i)
-            {
-                _rands[i] = new Random(i);
-            }
-
-            //var invalidCategoricalFeatures = Utils.Without(categoricalFeatures, ColumnNames);
-            //if (invalidCategoricalFeatures.Count != 0)
-            //{
-            //    Log.Error($"{invalidCategoricalFeatures.Count} invalid CategoricalFeatures: {string.Join(' ', invalidCategoricalFeatures)} => IGNORING");
-            //    categoricalFeatures = Utils.Intersect(categoricalFeatures, ColumnNames).ToArray();
-            //}
-            //CategoricalFeatures = categoricalFeatures;
-
-        }
-        #endregion
-
+    
         #region abstract methods that must be implemetned
         /// <summary>
         /// Load the element 'elementId' in the buffer 'buffer' at index 'indexInBuffer'
@@ -260,8 +261,6 @@ namespace SharpNet.Datasets
             //{
             //    //CIFAR10
             //    //var meanAndVolatilityOfEachChannel = new List<Tuple<double, double>> { Tuple.Create(125.306918046875, 62.9932192781369), Tuple.Create(122.950394140625, 62.0887076400142), Tuple.Create(113.865383183594, 66.7048996406309) };
-            //    //SVHN
-            //    //var meanAndVolatilityOfEachChannel = new List<Tuple<float, float>> { Tuple.Create(109.8823f, 50.11187f), Tuple.Create(109.7114f, 50.57312f), Tuple.Create(113.8187f, 50.85124f) };
             //    //EffiScience95
             //    var meanAndVolatilityOfEachChannel = new List<Tuple<float, float>> { Tuple.Create(128.42516f, 79.42157f), Tuple.Create(107.48822f, 74.195564f), Tuple.Create(97.46115f, 73.76817f) };
             //    var xCpuChunkBytes = all_xDataAugmentedMiniBatch[0].Select((_, c, val) => (byte)((val * meanAndVolatilityOfEachChannel[c].Item2 + meanAndVolatilityOfEachChannel[c].Item1)));

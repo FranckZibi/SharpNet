@@ -111,55 +111,6 @@ public class WideResNetNetworkSample : NetworkSample
         return config;
     }
 
-
-    /// <summary>
-    /// default WRN Hyper-Parameters for SVHN
-    /// </summary>
-    /// <returns></returns>
-    public static WideResNetNetworkSample WRN_SVHN()
-    {
-        var config = (WideResNetNetworkSample)new WideResNetNetworkSample
-        {
-            LossFunction = EvaluationMetricEnum.CategoricalCrossentropy,
-            ConvolutionAlgoPreference = GPUWrapper.ConvolutionAlgoPreference.FASTEST_DETERMINIST,
-            lambdaL2Regularization = 0.0005,
-            //!D WorkingDirectory = Path.Combine(NetworkSample.DefaultWorkingDirectory, "SVHN"),
-            NumEpochs = 70,
-            BatchSize = 128,
-            InitialLearningRate = 0.1,
-
-            //WideResNetNetworkSample
-            WRN_DropOut = 0.0,
-            //discarded on 7-march-2020 : -5bps vs GlobalAveragePooling_And_GlobalMaxPooling
-            //wideResNetHyperparameters.WRN_PoolingBeforeDenseLayer = POOLING_BEFORE_DENSE_LAYER.AveragePooling_2,
-            //discarded on 7-march-2020 : no change vs GlobalAveragePooling_And_GlobalMaxPooling
-            //wideResNetHyperparameters.WRN_PoolingBeforeDenseLayer = POOLING_BEFORE_DENSE_LAYER.GlobalMaxPooling,
-            //discarded on 7-march-2020 : -5bps vs GlobalAveragePooling_And_GlobalMaxPooling
-            //wideResNetHyperparameters.WRN_PoolingBeforeDenseLayer = POOLING_BEFORE_DENSE_LAYER.GlobalAveragePooling,
-            //validated on 7-march-2020 : +5bps vs AveragePooling_2
-            WRN_PoolingBeforeDenseLayer = POOLING_BEFORE_DENSE_LAYER.GlobalAveragePooling_And_GlobalMaxPooling,
-            WRN_DropOutAfterDenseLayer = 0,
-
-            //Data augmentation
-            DataAugmentationType = ImageDataGenerator.DataAugmentationEnum.DEFAULT,
-            WidthShiftRangeInPercentage = 0.1,
-            HeightShiftRangeInPercentage = 0.1,
-            HorizontalFlip = false,
-            VerticalFlip = false,
-            FillMode = ImageDataGenerator.FillModeEnum.Reflect,
-            AlphaMixup = 0.0,
-            AlphaCutMix = 0.0,
-            CutoutPatchPercentage = 0.0,
-
-
-        }
-        .WithSGD(0.9, false)
-        .WithCyclicCosineAnnealingLearningRateScheduler(10, 2);
-
-        return config;
-    }
-
-
     /// <summary>
     /// returns a Wide Residual network, as described in https://arxiv.org/pdf/1605.07146.pdf
     /// There are always 3 stages in a Wide ResNet.

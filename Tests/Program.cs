@@ -61,14 +61,10 @@ namespace SharpNetTests
             //var builder = new CancelDatabase(System.IO.Path.Combine(NetworkSample.DefaultDataDirectory, "Cancel"));
             //builder.CreateIDM(Path.Combine(ImageDatabaseManagementPath, "Duplicates.csv"), e => !string.IsNullOrEmpty(e.CancelComment));
             //builder.AddAllFilesInPath(@"C:\SA\AnalyzedPictures");
-            //using var network = Network.ValueOf(Path.Combine(NetworkSample.DefaultLogDirectory, "Cancel", "efficientnet-b0_DA_SVHN_20200526_1736_70.txt"));
-            //using var dataSet = builder.ExtractDataSet(e => e.HasExpectedWidthHeightRatio(xShape[3] / ((double)xShape[2]), 0.05), root);
-            //network.Predict(dataSet, Path.Combine(ImageDatabaseManagementPath, "Prediction.csv"));
             //new TestCpuTensor().TestMaxPooling3D();return;
             //new NonReg.ParallelRunWithTensorFlow().Test_Speed_MultiHeadAttention(); return;
             //EfficientNetTests_Cancel(true);
             //WideResNetTests();
-            //SVHNTests();
             //CIFAR100Tests();
             //ResNetTests();
             //DenseNetTests();
@@ -146,7 +142,6 @@ namespace SharpNetTests
             var networkMetaParameters = new List<Func<EfficientNetNetworkSample>>
             {
                 () =>{var p = EfficientNetNetworkSample.Cancel();p.InitialLearningRate = defaultInitialLearningRate;p.BatchSize = batchSize;p.NumEpochs = numEpochs;return p;},
-                //() =>{var p = EfficientNetBuilder.Cancel();p.InitialLearningRate = defaultInitialLearningRate;p.DA.DataAugmentationType =ImageDataGenerator.DataAugmentationEnum.AUTO_AUGMENT_SVHN;p.Config.BatchSize = batchSize;p.Config.NumEpochs = numEpochs;p.Config.ExtraDescription = "_Cancel_Augment_SVHN"+targetWidth+"_"+targetHeight;return p;},
                 //() =>{var p = EfficientNetBuilder.Cancel();p.InitialLearningRate = defaultInitialLearningRate;p.DA.CutoutPatchPercentage=0 ;p.Config.BatchSize = batchSize;p.Config.NumEpochs = numEpochs;p.Config.ExtraDescription = "_Cancel_NoCutout"+targetWidth+"_"+targetHeight;return p;},
                 //() =>{var p = EfficientNetBuilder.Cancel();p.InitialLearningRate = defaultInitialLearningRate;p.Config.WithSGD(0.9, true);p.Config.BatchSize = batchSize;p.Config.NumEpochs = numEpochs;p.Config.ExtraDescription = "_nesterov_Cancel_"+targetWidth+"_"+targetHeight;return p;},
                 //() =>{var p = EfficientNetBuilder.Cancel();p.InitialLearningRate = defaultInitialLearningRate;p.DA.DataAugmentationType =ImageDataGenerator.DataAugmentationEnum.DEFAULT;p.Config.BatchSize = batchSize;p.Config.NumEpochs = numEpochs;p.Config.ExtraDescription = "_Cancel_Augment_DEFAULT"+targetWidth+"_"+targetHeight;return p;},
@@ -340,36 +335,25 @@ namespace SharpNetTests
         }
         #endregion
 
-        #region SVHN Training
-        private static void SVHNTests()
-        {
-            const bool useMultiGpu = false;
-            var networkGeometries = new List<Action<WideResNetNetworkSample, int>>
-            {
-                (x,gpuDeviceId) =>{x.SetResourceId(gpuDeviceId);Train_SVHN_WRN(x, true, 16,4);},
-                //(x,gpuDeviceId) =>{x.SetResourceId(gpuDeviceId);Train_SVHN_WRN(x, true, 16,8);},
-                //(x,gpuDeviceId) =>{x.SetResourceId(gpuDeviceId);Train_SVHN_WRN(x, true, 40,4);},
-                //(x,gpuDeviceId) =>{x.SetResourceId(gpuDeviceId);Train_SVHN_WRN(x, true, 16,10);},
-                //(x,gpuDeviceId) =>{x.SetResourceId(gpuDeviceId);Train_SVHN_WRN(x, true, 28,8);},
-                //(x,gpuDeviceId) =>{x.SetResourceId(gpuDeviceId);Train_SVHN_WRN(x, true, 28,10);},
-            };
-
-            var networkMetaParameters = new List<Func<WideResNetNetworkSample>>
-            {
-                () =>{var p = WideResNetNetworkSample.WRN_SVHN();p.NumEpochs = 30;p.BatchSize=-1;return p;},
-                //() =>{var p = WideResNetBuilder.WRN_SVHN();p.Config.NumEpochs = 30;p.Config.ExtraDescription = "_30Epochs";return p;},
-                //() =>{var p = WideResNetBuilder.WRN_SVHN();p.Config.NumEpochs = 30;p.Config.ConvolutionAlgoPreference = GPUWrapper.ConvolutionAlgoPreference.USE_CUDNN_GET_CONVOLUTION_ALGORITHM_METHODS;  p.Config.ExtraDescription = "_30Epochs_USE_CUDNN_GET_CONVOLUTION_ALGORITHM_METHODS";return p;},
-            };
-            PerformAllActionsInAllGpu(networkMetaParameters, networkGeometries, useMultiGpu);
-        }
-
-        private static void Train_SVHN_WRN(WideResNetNetworkSample p, bool loadExtraFileForTraining, int WRN_depth, int WRN_k)
-        {
-            using var svhn = new SvhnDataset(loadExtraFileForTraining);
-            using var network = p.WRN(DenseNetNetworkSample.SVHNWorkingDirectory, WRN_depth, WRN_k, SvhnDataset.Shape_CHW, SvhnDataset.NumClass);
-            //using var network = Network.ValueOf(@"C:\Users\Franck\AppData\Local\SharpNet\SVHN\WRN-16-10_30Epochs_MultiGPU_20200501_1147_30.txt");
-            network.Fit(svhn.Training, svhn.Test);
-        }
+        #region SVHN Stats
+        /*
+        BatchSize = 128
+        EpochCount = 30
+        SGD with momentum = 0.9 & L2 = 0.5* 1-e4
+        CutMix / no Cutout / no Mixup / FillMode = Reflect / Disable DivideBy10OnPlateau
+        AvgPoolingStride = 2
+        # --------------------------------------------------------------------------------
+        #           |             |    30-epoch   |   150-epoch   |   Orig Paper  | sec/epoch
+        # Model     |   #Params   |   SGDR 10-2   |   SGDR 10-2   |      WRN      | GTX1080
+        #           |             |   %Accuracy   |   %Accuracy   |   %Accuracy   | 
+        #           |             |(Ens. Learning)|(Ens. Learning)|   (dropout)   | 
+        # -------------------------------------------------------------------------------
+        # WRN-16-4  |   2,790,906 | 98.24 (98.33) | ----- (-----) | NA            |   314
+        # WRN-40-4  |   8,998,394 | 98.36 (98.38) | ----- (-----) | NA            |   927
+        # WRN-16-8  |  11,045,370 | 98.13 (98.28) | ----- (-----) | NA            |  1072
+        # WRN-16-10 |  17,221,626 | 98.22 (98.40) | ----- (-----) | NA            |  1715
+        # -------------------------------------------------------------------------------
+        */
         #endregion
 
         /// <summary>

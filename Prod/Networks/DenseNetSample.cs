@@ -41,7 +41,6 @@ namespace SharpNet.Networks
         public static readonly string Cifar10WorkingDirectory = System.IO.Path.Combine(DefaultWorkingDirectory, CIFAR10DataSet.NAME);
         public static readonly string Cifar100WorkingDirectory = System.IO.Path.Combine(DefaultWorkingDirectory, CIFAR100DataSet.NAME);
         public static readonly string CancelWorkingDirectory = System.IO.Path.Combine(DefaultWorkingDirectory, "Cancel");
-        public static readonly string SVHNWorkingDirectory = System.IO.Path.Combine(DefaultWorkingDirectory, "SVHN");
 
         public static DenseNetNetworkSample CIFAR10()
         {
