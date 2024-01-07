@@ -3,14 +3,14 @@ using System.Diagnostics;
 
 namespace SharpNet.HPO;
 
-public class IntRangeHyperParameterSearchSpace : AbstractRangeHyperParameterSearchSpace
+public class IntRangeHyperparameterSearchSpace : RangeHyperparameterSearchSpace
 {
     #region private fields
     private readonly int _min;
     private readonly int _max;
     #endregion
 
-    public IntRangeHyperParameterSearchSpace(int min, int max, range_type rangeType) : base(rangeType)
+    public IntRangeHyperparameterSearchSpace(int min, int max, range_type rangeType) : base(rangeType)
     {
         Debug.Assert(max>=min);
         _min = min;

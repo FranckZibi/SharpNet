@@ -160,7 +160,7 @@ public class TimeSeriesDataset : DataSet, ITimeSeriesDataSet
             null,
             ResizeStrategyEnum.None,
             datasetSample.GetColumnNames(),
-            datasetSample.CategoricalFeatures,
+            datasetSample.IsCategoricalColumn,
             null,
             datasetSample.IdColumn, 
             ',')

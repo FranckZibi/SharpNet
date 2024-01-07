@@ -28,7 +28,7 @@ namespace SharpNet.Datasets
                 meanAndVolatilityForEachChannel, 
                 ResizeStrategyEnum.None,
                 new string[0],
-                new string[0])
+                null)
         {
             //Currently only pictures (channels x height x width) are supported
             Debug.Assert(singleElementShape_CHW.Length == 3);
@@ -99,6 +99,7 @@ namespace SharpNet.Datasets
 
         public override int[] X_Shape(int batchSize) => throw new NotImplementedException(); //!D TODO
         public override int[] Y_Shape(int batchSize) =>new[] { batchSize, NumClass };
+
 
         public override int ElementIdToCategoryIndex(int elementId)
         {

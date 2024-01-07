@@ -8,7 +8,7 @@ namespace SharpNet.Datasets.Biosonar85;
 public class Biosonar85InMemoryDataSet : InMemoryDataSet
 {
     public Biosonar85InMemoryDataSet([NotNull] CpuTensor<float> x, [CanBeNull] CpuTensor<float> y, string name, List<Tuple<float, float>> meanAndVolatilityForEachChannel = null, [CanBeNull] string[] yIDs = null)
-        : base(x, y, name, Objective_enum.Classification, meanAndVolatilityForEachChannel, null /* columnNames*/, new string[0], yIDs, "id", ',')
+        : base(x, y, name, Objective_enum.Classification, meanAndVolatilityForEachChannel, null /* columnNames*/, null, yIDs, "id", ',')
     {
     }
 

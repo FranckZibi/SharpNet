@@ -7,7 +7,8 @@ using System.Linq;
 using SharpNet.Data;
 using SharpNet.DataAugmentation;
 using SharpNet.Datasets;
-using SharpNet.HyperParameters;
+using SharpNet.GPU;
+using SharpNet.Hyperparameters;
 using SharpNet.Models;
 using SharpNet.Optimizers;
 using static SharpNet.GPU.GPUWrapper;
@@ -22,7 +23,8 @@ namespace SharpNet.Networks
     public class NetworkSample : AbstractModelSample
     {
         #region constructors
-        public NetworkSample() : base(new HashSet<string>())
+        // ReSharper disable once EmptyConstructor
+        public NetworkSample()
         {
         }
         static NetworkSample()
@@ -59,7 +61,7 @@ namespace SharpNet.Networks
         #endregion
 
 
-        #region Learning Rate Hyper-Parameters
+        #region Learning Rate Hyperparameters
 
         public double InitialLearningRate;
 
@@ -816,6 +818,19 @@ namespace SharpNet.Networks
             return new Network(this, datasetSample, workingDirectory, modelName, true);
         }
 
+
+        public cudnnActivationMode_t GetActivationForLastLayer(int numClass)
+        {
+            if (GetObjective() == Objective_enum.Regression)
+            {
+                return cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID;
+            }
+            if (numClass == 1)
+            {
+                return cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID;
+            }
+            return cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX;
+        }
 
         #region IMetricConfig interface
         public override float Get_MseOfLog_Epsilon() => MseOfLog_Epsilon;

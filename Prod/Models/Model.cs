@@ -7,7 +7,7 @@ using System.Linq;
 using log4net;
 using SharpNet.CPU;
 using SharpNet.Datasets;
-using SharpNet.HyperParameters;
+using SharpNet.Hyperparameters;
 
 namespace SharpNet.Models;
 

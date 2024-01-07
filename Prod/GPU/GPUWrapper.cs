@@ -5,7 +5,7 @@ using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using SharpNet.Layers;
-using SharpNet.HyperParameters;
+using SharpNet.Hyperparameters;
 
 namespace SharpNet.GPU
 {

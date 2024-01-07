@@ -6,7 +6,7 @@ using System.Linq;
 using JetBrains.Annotations;
 using SharpNet.Data;
 using SharpNet.GPU;
-using SharpNet.HyperParameters;
+using SharpNet.Hyperparameters;
 using SharpNet.Layers;
 
 namespace SharpNet.Networks

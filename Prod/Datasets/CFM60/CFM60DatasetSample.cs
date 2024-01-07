@@ -4,7 +4,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using SharpNet.HPO;
-using SharpNet.HyperParameters;
+using SharpNet.Hyperparameters;
 using SharpNet.Networks;
 // ReSharper disable UnusedMember.Global
 // ReSharper disable MemberCanBePrivate.Global
@@ -137,12 +137,6 @@ public class CFM60DatasetSample : DatasetSampleForTimeSeries
     }
 
 
-    public override int[] GetInputShapeOfSingleElement()
-    {
-        return new[] { encoderDecoder_NetworkSample.Encoder_TimeSteps, GetInputSize(true) };
-    }
-
-
     public const string NAME = "CFM60";
     #region load of datasets
     public static string WorkingDirectory => Path.Combine(Utils.ChallengesPath, NAME);
@@ -158,7 +152,7 @@ public class CFM60DatasetSample : DatasetSampleForTimeSeries
     {
     }
 
-    #region Hyper-Parameters
+    #region Hyperparameters
     //pid embedding
     public int Pid_EmbeddingDim = 4;  //validated on 16-jan-2021: -0.0236
 
@@ -219,8 +213,12 @@ public class CFM60DatasetSample : DatasetSampleForTimeSeries
     public bool Use_EndOfTrimester_flag = true;  //validated on 19-jan-2021: -0.0501 (with other changes)
     #endregion
 
-    public override int[] X_Shape(int batchSize) => throw new NotImplementedException(); //!D TODO
+    public override int[] X_Shape(int batchSize)
+    {
+        return new[] { batchSize, encoderDecoder_NetworkSample.Encoder_TimeSteps, GetInputSize(true) };
+    }
     public override int[] Y_Shape(int batchSize) => throw new NotImplementedException(); //!D TODO
+    public override int NumClass => 1;
 
 
     /// <summary>
@@ -264,12 +262,9 @@ public class CFM60DatasetSample : DatasetSampleForTimeSeries
     /// day is just before the end of year (Christmas ?)
     /// </summary>
     public static readonly HashSet<int> Christmas = new(new[] { 14, 264, 514, 765, 1016 });
-
-    public override string[] CategoricalFeatures => new[] { "pid" };
     public override string IdColumn => "ID";
     public override string[] TargetLabels => new[] { "target" };
-    public override int NumClass => 1;
-    public override string[] TargetLabelDistinctValues => new string[0];
+    public override bool IsCategoricalColumn(string columnName) => DefaultIsCategoricalColumn(columnName, new[] { "pid" });
 
     public override Objective_enum GetObjective()
     {
@@ -499,7 +494,7 @@ public class CFM60DatasetSample : DatasetSampleForTimeSeries
 
         var hpo = new BayesianSearchHPO(searchSpace, () => ModelAndDatasetPredictionsSample.New(new EncoderDecoder_NetworkSample(), new CFM60DatasetSample()), WorkingDirectory);
         IScore bestScoreSoFar = null;
-        hpo.Process(t => SampleUtils.TrainWithHyperParameters((ModelAndDatasetPredictionsSample)t, WorkingDirectory, true, ref bestScoreSoFar), maxAllowedSecondsForAllComputation);
+        hpo.Process(t => SampleUtils.TrainWithHyperparameters((ModelAndDatasetPredictionsSample)t, WorkingDirectory, true, ref bestScoreSoFar), maxAllowedSecondsForAllComputation);
     }
 
 }

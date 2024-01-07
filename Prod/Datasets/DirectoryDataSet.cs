@@ -74,7 +74,7 @@ namespace SharpNet.Datasets
                 meanAndVolatilityForEachChannel, 
                 resizeStrategy,
                 featureNames?? new string[0],
-                new string[0],
+                null,
                 y_IDs,
                 idColumn, 
                 ',')

@@ -4,14 +4,14 @@ using System.Globalization;
 
 namespace SharpNet.HPO;
 
-public class FloatRangeHyperParameterSearchSpace : AbstractRangeHyperParameterSearchSpace
+public class FloatRangeHyperparameterSearchSpace : RangeHyperparameterSearchSpace
 {
     #region private fields
     private readonly float _min;
     private readonly float _max;
     #endregion
 
-    public FloatRangeHyperParameterSearchSpace(float min, float max, range_type rangeType) : base(rangeType)
+    public FloatRangeHyperparameterSearchSpace(float min, float max, range_type rangeType) : base(rangeType)
     {
         Debug.Assert(max>=min);
         _min = min;

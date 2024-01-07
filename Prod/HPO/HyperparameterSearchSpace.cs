@@ -6,32 +6,32 @@ using SharpNet.MathTools;
 
 namespace SharpNet.HPO;
 
-public abstract class AbstractHyperParameterSearchSpace
+public abstract class HyperparameterSearchSpace
 {
     public enum RANDOM_SEARCH_OPTION { FULLY_RANDOM, PREFER_MORE_PROMISING };
     public enum range_type { uniform, normal };
 
-    protected AbstractHyperParameterSearchSpace(bool isCategoricalHyperParameter)
+    protected HyperparameterSearchSpace(bool isCategoricalHyperparameter)
     {
-        IsCategoricalHyperParameter = isCategoricalHyperParameter;
+        IsCategoricalHyperparameter = isCategoricalHyperparameter;
     }
 
-    public bool IsCategoricalHyperParameter { get; }
-    public static AbstractHyperParameterSearchSpace ValueOf([CanBeNull] object hyperParameterSearchSpace, bool isCategoricalHyperParameter)
+    public bool IsCategoricalHyperparameter { get; }
+    public static HyperparameterSearchSpace ValueOf([CanBeNull] object HyperparameterSearchSpace, bool isCategoricalHyperparameter)
     {
-        if (hyperParameterSearchSpace is AbstractHyperParameterSearchSpace)
+        if (HyperparameterSearchSpace is HyperparameterSearchSpace)
         {
-            return (AbstractHyperParameterSearchSpace)hyperParameterSearchSpace;
+            return (HyperparameterSearchSpace)HyperparameterSearchSpace;
         }
-        return new DiscreteHyperParameterSearchSpace(hyperParameterSearchSpace, isCategoricalHyperParameter);
+        return new DiscreteHyperparameterSearchSpace(HyperparameterSearchSpace, isCategoricalHyperparameter);
     }
-    public static AbstractHyperParameterSearchSpace Range(float min, float max, range_type rangeType = range_type.uniform)
+    public static HyperparameterSearchSpace Range(float min, float max, range_type rangeType = range_type.uniform)
     {
-        return new FloatRangeHyperParameterSearchSpace(min, max, rangeType);
+        return new FloatRangeHyperparameterSearchSpace(min, max, rangeType);
     }
-    public static AbstractHyperParameterSearchSpace Range(int min, int max, range_type rangeType = range_type.uniform)
+    public static HyperparameterSearchSpace Range(int min, int max, range_type rangeType = range_type.uniform)
     {
-        return new IntRangeHyperParameterSearchSpace(min, max, rangeType);
+        return new IntRangeHyperparameterSearchSpace(min, max, rangeType);
     }
     public string Next_SampleStringValue(Random rand, RANDOM_SEARCH_OPTION randomSearchOption)
     {
@@ -44,7 +44,7 @@ public abstract class AbstractHyperParameterSearchSpace
     public abstract int LengthForGridSearch { get; }
     public abstract string SampleStringValue_at_Index_For_GridSearch(int index);
 
-    protected static double[] TargetCpuInvestmentTime(IEnumerable<SingleHyperParameterValueStatistics> t)
+    protected static double[] TargetCpuInvestmentTime(IEnumerable<SingleHyperparameterValueStatistics> t)
     {
         Tuple<double, double, long> ToTuple(DoubleAccumulator acc)
         {

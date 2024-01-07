@@ -131,11 +131,11 @@ public class WideResNetNetworkSample : NetworkSample
             //WideResNetNetworkSample
             WRN_DropOut = 0.0,
             //discarded on 7-march-2020 : -5bps vs GlobalAveragePooling_And_GlobalMaxPooling
-            //wideResNetHyperParameters.WRN_PoolingBeforeDenseLayer = POOLING_BEFORE_DENSE_LAYER.AveragePooling_2,
+            //wideResNetHyperparameters.WRN_PoolingBeforeDenseLayer = POOLING_BEFORE_DENSE_LAYER.AveragePooling_2,
             //discarded on 7-march-2020 : no change vs GlobalAveragePooling_And_GlobalMaxPooling
-            //wideResNetHyperParameters.WRN_PoolingBeforeDenseLayer = POOLING_BEFORE_DENSE_LAYER.GlobalMaxPooling,
+            //wideResNetHyperparameters.WRN_PoolingBeforeDenseLayer = POOLING_BEFORE_DENSE_LAYER.GlobalMaxPooling,
             //discarded on 7-march-2020 : -5bps vs GlobalAveragePooling_And_GlobalMaxPooling
-            //wideResNetHyperParameters.WRN_PoolingBeforeDenseLayer = POOLING_BEFORE_DENSE_LAYER.GlobalAveragePooling,
+            //wideResNetHyperparameters.WRN_PoolingBeforeDenseLayer = POOLING_BEFORE_DENSE_LAYER.GlobalAveragePooling,
             //validated on 7-march-2020 : +5bps vs AveragePooling_2
             WRN_PoolingBeforeDenseLayer = POOLING_BEFORE_DENSE_LAYER.GlobalAveragePooling_And_GlobalMaxPooling,
             WRN_DropOutAfterDenseLayer = 0,

@@ -19,21 +19,22 @@ public class DatasetEncoder
     #region Private fields and properties
     private readonly bool _standardizeDoubleValues;
     private readonly bool _allDataFrameAreAlreadyNormalized;
-    /// <summary>
-    /// list of all categorical features in the dataset
-    /// </summary>
-    private string[] CategoricalFeatures { get; }
-    /// <summary>
-    /// name of the target features (to predict)
-    /// (usually a single feature)
-    /// </summary>
-    [NotNull] private string[] TargetLabels { get; }
+    private readonly AbstractDatasetSample _datasetSample;
+    ///// <summary>
+    ///// list of all categorical features in the dataset
+    ///// </summary>
+    //private string[] CategoricalFeatures { get; }
+    ///// <summary>
+    ///// name of the target features (to predict)
+    ///// (usually a single feature)
+    ///// </summary>
+    //[NotNull] private string[] TargetLabels { get; }
     /// <summary>
     /// the list of features that will be used to uniquely identify a row
     /// (usually a single feature)
     /// </summary>
-    [NotNull] private string IdColumn { get; }
-    private Objective_enum DatasetObjective { get; }
+    //[NotNull] private string IdColumn { get; }
+    //private Objective_enum DatasetObjective { get; }
     [NotNull] private readonly Dictionary<string, ColumnStatistics> _columnStats = new();
     [NotNull] private static readonly ILog Log = LogManager.GetLogger(typeof(DatasetEncoder));
     /// <summary>
@@ -50,7 +51,7 @@ public class DatasetEncoder
     // ReSharper disable once NotAccessedField.Local
     private int _inverseTransformCallCount = 0;
 
-    public Dictionary<string, HashSet<string>> CategoricalFeature_to_CategoricalColumnSharingSameValues = new();
+    private readonly Dictionary<string, HashSet<string>> CategoricalFeature_to_CategoricalColumnSharingSameValues = new();
     #endregion
 
     /// <summary>
@@ -63,10 +64,7 @@ public class DatasetEncoder
     /// </param>
     public DatasetEncoder(AbstractDatasetSample datasetSample, bool standardizeDoubleValues, bool allDataFrameAreAlreadyNormalized)
     {
-        CategoricalFeatures = datasetSample.CategoricalFeatures.ToArray();
-        TargetLabels = datasetSample.TargetLabels.ToArray();
-        IdColumn = datasetSample.IdColumn;
-        DatasetObjective = datasetSample.GetObjective();
+        _datasetSample = datasetSample;
         _standardizeDoubleValues = standardizeDoubleValues;
         _allDataFrameAreAlreadyNormalized = allDataFrameAreAlreadyNormalized;
         CategoricalFeature_to_CategoricalColumnSharingSameValues = datasetSample.GetCategoricalFeature_to_CategoricalColumnSharingSameValues();
@@ -108,7 +106,7 @@ public class DatasetEncoder
         {
             if (!_columnStats.ContainsKey(c))
             {
-                _columnStats[c] = GetExistingColumnStatisticsFromFamily(c) ?? new ColumnStatistics(IsCategoricalColumn(c), TargetLabels.Contains(c), Equals(IdColumn, c), _standardizeDoubleValues, _allDataFrameAreAlreadyNormalized);
+                _columnStats[c] = GetExistingColumnStatisticsFromFamily(c) ?? new ColumnStatistics(_datasetSample.IsCategoricalColumn(c), _datasetSample.TargetLabels.Contains(c), Equals(_datasetSample.IdColumn, c), _standardizeDoubleValues, _allDataFrameAreAlreadyNormalized);
             }
         }
     
@@ -126,10 +124,10 @@ public class DatasetEncoder
             for (var index = 0; index < df.Columns.Length; index++)
             {
                 var c = df.Columns[index];
-                if (!_columnStats.ContainsKey(c) && IsCategoricalColumn(c))
+                if (!_columnStats.ContainsKey(c) && _datasetSample.IsCategoricalColumn(c))
                 {
                     Log.Info($"fitting missing categorical column {c}");
-                    _columnStats[c] = GetExistingColumnStatisticsFromFamily(c)??new ColumnStatistics(IsCategoricalColumn(c), TargetLabels.Contains(c), Equals(IdColumn, c), _standardizeDoubleValues, _allDataFrameAreAlreadyNormalized);
+                    _columnStats[c] = GetExistingColumnStatisticsFromFamily(c)??new ColumnStatistics(_datasetSample.IsCategoricalColumn(c), _datasetSample.TargetLabels.Contains(c), Equals(_datasetSample.IdColumn, c), _standardizeDoubleValues, _allDataFrameAreAlreadyNormalized);
                     FitColumn(df, index);
                 }
             }
@@ -286,17 +284,18 @@ public class DatasetEncoder
         }
 
     }
-    private bool IsCategoricalColumn(string columnName)
-    {
-        if (CategoricalFeatures.Contains(columnName) || Equals(IdColumn, columnName))
-        {
-            return true;
-        }
-        //!D 
-        //if (DatasetObjective == Objective_enum.Classification && TargetLabels.Contains(columnName))
-        //{
-        //    return true;
-        //}
-        return false;
-    }
+    //private bool IsCategoricalColumn(string columnName)
+    //{
+
+    //    if (CategoricalFeatures.Contains(columnName) || Equals(IdColumn, columnName))
+    //    {
+    //        return true;
+    //    }
+    //    //!D 
+    //    //if (DatasetObjective == Objective_enum.Classification && TargetLabels.Contains(columnName))
+    //    //{
+    //    //    return true;
+    //    //}
+    //    return false;
+    //}
 }

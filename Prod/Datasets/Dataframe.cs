@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 using JetBrains.Annotations;
 using SharpNet.CPU;
 using SharpNet.Data;
-using SharpNet.HyperParameters;
+using SharpNet.Hyperparameters;
 using SharpNet.TextPreprocessing;
 
 namespace SharpNet.Datasets;

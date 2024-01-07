@@ -20,7 +20,7 @@ public class InMemoryDataSet : DataSet
         Objective_enum objective = Objective_enum.Regression,
         List<Tuple<float, float>> meanAndVolatilityForEachChannel = null,
         string[] columnNames = null,
-        string[] categoricalFeatures = null,
+        Func<string, bool> isCategoricalColumn = null,
         [CanBeNull] string[] y_IDs = null,
         [CanBeNull] string idColumn = null,
         char separator = ',')
@@ -29,7 +29,7 @@ public class InMemoryDataSet : DataSet
             meanAndVolatilityForEachChannel, 
             ResizeStrategyEnum.None,
             columnNames ?? new string[0],
-            categoricalFeatures ??new string[0],
+            isCategoricalColumn,
             y_IDs,
             idColumn, 
             separator)

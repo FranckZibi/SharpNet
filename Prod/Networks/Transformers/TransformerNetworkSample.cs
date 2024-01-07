@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Linq;
 using SharpNet.Datasets;
 using SharpNet.GPU;
 using SharpNet.Layers;
@@ -15,7 +16,7 @@ public class TransformerNetworkSample : NetworkSample
     {
     }
 
-    #region Hyper-Parameters
+    #region Hyperparameters
 
     public float layer_norm_epsilon = LayerNormalizationLayer.DEFAULT_EPSILON;
     public int embedding_dim = -1; // == d_model
@@ -44,7 +45,7 @@ public class TransformerNetworkSample : NetworkSample
     public bool layer_norm_after_ffd = false;              //should be false
     public bool layer_norm_before_last_dense = true; // must be true
 
-    //encoders Hyper-Parameters
+    //encoders Hyperparameters
     public int encoder_num_transformer_blocks = -1;
     public int encoder_num_heads = -1; //must be a divider of 'embedding_dim'
     public bool encoder_mha_use_bias_Q_V_K = false;         
@@ -59,7 +60,7 @@ public class TransformerNetworkSample : NetworkSample
 
     public POOLING_BEFORE_DENSE_LAYER pooling_before_dense_layer = POOLING_BEFORE_DENSE_LAYER.NONE;
 
-    //decoders Hyper-Parameters
+    //decoders Hyperparameters
     public int decoder_num_transformer_blocks = -1;
     public int decoder_num_heads = -1; //must be a divider of 'embedding_dim'
     public bool decoder_mha_use_bias_Q_V_K = false;
@@ -102,28 +103,28 @@ public class TransformerNetworkSample : NetworkSample
         if (encoder_num_transformer_blocks >= 1 && decoder_num_transformer_blocks<=0)
         {
             //Full encoders
-            var inputShape = datasetSample.GetInputShapeOfSingleElement();
+            var inputShapeOfSingleElement = datasetSample.X_Shape(1).Skip(1).ToArray();
             if (!input_is_already_embedded)
             {
-                if (inputShape.Length != 1)
+                if (inputShapeOfSingleElement.Length != 1)
                 {
-                    throw new ArgumentException($"inputShape.Length={inputShape.Length} != 1");
+                    throw new ArgumentException($"inputShape.Length={inputShapeOfSingleElement.Length} != 1");
                 }
-                int timeSteps = inputShape[0];
+                int timeSteps = inputShapeOfSingleElement[0];
                 nn.Input(timeSteps, -1, -1);
                 nn.Embedding(new[] { datasetSample.NumClass }, new[] { embedding_dim }, new[] { -1 }, new[] { 0 }, 0.0);
             }
             else
             {
-                if (inputShape.Length != 2)
+                if (inputShapeOfSingleElement.Length != 2)
                 {
-                    throw new ArgumentException($"inputShape.Length={inputShape.Length} != 2");
+                    throw new ArgumentException($"inputShape.Length={inputShapeOfSingleElement.Length} != 2");
                 }
                 
-                int timeSteps = inputShape[0];
-                if (inputShape[1] != embedding_dim)
+                int timeSteps = inputShapeOfSingleElement[0];
+                if (inputShapeOfSingleElement[1] != embedding_dim)
                 {
-                    throw new ArgumentException($"inputShape[1]={inputShape[1]} != embedding_dim={embedding_dim}");
+                    throw new ArgumentException($"inputShape[1]={inputShapeOfSingleElement[1]} != embedding_dim={embedding_dim}");
                 }
                 nn.Input(timeSteps, embedding_dim, -1);
             }

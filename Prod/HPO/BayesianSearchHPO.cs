@@ -6,7 +6,7 @@ using JetBrains.Annotations;
 using SharpNet.CatBoost;
 using SharpNet.CPU;
 using SharpNet.Datasets;
-using SharpNet.HyperParameters;
+using SharpNet.Hyperparameters;
 using SharpNet.LightGBM;
 using SharpNet.Models;
 
@@ -17,7 +17,7 @@ public class BayesianSearchHPO : AbstractHpo
     #region private fields
     private readonly Random _rand = new();
     private readonly HashSet<string> _processedSpaces = new();
-    private readonly AbstractHyperParameterSearchSpace.RANDOM_SEARCH_OPTION _randomSearchOption;
+    private readonly HyperparameterSearchSpace.RANDOM_SEARCH_OPTION _randomSearchOption;
     /// <summary>
     /// the model use to predict the objective function score
     /// </summary>
@@ -55,7 +55,7 @@ public class BayesianSearchHPO : AbstractHpo
     public BayesianSearchHPO(IDictionary<string, object> searchSpace,
         Func<ISample> createDefaultSample,
         [NotNull] string workingDirectory,
-        AbstractHyperParameterSearchSpace.RANDOM_SEARCH_OPTION randomSearchOption = AbstractHyperParameterSearchSpace.RANDOM_SEARCH_OPTION.PREFER_MORE_PROMISING) :
+        HyperparameterSearchSpace.RANDOM_SEARCH_OPTION randomSearchOption = HyperparameterSearchSpace.RANDOM_SEARCH_OPTION.PREFER_MORE_PROMISING) :
         base(searchSpace, createDefaultSample, workingDirectory)
     {
         _randomSearchOption = randomSearchOption;
@@ -66,21 +66,21 @@ public class BayesianSearchHPO : AbstractHpo
     }
 
     // ReSharper disable once UnusedMember.Global
-    public static InMemoryDataSet LoadSurrogateTrainingDataset(string dataFramePath, string[] categoricalFeature = null)
+    public static InMemoryDataSet LoadSurrogateTrainingDataset(string dataFramePath, Func<string,bool> isCategoricalColumn = null)
     {
         var df = DataFrame.read_float_csv(dataFramePath);
         var x_df = df.Drop("y");
         var x = x_df.FloatCpuTensor();
         var y_df = df["y"];
         var y = y_df.FloatCpuTensor();
-        return new InMemoryDataSet(x, y, "", Objective_enum.Regression, null, columnNames: x_df.Columns, categoricalFeatures: categoricalFeature??Array.Empty<string>());
+        return new InMemoryDataSet(x, y, "", Objective_enum.Regression, null, columnNames: x_df.Columns, isCategoricalColumn);
     }
     // ReSharper disable once UnusedMember.Global
-    public static InMemoryDataSet LoadSurrogateValidationDataset(string dataFramePath, string[] categoricalFeature = null)
+    public static InMemoryDataSet LoadSurrogateValidationDataset(string dataFramePath, Func<string, bool> isCategoricalColumn = null)
     {
         var df = DataFrame.read_float_csv(dataFramePath);
         var x = df.FloatCpuTensor();
-        return new InMemoryDataSet(x, null, "", Objective_enum.Regression, null, columnNames: df.Columns, categoricalFeatures: categoricalFeature ?? Array.Empty<string>());
+        return new InMemoryDataSet(x, null, "", Objective_enum.Regression, null, columnNames: df.Columns, isCategoricalColumn);
     }
 
     protected override (ISample, int, string) Next
@@ -263,7 +263,7 @@ public class BayesianSearchHPO : AbstractHpo
         // we retrieve 100x more random samples then needed to keep only the top 1%
         using var x = RandomSamplesForPrediction(count*100);
         //using var dataset = new InMemoryDataSet(x, null, "", Objective_enum.Regression, null, featureNames: SurrogateModelFeatureNames(), categoricalFeatures: SurrogateModelCategoricalFeature());
-        using var dataset = new InMemoryDataSet(x, null, "", Objective_enum.Regression, null, SurrogateModelFeatureNames(), SurrogateModelCategoricalFeature());
+        using var dataset = new InMemoryDataSet(x, null, "", Objective_enum.Regression, null, SurrogateModelFeatureNames(), IsCategoricalColumn);
         
         // we compute the estimate score associated with each random sample (using the surrogate model)
         var y = _samplesUsedForModelTraining == 0 
@@ -304,22 +304,22 @@ public class BayesianSearchHPO : AbstractHpo
     }
     private (ISample, string) FromFloatVectorToSampleAndDescription(float[] sampleAsFloatVector)
     {
-        var searchSpaceHyperParameters = new Dictionary<string, string>();
+        var searchSpaceHyperparameters = new Dictionary<string, string>();
         int idx = 0;
         foreach (var (parameterName, parameterSearchSpace) in SearchSpace.OrderBy(l => l.Key))
         {
             if (parameterSearchSpace.IsConstant)
             {
-                searchSpaceHyperParameters[parameterName] = parameterSearchSpace.Next_SampleStringValue(_rand, AbstractHyperParameterSearchSpace.RANDOM_SEARCH_OPTION.FULLY_RANDOM);
+                searchSpaceHyperparameters[parameterName] = parameterSearchSpace.Next_SampleStringValue(_rand, HyperparameterSearchSpace.RANDOM_SEARCH_OPTION.FULLY_RANDOM);
             }
             else
             {
-                searchSpaceHyperParameters[parameterName] = parameterSearchSpace.BayesianSearchFloatValue_to_SampleStringValue(sampleAsFloatVector[idx++]);
+                searchSpaceHyperparameters[parameterName] = parameterSearchSpace.BayesianSearchFloatValue_to_SampleStringValue(sampleAsFloatVector[idx++]);
             }
         }
         Debug.Assert(idx == sampleAsFloatVector.Length);
         var sample = CreateDefaultSample();
-        sample.Set(Utils.FromString2String_to_String2Object(searchSpaceHyperParameters));
+        sample.Set(Utils.FromString2String_to_String2Object(searchSpaceHyperparameters));
         //we try to fix inconsistencies in the sample
         if (!sample.FixErrors())
         {
@@ -333,7 +333,7 @@ public class BayesianSearchHPO : AbstractHpo
                 return (null, ""); //already processed before
             }
         }
-        return (sample, ToSampleDescription(searchSpaceHyperParameters, sample));
+        return (sample, ToSampleDescription(searchSpaceHyperparameters, sample));
     }
     /// <summary>
     /// return 'count' random samples
@@ -386,7 +386,7 @@ public class BayesianSearchHPO : AbstractHpo
         //var x = df1.FloatCpuTensor();
         //var y_true = df2.FloatCpuTensor();
         
-        using var trainingDataset = new InMemoryDataSet(x, y_true, "", Objective_enum.Regression, null, SurrogateModelFeatureNames(), SurrogateModelCategoricalFeature());
+        using var trainingDataset = new InMemoryDataSet(x, y_true, "", Objective_enum.Regression, null, SurrogateModelFeatureNames(), IsCategoricalColumn);
         Log.Info($"Training surrogate model with {x.Shape[0]} samples");
         Utils.TryDelete(_surrogateTrainedFiles.train_XDatasetPath);
         Utils.TryDelete(_surrogateTrainedFiles.train_YDatasetPath);
@@ -429,8 +429,13 @@ public class BayesianSearchHPO : AbstractHpo
     {
         return SearchSpace.OrderBy(t => t.Key).Where(t=>!t.Value.IsConstant).Select(t=>t.Key).ToArray();
     }
-    private string[] SurrogateModelCategoricalFeature()
+    private bool IsCategoricalColumn(string columnName)
     {
-        return SearchSpace.OrderBy(t => t.Key).Where(t=> !t.Value.IsConstant&&t.Value.IsCategoricalHyperParameter).Select(t=>t.Key).ToArray();
+        if (!SearchSpace.ContainsKey(columnName))
+        {
+            return false;
+        }
+        var val = SearchSpace[columnName];
+        return !val.IsConstant && val.IsCategoricalHyperparameter;
     }
 }

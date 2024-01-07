@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 using SharpNet;
-using SharpNet.HyperParameters;
+using SharpNet.Hyperparameters;
 
 namespace SharpNetTests;
 

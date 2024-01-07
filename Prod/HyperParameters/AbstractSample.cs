@@ -3,12 +3,12 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 
-namespace SharpNet.HyperParameters;
+namespace SharpNet.Hyperparameters;
 
 public abstract class AbstractSample : ISample
 {
     #region private fields
-    private readonly HashSet<string> _mandatoryCategoricalHyperParameters;
+    private readonly HashSet<string> _mandatoryCategoricalHyperparameters;
     #endregion
 
 
@@ -19,14 +19,14 @@ public abstract class AbstractSample : ISample
     public const int DEFAULT_VALUE = -6666;
 
     #region constructors
-    protected AbstractSample(HashSet<string> mandatoryCategoricalHyperParameters)
+    protected AbstractSample(HashSet<string> mandatoryCategoricalHyperparameters = null)
     {
-        _mandatoryCategoricalHyperParameters = mandatoryCategoricalHyperParameters;
+        _mandatoryCategoricalHyperparameters = mandatoryCategoricalHyperparameters ?? new HashSet<string>();
     }
     #endregion
 
     #region ISample methods
-    public HashSet<string> HyperParameterNames()
+    public HashSet<string> HyperparameterNames()
     {
         var type = GetType();
         return new HashSet<string>(ClassFieldSetter.FieldNames(type));
@@ -75,9 +75,9 @@ public abstract class AbstractSample : ISample
     {
         return true;
     }
-    public Type GetFieldType(string hyperParameterName)
+    public Type GetFieldType(string HyperparameterName)
     {
-        return ClassFieldSetter.GetFieldType(GetType(), hyperParameterName);
+        return ClassFieldSetter.GetFieldType(GetType(), HyperparameterName);
     }
     public virtual void Set(IDictionary<string, object> dico)
     {
@@ -88,35 +88,35 @@ public abstract class AbstractSample : ISample
     }
     //TODO add tests
     /// <summary>
-    /// to determine if an Hyper-Parameter is categorical, we'll user the following rules:
-    ///     1/ if the Hyper-Parameter name is in '_mandatoryCategoricalHyperParameters'
+    /// to determine if an Hyper-Parameter is categorical, we'll use the following rules:
+    ///     1/ if the Hyper-Parameter name is in '_mandatoryCategoricalHyperparameters'
     ///             => it is categorical
-    ///     2/ if the Hype-Parameter is a int/float/double
+    ///     2/ if the Hyper-Parameter is a int/float/double
     ///             => it is numerical
-    ///     3/ if the Hype-Parameter is a bool/string/enum
+    ///     3/ if the Hyper-Parameter is a bool/string/enum
     ///             => it is categorical
     ///     4/ in all other cases
     ///             => an exception is thrown (can't determine if the Hyper-Parameter is categorical)
     /// </summary>
-    /// <param name="hyperParameterName"></param>
+    /// <param name="HyperparameterName"></param>
     /// <returns></returns>
     /// <exception cref="ArgumentException"></exception>
-    public virtual bool IsCategoricalHyperParameter(string hyperParameterName)
+    public virtual bool IsCategoricalHyperparameter(string HyperparameterName)
     {
-        if (_mandatoryCategoricalHyperParameters.Contains(hyperParameterName))
+        if (_mandatoryCategoricalHyperparameters.Contains(HyperparameterName))
         {
             return true;
         }
-        var hyperParameterType = GetFieldType(hyperParameterName);
-        if (hyperParameterType == typeof(double) || hyperParameterType == typeof(float) || hyperParameterType == typeof(int))
+        var HyperparameterType = GetFieldType(HyperparameterName);
+        if (HyperparameterType == typeof(double) || HyperparameterType == typeof(float) || HyperparameterType == typeof(int))
         {
             return false;
         }
-        if (hyperParameterType == typeof(string) || hyperParameterType == typeof(bool) || hyperParameterType.IsEnum || hyperParameterType.IsClass)
+        if (HyperparameterType == typeof(string) || HyperparameterType == typeof(bool) || HyperparameterType.IsEnum || HyperparameterType.IsClass)
         {
             return true;       
         }
-        throw new ArgumentException($"can't determine if {hyperParameterName} ({hyperParameterType}) field of class {GetType()} is categorical");
+        throw new ArgumentException($"can't determine if {HyperparameterName} ({HyperparameterType}) field of class {GetType()} is categorical");
     }
     #endregion
 
@@ -138,7 +138,7 @@ public abstract class AbstractSample : ISample
     protected IDictionary<string,object> ToDictionaryConfigContent(Func<string, object, bool> accept)
     {
         var result = new Dictionary<string, object>();
-        foreach (var parameterName in HyperParameterNames())
+        foreach (var parameterName in HyperparameterNames())
         {
             var fieldValue = Get(parameterName);
             if (accept == null || accept(parameterName, fieldValue))
@@ -174,7 +174,7 @@ public abstract class AbstractSample : ISample
     {
     }
 
-    public virtual void FillSearchSpaceWithDefaultValues(IDictionary<string, object> hyperParameterSearchSpace)
+    public virtual void FillSearchSpaceWithDefaultValues(IDictionary<string, object> HyperparameterSearchSpace)
     {
     }
 

@@ -1,7 +1,7 @@
 ﻿using JetBrains.Annotations;
 using SharpNet.Models;
 
-namespace SharpNet.HyperParameters;
+namespace SharpNet.Hyperparameters;
 
 public static class SampleUtils
 {
@@ -18,7 +18,7 @@ public static class SampleUtils
     /// <param name="retrainOnFullDatasetIfBetterModelFound"></param>
     /// <param name="bestScoreSoFar">the best score associated with the best sample found so far for the model</param>
     /// <returns>the score of the ranking evaluation metric for the validation dataset</returns>
-    public static IScore TrainWithHyperParameters(
+    public static IScore TrainWithHyperparameters(
         [NotNull] ModelAndDatasetPredictionsSample modelAndDatasetPredictionsSample, string workingDirectory, bool retrainOnFullDatasetIfBetterModelFound, ref IScore bestScoreSoFar)
     {
         using var modelAndDataset = new ModelAndDatasetPredictions(modelAndDatasetPredictionsSample, workingDirectory, modelAndDatasetPredictionsSample.ComputeHash(), false);

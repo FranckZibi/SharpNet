@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 using SharpNet.Networks;
 // ReSharper disable UnusedMember.Global
 
@@ -15,8 +14,8 @@ public abstract class DatasetSampleForTimeSeries : AbstractDatasetSample
     // ReSharper disable once FieldCanBeMadeReadOnly.Global
     public bool Use_prev_Y = true;
 
-    protected DatasetSampleForTimeSeries() : base(new HashSet<string>()) {}
-    protected DatasetSampleForTimeSeries(EncoderDecoder_NetworkSample encoderDecoderNetworkSample) : base(new HashSet<string>())
+    protected DatasetSampleForTimeSeries() {}
+    protected DatasetSampleForTimeSeries(EncoderDecoder_NetworkSample encoderDecoderNetworkSample)
     {
         encoderDecoder_NetworkSample = encoderDecoderNetworkSample;
     }

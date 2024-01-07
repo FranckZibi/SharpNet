@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 using NUnit.Framework;
 using SharpNet;
 using SharpNet.Datasets;
@@ -37,22 +36,22 @@ public class TestDatasetEncoder
 
     public class TestDatasetSample : AbstractDatasetSample
     {
-        public TestDatasetSample(string[] categoricalFeatures, string idColumn, string[] targetLabels) : base(new HashSet<string>())
+        private readonly string[] CategoricalFeatures;
+
+        public TestDatasetSample(string[] categoricalFeatures, string idColumn, string[] targetLabels)
         {
             CategoricalFeatures = categoricalFeatures;
             IdColumn = idColumn;
             TargetLabels = targetLabels;
         }
-        public override int NumClass => 1;
-        public override string[] TargetLabelDistinctValues => new string[0];
         public override Objective_enum GetObjective() => Objective_enum.Regression;
-        public override string[] CategoricalFeatures { get; }
         public override string IdColumn { get; }
         public override string[] TargetLabels { get; }
+        public override bool IsCategoricalColumn(string columnName) => DefaultIsCategoricalColumn(columnName, CategoricalFeatures);
         public override DataSet TestDataset() { throw new NotImplementedException(); }
         public override DataSet FullTrainingAndValidation() => throw new NotImplementedException();
         public override int[] X_Shape(int batchSize) => throw new NotImplementedException();
         public override int[] Y_Shape(int batchSize) => throw new NotImplementedException();
-
+        public override int NumClass => 1;
     }
 }

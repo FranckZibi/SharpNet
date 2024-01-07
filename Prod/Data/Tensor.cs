@@ -6,7 +6,7 @@ using System.Runtime.CompilerServices;
 using JetBrains.Annotations;
 using SharpNet.CPU;
 using SharpNet.GPU;
-using SharpNet.HyperParameters;
+using SharpNet.Hyperparameters;
 using SharpNet.Layers;
 
 namespace SharpNet.Data

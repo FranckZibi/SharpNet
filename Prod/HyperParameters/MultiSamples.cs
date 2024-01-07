@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 
-namespace SharpNet.HyperParameters;
+namespace SharpNet.Hyperparameters;
 
 public abstract class MultiSamples : ISample
 {
@@ -29,9 +29,9 @@ public abstract class MultiSamples : ISample
         Array.ForEach(Samples, s => s.SetTaskId(taskId));
     }
 
-    public virtual void FillSearchSpaceWithDefaultValues(IDictionary<string, object> hyperParameterSearchSpace)
+    public virtual void FillSearchSpaceWithDefaultValues(IDictionary<string, object> HyperparameterSearchSpace)
     {
-        Array.ForEach(Samples, s => s.FillSearchSpaceWithDefaultValues(hyperParameterSearchSpace));
+        Array.ForEach(Samples, s => s.FillSearchSpaceWithDefaultValues(HyperparameterSearchSpace));
     }
 
     public virtual List<string> Save(string workingDirectory, string modelName)
@@ -54,12 +54,12 @@ public abstract class MultiSamples : ISample
         }
         return res.ToList();
     }
-    public HashSet<string> HyperParameterNames()
+    public HashSet<string> HyperparameterNames()
     {
         HashSet<string> res = new();
         foreach (var sample in Samples)
         {
-            res.UnionWith(sample.HyperParameterNames());
+            res.UnionWith(sample.HyperparameterNames());
         }
         return res;
     }
@@ -70,13 +70,13 @@ public abstract class MultiSamples : ISample
             Set(key, value);
         }
     }
-    public void Set(string hyperParameterName, object fieldValue)
+    public void Set(string HyperparameterName, object fieldValue)
     {
-        FirstSampleWithField(hyperParameterName).Set(hyperParameterName, fieldValue);
+        FirstSampleWithField(HyperparameterName).Set(HyperparameterName, fieldValue);
     }
-    public object Get(string hyperParameterName)
+    public object Get(string HyperparameterName)
     {
-        return FirstSampleWithField(hyperParameterName).Get(hyperParameterName);
+        return FirstSampleWithField(HyperparameterName).Get(HyperparameterName);
     }
     public virtual bool FixErrors()
     {
@@ -102,18 +102,18 @@ public abstract class MultiSamples : ISample
         var clonedInstance = (ISample)ctor?.Invoke(new object[] {clonedSamples});
         return clonedInstance;
     }
-    public Type GetFieldType(string hyperParameterName)
+    public Type GetFieldType(string HyperparameterName)
     {
-        return FirstSampleWithField(hyperParameterName).GetFieldType(hyperParameterName);
+        return FirstSampleWithField(HyperparameterName).GetFieldType(HyperparameterName);
     }
-    public bool IsCategoricalHyperParameter(string hyperParameterName)
+    public bool IsCategoricalHyperparameter(string HyperparameterName)
     {
-        var firstSampleWithField = FirstSampleWithField(hyperParameterName);
+        var firstSampleWithField = FirstSampleWithField(HyperparameterName);
         if (firstSampleWithField == null)
         {
-            throw new ArgumentException($"hyper parameter {hyperParameterName} not found");
+            throw new ArgumentException($"Hyperparameter {HyperparameterName} not found");
         }
-        return firstSampleWithField.IsCategoricalHyperParameter(hyperParameterName);
+        return firstSampleWithField.IsCategoricalHyperparameter(HyperparameterName);
     }
 
     protected virtual string SampleIndexToSampleName(string modelName, int sampleIndex)
@@ -121,8 +121,8 @@ public abstract class MultiSamples : ISample
         return ISample.SampleName(modelName, sampleIndex);
     }
 
-    private ISample FirstSampleWithField(string hyperParameterName)
+    private ISample FirstSampleWithField(string HyperparameterName)
     {
-        return Samples.FirstOrDefault(s => s.HyperParameterNames().Contains(hyperParameterName));
+        return Samples.FirstOrDefault(s => s.HyperparameterNames().Contains(HyperparameterName));
     }
 }

@@ -18,7 +18,7 @@ namespace SharpNetTests.CatBoost
 
            // const int num_boost_round = 100;
            // var catBoostSample = new CatBoostSample();
-           //var datasetHyperParameters = new AmazonEmployeeAccessChallengeDatasetHyperParameters();
+           //var datasetHyperparameters = new AmazonEmployeeAccessChallengeDatasetHyperparameters();
            // catBoostSample.iterations = num_boost_round;
            // catBoostSample.loss_function = CatBoostSample.loss_function_enum.Logloss;
            // catBoostSample.verbose = num_boost_round / 10;
@@ -27,7 +27,7 @@ namespace SharpNetTests.CatBoost
            // catBoostSample.allow_writing_files = false;
            // //sample.CatBoostSample.set_early_stopping_rounds(200);
            // var model = new CatBoostModel(catBoostSample, workingDirectory, catBoostSample.ComputeHash());
-           // datasetHyperParameters.Fit(model, true);
+           // datasetHyperparameters.Fit(model, true);
         }
     }
 }

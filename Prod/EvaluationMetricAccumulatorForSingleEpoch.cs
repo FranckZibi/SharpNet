@@ -4,7 +4,7 @@ using System.Diagnostics;
 using System.Linq;
 using JetBrains.Annotations;
 using SharpNet.Data;
-using SharpNet.HyperParameters;
+using SharpNet.Hyperparameters;
 using SharpNet.MathTools;
 
 namespace SharpNet;

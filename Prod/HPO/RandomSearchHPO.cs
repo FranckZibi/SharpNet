@@ -1,14 +1,14 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using SharpNet.HyperParameters;
+using SharpNet.Hyperparameters;
 
 namespace SharpNet.HPO
 {
     public class RandomSearchHPO : AbstractHpo
     {
         #region private fields
-        private readonly AbstractHyperParameterSearchSpace.RANDOM_SEARCH_OPTION _randomSearchOption;
+        private readonly HyperparameterSearchSpace.RANDOM_SEARCH_OPTION _randomSearchOption;
         private readonly Random _rand = new();
         private readonly HashSet<string> _processedSpaces = new();
         #endregion
@@ -16,7 +16,7 @@ namespace SharpNet.HPO
         public RandomSearchHPO(IDictionary<string, object> searchSpace,
             Func<ISample> createDefaultSample,
             string workingDirectory,
-            AbstractHyperParameterSearchSpace.RANDOM_SEARCH_OPTION randomSearchOption = AbstractHyperParameterSearchSpace.RANDOM_SEARCH_OPTION.PREFER_MORE_PROMISING) : 
+            HyperparameterSearchSpace.RANDOM_SEARCH_OPTION randomSearchOption = HyperparameterSearchSpace.RANDOM_SEARCH_OPTION.PREFER_MORE_PROMISING) : 
             base(searchSpace, createDefaultSample, workingDirectory)
         {
             _randomSearchOption = randomSearchOption;
@@ -29,13 +29,13 @@ namespace SharpNet.HPO
                 //we'll make '1000' tries to retrieve a new and valid hyper parameter space
                 for (int i = 0; i < 1000; ++i)
                 { 
-                    var searchSpaceHyperParameters = new Dictionary<string, string>();
+                    var searchSpaceHyperparameters = new Dictionary<string, string>();
                     foreach (var (parameterName, parameterSearchSpace) in SearchSpace.OrderBy(l => l.Key))
                     {
-                        searchSpaceHyperParameters[parameterName] = parameterSearchSpace.Next_SampleStringValue(_rand, _randomSearchOption);
+                        searchSpaceHyperparameters[parameterName] = parameterSearchSpace.Next_SampleStringValue(_rand, _randomSearchOption);
                     }
                     var sample = CreateDefaultSample();
-                    sample.Set(Utils.FromString2String_to_String2Object(searchSpaceHyperParameters));
+                    sample.Set(Utils.FromString2String_to_String2Object(searchSpaceHyperparameters));
 
                     //we try to fix inconsistencies in the sample
                     if (!sample.FixErrors())
@@ -52,7 +52,7 @@ namespace SharpNet.HPO
                         }
                     }
 
-                    var sampleDescription = ToSampleDescription(searchSpaceHyperParameters, sample);
+                    var sampleDescription = ToSampleDescription(searchSpaceHyperparameters, sample);
                     return (sample, _nextSampleId++, sampleDescription);
                 }
                 return (null,-1, "");

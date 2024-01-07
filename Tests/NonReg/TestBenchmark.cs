@@ -189,7 +189,7 @@ namespace SharpNetTests.NonReg
         //    using var cfm60TrainingAndTestDataSet = new Cfm60TrainingAndTestDataset(p, s => Model.Log.Info(s));
         //    var dataset = (CFM60DataSet)cfm60TrainingAndTestDataSet.Training;
 
-        //    var xMiniBatchShape = new[] { miniBatchSize, 3, dataset.Sample.Encoder_TimeSteps, p.CFM60HyperParameters.Encoder_InputSize };
+        //    var xMiniBatchShape = new[] { miniBatchSize, 3, dataset.Sample.Encoder_TimeSteps, p.CFM60Hyperparameters.Encoder_InputSize };
 
         //    var rand = new Random(0);
         //    var shuffledElementId = Enumerable.Range(0, dataset.Count).ToArray();

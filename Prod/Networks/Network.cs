@@ -128,7 +128,7 @@ namespace SharpNet.Networks
 
         public Network Input_and_Embedding_if_required(AbstractDatasetSample datasetSample, int embeddingDim, double lambdaL2Regularization, float clipValueForGradients= 0, string layerName = "")
         {
-            Input(datasetSample.GetInputShapeOfSingleElement(), layerName);
+            Input(datasetSample.X_Shape(1).Skip(1).ToArray(), layerName);
             var (vocabularySizes, embeddingDims, indexesInLastDimensionToUse, embeddingTensorIndex) = datasetSample.EmbeddingDescription(embeddingDim);
             if (indexesInLastDimensionToUse.Length != 0)
             {

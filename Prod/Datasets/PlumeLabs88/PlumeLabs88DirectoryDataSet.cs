@@ -14,7 +14,7 @@ public class PlumeLabs88DirectoryDataSet : DataSet
     [CanBeNull] private readonly CpuTensor<float> _yPlumeLabs88DirectoryDataSet;
 
     public PlumeLabs88DirectoryDataSet(PlumeLabs88DatasetSample datasetSample,  bool isTrainingDataset)
-        : base(PlumeLabs88Utils.NAME, datasetSample.GetObjective(), null, ResizeStrategyEnum.None, Array.Empty<string>(), datasetSample.CategoricalFeatures, datasetSample.RowInTargetFormatPredictionToID(isTrainingDataset), datasetSample.IdColumn, ',')
+        : base(PlumeLabs88Utils.NAME, datasetSample.GetObjective(), null, ResizeStrategyEnum.None, Array.Empty<string>(), datasetSample.IsCategoricalColumn, datasetSample.RowInTargetFormatPredictionToID(isTrainingDataset), datasetSample.IdColumn, ',')
     {
         _datasetSample = datasetSample;
         _isTrainingDataset = isTrainingDataset;
@@ -36,7 +36,8 @@ public class PlumeLabs88DirectoryDataSet : DataSet
         if (xBuffer != null)
         {
             var xBufferSpan = xBuffer.RowSpanSlice(indexInBuffer, 1);
-            Debug.Assert(xBufferSpan.Length == _datasetSample.FeatureByElement());
+            //we ensure that we have the good number of features by element
+            Debug.Assert(xBufferSpan.Length == Utils.Product(_datasetSample.X_Shape(1)));
             _datasetSample.LoadElementIdIntoSpan(elementId, xBufferSpan, _isTrainingDataset);
         }
         if (yBuffer != null && _yPlumeLabs88DirectoryDataSet != null)

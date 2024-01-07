@@ -1,29 +1,10 @@
-﻿using System.Collections.Generic;
-using System.Text;
+﻿using System.Text;
 using log4net;
 using SharpNet.Datasets;
 using SharpNet.TextPreprocessing;
 // ReSharper disable MemberCanBePrivate.Global
 
 namespace SharpNet.Networks.Transformers;
-
-public abstract class TransformerDatasetSample : AbstractDatasetSample
-{
-    #region HyperParameters
-    public int vocab_size = 4;
-    public int max_length = 3; // == timeSteps
-    #endregion
-
-
-    protected TransformerDatasetSample(HashSet<string> mandatoryCategoricalHyperParameters) : base(mandatoryCategoricalHyperParameters)
-    {
-    }
-
-
-    public override int[] GetInputShapeOfSingleElement() => new[] { max_length };
-    public override int[] X_Shape(int batchSize) => new[] { batchSize, max_length };
-    public override int[] Y_Shape(int batchSize) => new[] { batchSize, vocab_size };
-}
 
 public class MyNameIsGrootDatasetSample : TransformerDatasetSample
 {
@@ -45,9 +26,9 @@ public class MyNameIsGrootDatasetSample : TransformerDatasetSample
         Utils.ConfigureThreadLog4netProperties(MyNameIsGrootUtils.WorkingDirectory, "log");
     }
 
-    private readonly string sentence = "my name is groot";
+    private const string sentence = "my name is groot";
 
-    public MyNameIsGrootDatasetSample() : base(new HashSet<string>())
+    public MyNameIsGrootDatasetSample()
     {
         var sb = new StringBuilder();
         for (int i = 0; i < 20_000; ++i)
@@ -64,24 +45,20 @@ public class MyNameIsGrootDatasetSample : TransformerDatasetSample
         tokenizer.FitOnTexts(new[] { _fullText });
         return tokenizer;
     }
-    
-    public override int NumClass => vocab_size;
 
-    public override DataFrame PredictionsInModelFormat_2_PredictionsInTargetFormat(DataFrame predictionsInModelFormat, Objective_enum objective)
+    public override DataFrame Predictions_InModelFormat_2_Predictions_InTargetFormat(DataFrame predictions_InModelFormat, Objective_enum objective)
     {
-        return predictionsInModelFormat;
+        return predictions_InModelFormat;
     }
 
-    public override string[] CategoricalFeatures { get; } = { "" };
     public override string IdColumn => null;
     public override string[] TargetLabels { get; } = {"y"};
+    public override bool IsCategoricalColumn(string columnName) => DefaultIsCategoricalColumn(columnName);
+
     public override Objective_enum GetObjective()
     {
         return Objective_enum.Classification;
     }
-
-    public override string[] TargetLabelDistinctValues => null;
-
     public override DataSet TestDataset()
     {
         return null;

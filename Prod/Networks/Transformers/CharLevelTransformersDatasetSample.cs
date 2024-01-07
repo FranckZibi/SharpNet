@@ -1,5 +1,4 @@
-﻿using System.Collections.Generic;
-using System.IO;
+﻿using System.IO;
 using log4net;
 using SharpNet.Datasets;
 using SharpNet.TextPreprocessing;
@@ -20,7 +19,7 @@ public class CharLevelTransformersDatasetSample : TransformerDatasetSample
     public static readonly ILog Log = LogManager.GetLogger(typeof(CharLevelTransformersDatasetSample));
     #endregion
 
-    #region HyperParameters
+    #region Hyperparameters
     /// <summary>
     /// the maximum size fo the text that will be used for training the network
     /// -1 means the full text (default value)
@@ -38,7 +37,7 @@ public class CharLevelTransformersDatasetSample : TransformerDatasetSample
         Utils.ConfigureThreadLog4netProperties(TextTransformersUtils.WorkingDirectory, "log");
     }
 
-    public CharLevelTransformersDatasetSample() : base(new HashSet<string>())
+    public CharLevelTransformersDatasetSample()
     {
         //_fullText = File.ReadAllText(TextTransformersUtils.XTrainPath).Substring(0, 3_000); //!D;
         _fullText = File.ReadAllText(TextTransformersUtils.XTrainPath);
@@ -61,23 +60,17 @@ public class CharLevelTransformersDatasetSample : TransformerDatasetSample
         return _fullText;
     }
 
-    public override int NumClass => vocab_size;
-    public override int[] GetInputShapeOfSingleElement() => new[] { max_length };
-    public override DataFrame PredictionsInModelFormat_2_PredictionsInTargetFormat(DataFrame predictionsInModelFormat, Objective_enum objective)
+    public override DataFrame Predictions_InModelFormat_2_Predictions_InTargetFormat(DataFrame predictions_InModelFormat, Objective_enum objective)
     {
-        return predictionsInModelFormat;
+        return predictions_InModelFormat;
     }
-
-    public override string[] CategoricalFeatures { get; } = { "" };
     public override string IdColumn => null;
     public override string[] TargetLabels { get; } = null;
+    public override bool IsCategoricalColumn(string columnName) => DefaultIsCategoricalColumn(columnName);
     public override Objective_enum GetObjective()
     {
         return Objective_enum.Classification;
     }
-
-    public override string[] TargetLabelDistinctValues => null;
-
     public override DataSet TestDataset()
     {
         return null;

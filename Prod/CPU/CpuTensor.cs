@@ -11,7 +11,7 @@ using System.Text;
 using System.Threading.Tasks;
 using SharpNet.Data;
 using SharpNet.GPU;
-using SharpNet.HyperParameters;
+using SharpNet.Hyperparameters;
 using SharpNet.Layers;
 using SharpNet.MathTools;
 using static SharpNet.GPU.GPUWrapper;

@@ -21,7 +21,6 @@ namespace SharpNet.Datasets
                 Objective_enum.Regression,
                 meanAndVolatilityForEachChannel,
                 ResizeStrategyEnum.None,
-                new string[0],
                 new string[0])
         {
             _univariateTimeSeries = univariateTimeSeries;

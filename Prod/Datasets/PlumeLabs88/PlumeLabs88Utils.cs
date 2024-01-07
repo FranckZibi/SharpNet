@@ -7,12 +7,11 @@ using System.IO.Compression;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using log4net;
 using SharpNet.CPU;
 using SharpNet.DataAugmentation;
 using SharpNet.GPU;
 using SharpNet.HPO;
-using SharpNet.HyperParameters;
+using SharpNet.Hyperparameters;
 using SharpNet.MathTools;
 using SharpNet.Networks;
 // ReSharper disable UnusedMember.Global
@@ -22,37 +21,25 @@ namespace SharpNet.Datasets.PlumeLabs88;
 public static class PlumeLabs88Utils
 {
     public const string NAME = "PlumeLabs88";
-
-
-    #region public fields & properties
-    public static readonly ILog Log = LogManager.GetLogger(typeof(PlumeLabs88Utils));
-    #endregion
-
-    public static string WorkingDirectory => Path.Combine(Utils.ChallengesPath, NAME);
-    //public static string DataDirectory => Path.Combine(WorkingDirectory, "Data");
-    public static string TrainDirectory => Path.Combine(WorkingDirectory, "Data", "x_train");
-    public static string TestDirectory => Path.Combine(WorkingDirectory, "Data", "x_test");
+    private static string WorkingDirectory => Path.Combine(Utils.ChallengesPath, NAME);
+    private static string TrainDirectory => Path.Combine(WorkingDirectory, "Data", "x_train");
+    private static string TestDirectory => Path.Combine(WorkingDirectory, "Data", "x_test");
     // ReSharper disable once MemberCanBePrivate.Global
-
     public static readonly int[] Raw_Shape_CHW = { 4, 128, 128};
-
-
-
+    private const int ROWS_BY_FILE = 1000;
+    public const int RawMaxIdTraining = 99999;
+    public const int RawMaxIdTest = 18148;
     public const string ID_COLUMN_NAME = "ID";
 
-    public static int RawValuesByElement => Utils.Product(Raw_Shape_CHW);
 
     public static DataFrame Load_YTrainPath()
     {
         return DataFrame.read_csv(YTrainPath, true, ColumnNameToType, true);
     }
-
     public static DataFrame Load_OutputTestRandomPath()
     {
         return DataFrame.read_csv(OutputTestRandomPath, true, ColumnNameToType, true);
     }
-    
-
     public static void TransformPandasZipFiles(bool isTraining)
     {
         var maxValue = 0f;
@@ -86,7 +73,6 @@ public static class PlumeLabs88Utils
         }
         Console.WriteLine($"maxValue={maxValue}, minValue={minValue}, isTraining={isTraining}");
     }
-
     public static float Normalize(float f, float mult, float mean)
     {
         return mult * (MathF.Log(1 + f) - mean);
@@ -100,7 +86,6 @@ public static class PlumeLabs88Utils
         }
         ISample.Log.Info($"Loading all {RawMaxId(isTraining)} elements took {sw.ElapsedMilliseconds}ms");
     }
-
     public static void MakeLazyPredictions(bool isTraining)
     {
         var sw = Stopwatch.StartNew();
@@ -109,7 +94,7 @@ public static class PlumeLabs88Utils
         sb.Append("ID,TARGET" + Environment.NewLine);
         var datasetSample = new PlumeLabs88DatasetSample();
         datasetSample.TargetHeightAndWidth = 2;
-        var elementShape = datasetSample.GetInputShapeOfSingleElement();
+        var elementShape = datasetSample.X_Shape(1).Skip(1).ToArray();
         var tensor = new CpuTensor<float>(elementShape);
         var span = tensor.SpanContent;
         for (int elementId = 0; elementId <= RawMaxId(isTraining); ++elementId)
@@ -126,8 +111,6 @@ public static class PlumeLabs88Utils
         var path = Path.Combine(WorkingDirectory, "dump", "lazy_pred_"+isTraining+".csv");
         File.WriteAllText(path, sb.ToString());
     }
-
-
     public static short[] LoadRawElementId(int elementId, bool isTraining)
     {
         var path = GetRawBinFileName(elementId, isTraining);
@@ -136,9 +119,7 @@ public static class PlumeLabs88Utils
         int positionInFile = (elementId - firstElementId) * valuesByElement;
         return Utils.ReadArrayFromBinaryFile<short>(path, positionInFile, valuesByElement);
     }
-
-
-    public static string[] LoadZipFileContent(string path)
+    private static string[] LoadZipFileContent(string path)
     {
         using var file = File.OpenRead(path);
         using var zip = new ZipArchive(file, ZipArchiveMode.Read);
@@ -147,41 +128,13 @@ public static class PlumeLabs88Utils
         string[] fileContent = sr.ReadToEnd().Split('\n').Where(t=>t.Length!=0).ToArray();
         return fileContent;
     }
-
-    public static string YTrainPath => Path.Combine(WorkingDirectory, "Data", "y_train_lR55nNj.csv");
-    public static string OutputTestRandomPath => Path.Combine(WorkingDirectory, "Data", "y_rand_HCYbSa3.csv");
-
-    public static Dictionary<string, double> IdToPrediction(string path)
-    {
-        var res = new Dictionary<string, double>();
-        var y_pred_df = DataFrame.read_csv(path, true, ColumnNameToType);
-        var y_ID = y_pred_df.StringColumnContent("ID");
-        var y_reod = y_pred_df.FloatColumnContent("TARGET");
-        for (int i = 0; i < y_ID.Length; ++i)
-        {
-            res.Add(y_ID[i], y_reod[i]);
-        }
-        return res;
-    }
-
-
-    public const int RawMaxIdTraining = 99999;
-    public const int RawMaxIdTest = 18148;
+    private static string YTrainPath => Path.Combine(WorkingDirectory, "Data", "y_train_lR55nNj.csv");
+    private static string OutputTestRandomPath => Path.Combine(WorkingDirectory, "Data", "y_rand_HCYbSa3.csv");
     private static int RawMaxId(bool isTrain) { return isTrain ? RawMaxIdTraining : RawMaxIdTest; }
-    
     public static void Run()
     {
         Utils.ConfigureGlobalLog4netProperties(WorkingDirectory, NAME);
         Utils.ConfigureThreadLog4netProperties(WorkingDirectory, NAME);
-
-        //using var m = ModelAndDatasetPredictions.Load(@"C:\Projects\Challenges\PlumeLabs88\dump", "C8C8A2D3E2", true);
-        //(_, _, DataFrame predictionsInTargetFormat, _, _) =  m.DatasetSample.ComputePredictionsAndRankingScoreV2(m.DatasetSample.TestDataset(), m.Model, false, true);
-        //predictionsInTargetFormat.to_csv("c:/temp/toto.csv");
-
-        //Misc.AdjustPlumeLabs88(@"C:\Projects\Challenges\PlumeLabs88\submit\84CBF5E063_predict_test_.csv");
-
-
-        //ChallengeTools.ComputeAndSaveFeatureImportance(@"C:\Projects\Challenges\PlumeLabs88\Submit", "9B9DFA97F2_KFOLD_FULL");
         //ChallengeTools.EstimateLossContribution(@"C:\Projects\Challenges\PlumeLabs88\dump", "D885B11678");
         ChallengeTools.Retrain(@"C:\Projects\Challenges\PlumeLabs88\dump", "8D8FEBFE79", n_splits: null, percentageInTraining: 0.9, retrainOnFullDataset: false);
 
@@ -202,10 +155,6 @@ public static class PlumeLabs88Utils
         //Utils.WriteBinaryFile(path, new short[] { 100, 0, 1, 2, 30, 4, 5, 6, 7, 8, 9 } );
         //        var res = Utils.ReadArrayFromFile<short>(path, 2, 4);
     }
-
-
-    private const int ROWS_BY_FILE = 1000;
-
     public static void ComputeStats()
     {
         var accTotal = new DoubleAccumulator();
@@ -250,70 +199,6 @@ public static class PlumeLabs88Utils
         }
         Console.WriteLine($"FULL, accTotal={accTotal}, logAccTotal={logAccTotal}");
     }
-
-    public static string GetRawFileName(int elementId, bool isTraining)
-    {
-        int start_id = elementId - elementId % ROWS_BY_FILE;
-        int end_id = Math.Min(start_id + ROWS_BY_FILE - 1, RawMaxId(isTraining));
-        return Path.Combine(GetDataDirectory(isTraining), $"{start_id}_{end_id}.csv.zip");
-    }
-    public static string GetRawBinFileName(int elementId, bool isTraining)
-    {
-        int start_id = FirstElementInFileContainingElementId(elementId);
-        int end_id = Math.Min(start_id + PlumeLabs88Utils.ROWS_BY_FILE - 1, PlumeLabs88Utils.RawMaxId(isTraining));
-        return Path.Combine(GetDataDirectory(isTraining), $"{start_id}_{end_id}.bin");
-    }
-    public static int FirstElementInFileContainingElementId(int elementId)
-    {
-        return elementId - elementId % PlumeLabs88Utils.ROWS_BY_FILE;
-    }
-
-    public static int RowInFile(int elementId)
-    {
-        return elementId % PlumeLabs88Utils.ROWS_BY_FILE;
-    }
-
-    public static string GetDataDirectory(bool isTraining) => isTraining ? PlumeLabs88Utils.TrainDirectory : PlumeLabs88Utils.TestDirectory;
-
-
-    public static Type ColumnNameToType(string columnName)
-    {
-        if (columnName.Equals("ID"))
-        {
-            return typeof(string);
-        }
-        return typeof(float);
-    }
-
-       public static EfficientNetNetworkSample DefaultEfficientNetNetworkSample()
-       {
-           var config = (EfficientNetNetworkSample)new EfficientNetNetworkSample()
-               {
-                   LossFunction = EvaluationMetricEnum.CategoricalCrossentropy,
-                   CompatibilityMode = NetworkSample.CompatibilityModeEnum.TensorFlow,
-                   lambdaL2Regularization = 0.0005,
-                   //!D WorkingDirectory = Path.Combine(NetworkSample.DefaultWorkingDirectory, CIFAR10DataSet.NAME),
-                   NumEpochs = 10,
-                   BatchSize = 1000,
-                   InitialLearningRate = 0.01,
-
-                   //Data augmentation
-                   DataAugmentationType = ImageDataGenerator.DataAugmentationEnum.NO_AUGMENTATION,
-                   WidthShiftRangeInPercentage = 0.0,
-                   HeightShiftRangeInPercentage = 0.0,
-                   HorizontalFlip = false,
-                   VerticalFlip = false,
-                   FillMode = ImageDataGenerator.FillModeEnum.Reflect,
-                   AlphaMixup = 0.0,
-                   AlphaCutMix = 0.0,
-                   CutoutPatchPercentage = 0.0
-               }
-               .WithSGD(0.9, false)
-               .WithCyclicCosineAnnealingLearningRateScheduler(10, 2);
-           return config;
-
-       }
-
     public static void Launch_HPO(int numEpochs = 10, int maxAllowedSecondsForAllComputation = 0)
     {
         Utils.ConfigureGlobalLog4netProperties(WorkingDirectory, NAME);
@@ -356,7 +241,61 @@ public static class PlumeLabs88Utils
         var hpo = new BayesianSearchHPO(searchSpace, () => ModelAndDatasetPredictionsSample.New(DefaultEfficientNetNetworkSample(), new PlumeLabs88DatasetSample()), WorkingDirectory);
         IScore bestScoreSoFar = null;
         const bool retrainOnFullDatasetIfBetterModelFound = false;
-        hpo.Process(t => SampleUtils.TrainWithHyperParameters((ModelAndDatasetPredictionsSample)t, WorkingDirectory, retrainOnFullDatasetIfBetterModelFound, ref bestScoreSoFar), maxAllowedSecondsForAllComputation);
+        hpo.Process(t => SampleUtils.TrainWithHyperparameters((ModelAndDatasetPredictionsSample)t, WorkingDirectory, retrainOnFullDatasetIfBetterModelFound, ref bestScoreSoFar), maxAllowedSecondsForAllComputation);
     }
 
+    private static string GetRawFileName(int elementId, bool isTraining)
+    {
+        int start_id = elementId - elementId % ROWS_BY_FILE;
+        int end_id = Math.Min(start_id + ROWS_BY_FILE - 1, RawMaxId(isTraining));
+        return Path.Combine(GetDataDirectory(isTraining), $"{start_id}_{end_id}.csv.zip");
+    }
+    private static string GetRawBinFileName(int elementId, bool isTraining)
+    {
+        int start_id = FirstElementInFileContainingElementId(elementId);
+        int end_id = Math.Min(start_id + ROWS_BY_FILE - 1, RawMaxId(isTraining));
+        return Path.Combine(GetDataDirectory(isTraining), $"{start_id}_{end_id}.bin");
+    }
+    private static int FirstElementInFileContainingElementId(int elementId)
+    {
+        return elementId - elementId % ROWS_BY_FILE;
+    }
+    private static string GetDataDirectory(bool isTraining) => isTraining ? TrainDirectory : TestDirectory;
+    public static Type ColumnNameToType(string columnName)
+    {
+        if (columnName.Equals("ID"))
+        {
+            return typeof(string);
+        }
+        return typeof(float);
+    }
+    private static EfficientNetNetworkSample DefaultEfficientNetNetworkSample()
+       {
+           var config = (EfficientNetNetworkSample)new EfficientNetNetworkSample()
+               {
+                   LossFunction = EvaluationMetricEnum.CategoricalCrossentropy,
+                   CompatibilityMode = NetworkSample.CompatibilityModeEnum.TensorFlow,
+                   lambdaL2Regularization = 0.0005,
+                   //!D WorkingDirectory = Path.Combine(NetworkSample.DefaultWorkingDirectory, CIFAR10DataSet.NAME),
+                   NumEpochs = 10,
+                   BatchSize = 1000,
+                   InitialLearningRate = 0.01,
+
+                   //Data augmentation
+                   DataAugmentationType = ImageDataGenerator.DataAugmentationEnum.NO_AUGMENTATION,
+                   WidthShiftRangeInPercentage = 0.0,
+                   HeightShiftRangeInPercentage = 0.0,
+                   HorizontalFlip = false,
+                   VerticalFlip = false,
+                   FillMode = ImageDataGenerator.FillModeEnum.Reflect,
+                   AlphaMixup = 0.0,
+                   AlphaCutMix = 0.0,
+                   CutoutPatchPercentage = 0.0
+               }
+               .WithSGD(0.9, false)
+               .WithCyclicCosineAnnealingLearningRateScheduler(10, 2);
+           return config;
+
+       }
+    private static int RawValuesByElement => Utils.Product(Raw_Shape_CHW);
 }

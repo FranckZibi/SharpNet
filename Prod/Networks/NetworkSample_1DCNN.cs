@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using SharpNet.Datasets;
 using SharpNet.GPU;
@@ -124,7 +125,7 @@ public class NetworkSample_1DCNN : NetworkSample
             nn.Dense(datasetSample.NumClass, lambdaL2Regularization, false);
             if (weight_norm) { nn.BatchNorm(batchNorm_momentum, 1e-5); }
         }
-        nn.Activation(datasetSample.GetActivationForLastLayer(nn.ModelSample.GetObjective()));
+        nn.Activation(nn.NetworkSample.GetActivationForLastLayer(datasetSample.NumClass));
     }
 
     public override bool FixErrors()
@@ -152,6 +153,7 @@ public class NetworkSample_1DCNN : NetworkSample
     /// </summary>
     /// <returns></returns>
     // ReSharper disable once UnusedMember.Global
+    [SuppressMessage("ReSharper", "ArrangeStaticMemberQualifier")]
     public static Dictionary<string, object> DefaultSearchSpace()
     {
         var searchSpace = new Dictionary<string, object>
@@ -168,7 +170,7 @@ public class NetworkSample_1DCNN : NetworkSample
             { nameof(NetworkSample.lambdaL2Regularization), new[] { 0, 1e-5, 1e-4, 1e-3, 1e-2, 1e-1 } },
 
             // Learning Rate
-            { nameof(NetworkSample.InitialLearningRate), AbstractHyperParameterSearchSpace.Range(1e-5f, 1f, AbstractHyperParameterSearchSpace.range_type.normal) },
+            { nameof(NetworkSample.InitialLearningRate), HyperparameterSearchSpace.Range(1e-5f, 1f, HyperparameterSearchSpace.range_type.normal) },
             // Learning Rate Scheduler
             { nameof(NetworkSample.LearningRateSchedulerType), new[] { "CyclicCosineAnnealing", "OneCycle", "Linear" } },
             { "EmbeddingDim", new[] { 0, 4, 8, 12 } },

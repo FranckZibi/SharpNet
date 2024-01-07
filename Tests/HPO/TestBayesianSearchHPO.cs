@@ -4,8 +4,8 @@ using System.IO;
 using NUnit.Framework;
 using SharpNet;
 using SharpNet.HPO;
-using SharpNet.HyperParameters;
-using static SharpNet.HPO.AbstractHyperParameterSearchSpace;
+using SharpNet.Hyperparameters;
+using static SharpNet.HPO.HyperparameterSearchSpace;
 
 // ReSharper disable FieldCanBeMadeReadOnly.Local
 // ReSharper disable MemberCanBePrivate.Local
@@ -19,7 +19,8 @@ public class TestBayesianSearchHPO
 {
     private class TempClass : AbstractSample
     {
-        public TempClass() : base(new HashSet<string>())
+        // ReSharper disable once EmptyConstructor
+        public TempClass()
         {
         }
 

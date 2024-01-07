@@ -32,7 +32,7 @@ public class DataFrameDataSet : DataSet
             null,
             ResizeStrategyEnum.None,
             x_df.Columns,
-            Utils.Intersect(x_df.Columns, datasetSample.CategoricalFeatures).ToArray(),
+            datasetSample.IsCategoricalColumn,
             y_IDs,
             datasetSample.IdColumn, 
             datasetSample.GetSeparator())

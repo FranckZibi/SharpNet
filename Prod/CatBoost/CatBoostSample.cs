@@ -6,7 +6,7 @@ using System.Linq;
 using SharpNet.Datasets;
 using SharpNet.GPU;
 using SharpNet.HPO;
-using SharpNet.HyperParameters;
+using SharpNet.Hyperparameters;
 using SharpNet.Models;
 // ReSharper disable MemberCanBePrivate.Global
 // ReSharper disable FieldCanBeMadeReadOnly.Global
@@ -19,7 +19,7 @@ namespace SharpNet.CatBoost;
 public class CatBoostSample : AbstractModelSample
 {
     #region Constructors
-    public CatBoostSample() :base(CategoricalHyperParameters)
+    public CatBoostSample() :base(CategoricalHyperparameters)
     {
     }
     #endregion
@@ -393,7 +393,7 @@ public class CatBoostSample : AbstractModelSample
         }
     }
 
-    private static readonly HashSet<string> CategoricalHyperParameters = new()
+    private static readonly HashSet<string> CategoricalHyperparameters = new()
     {
         "use_best_model",
         "approx_on_full_history",
@@ -416,27 +416,27 @@ public class CatBoostSample : AbstractModelSample
         devices = MustUseGPU ? taskId.ToString() : null;
     }
 
-    public override void FillSearchSpaceWithDefaultValues(IDictionary<string, object> existingHyperParameterValues)
+    public override void FillSearchSpaceWithDefaultValues(IDictionary<string, object> existingHyperparameterValues)
     {
         const string taskTypeName = nameof(task_type);
-        if (!existingHyperParameterValues.ContainsKey(taskTypeName))
+        if (!existingHyperparameterValues.ContainsKey(taskTypeName))
         {
             const string devicesKeyName = nameof(devices);
             const string threadCountName = nameof(thread_count);
-            existingHyperParameterValues.Remove(devicesKeyName); //need to be set after for GPU
+            existingHyperparameterValues.Remove(devicesKeyName); //need to be set after for GPU
             if (MustUseGPU)
             {
                 //Each GPU will be run in parallel, and will have some CPU dedicated to him
                 //So if we have 4 GPU, we'll run 4 tasks in parallel, and each task will have 1/4 of the total CPU resources
-                existingHyperParameterValues[taskTypeName] = nameof(task_type_enum.GPU);
-                existingHyperParameterValues[threadCountName] = Math.Max(1, Utils.CoreCount / GPUWrapper.GetDeviceCount());
+                existingHyperparameterValues[taskTypeName] = nameof(task_type_enum.GPU);
+                existingHyperparameterValues[threadCountName] = Math.Max(1, Utils.CoreCount / GPUWrapper.GetDeviceCount());
             }
             else
             {
                 //Each CPU will be run in parallel (no GPU)
                 //So if we have 4 CPU, we'll run 4 tasks in parallel
-                existingHyperParameterValues[taskTypeName] = nameof(task_type_enum.CPU);
-                existingHyperParameterValues[threadCountName] = 1;
+                existingHyperparameterValues[taskTypeName] = nameof(task_type_enum.CPU);
+                existingHyperparameterValues[threadCountName] = 1;
             }
         }
     }
@@ -472,11 +472,11 @@ public class CatBoostSample : AbstractModelSample
             { "iterations", iterations },
             //{ "od_type", "Iter"},
             //{ "od_wait",iterations/10},
-            { "depth", AbstractHyperParameterSearchSpace.Range(2, 10) },
-            { "learning_rate",AbstractHyperParameterSearchSpace.Range(0.01f, 1.00f)},
-            { "random_strength",AbstractHyperParameterSearchSpace.Range(1e-9f, 10f, AbstractHyperParameterSearchSpace.range_type.normal)},
-            { "bagging_temperature",AbstractHyperParameterSearchSpace.Range(0.0f, 2.0f)},
-            { "l2_leaf_reg",AbstractHyperParameterSearchSpace.Range(0, 10)},
+            { "depth", HyperparameterSearchSpace.Range(2, 10) },
+            { "learning_rate",HyperparameterSearchSpace.Range(0.01f, 1.00f)},
+            { "random_strength",HyperparameterSearchSpace.Range(1e-9f, 10f, HyperparameterSearchSpace.range_type.normal)},
+            { "bagging_temperature",HyperparameterSearchSpace.Range(0.0f, 2.0f)},
+            { "l2_leaf_reg",HyperparameterSearchSpace.Range(0, 10)},
             //{"grow_policy", new []{ "SymmetricTree", "Depthwise" /*, "Lossguide"*/}},
         };
         return searchSpace;

@@ -21,7 +21,7 @@ public class EfficientNetNetworkSample : NetworkSample
     {
     }
 
-    #region Hyper-Parameters
+    #region Hyperparameters
     public cudnnActivationMode_t DefaultActivation = cudnnActivationMode_t.CUDNN_ACTIVATION_SWISH;
     public cudnnActivationMode_t LastActivationLayer = cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX;
     public double BatchNormMomentum = 0.99;
@@ -54,7 +54,7 @@ public class EfficientNetNetworkSample : NetworkSample
 
 
     /// <summary>
-    /// The default EfficientNet Hyper-Parameters for ImageNet
+    /// The default EfficientNet Hyperparameters for ImageNet
     /// </summary>
     /// <returns></returns>
     public static EfficientNetNetworkSample ImageNet()
@@ -82,7 +82,7 @@ public class EfficientNetNetworkSample : NetworkSample
     }
 
     /// <summary>
-    /// The default EfficientNet Hyper-Parameters for Cancel Dataset
+    /// The default EfficientNet Hyperparameters for Cancel Dataset
     /// </summary>
     /// <returns></returns>
     public static EfficientNetNetworkSample Cancel()
@@ -121,7 +121,7 @@ public class EfficientNetNetworkSample : NetworkSample
 
 
     /// <summary>
-    /// The default EfficientNet Hyper-Parameters for CIFAR10
+    /// The default EfficientNet Hyperparameters for CIFAR10
     /// </summary>
     /// <returns></returns>
     public static EfficientNetNetworkSample CIFAR10()
@@ -362,31 +362,33 @@ public class EfficientNetNetworkSample : NetworkSample
             mobileBlocksDescriptions = mobileBlocksDescriptions.Take(DefaultMobileBlocksDescriptionCount).ToList();
         }
 
+
+        var inputShapeOfSingleElement = datasetSample.X_Shape(1).Skip(1).ToArray();
         switch (EfficientNetName)
         {
             case enum_efficientnet_name.EfficientNetB0:
-                EfficientNetB0(nn, mobileBlocksDescriptions, true, WeightForTransferLearning, datasetSample.GetInputShapeOfSingleElement(), datasetSample.NumClass);
+                EfficientNetB0(nn, mobileBlocksDescriptions, true, WeightForTransferLearning, inputShapeOfSingleElement, datasetSample.NumClass);
                 break;
             case enum_efficientnet_name.EfficientNetB1:
-                EfficientNetB1(nn, mobileBlocksDescriptions, true, WeightForTransferLearning, datasetSample.GetInputShapeOfSingleElement(), datasetSample.NumClass);
+                EfficientNetB1(nn, mobileBlocksDescriptions, true, WeightForTransferLearning, inputShapeOfSingleElement, datasetSample.NumClass);
                 break;
             case enum_efficientnet_name.EfficientNetB2:
-                EfficientNetB2(nn, mobileBlocksDescriptions, true, WeightForTransferLearning, datasetSample.GetInputShapeOfSingleElement(), datasetSample.NumClass);
+                EfficientNetB2(nn, mobileBlocksDescriptions, true, WeightForTransferLearning, inputShapeOfSingleElement, datasetSample.NumClass);
                 break;
             case enum_efficientnet_name.EfficientNetB3:
-                EfficientNetB3(nn, mobileBlocksDescriptions, true, WeightForTransferLearning, datasetSample.GetInputShapeOfSingleElement(), datasetSample.NumClass);
+                EfficientNetB3(nn, mobileBlocksDescriptions, true, WeightForTransferLearning, inputShapeOfSingleElement, datasetSample.NumClass);
                 break;
             case enum_efficientnet_name.EfficientNetB4:
-                EfficientNetB4(nn, mobileBlocksDescriptions, true, WeightForTransferLearning, datasetSample.GetInputShapeOfSingleElement(), datasetSample.NumClass);
+                EfficientNetB4(nn, mobileBlocksDescriptions, true, WeightForTransferLearning, inputShapeOfSingleElement, datasetSample.NumClass);
                 break;
             case enum_efficientnet_name.EfficientNetB5:
-                EfficientNetB5(nn, mobileBlocksDescriptions, true, WeightForTransferLearning, datasetSample.GetInputShapeOfSingleElement(), datasetSample.NumClass);
+                EfficientNetB5(nn, mobileBlocksDescriptions, true, WeightForTransferLearning, inputShapeOfSingleElement, datasetSample.NumClass);
                 break;
             case enum_efficientnet_name.EfficientNetB6:
-                EfficientNetB6(nn, mobileBlocksDescriptions, true, WeightForTransferLearning, datasetSample.GetInputShapeOfSingleElement(), datasetSample.NumClass);
+                EfficientNetB6(nn, mobileBlocksDescriptions, true, WeightForTransferLearning, inputShapeOfSingleElement, datasetSample.NumClass);
                 break;
             case enum_efficientnet_name.EfficientNetB7:
-                EfficientNetB7(nn, mobileBlocksDescriptions, true, WeightForTransferLearning, datasetSample.GetInputShapeOfSingleElement(), datasetSample.NumClass);
+                EfficientNetB7(nn, mobileBlocksDescriptions, true, WeightForTransferLearning, inputShapeOfSingleElement, datasetSample.NumClass);
                 break;
             default:
                 throw new ArgumentException($"unknown network name {EfficientNetName}");

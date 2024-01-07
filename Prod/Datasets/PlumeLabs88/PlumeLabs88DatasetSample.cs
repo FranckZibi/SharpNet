@@ -1,6 +1,5 @@
 ﻿using log4net;
 using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 // ReSharper disable FieldCanBeMadeReadOnly.Global
@@ -15,7 +14,7 @@ public class PlumeLabs88DatasetSample : AbstractDatasetSample
     private static readonly ILog Log = LogManager.GetLogger(typeof(PlumeLabs88DatasetSample));
     #endregion
 
-    #region HyperParameters
+    #region Hyperparameters
     // ReSharper disable once UnusedMember.Global
     public bool fillna_with_0 = false;
     public float NormalizeFeatureMean = 0.0f;
@@ -34,29 +33,26 @@ public class PlumeLabs88DatasetSample : AbstractDatasetSample
 
 
 
-    public PlumeLabs88DatasetSample() : base(new HashSet<string>())
+    // ReSharper disable once EmptyConstructor
+    public PlumeLabs88DatasetSample()
     {
     }
 
-    public override int NumClass => 8;
-    public override string[] TargetLabelDistinctValues => new string[0];
-
-    public override int[] GetInputShapeOfSingleElement()
+    public override int[] X_Shape(int batchSize)
     {
-        int[] res = (int[])PlumeLabs88Utils.Raw_Shape_CHW.Clone();
-        res[1] = res[2] = TargetHeightAndWidth;
+        int[] res = new[]{batchSize}.Concat(PlumeLabs88Utils.Raw_Shape_CHW).ToArray();
+        res[2] = res[3] = TargetHeightAndWidth;
         return res;
     }
-
-    public override int[] X_Shape(int batchSize) => throw new NotImplementedException(); //!D TODO
     public override int[] Y_Shape(int batchSize) => throw new NotImplementedException(); //!D TODO
-
+    public override int NumClass => 8;
 
     public int DatasetMaxId(bool isTrainingDataset) { return isTrainingDataset ? MaxIdTraining : MaxIdTest; }
 
-    public override string[] CategoricalFeatures { get; } = {  };
     public override string IdColumn { get; } = PlumeLabs88Utils.ID_COLUMN_NAME;
     public override string[] TargetLabels { get; } = { "TARGET" };
+    public override bool IsCategoricalColumn(string columnName) { return Equals(columnName, IdColumn); }
+
     public override Objective_enum GetObjective()
     {
         return Objective_enum.Regression;
@@ -72,10 +68,10 @@ public class PlumeLabs88DatasetSample : AbstractDatasetSample
         var y_ID_count = NumClass * (1 + DatasetMaxId(isTrainingDataset));
         return y_IDs.Take(y_ID_count).ToArray();
     }
-    public override DataFrame PredictionsInModelFormat_2_PredictionsInTargetFormat(DataFrame predictionsInModelFormat, Objective_enum objective)
+    public override DataFrame Predictions_InModelFormat_2_Predictions_InTargetFormat(DataFrame predictions_InModelFormat, Objective_enum objective)
     {
-        AssertNoIdColumns(predictionsInModelFormat);
-        var unnormalizedContent = predictionsInModelFormat.FloatTensor.ContentAsFloatArray().Select(UnNormalizeTarget).ToArray();
+        AssertNoIdColumns(predictions_InModelFormat);
+        var unnormalizedContent = predictions_InModelFormat.FloatTensor.ContentAsFloatArray().Select(UnNormalizeTarget).ToArray();
 
         return DataFrame.New(unnormalizedContent, TargetLabels);
     }
@@ -105,7 +101,7 @@ public class PlumeLabs88DatasetSample : AbstractDatasetSample
     {
         var shortRes = PlumeLabs88Utils.LoadRawElementId(elementId, isTraining);
         var srcShape = PlumeLabs88Utils.Raw_Shape_CHW;
-        var targetShape = GetInputShapeOfSingleElement();
+        var targetShape = X_Shape(1).Skip(1).ToArray();
         Debug.Assert(srcShape.Length == 3);
         Debug.Assert(targetShape.Length == 3);
         Debug.Assert(targetShape[0] == srcShape[0]);

@@ -9,7 +9,7 @@ using SharpNet.Data;
 using SharpNet.DataAugmentation;
 using SharpNet.GPU;
 using SharpNet.HPO;
-using SharpNet.HyperParameters;
+using SharpNet.Hyperparameters;
 using SharpNet.LightGBM;
 using SharpNet.Networks;
 using SharpNet.Networks.Transformers;
@@ -22,8 +22,6 @@ public static class Biosonar85Utils
     public const string NAME = "Biosonar85";
     public static string WorkingDirectory => Path.Combine(Utils.ChallengesPath, NAME);
     public static string DataDirectory => Path.Combine(WorkingDirectory, "Data");
-    public static readonly string[] TargetLabelDistinctValues = { "y" };
-
 
     public static void Run()
     {
@@ -203,7 +201,7 @@ public static class Biosonar85Utils
                 break;
             }
             const string toFind = "val_accuracy:";
-            var index = epochLine.IndexOf(toFind);
+            var index = epochLine.IndexOf(toFind, StringComparison.Ordinal);
             if (index < 0)
             {
                 break;
@@ -428,7 +426,7 @@ public static class Biosonar85Utils
             Objective_enum.Classification,
             null,
             null /* columnNames*/, 
-            new string[0],
+            null, /* isCategoricalColumn */
             yID,
             "id",
             ',');
@@ -522,7 +520,7 @@ public static class Biosonar85Utils
         var hpo = new BayesianSearchHPO(searchSpace, () => ModelAndDatasetPredictionsSample.New(new TransformerNetworkSample(), new Biosonar85DatasetSample()), WorkingDirectory);
         IScore bestScoreSoFar = null;
         const bool retrainOnFullDatasetIfBetterModelFound = false;
-        hpo.Process(t => SampleUtils.TrainWithHyperParameters((ModelAndDatasetPredictionsSample)t, WorkingDirectory, retrainOnFullDatasetIfBetterModelFound, ref bestScoreSoFar), maxAllowedSecondsForAllComputation);
+        hpo.Process(t => SampleUtils.TrainWithHyperparameters((ModelAndDatasetPredictionsSample)t, WorkingDirectory, retrainOnFullDatasetIfBetterModelFound, ref bestScoreSoFar), maxAllowedSecondsForAllComputation);
     }
 
     // ReSharper disable once UnusedMember.Global
@@ -543,8 +541,8 @@ public static class Biosonar85Utils
             // Optimizer 
             { nameof(NetworkSample.OptimizerType), new[] { "AdamW" } },
             //{ nameof(NetworkSample.OptimizerType), new[] { "SGD"} },
-            //{ nameof(NetworkSample.AdamW_L2Regularization), AbstractHyperParameterSearchSpace.Range(0.00001f,0.01f, AbstractHyperParameterSearchSpace.range_type.normal) },
-            //{ nameof(NetworkSample.AdamW_L2Regularization), AbstractHyperParameterSearchSpace.Range(0.00001f,0.01f, AbstractHyperParameterSearchSpace.range_type.normal) },
+            //{ nameof(NetworkSample.AdamW_L2Regularization), AbstractHyperparameterSearchSpace.Range(0.00001f,0.01f, AbstractHyperparameterSearchSpace.range_type.normal) },
+            //{ nameof(NetworkSample.AdamW_L2Regularization), AbstractHyperparameterSearchSpace.Range(0.00001f,0.01f, AbstractHyperparameterSearchSpace.range_type.normal) },
             { nameof(NetworkSample.AdamW_L2Regularization), 0.01 },
 
             //Dataset
@@ -581,7 +579,7 @@ public static class Biosonar85Utils
 
             // Learning Rate
             //{ nameof(NetworkSample.InitialLearningRate), new []{0.01, 0.1 }}, //SGD: 0.01 //AdamW: 0.01 or 0.001
-            //{ nameof(NetworkSample.InitialLearningRate), AbstractHyperParameterSearchSpace.Range(0.001f,0.2f,AbstractHyperParameterSearchSpace.range_type.normal)},
+            //{ nameof(NetworkSample.InitialLearningRate), AbstractHyperparameterSearchSpace.Range(0.001f,0.2f,AbstractHyperparameterSearchSpace.range_type.normal)},
             { nameof(NetworkSample.InitialLearningRate), 0.005}, 
             // Learning Rate Scheduler
             //{ nameof(NetworkSample.LearningRateSchedulerType), new[] { "OneCycle" } },
@@ -593,7 +591,7 @@ public static class Biosonar85Utils
          var hpo = new RandomSearchHPO(searchSpace, () => ModelAndDatasetPredictionsSample.New(new Biosonar85NetworkSample(), new Biosonar85DatasetSample()), WorkingDirectory);
         IScore bestScoreSoFar = null;
         const bool retrainOnFullDatasetIfBetterModelFound = false;
-        hpo.Process(t => SampleUtils.TrainWithHyperParameters((ModelAndDatasetPredictionsSample)t, WorkingDirectory, retrainOnFullDatasetIfBetterModelFound, ref bestScoreSoFar), maxAllowedSecondsForAllComputation);
+        hpo.Process(t => SampleUtils.TrainWithHyperparameters((ModelAndDatasetPredictionsSample)t, WorkingDirectory, retrainOnFullDatasetIfBetterModelFound, ref bestScoreSoFar), maxAllowedSecondsForAllComputation);
     }
 
     // ReSharper disable once UnusedMember.Global
@@ -630,7 +628,7 @@ public static class Biosonar85Utils
             //{ nameof(EfficientNetNetworkSample.DefaultMobileBlocksDescriptionCount), 4 },
 
             // Learning Rate
-            //{ nameof(NetworkSample.InitialLearningRate), AbstractHyperParameterSearchSpace.Range(0.003f, 0.03f)},
+            //{ nameof(NetworkSample.InitialLearningRate), AbstractHyperparameterSearchSpace.Range(0.003f, 0.03f)},
             
             { nameof(NetworkSample.InitialLearningRate), new[]{0.0025, 0.005 , 0.01} }, //0.005 or 0.01
 
@@ -660,7 +658,7 @@ public static class Biosonar85Utils
             //{ nameof(NetworkSample.VerticalFlip),new[]{true,false } },
             //{ nameof(NetworkSample.Rotate180Degrees),new[]{true,false } },
             { nameof(NetworkSample.FillMode),new[]{ nameof(ImageDataGenerator.FillModeEnum.Reflect) /*, nameof(ImageDataGenerator.FillModeEnum.Modulo)*/ } }, //Reflect
-            //{ nameof(NetworkSample.HeightShiftRangeInPercentage), AbstractHyperParameterSearchSpace.Range(0.05f, 0.30f) }, // must be > 0 , 0.1 seems good default
+            //{ nameof(NetworkSample.HeightShiftRangeInPercentage), AbstractHyperparameterSearchSpace.Range(0.05f, 0.30f) }, // must be > 0 , 0.1 seems good default
             { nameof(NetworkSample.HeightShiftRangeInPercentage), new[]{0.05, 0.1   } }, //to discard: 0.2
             { nameof(NetworkSample.WidthShiftRangeInPercentage), new[]{0}}, // must be 0
 
@@ -681,12 +679,12 @@ public static class Biosonar85Utils
 
 
         //!D
-        searchSpace[nameof(NetworkSample.HeightShiftRangeInPercentage)] = AbstractHyperParameterSearchSpace.Range(0.025f, 0.075f);
-        searchSpace[nameof(NetworkSample.AdamW_L2Regularization)] = AbstractHyperParameterSearchSpace.Range(0.0002f, 0.0003f);
-        searchSpace[nameof(NetworkSample.AlphaMixup)] = AbstractHyperParameterSearchSpace.Range(0.75f, 1.25f);
-        searchSpace[nameof(NetworkSample.InitialLearningRate)] = AbstractHyperParameterSearchSpace.Range(0.002f, 0.03f);
-        searchSpace[nameof(NetworkSample.CutoutPatchPercentage)] = AbstractHyperParameterSearchSpace.Range(0.05f, 0.15f);
-        searchSpace[nameof(NetworkSample.RowsCutoutPatchPercentage)] = AbstractHyperParameterSearchSpace.Range(0.05f, 0.15f);
+        searchSpace[nameof(NetworkSample.HeightShiftRangeInPercentage)] = HyperparameterSearchSpace.Range(0.025f, 0.075f);
+        searchSpace[nameof(NetworkSample.AdamW_L2Regularization)] = HyperparameterSearchSpace.Range(0.0002f, 0.0003f);
+        searchSpace[nameof(NetworkSample.AlphaMixup)] = HyperparameterSearchSpace.Range(0.75f, 1.25f);
+        searchSpace[nameof(NetworkSample.InitialLearningRate)] = HyperparameterSearchSpace.Range(0.002f, 0.03f);
+        searchSpace[nameof(NetworkSample.CutoutPatchPercentage)] = HyperparameterSearchSpace.Range(0.05f, 0.15f);
+        searchSpace[nameof(NetworkSample.RowsCutoutPatchPercentage)] = HyperparameterSearchSpace.Range(0.05f, 0.15f);
         searchSpace[nameof(NetworkSample.MinimumRankingScoreToSaveModel)] = 0.94;
         searchSpace[nameof(EfficientNetNetworkSample.DefaultMobileBlocksDescriptionCount)] = new[] { -1,5,6 };
 
@@ -699,7 +697,7 @@ public static class Biosonar85Utils
         var hpo = new BayesianSearchHPO(searchSpace, () => ModelAndDatasetPredictionsSample.New(DefaultEfficientNetNetworkSample(), new Biosonar85DatasetSample()), WorkingDirectory);
         IScore bestScoreSoFar = null;
         const bool retrainOnFullDatasetIfBetterModelFound = false;
-        hpo.Process(t => SampleUtils.TrainWithHyperParameters((ModelAndDatasetPredictionsSample)t, WorkingDirectory, retrainOnFullDatasetIfBetterModelFound, ref bestScoreSoFar), maxAllowedSecondsForAllComputation);
+        hpo.Process(t => SampleUtils.TrainWithHyperparameters((ModelAndDatasetPredictionsSample)t, WorkingDirectory, retrainOnFullDatasetIfBetterModelFound, ref bestScoreSoFar), maxAllowedSecondsForAllComputation);
     }
 
 
@@ -774,7 +772,7 @@ public static class Biosonar85Utils
         var hpo = new BayesianSearchHPO(searchSpace, () => ModelAndDatasetPredictionsSample.New(DefaultEfficientNetNetworkSample(), new Biosonar85DatasetSample()), WorkingDirectory);
         IScore bestScoreSoFar = null;
         const bool retrainOnFullDatasetIfBetterModelFound = false;
-        hpo.Process(t => SampleUtils.TrainWithHyperParameters((ModelAndDatasetPredictionsSample)t, WorkingDirectory, retrainOnFullDatasetIfBetterModelFound, ref bestScoreSoFar), maxAllowedSecondsForAllComputation);
+        hpo.Process(t => SampleUtils.TrainWithHyperparameters((ModelAndDatasetPredictionsSample)t, WorkingDirectory, retrainOnFullDatasetIfBetterModelFound, ref bestScoreSoFar), maxAllowedSecondsForAllComputation);
     }
 
 
@@ -1128,7 +1126,7 @@ public static class Biosonar85Utils
         var hpo = new BayesianSearchHPO(searchSpace, () => ModelAndDatasetPredictionsSample.New(DefaultEfficientNetNetworkSample(), new Biosonar85DatasetSample()), WorkingDirectory);
         IScore bestScoreSoFar = null;
         const bool retrainOnFullDatasetIfBetterModelFound = false;
-        hpo.Process(t => SampleUtils.TrainWithHyperParameters((ModelAndDatasetPredictionsSample)t, WorkingDirectory, retrainOnFullDatasetIfBetterModelFound, ref bestScoreSoFar), maxAllowedSecondsForAllComputation);
+        hpo.Process(t => SampleUtils.TrainWithHyperparameters((ModelAndDatasetPredictionsSample)t, WorkingDirectory, retrainOnFullDatasetIfBetterModelFound, ref bestScoreSoFar), maxAllowedSecondsForAllComputation);
     }
 
 
@@ -1459,7 +1457,7 @@ public static class Biosonar85Utils
         var hpo = new BayesianSearchHPO(searchSpace, () => ModelAndDatasetPredictionsSample.New(DefaultEfficientNetNetworkSample(), new Biosonar85DatasetSample()), WorkingDirectory);
         IScore bestScoreSoFar = null;
         const bool retrainOnFullDatasetIfBetterModelFound = false;
-        hpo.Process(t => SampleUtils.TrainWithHyperParameters((ModelAndDatasetPredictionsSample)t, WorkingDirectory, retrainOnFullDatasetIfBetterModelFound, ref bestScoreSoFar), maxAllowedSecondsForAllComputation);
+        hpo.Process(t => SampleUtils.TrainWithHyperparameters((ModelAndDatasetPredictionsSample)t, WorkingDirectory, retrainOnFullDatasetIfBetterModelFound, ref bestScoreSoFar), maxAllowedSecondsForAllComputation);
     }
 
     // ReSharper disable once UnusedMember.Local
@@ -1624,7 +1622,7 @@ public static class Biosonar85Utils
         var hpo = new BayesianSearchHPO(searchSpace, () => ModelAndDatasetPredictionsSample.New(DefaultEfficientNetNetworkSample(), new Biosonar85DatasetSample()), WorkingDirectory);
         IScore bestScoreSoFar = null;
         const bool retrainOnFullDatasetIfBetterModelFound = false;
-        hpo.Process(t => SampleUtils.TrainWithHyperParameters((ModelAndDatasetPredictionsSample)t, WorkingDirectory, retrainOnFullDatasetIfBetterModelFound, ref bestScoreSoFar), maxAllowedSecondsForAllComputation);
+        hpo.Process(t => SampleUtils.TrainWithHyperparameters((ModelAndDatasetPredictionsSample)t, WorkingDirectory, retrainOnFullDatasetIfBetterModelFound, ref bestScoreSoFar), maxAllowedSecondsForAllComputation);
     }
 
 
@@ -2225,7 +2223,7 @@ public static class Biosonar85Utils
         var hpo = new BayesianSearchHPO(searchSpace, () => ModelAndDatasetPredictionsSample.New(DefaultEfficientNetNetworkSample(), new Biosonar85DatasetSample()), WorkingDirectory);
         IScore bestScoreSoFar = null;
         const bool retrainOnFullDatasetIfBetterModelFound = false;
-        hpo.Process(t => SampleUtils.TrainWithHyperParameters((ModelAndDatasetPredictionsSample)t, WorkingDirectory, retrainOnFullDatasetIfBetterModelFound, ref bestScoreSoFar), maxAllowedSecondsForAllComputation);
+        hpo.Process(t => SampleUtils.TrainWithHyperparameters((ModelAndDatasetPredictionsSample)t, WorkingDirectory, retrainOnFullDatasetIfBetterModelFound, ref bestScoreSoFar), maxAllowedSecondsForAllComputation);
     }
 
 
@@ -2304,14 +2302,14 @@ public static class Biosonar85Utils
         var hpo = new BayesianSearchHPO(searchSpace, () => ModelAndDatasetPredictionsSample.New(DefaultEfficientNetNetworkSample(), new Biosonar85DatasetSample()), WorkingDirectory);
         IScore bestScoreSoFar = null;
         const bool retrainOnFullDatasetIfBetterModelFound = false;
-        hpo.Process(t => SampleUtils.TrainWithHyperParameters((ModelAndDatasetPredictionsSample)t, WorkingDirectory, retrainOnFullDatasetIfBetterModelFound, ref bestScoreSoFar), maxAllowedSecondsForAllComputation);
+        hpo.Process(t => SampleUtils.TrainWithHyperparameters((ModelAndDatasetPredictionsSample)t, WorkingDirectory, retrainOnFullDatasetIfBetterModelFound, ref bestScoreSoFar), maxAllowedSecondsForAllComputation);
     }
 
 
     
 
     /// <summary>
-    /// The default EfficientNet Hyper-Parameters for CIFAR10
+    /// The default EfficientNet Hyperparameters for CIFAR10
     /// </summary>
     /// <returns></returns>
     private static EfficientNetNetworkSample DefaultEfficientNetNetworkSample()
@@ -2369,8 +2367,8 @@ public static class Biosonar85Utils
               //{ "od_wait",iterations/10},
               { "depth", new[]{5,6,7,8,9,10} },
               { "learning_rate", new[]{0.01,0.02, 0.03}},
-              //{ "random_strength",AbstractHyperParameterSearchSpace.Range(1e-9f, 10f, AbstractHyperParameterSearchSpace.range_type.normal)},
-              //{ "bagging_temperature",AbstractHyperParameterSearchSpace.Range(0.0f, 2.0f)},
+              //{ "random_strength",AbstractHyperparameterSearchSpace.Range(1e-9f, 10f, AbstractHyperparameterSearchSpace.range_type.normal)},
+              //{ "bagging_temperature",AbstractHyperparameterSearchSpace.Range(0.0f, 2.0f)},
               { "l2_leaf_reg",new[]{0,1,5,10,20}},
               //{"grow_policy", new []{ "SymmetricTree", "Depthwise" /*, "Lossguide"*/}},
           };
@@ -2378,7 +2376,7 @@ public static class Biosonar85Utils
         var hpo = new BayesianSearchHPO(searchSpace, () => ModelAndDatasetPredictionsSample.New(new CatBoostSample{loss_function = CatBoostSample.loss_function_enum.Logloss , eval_metric = CatBoostSample.metric_enum.Accuracy }, new Biosonar85DatasetSample()), WorkingDirectory);
         IScore bestScoreSoFar = null;
         const bool retrainOnFullDatasetIfBetterModelFound = false;
-        hpo.Process(t => SampleUtils.TrainWithHyperParameters((ModelAndDatasetPredictionsSample)t, WorkingDirectory, retrainOnFullDatasetIfBetterModelFound, ref bestScoreSoFar), maxAllowedSecondsForAllComputation);
+        hpo.Process(t => SampleUtils.TrainWithHyperparameters((ModelAndDatasetPredictionsSample)t, WorkingDirectory, retrainOnFullDatasetIfBetterModelFound, ref bestScoreSoFar), maxAllowedSecondsForAllComputation);
     }
 
     // ReSharper disable once UnusedMember.Local
@@ -2415,7 +2413,7 @@ public static class Biosonar85Utils
             //{ "boosting", new []{"gbdt", "dart"}},
             { "boosting", new []{"dart"}},
             
-            //!D { "colsample_bytree",AbstractHyperParameterSearchSpace.Range(0.3f, 1.0f)},
+            //!D { "colsample_bytree",AbstractHyperparameterSearchSpace.Range(0.3f, 1.0f)},
             { "colsample_bytree",0.8},
 
             //{ "early_stopping_round", num_iterations/10 },
@@ -2432,7 +2430,7 @@ public static class Biosonar85Utils
             { "min_data_in_leaf", new[]{10,100,500} },
             
             
-            //!D { "learning_rate",AbstractHyperParameterSearchSpace.Range(0.005f, 0.1f)},
+            //!D { "learning_rate",AbstractHyperparameterSearchSpace.Range(0.005f, 0.1f)},
             { "learning_rate", new[]{0.001, 0.005, 0.01, 0.05, 0.1}},
             
             //!D{ "max_depth", new[]{10, 20, 50, 100, 255} },
@@ -2445,21 +2443,21 @@ public static class Biosonar85Utils
 
             ////medium priority
             //{ "drop_rate", new[]{0.05, 0.1, 0.2}},                               //specific to dart mode
-            //{ "lambda_l2",AbstractHyperParameterSearchSpace.Range(0f, 2f)},
+            //{ "lambda_l2",AbstractHyperparameterSearchSpace.Range(0f, 2f)},
             //{ "min_data_in_bin", new[]{3, 10, 100, 150}  },
-            //{ "max_bin", AbstractHyperParameterSearchSpace.Range(10, 255) },
+            //{ "max_bin", AbstractHyperparameterSearchSpace.Range(10, 255) },
             //{ "max_drop", new[]{40, 50, 60}},                                   //specific to dart mode
-            //{ "skip_drop",AbstractHyperParameterSearchSpace.Range(0.1f, 0.6f)},  //specific to dart mode
+            //{ "skip_drop",AbstractHyperparameterSearchSpace.Range(0.1f, 0.6f)},  //specific to dart mode
 
             ////low priority
-            ////{ "colsample_bynode",AbstractHyperParameterSearchSpace.Range(0.5f, 1.0f)}, //very low priority
-            //{ "path_smooth", AbstractHyperParameterSearchSpace.Range(0f, 1f) }, //low priority
+            ////{ "colsample_bynode",AbstractHyperparameterSearchSpace.Range(0.5f, 1.0f)}, //very low priority
+            //{ "path_smooth", AbstractHyperparameterSearchSpace.Range(0f, 1f) }, //low priority
         };
 
         var hpo = new BayesianSearchHPO(searchSpace, () => ModelAndDatasetPredictionsSample.New(new LightGBMSample{objective =  LightGBMSample.objective_enum.binary}, new Biosonar85DatasetSample()), WorkingDirectory);
         IScore bestScoreSoFar = null;
         const bool retrainOnFullDatasetIfBetterModelFound = false;
-        hpo.Process(t => SampleUtils.TrainWithHyperParameters((ModelAndDatasetPredictionsSample)t, WorkingDirectory, retrainOnFullDatasetIfBetterModelFound, ref bestScoreSoFar), maxAllowedSecondsForAllComputation);
+        hpo.Process(t => SampleUtils.TrainWithHyperparameters((ModelAndDatasetPredictionsSample)t, WorkingDirectory, retrainOnFullDatasetIfBetterModelFound, ref bestScoreSoFar), maxAllowedSecondsForAllComputation);
     }
 
 }

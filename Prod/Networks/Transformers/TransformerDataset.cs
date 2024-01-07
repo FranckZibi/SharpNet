@@ -23,7 +23,7 @@ public class TransformerDataset : DataSet
             null,
             ResizeStrategyEnum.None,
             new string[0],
-            new string[0])
+            datasetSample.IsCategoricalColumn)
     {
         _datasetSample = datasetSample;
         _textToSequence = tokenizer.TextsToSequences(new[]{text}).SelectMany(v => v).ToArray();

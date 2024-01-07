@@ -5,8 +5,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using SharpNet.CPU;
-using SharpNet.GPU;
-using SharpNet.HyperParameters;
+using SharpNet.Hyperparameters;
 using SharpNet.Models;
 // ReSharper disable MemberCanBeProtected.Global
 // ReSharper disable MemberCanBePrivate.Global
@@ -21,14 +20,11 @@ public abstract class AbstractDatasetSample : AbstractSample, IDisposable
     // should we standardize them (with mean=0 & volatility=1) before sending them to the model ?
     // ReSharper disable once FieldCanBeMadeReadOnly.Global
     public bool StandardizeDoubleValues = false;
-
-
     /// <summary>
     /// should we shuffle the dataset before splitting it into training / validation ?
     /// </summary>
     // ReSharper disable once FieldCanBeMadeReadOnly.Global
     public bool ShuffleDatasetBeforeSplit = false;
-
     /// <summary>
     /// in classification task :
     ///     when doing the split, if we should make sure that split has the same percentage of each category as in the original dataset
@@ -37,8 +33,6 @@ public abstract class AbstractDatasetSample : AbstractSample, IDisposable
     /// </summary>
     // ReSharper disable once ConvertToConstant.Global
     public bool StratifiedDatasetBeforeSplit = false;
-
-
     public double PercentageInTraining = 0.8;
     /// <summary>
     /// number of splits for KFold
@@ -56,40 +50,65 @@ public abstract class AbstractDatasetSample : AbstractSample, IDisposable
     public string Train_XDatasetPath_InModelFormat;
     public string Train_YDatasetPath_InModelFormat;
     public string Train_XYDatasetPath_InModelFormat;
-
     public string Validation_XDatasetPath_InTargetFormat;
     public string Validation_YDatasetPath_InTargetFormat;
     public string Validation_XYDatasetPath_InTargetFormat;
     public string Validation_XDatasetPath_InModelFormat;
     public string Validation_YDatasetPath_InModelFormat;
     public string Validation_XYDatasetPath_InModelFormat;
-
     public string Test_XDatasetPath_InTargetFormat;
     public string Test_YDatasetPath_InTargetFormat;
     public string Test_XYDatasetPath_InTargetFormat;
     public string Test_XDatasetPath_InModelFormat;
     public string Test_YDatasetPath_InModelFormat;
     public string Test_XYDatasetPath_InModelFormat;
+    #endregion
 
+    #region private and protected fields
+    // ReSharper disable once AutoPropertyCanBeMadeGetOnly.Local
+    protected DatasetEncoder DatasetEncoder { get; set; }
+    private int[] _cacheInputShape_1CHW = null;
+    protected string[] _cacheColumns = null;
+    private readonly object lockInputShape_CHW = new();
+    #endregion
+
+    #region public properties
+    public string Name { get; }
+    public virtual bool PredictionsMustBeOrderedByIdColumn => false;
     #endregion
 
 
-
-    #region public properties
-
-    public string Name { get; }
-
-    public virtual bool PredictionsMustBeOrderedByIdColumn => false;
-
-    // ReSharper disable once AutoPropertyCanBeMadeGetOnly.Local
-    protected DatasetEncoder DatasetEncoder { get; set; }
-
-    private int[] _cacheInputShape_CHW = null;
-    protected string[] _cacheColumns = null;
-    private readonly object lockInputShape_CHW = new();
+    #region constructors
+    protected AbstractDatasetSample()
+    {
+        Name = GetType().Name.Replace("DatasetSample", "");
+    }
+    #endregion
 
 
-    public (DataFrame predictionsInModelFormat, IScore modelLossScore, DataFrame predictionsInTargetFormat, IScore targetRankingScore, string path_pred_InModelFormat)
+    #region abstract methods that must be implemented
+    /// <summary>
+    /// feature used to identify a row in the dataset
+    /// such features should be ignored during the training
+    /// </summary>
+    public abstract string IdColumn { get; }
+    /// <summary>
+    /// </summary>
+    /// <returns>list of target feature names </returns>
+    public abstract string[] TargetLabels { get; }
+    public abstract bool IsCategoricalColumn(string columnName);
+    public abstract int[] Y_Shape(int batchSize);
+    public abstract int NumClass { get; }
+    public abstract Objective_enum GetObjective();
+    public abstract DataSet TestDataset();
+    /// <summary>
+    /// returns the full train and validation dataset
+    /// </summary>
+    /// <returns></returns>
+    public abstract DataSet FullTrainingAndValidation();
+    #endregion
+
+    public (DataFrame predictions_InModelFormat, IScore modelLossScore, DataFrame predictions_InTargetFormat, IScore targetRankingScore, string path_pred_InModelFormat)
         ComputePredictionsAndRankingScoreV2(DataSet dataset, Model model, bool removeAllTemporaryFilesAtEnd, bool computeAlsoRankingScore = true)
     {
         Debug.Assert(dataset != null);
@@ -101,161 +120,57 @@ public abstract class AbstractDatasetSample : AbstractSample, IDisposable
         {
             return (y_pred_InModelFormat, modelLossScore, null, null, path_pred_InModelFormat);
         }
-        var y_pred_InTargetFormat = PredictionsInModelFormat_2_PredictionsInTargetFormat(y_pred_InModelFormat, model.ModelSample.GetObjective());
+        var y_pred_InTargetFormat = Predictions_InModelFormat_2_Predictions_InTargetFormat(y_pred_InModelFormat, model.ModelSample.GetObjective());
         IScore targetRankingScore = null;
         if (y != null)
         {
-            var y_true_InTargetFormat = PredictionsInModelFormat_2_PredictionsInTargetFormat(DataFrame.New(y), model.ModelSample.GetObjective());
+            var y_true_InTargetFormat = Predictions_InModelFormat_2_Predictions_InTargetFormat(DataFrame.New(y), model.ModelSample.GetObjective());
             targetRankingScore = ComputeRankingEvaluationMetric(y_true_InTargetFormat, y_pred_InTargetFormat, model.ModelSample);
         }
         ISample.Log.Debug($"{nameof(ComputePredictionsAndRankingScoreV2)} took {start.Elapsed.TotalSeconds}s");
         return (y_pred_InModelFormat, modelLossScore, y_pred_InTargetFormat, targetRankingScore, path_pred_InModelFormat);
     }
-
-    [SuppressMessage("ReSharper", "PossibleMultipleWriteAccessInDoubleCheckLocking")]
-    public virtual int[] GetInputShapeOfSingleElement()
-    {
-        if (_cacheInputShape_CHW != null)
-        {
-            return _cacheInputShape_CHW;
-        }
-        lock(lockInputShape_CHW)
-        {
-            if (_cacheInputShape_CHW != null)
-            {
-                return _cacheInputShape_CHW;
-            }
-
-            var fullTrainingAndValidation = FullTrainingAndValidation();
-            if (fullTrainingAndValidation is DataFrameDataSet full)
-            {
-                _cacheInputShape_CHW = full.XDataFrame.Shape.Skip(1).ToArray();
-                _cacheColumns = full.ColumnNames.ToArray();
-            }
-            else if (fullTrainingAndValidation is InMemoryDataSet inMemoryDataSet)
-            {
-                _cacheInputShape_CHW = inMemoryDataSet.X.Shape.Skip(1).ToArray();
-            }
-            else
-            {
-                throw new ArgumentException($"can't compute shape for dataset type {fullTrainingAndValidation.GetType()}, you must override method {nameof(GetInputShapeOfSingleElement)} for class {GetType()}");
-            }
-        }
-        return _cacheInputShape_CHW;
-    }
-
-
     public virtual int[] X_Shape(int batchSize)
     {
-        var inputShapeOfSingleElement = GetInputShapeOfSingleElement();
-        return new[] { batchSize }.Concat(inputShapeOfSingleElement).ToArray();
+        if (_cacheInputShape_1CHW == null)
+        {
+            lock (lockInputShape_CHW)
+            {
+                var fullTrainingAndValidation = FullTrainingAndValidation();
+                if (fullTrainingAndValidation is DataFrameDataSet full)
+                {
+                    _cacheInputShape_1CHW = full.XDataFrame.Shape.Skip(1).ToArray();
+                    _cacheColumns = full.ColumnNames.ToArray();
+                }
+                else if (fullTrainingAndValidation is InMemoryDataSet inMemoryDataSet)
+                {
+                    _cacheInputShape_1CHW = inMemoryDataSet.X.Shape.Skip(1).ToArray();
+                }
+                else
+                {
+                    throw new ArgumentException($"can't compute shape for dataset type {fullTrainingAndValidation.GetType()}, you must override method {nameof(X_Shape)} for class {GetType()}");
+                }
+            }
+        }
+        var res = (int[])_cacheInputShape_1CHW.Clone();
+        res[0] = batchSize;
+        return res;
     }
-    public abstract int[] Y_Shape(int batchSize);
-
-
-    public int FeatureByElement()
-    {
-        return Utils.Product(GetInputShapeOfSingleElement());
-
-    }
-
     public virtual string[] GetColumnNames()
     {
         if (_cacheColumns == null)
         {
-            GetInputShapeOfSingleElement(); //we compute the columns
+            X_Shape(1); //we compute the columns
         }
         return _cacheColumns;
     }
-    
-    #endregion
-
-    #region constructors
-    protected AbstractDatasetSample(HashSet<string> mandatoryCategoricalHyperParameters) : base(mandatoryCategoricalHyperParameters)
-    {
-        Name = GetType().Name.Replace("DatasetSample", "");
-    }
-    #endregion
-
-
-    #region abstract methods that must be implemetned
-    /// <summary>
-    /// feature used to identify a row in the dataset
-    /// such features should be ignored during the training
-    /// </summary>
-    public abstract string IdColumn { get; }
-    /// <summary>
-    /// </summary>
-    /// <returns>list of target feature names </returns>
-    public abstract string[] TargetLabels { get; }
-    public abstract string[] CategoricalFeatures { get; }
-
-
-    public virtual List<HashSet<string>> GetCategoricalColumnSharingSameValues()
-    {
-        return new List<HashSet<string>>();
-    }
-
-
-
-
-    public Dictionary<string, int> GetCategoricalFeature_to_IndexInGetCategoricalColumnSharingSameValues()
-    {
-        Dictionary<string, int> res  =new();
-        var groups = GetCategoricalColumnSharingSameValues();
-        for (int i = 0; i < groups.Count; ++i)
-        {
-            foreach (var feature in groups[i])
-            {
-                res[feature] = i;
-            }
-        }
-
-        return res;
-    }
-    public Dictionary<string, HashSet<string>> GetCategoricalFeature_to_CategoricalColumnSharingSameValues()
-    {
-        Dictionary<string, HashSet<string>> res = new();
-        var groups = GetCategoricalColumnSharingSameValues();
-        foreach (var t in groups)
-        {
-            foreach (var feature in t)
-            {
-                res[feature] = t;
-            }
-        }
-        return res;
-    }
-
-
-    public abstract int NumClass { get; }
-    // new string[0] for regression problems
-    public abstract string[] TargetLabelDistinctValues { get; }
-    public abstract Objective_enum GetObjective();
-    public abstract DataSet TestDataset();
-    /// <summary>
-    /// returns the full train and validation dataset
-    /// </summary>
-    /// <returns></returns>
-    public abstract DataSet FullTrainingAndValidation();
-    #endregion
-
-    protected virtual int EmbeddingForColumn(string columnName, int defaultEmbeddingDim)
-    {
-        return defaultEmbeddingDim;
-    }
-
-    protected virtual int CountOfDistinctCategoricalValues(string columnName)
-    {
-        var columnStats = DatasetEncoder[columnName];
-        return columnStats.GetDistinctCategoricalValues().Count;
-    }
-
     public bool IsIdColumn(string columnName)
     {
         return !string.IsNullOrEmpty(IdColumn) && Equals(columnName, IdColumn);
     }
 
+
+    #region Embedding methods
     /// <summary>
     /// VocabularySizes : for each categorical feature, the number of distinct value it has
     /// EmbeddingDims: the default embedding for each categorical feature
@@ -292,7 +207,7 @@ public abstract class AbstractDatasetSample : AbstractSample, IDisposable
                 continue;
             }
 
-            if (Array.IndexOf(CategoricalFeatures, column) < 0)
+            if (!IsCategoricalColumn(column))
             {
                 continue;
             }
@@ -317,19 +232,76 @@ public abstract class AbstractDatasetSample : AbstractSample, IDisposable
         }
         return (vocabularySizes.ToArray(), embeddingDims.ToArray(), indexesInLastDimensionToUse.ToArray(), embeddingTensorIndex.ToArray());
     }
-   
-    public cudnnActivationMode_t GetActivationForLastLayer(Objective_enum objective)
+    public virtual List<HashSet<string>> GetCategoricalColumnSharingSameValues()
     {
-        if (objective == Objective_enum.Regression)
-        {
-            return cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID;
-        }
-        if (NumClass == 1)
-        {
-            return cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID;
-        }
-        return cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX;
+        return new List<HashSet<string>>();
     }
+    public Dictionary<string, HashSet<string>> GetCategoricalFeature_to_CategoricalColumnSharingSameValues()
+    {
+        Dictionary<string, HashSet<string>> res = new();
+        var groups = GetCategoricalColumnSharingSameValues();
+        foreach (var t in groups)
+        {
+            foreach (var feature in t)
+            {
+                res[feature] = t;
+            }
+        }
+        return res;
+    }
+    // ReSharper disable once VirtualMemberNeverOverridden.Global
+    // ReSharper disable once UnusedParameter.Global
+    protected virtual int EmbeddingForColumn(string columnName, int defaultEmbeddingDim)
+    {
+        return defaultEmbeddingDim;
+    }
+    protected virtual int CountOfDistinctCategoricalValues(string columnName)
+    {
+        var columnStats = DatasetEncoder[columnName];
+        return columnStats.GetDistinctCategoricalValues().Count;
+    }
+    private Dictionary<string, int> GetCategoricalFeature_to_IndexInGetCategoricalColumnSharingSameValues()
+    {
+        Dictionary<string, int> res = new();
+        var groups = GetCategoricalColumnSharingSameValues();
+        for (int i = 0; i < groups.Count; ++i)
+        {
+            foreach (var feature in groups[i])
+            {
+                res[feature] = i;
+            }
+        }
+
+        return res;
+    }
+    #endregion
+
+    #region Dispose pattern
+    protected bool disposed = false;
+    protected virtual void Dispose(bool disposing)
+    {
+        if (disposed)
+        {
+            return;
+        }
+        disposed = true;
+        //Release Unmanaged Resources
+        if (disposing)
+        {
+            //Release Managed Resources
+            DatasetEncoder = null;
+        }
+    }
+    public void Dispose()
+    {
+        Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+    ~AbstractDatasetSample()
+    {
+        Dispose(false);
+    }
+    #endregion
 
     public enum DatasetType
     {
@@ -358,35 +330,16 @@ public abstract class AbstractDatasetSample : AbstractSample, IDisposable
                 throw new NotSupportedException($"invalid {nameof(DatasetType)}: {datasetType}");
         }
     }
-
-
     public AbstractDatasetSample CopyWithNewPercentageInTrainingAndKFold(double newPercentageInTraining, int newKFold)
     {
         var cloned = (AbstractDatasetSample)Clone();
         cloned.PercentageInTraining = newPercentageInTraining;
         cloned.KFold = newKFold;
-        cloned.SetAll_Train_XDatasetPath(null);
-        cloned.SetAll_Validation_XDatasetPath(null);
+        cloned.SetAll_Train_Validation_DatasetPath_to_null();
         return cloned;
     }
-
-    private void SetAll_Train_XDatasetPath(string newValue)
-    {
-        Train_XDatasetPath_InTargetFormat = Train_YDatasetPath_InTargetFormat = Train_XYDatasetPath_InTargetFormat = newValue;
-        Train_XDatasetPath_InModelFormat = Train_YDatasetPath_InModelFormat = Train_XYDatasetPath_InModelFormat = newValue;
-    }
-    private void SetAll_Validation_XDatasetPath(string newValue)
-    {
-        Validation_XDatasetPath_InTargetFormat = Validation_YDatasetPath_InTargetFormat = Validation_XYDatasetPath_InTargetFormat = newValue;
-        Validation_XDatasetPath_InModelFormat = Validation_YDatasetPath_InModelFormat = Validation_XYDatasetPath_InModelFormat = newValue;
-    }
-
-    public DataFrameDataSet LoadTrainDataset() => LoadDataSet(Train_XDatasetPath_InTargetFormat, Train_YDatasetPath_InTargetFormat, Train_XYDatasetPath_InTargetFormat);
-    public DataFrameDataSet LoadValidationDataset() => LoadDataSet(Validation_XDatasetPath_InTargetFormat, Validation_YDatasetPath_InTargetFormat, Validation_XYDatasetPath_InTargetFormat);
-    public DataFrameDataSet LoadTestDataset() => LoadDataSet(Test_XDatasetPath_InTargetFormat, Test_YDatasetPath_InTargetFormat, Test_XYDatasetPath_InTargetFormat);
-
     //// ReSharper disable once MemberCanBeMadeStatic.Global
-    public DataFrame LoadPredictionsInModelFormat(string directory, string fileName)
+    public DataFrame LoadPredictions_InModelFormat(string directory, string fileName)
     {
         if (string.IsNullOrEmpty(fileName))
         {
@@ -399,8 +352,6 @@ public abstract class AbstractDatasetSample : AbstractSample, IDisposable
         }
         return DataFrame.read_float_csv(path);
     }
-
-
     public IScore ComputeRankingEvaluationMetric(DataFrame y_true_InTargetFormat, DataFrame y_pred_InTargetFormat, IMetricConfig metricConfig)
     {
         AssertNoIdColumns(y_true_InTargetFormat);
@@ -416,18 +367,17 @@ public abstract class AbstractDatasetSample : AbstractSample, IDisposable
         var evaluationMetric = buffer.ComputeEvaluationMetric(y_true_tensor, y_pred_tensor, rankingEvaluationMetric, metricConfig);
         return new Score((float)evaluationMetric, rankingEvaluationMetric);
     }
-
     /// <summary>
     /// in some cases, the Dataset (in Model Format) must have a number of rows that is a multiple of some constant
     /// </summary>
     /// <returns></returns>
-    public virtual int DatasetRowsInModelFormatMustBeMultipleOf()
+    public virtual int DatasetRows_InModelFormat_MustBeMultipleOf()
     {
         return 1;
     }
     public virtual char GetSeparator() { return ',';}
     /// save the predictions in the Challenge target format, adding an Id at left if needed
-    public virtual void SavePredictionsInTargetFormat(DataFrame y_pred_Encoded_InTargetFormat, DataSet xDataset, string path)
+    public virtual void SavePredictions_InTargetFormat(DataFrame y_pred_Encoded_InTargetFormat, DataSet xDataset, string path)
     {
         if (y_pred_Encoded_InTargetFormat == null)
         {
@@ -451,65 +401,40 @@ public abstract class AbstractDatasetSample : AbstractSample, IDisposable
 
         y_pred_Decoded_InTargetFormat.to_csv(path, GetSeparator());
     }
-
-    public virtual void SavePredictionsInModelFormat(DataFrame predictionsInModelFormat, string path)
+    public virtual void SavePredictions_InModelFormat(DataFrame predictions_InModelFormat, string path)
     {
-        AssertNoIdColumns(predictionsInModelFormat);
-        predictionsInModelFormat?.to_csv(path, GetSeparator());
+        AssertNoIdColumns(predictions_InModelFormat);
+        predictions_InModelFormat?.to_csv(path, GetSeparator());
     }
-   
     public virtual ITrainingAndTestDataset SplitIntoTrainingAndValidation()
     {
         var fullTrain = FullTrainingAndValidation();
         int rowsForTraining = (int)(PercentageInTraining * fullTrain.Count + 0.1);
-        rowsForTraining -= rowsForTraining % DatasetRowsInModelFormatMustBeMultipleOf();
+        rowsForTraining -= rowsForTraining % DatasetRows_InModelFormat_MustBeMultipleOf();
         return fullTrain.IntSplitIntoTrainingAndValidation(rowsForTraining, ShuffleDatasetBeforeSplit, StratifiedDatasetBeforeSplit);
     }
-
     /// <summary>
     /// transform a DataFrame of prediction in model format to a DataFrame in Challenge expected format
     /// Those DataFrame are not allowed to contain Id Columns
     /// </summary>
-    /// <param name="predictionsInModelFormat"></param>
+    /// <param name="predictions_InModelFormat"></param>
     /// <param name="objective"></param>
     /// <returns></returns>
-    public virtual DataFrame PredictionsInModelFormat_2_PredictionsInTargetFormat(DataFrame predictionsInModelFormat, Objective_enum objective)
+    public virtual DataFrame Predictions_InModelFormat_2_Predictions_InTargetFormat(DataFrame predictions_InModelFormat, Objective_enum objective)
     {
-        AssertNoIdColumns(predictionsInModelFormat);
+        AssertNoIdColumns(predictions_InModelFormat);
         if (objective == Objective_enum.Regression)
         {
-            return predictionsInModelFormat;
+            return predictions_InModelFormat;
         }
         if (objective == Objective_enum.Classification && NumClass >= 2)
         {
-            return DataFrame.New(predictionsInModelFormat.FloatCpuTensor().ArgMax(), TargetLabels);
+            return DataFrame.New(predictions_InModelFormat.FloatCpuTensor().ArgMax(), TargetLabels);
         }
 
-        return predictionsInModelFormat;
+        return predictions_InModelFormat;
         //throw new NotImplementedException("Can't manage binary classification");
     }
-
-
-    /// <summary>
-    /// ensure that the DataFrame 'df' has no Id Columns
-    /// throw an exception if it contains Id Columns
-    /// </summary>
-    /// <param name="df"></param>
-    /// <exception cref="Exception"></exception>
-    protected void AssertNoIdColumns(DataFrame df)
-    {
-        if (df == null || string.IsNullOrEmpty(IdColumn))
-        {
-            return;
-        }
-        var indexIdCol = Array.IndexOf(df.Columns, IdColumn);
-        if (indexIdCol >= 0)
-        {
-            throw new Exception($"The DataFrame is not allowed to contain Id Columns : {string.Join(' ', indexIdCol)}");
-        }
-
-    }
-
     public override bool FixErrors()
     {
         if (!base.FixErrors())
@@ -522,11 +447,10 @@ public abstract class AbstractDatasetSample : AbstractSample, IDisposable
         }
         return true;
     }
-
     public override HashSet<string> FieldsToDiscardInComputeHash()
     {
         return new HashSet<string>
-        {
+               {
             nameof(Train_XDatasetPath_InTargetFormat), nameof(Train_YDatasetPath_InTargetFormat), nameof(Train_XYDatasetPath_InTargetFormat), 
             nameof(Validation_XDatasetPath_InTargetFormat), nameof(Validation_YDatasetPath_InTargetFormat), nameof(Validation_XYDatasetPath_InTargetFormat), 
             nameof(Test_XDatasetPath_InTargetFormat), nameof(Test_YDatasetPath_InTargetFormat), nameof(Test_XYDatasetPath_InTargetFormat),
@@ -535,8 +459,7 @@ public abstract class AbstractDatasetSample : AbstractSample, IDisposable
             nameof(Test_XDatasetPath_InModelFormat), nameof(Test_YDatasetPath_InModelFormat), nameof(Test_XYDatasetPath_InModelFormat)
         };
     }
-
-    private DataFrameDataSet LoadDataSet(string XDatasetPath, string YDatasetPath, string XYDatasetPath)
+    public DataFrameDataSet LoadDataSet(string XDatasetPath, string YDatasetPath, string XYDatasetPath)
     {
         DataFrame x = null;
         DataFrame y = null;
@@ -578,30 +501,41 @@ public abstract class AbstractDatasetSample : AbstractSample, IDisposable
         return new DataFrameDataSet(this, x, y, null);
     }
 
-    #region Dispose pattern
-    protected bool disposed = false;
-    protected virtual void Dispose(bool disposing)
+
+    /// <summary>
+    /// ensure that the DataFrame 'df' has no Id Columns
+    /// throw an exception if it contains Id Columns
+    /// </summary>
+    /// <param name="df"></param>
+    /// <exception cref="Exception"></exception>
+    protected void AssertNoIdColumns(DataFrame df)
     {
-        if (disposed)
+        if (df == null || string.IsNullOrEmpty(IdColumn))
         {
             return;
         }
-        disposed = true;
-        //Release Unmanaged Resources
-        if (disposing)
+        var indexIdCol = Array.IndexOf(df.Columns, IdColumn);
+        if (indexIdCol >= 0)
         {
-            //Release Managed Resources
-            DatasetEncoder = null;
+            throw new Exception($"The DataFrame is not allowed to contain Id Columns : {string.Join(' ', indexIdCol)}");
         }
+
     }
-    public void Dispose()
+    protected bool DefaultIsCategoricalColumn(string columnName, string[] categoricalFeatures = null)
     {
-        Dispose(true);
-        GC.SuppressFinalize(this);
+        if (IsIdColumn(columnName))
+        {
+            return true;
+        }
+        return categoricalFeatures != null && Array.IndexOf(categoricalFeatures, columnName) != -1;
     }
-    ~AbstractDatasetSample()
+    private void SetAll_Train_Validation_DatasetPath_to_null()
     {
-        Dispose(false);
+        Train_XDatasetPath_InTargetFormat = Train_YDatasetPath_InTargetFormat = Train_XYDatasetPath_InTargetFormat = null;
+        Train_XDatasetPath_InModelFormat = Train_YDatasetPath_InModelFormat = Train_XYDatasetPath_InModelFormat = null;
+        Validation_XDatasetPath_InTargetFormat = Validation_YDatasetPath_InTargetFormat = Validation_XYDatasetPath_InTargetFormat = null;
+        Validation_XDatasetPath_InModelFormat = Validation_YDatasetPath_InModelFormat = Validation_XYDatasetPath_InModelFormat = null;
     }
-    #endregion
+
+  
 }

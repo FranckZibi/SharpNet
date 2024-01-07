@@ -276,7 +276,6 @@ namespace SharpNet.CatBoost
                     //Log.Debug($"No need to save dataset column description in path {path} : it already exists");
                     return;
                 }
-                var categoricalColumns = dataset.CategoricalFeatures;
                 var sb = new StringBuilder();
                 int nextColumnIdx = 0;
                 if (addTargetColumnAsFirstColumn)
@@ -286,7 +285,7 @@ namespace SharpNet.CatBoost
                 }
                 foreach (var columnName in dataset.ColumnNames)
                 {
-                    if (categoricalColumns.Contains(columnName))
+                    if (dataset.IsCategoricalColumn(columnName))
                     {
                         sb.Append($"{nextColumnIdx}\tCateg"+Environment.NewLine); //this column is a categorical feature
                     }

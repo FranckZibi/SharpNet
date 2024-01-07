@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
-using SharpNet.HyperParameters;
+using SharpNet.Hyperparameters;
 
 namespace SharpNet.HPO
 {

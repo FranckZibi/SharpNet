@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using SharpNet.Datasets;
 
-namespace SharpNet.HyperParameters
+namespace SharpNet.Hyperparameters
 {
     public sealed class ModelAndDatasetPredictionsSample : MultiSamples, IDisposable
     {
@@ -97,9 +97,9 @@ namespace SharpNet.HyperParameters
         }
 
         #region Filling Search Space with Default Values for Model
-        public override void FillSearchSpaceWithDefaultValues(IDictionary<string, object> hyperParameterSearchSpace)
+        public override void FillSearchSpaceWithDefaultValues(IDictionary<string, object> HyperparameterSearchSpace)
         {
-            ModelSample.FillSearchSpaceWithDefaultValues(hyperParameterSearchSpace);
+            ModelSample.FillSearchSpaceWithDefaultValues(HyperparameterSearchSpace);
         }
         #endregion
 

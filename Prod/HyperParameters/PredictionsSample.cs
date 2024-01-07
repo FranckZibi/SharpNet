@@ -1,10 +1,9 @@
-﻿using System.Collections.Generic;
-
-namespace SharpNet.HyperParameters;
+﻿namespace SharpNet.Hyperparameters;
 
 public class PredictionsSample : AbstractSample
 {
-    public PredictionsSample() : base(new HashSet<string>())
+    // ReSharper disable once EmptyConstructor
+    public PredictionsSample()
     {
     }
 

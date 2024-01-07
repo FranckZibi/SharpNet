@@ -189,7 +189,7 @@ namespace SharpNet.LightGBM
                         featureImportanceNumClass[i] = entireFeatureImportance[numClass * (columns.Length + 1)+i];
                     }
                     featureImportanceNumClass = featureImportanceNumClass.Select(i=>(100f*i / totalFeatureImportance)).ToArray();
-                    var numClass_df = DataFrame.New(featureImportanceNumClass, new[] { datasetSample.TargetLabelDistinctValues[numClass]});
+                    var numClass_df = DataFrame.New(featureImportanceNumClass, new[] { "class"+numClass});
                     finalDf = DataFrame.MergeHorizontally(finalDf, numClass_df);
                 }
             }

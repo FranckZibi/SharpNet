@@ -4,7 +4,7 @@ using System.IO;
 using System.Linq;
 using log4net;
 
-namespace SharpNet.HyperParameters;
+namespace SharpNet.Hyperparameters;
 
 public interface ISample
 {
@@ -37,8 +37,8 @@ public interface ISample
     void Set(IDictionary<string, object> dico);
     void Set(string fieldName, object fieldValue);
     object Get(string fieldName);
-    Type GetFieldType(string hyperParameterName);
-    bool IsCategoricalHyperParameter(string hyperParameterName);
+    Type GetFieldType(string HyperparameterName);
+    bool IsCategoricalHyperparameter(string HyperparameterName);
     /// <summary>
     /// all Hyper-Parameters file associated with the Sample
     /// </summary>
@@ -50,7 +50,7 @@ public interface ISample
     /// names of all the Hyper-Parameters associated with the sample
     /// </summary>
     /// <returns></returns>
-    HashSet<string> HyperParameterNames();
+    HashSet<string> HyperparameterNames();
     string ComputeHash();
     ISample Clone();
 
@@ -169,5 +169,5 @@ public interface ISample
     }
     #endregion
 
-    void FillSearchSpaceWithDefaultValues(IDictionary<string, object> hyperParameterSearchSpace);
+    void FillSearchSpaceWithDefaultValues(IDictionary<string, object> HyperparameterSearchSpace);
 }

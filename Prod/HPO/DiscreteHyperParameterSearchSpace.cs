@@ -7,23 +7,23 @@ using System.Linq;
 
 namespace SharpNet.HPO;
 
-public class DiscreteHyperParameterSearchSpace : AbstractHyperParameterSearchSpace
+public class DiscreteHyperparameterSearchSpace : HyperparameterSearchSpace
 {
     #region private fields
-    private readonly string[] _allHyperParameterValuesAsString;
-    private readonly IDictionary<string, SingleHyperParameterValueStatistics> _statistics = new Dictionary<string, SingleHyperParameterValueStatistics>();
+    private readonly string[] _allHyperparameterValuesAsString;
+    private readonly IDictionary<string, SingleHyperparameterValueStatistics> _statistics = new Dictionary<string, SingleHyperparameterValueStatistics>();
     #endregion
 
-    public DiscreteHyperParameterSearchSpace(object hyperParameterSearchSpace, bool isCategoricalHyperParameter) : base(isCategoricalHyperParameter)
+    public DiscreteHyperparameterSearchSpace(object HyperparameterSearchSpace, bool isCategoricalHyperparameter) : base(isCategoricalHyperparameter)
     {
-        _allHyperParameterValuesAsString = ToObjectArray(hyperParameterSearchSpace);
-        foreach (var e in _allHyperParameterValuesAsString)
+        _allHyperparameterValuesAsString = ToObjectArray(HyperparameterSearchSpace);
+        foreach (var e in _allHyperparameterValuesAsString)
         {
-            _statistics[e] = new SingleHyperParameterValueStatistics();
+            _statistics[e] = new SingleHyperparameterValueStatistics();
         }
     }
 
-    public override bool IsConstant => _allHyperParameterValuesAsString.Length <= 1;
+    public override bool IsConstant => _allHyperparameterValuesAsString.Length <= 1;
 
     public override string ToString()
     {
@@ -33,7 +33,7 @@ public class DiscreteHyperParameterSearchSpace : AbstractHyperParameterSearchSpa
         {
             res += " "+e.Key + ":" + e.Value;
 
-            int index = Array.IndexOf(_allHyperParameterValuesAsString, e.Key);
+            int index = Array.IndexOf(_allHyperparameterValuesAsString, e.Key);
             Debug.Assert(index >= 0);
             res += " (target Time: " + Math.Round(100 * targetInvestmentTime[index], 1) + "%)";
 
@@ -47,7 +47,7 @@ public class DiscreteHyperParameterSearchSpace : AbstractHyperParameterSearchSpa
         int randomIndex = -1;
         if (randomSearchOption == RANDOM_SEARCH_OPTION.FULLY_RANDOM)
         {
-            randomIndex = rand.Next(_allHyperParameterValuesAsString.Length);
+            randomIndex = rand.Next(_allHyperparameterValuesAsString.Length);
         }
         else if (randomSearchOption == RANDOM_SEARCH_OPTION.PREFER_MORE_PROMISING)
         {
@@ -59,26 +59,26 @@ public class DiscreteHyperParameterSearchSpace : AbstractHyperParameterSearchSpa
             throw new ArgumentException($"invalid argument {randomSearchOption}");
         }
 
-        if (IsCategoricalHyperParameter)
+        if (IsCategoricalHyperparameter)
         {
             return randomIndex;
         }
-        return float.Parse(_allHyperParameterValuesAsString[randomIndex], CultureInfo.InvariantCulture);
+        return float.Parse(_allHyperparameterValuesAsString[randomIndex], CultureInfo.InvariantCulture);
     }
 
     public override string BayesianSearchFloatValue_to_SampleStringValue(float f)
     {
-        if (IsCategoricalHyperParameter)
+        if (IsCategoricalHyperparameter)
         {
             // f is an index
             int index = Utils.NearestInt(f);
-            return _allHyperParameterValuesAsString[index];
+            return _allHyperparameterValuesAsString[index];
         }
         return f.ToString(CultureInfo.InvariantCulture);
     }
 
 
-    public override int LengthForGridSearch => _allHyperParameterValuesAsString.Length;
+    public override int LengthForGridSearch => _allHyperparameterValuesAsString.Length;
     public override void RegisterScore(object sampleValue, IScore score, double elapsedTimeInSeconds)
     {
         var parameterValueAsString = Utils.FieldValueToString(sampleValue);
@@ -90,11 +90,11 @@ public class DiscreteHyperParameterSearchSpace : AbstractHyperParameterSearchSpa
     }
     public override string SampleStringValue_at_Index_For_GridSearch(int index)
     {
-        return _allHyperParameterValuesAsString[index];
+        return _allHyperparameterValuesAsString[index];
     }
 
     /// <summary>
-    /// for each possible value of the Hyper-Parameter '_hyperParameterName'
+    /// for each possible value of the Hyper-Parameter '_HyperparameterName'
     /// the % of time (between 0 and 1.0) we are willing to invest on search this specif value.
     ///  => a value close to 1 means we want to invest most of our time on this value (because it seems very promising
     ///  => a value close to 0 means we want to invest very little CPU time on this value (because it doesn't seem use full
@@ -102,7 +102,7 @@ public class DiscreteHyperParameterSearchSpace : AbstractHyperParameterSearchSpa
     /// <returns></returns>
     private double[] TargetCpuInvestmentTime()
     {
-        var t = _allHyperParameterValuesAsString.Select(hyperParameterName => _statistics[hyperParameterName]).ToArray();
+        var t = _allHyperparameterValuesAsString.Select(HyperparameterName => _statistics[HyperparameterName]).ToArray();
         return TargetCpuInvestmentTime(t);
     }
     

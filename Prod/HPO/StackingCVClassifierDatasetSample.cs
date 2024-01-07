@@ -6,7 +6,7 @@ using System.Linq;
 using JetBrains.Annotations;
 using SharpNet.CPU;
 using SharpNet.Datasets;
-using SharpNet.HyperParameters;
+using SharpNet.Hyperparameters;
 
 namespace SharpNet.HPO
 {
@@ -67,11 +67,11 @@ namespace SharpNet.HPO
                     inferencePredictionsSample = ModelAndDatasetPredictionsSample.LoadPredictions(embeddedModelWorkingDirectory, embeddedModelNameForInference);
                 }
 
-                var y_pred_training_InModelFormat = embeddedDatasetSample.LoadPredictionsInModelFormat(embeddedModelWorkingDirectory, trainingPredictionsSample.Validation_PredictionsFileName_InModelFormat);
-                var y_pred_inference_InModelFormat = embeddedDatasetSample.LoadPredictionsInModelFormat(embeddedModelWorkingDirectory, inferencePredictionsSample.Test_PredictionsFileName_InModelFormat);
+                var y_pred_training_InModelFormat = embeddedDatasetSample.LoadPredictions_InModelFormat(embeddedModelWorkingDirectory, trainingPredictionsSample.Validation_PredictionsFileName_InModelFormat);
+                var y_pred_inference_InModelFormat = embeddedDatasetSample.LoadPredictions_InModelFormat(embeddedModelWorkingDirectory, inferencePredictionsSample.Test_PredictionsFileName_InModelFormat);
                 if (y_pred_training_InModelFormat == null)
                 {
-                    y_pred_training_InModelFormat = embeddedDatasetSample.LoadPredictionsInModelFormat(embeddedModelWorkingDirectory, trainingPredictionsSample.Train_PredictionsFileName_InModelFormat);
+                    y_pred_training_InModelFormat = embeddedDatasetSample.LoadPredictions_InModelFormat(embeddedModelWorkingDirectory, trainingPredictionsSample.Train_PredictionsFileName_InModelFormat);
                 }
 
                 //_y_preds_train_InModelFormat.Add(y_pred_train_InModelFormat);
@@ -80,12 +80,12 @@ namespace SharpNet.HPO
 
                 if (i == 0)
                 {
-                    validationDataset = embeddedDatasetSample.LoadValidationDataset()?? embeddedDatasetSample.LoadTrainDataset();
+                    validationDataset = LoadValidationDataset(embeddedDatasetSample) ?? LoadTrainDataset(embeddedDatasetSample);
                     if (validationDataset == null)
                     {
                         throw new ArgumentException($"no Validation/Training DataSet found");
                     }
-                    testDataset = embeddedDatasetSample.LoadTestDataset();
+                    testDataset = LoadTestDataset(embeddedDatasetSample);
                     if (testDataset == null)
                     {
                         throw new ArgumentException($"no Test DataSet found");
@@ -180,5 +180,10 @@ namespace SharpNet.HPO
         {
             return _trainingDataFrameDataSet;
         }
+
+        private static DataFrameDataSet LoadTrainDataset(AbstractDatasetSample embeddedDatasetSample) => embeddedDatasetSample.LoadDataSet(embeddedDatasetSample.Train_XDatasetPath_InTargetFormat, embeddedDatasetSample.Train_YDatasetPath_InTargetFormat, embeddedDatasetSample.Train_XYDatasetPath_InTargetFormat);
+        private static DataFrameDataSet LoadValidationDataset(AbstractDatasetSample embeddedDatasetSample) => embeddedDatasetSample.LoadDataSet(embeddedDatasetSample.Validation_XDatasetPath_InTargetFormat, embeddedDatasetSample.Validation_YDatasetPath_InTargetFormat, embeddedDatasetSample.Validation_XYDatasetPath_InTargetFormat);
+        private static DataFrameDataSet LoadTestDataset(AbstractDatasetSample embeddedDatasetSample) => embeddedDatasetSample.LoadDataSet(embeddedDatasetSample.Test_XDatasetPath_InTargetFormat, embeddedDatasetSample.Test_YDatasetPath_InTargetFormat, embeddedDatasetSample.Test_XYDatasetPath_InTargetFormat);
+
     }
 }

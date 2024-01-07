@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 using JetBrains.Annotations;
 using log4net;
 using SharpNet.GPU;
-using SharpNet.HyperParameters;
+using SharpNet.Hyperparameters;
 using SharpNet.MathTools;
 
 namespace SharpNet.HPO
@@ -16,7 +16,7 @@ namespace SharpNet.HPO
     public abstract class AbstractHpo
     {
         #region private and protected fields
-        protected readonly IDictionary<string, AbstractHyperParameterSearchSpace> SearchSpace;
+        protected readonly IDictionary<string, HyperparameterSearchSpace> SearchSpace;
         protected readonly Func<ISample> CreateDefaultSample;
         private readonly int numModelTrainingInParallel;
         [NotNull] protected readonly string _workingDirectory;
@@ -60,15 +60,15 @@ namespace SharpNet.HPO
 
             CreateDefaultSample = createDefaultSample;
             _workingDirectory = workingDirectory;
-            SearchSpace = new Dictionary<string, AbstractHyperParameterSearchSpace>();
+            SearchSpace = new Dictionary<string, HyperparameterSearchSpace>();
 
             var defaultSample = createDefaultSample();
 
             defaultSample.FillSearchSpaceWithDefaultValues(searchSpace);
-            foreach (var (hyperParameterName, hyperParameterSearchSpace) in searchSpace)
+            foreach (var (HyperparameterName, HyperparameterSearchSpace) in searchSpace)
             {
-                var isCategoricalHyperParameter = defaultSample.IsCategoricalHyperParameter(hyperParameterName);
-                SearchSpace[hyperParameterName] = AbstractHyperParameterSearchSpace.ValueOf(hyperParameterSearchSpace, isCategoricalHyperParameter);
+                var isCategoricalHyperparameter = defaultSample.IsCategoricalHyperparameter(HyperparameterName);
+                SearchSpace[HyperparameterName] = HPO.HyperparameterSearchSpace.ValueOf(HyperparameterSearchSpace, isCategoricalHyperparameter);
             }
 
             numModelTrainingInParallel = Utils.CoreCount;
@@ -142,7 +142,7 @@ namespace SharpNet.HPO
             _allActualScores.Add(actualScore.Value);
             RegisterSampleScore(SearchSpace, sample, actualScore, elapsedTimeInSeconds);
         }
-        protected static void RegisterSampleScore(IDictionary<string, AbstractHyperParameterSearchSpace> searchSpace, ISample sample, [NotNull] IScore actualScore, double elapsedTimeInSeconds)
+        protected static void RegisterSampleScore(IDictionary<string, HyperparameterSearchSpace> searchSpace, ISample sample, [NotNull] IScore actualScore, double elapsedTimeInSeconds)
         {
             foreach (var (parameterName, parameterSearchSpace) in searchSpace)
             {
@@ -153,10 +153,10 @@ namespace SharpNet.HPO
         protected static string ToSampleDescription(IDictionary<string, string> dico, ISample sample)
         {
             var description = "";
-            foreach (var (hyperParameterName, _) in dico.OrderBy(t=>t.Key))
+            foreach (var (HyperparameterName, _) in dico.OrderBy(t=>t.Key))
             {
-                var hyperParameterValueAsString = Utils.FieldValueToString(sample.Get(hyperParameterName));
-                description+= hyperParameterName+ " = "+ hyperParameterValueAsString + Environment.NewLine;
+                var HyperparameterValueAsString = Utils.FieldValueToString(sample.Get(HyperparameterName));
+                description+= HyperparameterName+ " = "+ HyperparameterValueAsString + Environment.NewLine;
             }
             return description.Trim();
         }
@@ -231,7 +231,7 @@ namespace SharpNet.HPO
         private string StatisticsDescription()
         {
             string res = "";
-            foreach ((string key, AbstractHyperParameterSearchSpace value) in SearchSpace.OrderBy(e => e.Key))
+            foreach ((string key, HyperparameterSearchSpace value) in SearchSpace.OrderBy(e => e.Key))
             {
                 if (value.IsConstant)
                 {

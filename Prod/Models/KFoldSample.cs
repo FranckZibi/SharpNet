@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using SharpNet.Datasets;
-using SharpNet.HyperParameters;
+using SharpNet.Hyperparameters;
 // ReSharper disable FieldCanBeMadeReadOnly.Global
 // ReSharper disable MemberCanBePrivate.Global
 
@@ -11,10 +11,10 @@ public class KFoldSample : AbstractModelSample
 {
     #region constructors
     // ReSharper disable once UnusedMember.Local
-    private KFoldSample() : base(new HashSet<string>())
+    private KFoldSample()
     {
     }
-    public KFoldSample(int nSplits, string embeddedModelWorkingDirectory, string embeddedModelName, EvaluationMetricEnum embeddedModelLoss, EvaluationMetricEnum rankingEvaluationMetric, int countMustBeMultipleOf) : base(new HashSet<string>())
+    public KFoldSample(int nSplits, string embeddedModelWorkingDirectory, string embeddedModelName, EvaluationMetricEnum embeddedModelLoss, EvaluationMetricEnum rankingEvaluationMetric, int countMustBeMultipleOf)
     {
         if (nSplits <= 1)
         {
@@ -29,7 +29,7 @@ public class KFoldSample : AbstractModelSample
     }
     #endregion
 
-    #region Hyper-Parameters
+    #region Hyperparameters
     public int n_splits = 5;
     // ReSharper disable once MemberCanBePrivate.Global
     public string EmbeddedModelWorkingDirectory;

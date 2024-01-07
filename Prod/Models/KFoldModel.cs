@@ -4,7 +4,7 @@ using System.Diagnostics;
 using System.Linq;
 using SharpNet.CPU;
 using SharpNet.Datasets;
-using SharpNet.HyperParameters;
+using SharpNet.Hyperparameters;
 
 namespace SharpNet.Models;
 
@@ -93,26 +93,6 @@ public class KFoldModel : Model
     }
 
     #endregion
-
-    //public static void TrainEmbeddedModelWithKFold(string kfoldModelWorkingDirectory, string embeddedModelAndDatasetPredictionsWorkingDirectory, string embeddedModelAndDatasetPredictionsName, int n_splits)
-    //{
-    //    var embeddedModelAndDatasetPredictions = ModelAndDatasetPredictions.Load(embeddedModelAndDatasetPredictionsWorkingDirectory, embeddedModelAndDatasetPredictionsName);
-    //    var datasetSample = embeddedModelAndDatasetPredictions.DatasetSample;
-
-    //    //We first train on part of training dataset, then on full training dataset
-    //    foreach(var useFullTraining in new[]{false, true})
-    //    {
-    //        var currentDatasetSample = useFullTraining
-    //            ? datasetSample.CopyWithNewPercentageInTrainingAndKFold(1.0, datasetSample.KFold)
-    //            : (AbstractDatasetSample)datasetSample.Clone();
-    //        var kfoldSample = new KFoldSample(n_splits, embeddedModelAndDatasetPredictionsName, embeddedModelAndDatasetPredictionsWorkingDirectory, currentDatasetSample.DatasetRowsInModelFormatMustBeMultipleOf());
-    //        var kfoldModelAndDatasetPredictionsSample = ModelAndDatasetPredictionsSample.New(kfoldSample, currentDatasetSample);
-    //        var kfoldModelAndDatasetPredictions = ModelAndDatasetPredictions.New(kfoldModelAndDatasetPredictionsSample, kfoldModelWorkingDirectory);
-    //        kfoldModelAndDatasetPredictions.Model.Use_All_Available_Cores();
-    //        LogInfo($"Training '{kfoldModelAndDatasetPredictions.Name}' (based on model {embeddedModelAndDatasetPredictionsName}) using {Math.Round(100* currentDatasetSample.PercentageInTraining,0)}% of Training Dataset");
-    //        kfoldModelAndDatasetPredictions.Fit(true, true, true);
-    //    }
-    //}
 
     public override (string train_XDatasetPath_InModelFormat, string train_YDatasetPath_InModelFormat, string train_XYDatasetPath_InModelFormat, string validation_XDatasetPath_InModelFormat, string validation_YDatasetPath_InModelFormat, string validation_XYDatasetPath_InModelFormat, IScore trainLossIfAvailable, IScore validationLossIfAvailable, IScore trainRankingMetricIfAvailable, IScore validationRankingMetricIfAvailable)
         Fit(DataSet trainDataset, DataSet nullValidationDataset, Func<bool, bool, DataSet, DataSet, string, List<string>> save = null)
@@ -241,7 +221,7 @@ public class KFoldModel : Model
 
 
         var y_true_InModelFormat = trainDataset.Y_InModelFormat().FloatCpuTensor();
-        var y_true_InTargetFormat = datasetSample.PredictionsInModelFormat_2_PredictionsInTargetFormat(DataFrame.New(y_true_InModelFormat), ModelSample.GetObjective());
+        var y_true_InTargetFormat = datasetSample.Predictions_InModelFormat_2_Predictions_InTargetFormat(DataFrame.New(y_true_InModelFormat), ModelSample.GetObjective());
 
         if (n_splits >= 2)
         {
@@ -255,14 +235,14 @@ public class KFoldModel : Model
         {
             // ReSharper disable once PossibleNullReferenceException
             trainLoss_InModelFormat = ComputeLoss(y_true_InModelFormat, trainPredictions_InModelFormat.FloatCpuTensor());
-            trainPredictions_InTargetFormat = datasetSample.PredictionsInModelFormat_2_PredictionsInTargetFormat(trainPredictions_InModelFormat, ModelSample.GetObjective());
+            trainPredictions_InTargetFormat = datasetSample.Predictions_InModelFormat_2_Predictions_InTargetFormat(trainPredictions_InModelFormat, ModelSample.GetObjective());
             trainRankingScore_InTargetFormat = datasetSample.ComputeRankingEvaluationMetric(y_true_InTargetFormat, trainPredictions_InTargetFormat, ModelSample);
         }
 
         //validationPredictions_InModelFormat.Mult(1f / n_splits);
         // ReSharper disable once PossibleNullReferenceException
         var validationLoss_InModelFormat = ComputeLoss(y_true_InModelFormat, validationPredictions_InModelFormat.FloatCpuTensor());
-        var validationPredictions_InTargetFormat = datasetSample.PredictionsInModelFormat_2_PredictionsInTargetFormat(validationPredictions_InModelFormat, ModelSample.GetObjective());
+        var validationPredictions_InTargetFormat = datasetSample.Predictions_InModelFormat_2_Predictions_InTargetFormat(validationPredictions_InModelFormat, ModelSample.GetObjective());
         var validationRankingScore_InTargetFormat = datasetSample.ComputeRankingEvaluationMetric(y_true_InTargetFormat, validationPredictions_InTargetFormat, ModelSample);
 
         return 

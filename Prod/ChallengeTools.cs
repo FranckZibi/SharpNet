@@ -5,7 +5,7 @@ using System.IO;
 using System.Linq;
 using SharpNet.Datasets;
 using SharpNet.HPO;
-using SharpNet.HyperParameters;
+using SharpNet.Hyperparameters;
 using SharpNet.LightGBM;
 using SharpNet.Models;
 using SharpNet.TextPreprocessing;
@@ -42,7 +42,6 @@ public static class ChallengeTools
     /// <param name="directory"></param>
     /// <param name="hasHeader"></param>
     /// <param name="removeAccentedCharacters"></param>
-    //[TestCase(@"C:\Projects\Challenges\KaggleDays\Data", true, true), Explicit]
     public static void NormalizeAllCsvInDirectory(string directory, bool hasHeader, bool removeAccentedCharacters)
     {
         Utils.ConfigureGlobalLog4netProperties(Path.Combine(directory), $"{nameof(NormalizeAllCsvInDirectory)}");
@@ -130,35 +129,35 @@ public static class ChallengeTools
             { "bagging_fraction", new[]{/*0.8f,*/ 0.9f /*, 1.0f*/} },
             { "bagging_freq", new[]{0, 1} },
             { "boosting", new []{/*"gbdt",*/ "dart"}},
-            { "colsample_bytree",AbstractHyperParameterSearchSpace.Range(0.3f, 1.0f)},
+            { "colsample_bytree",HyperparameterSearchSpace.Range(0.3f, 1.0f)},
             { "early_stopping_round", num_iterations/10 },
-            { "lambda_l1",AbstractHyperParameterSearchSpace.Range(0f, 2f)},
-            { "learning_rate",AbstractHyperParameterSearchSpace.Range(0.005f, 0.2f)},
+            { "lambda_l1",HyperparameterSearchSpace.Range(0f, 2f)},
+            { "learning_rate",HyperparameterSearchSpace.Range(0.005f, 0.2f)},
             { "max_depth", new[]{10, 20, 50, 100 /*, 255*/} },
             { "min_data_in_leaf", new[]{20, 50 /*,100*/} },
             { "num_iterations", num_iterations },
-            { "num_leaves", AbstractHyperParameterSearchSpace.Range(3, 50) },
+            { "num_leaves", HyperparameterSearchSpace.Range(3, 50) },
             { "num_threads", 1},
             { "verbosity", "0" },
 
             ////medium priority
             { "drop_rate", new[]{0.05, 0.1, 0.2}},                               //specific to dart mode
-            { "lambda_l2",AbstractHyperParameterSearchSpace.Range(0f, 2f)},
+            { "lambda_l2",HyperparameterSearchSpace.Range(0f, 2f)},
             { "min_data_in_bin", new[]{3, 10, 100, 150}  },
-            { "max_bin", AbstractHyperParameterSearchSpace.Range(10, 255) },
+            { "max_bin", HyperparameterSearchSpace.Range(10, 255) },
             { "max_drop", new[]{40, 50, 60}},                                   //specific to dart mode
-            { "skip_drop",AbstractHyperParameterSearchSpace.Range(0.1f, 0.6f)},  //specific to dart mode
+            { "skip_drop",HyperparameterSearchSpace.Range(0.1f, 0.6f)},  //specific to dart mode
 
             ////low priority
             //{ "extra_trees", new[] { true , false } }, //low priority 
-            ////{ "colsample_bynode",AbstractHyperParameterSearchSpace.Range(0.5f, 1.0f)}, //very low priority
-            //{ "path_smooth", AbstractHyperParameterSearchSpace.Range(0f, 1f) }, //low priority
-            //{ "min_sum_hessian_in_leaf", AbstractHyperParameterSearchSpace.Range(1e-3f, 1.0f) },
+            ////{ "colsample_bynode",AbstractHyperparameterSearchSpace.Range(0.5f, 1.0f)}, //very low priority
+            //{ "path_smooth", AbstractHyperparameterSearchSpace.Range(0f, 1f) }, //low priority
+            //{ "min_sum_hessian_in_leaf", AbstractHyperparameterSearchSpace.Range(1e-3f, 1.0f) },
         };
 
         var hpoWorkingDirectory = Path.Combine(workingDirectory, "hpo");
         var hpo = new BayesianSearchHPO(searchSpace, () => ModelAndDatasetPredictionsSample.New(new LightGBMSample(), datasetSample), hpoWorkingDirectory); IScore bestScoreSoFar = null;
-        hpo.Process(t => SampleUtils.TrainWithHyperParameters((ModelAndDatasetPredictionsSample)t, hpoWorkingDirectory, true, ref bestScoreSoFar), maxAllowedSecondsForAllComputation);
+        hpo.Process(t => SampleUtils.TrainWithHyperparameters((ModelAndDatasetPredictionsSample)t, hpoWorkingDirectory, true, ref bestScoreSoFar), maxAllowedSecondsForAllComputation);
     }
 
 

@@ -33,7 +33,7 @@ public sealed class RandomizeColumnDataSet : DataSet
             original.MeanAndVolatilityForEachChannel,
             original.ResizeStrategy,
             original.ColumnNames,
-            original.CategoricalFeatures,
+            original.IsCategoricalColumn,
             original.Y_IDs,
             original.IdColumn, 
             original.Separator)

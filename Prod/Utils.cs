@@ -16,7 +16,7 @@ using System.Xml;
 using log4net;
 using log4net.Config;
 using log4net.Util;
-using SharpNet.HyperParameters;
+using SharpNet.Hyperparameters;
 using SharpNet.Pictures;
 using Path = System.IO.Path;
 

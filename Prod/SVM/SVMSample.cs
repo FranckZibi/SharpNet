@@ -7,7 +7,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using SharpNet.Datasets;
-using SharpNet.HyperParameters;
+using SharpNet.Hyperparameters;
 using SharpNet.Models;
 // ReSharper disable ConvertToConstant.Global
 // ReSharper disable FieldCanBeMadeReadOnly.Global
@@ -16,7 +16,7 @@ namespace SharpNet.Svm;
 
 public class SVMSample : AbstractModelSample
 {
-    public SVMSample() : base(_categoricalHyperParameters)
+    public SVMSample() : base(_categoricalHyperparameters)
     {
     }
     public override EvaluationMetricEnum GetLoss()
@@ -55,14 +55,14 @@ public class SVMSample : AbstractModelSample
         return new SVMModel(this, workingDirectory, modelName);
     }
 
-    private static readonly HashSet<string> _categoricalHyperParameters = new()
+    private static readonly HashSet<string> _categoricalHyperparameters = new()
     {
         "svm_type",
         "kernel_type",
     };
 
 
-    #region Hyper-Parameters
+    #region Hyperparameters
 
     public enum svm_type_enum
     {

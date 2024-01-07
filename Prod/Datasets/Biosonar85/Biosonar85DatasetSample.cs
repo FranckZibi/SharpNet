@@ -146,7 +146,7 @@ public class Biosonar85DatasetSample : AbstractDatasetSample
     
 
 
-    #region HyperParameters
+    #region Hyperparameters
     public InputDataTypeEnum InputDataType;
 
     /// <summary>
@@ -160,27 +160,21 @@ public class Biosonar85DatasetSample : AbstractDatasetSample
 
 
 
-    public Biosonar85DatasetSample() : base(new HashSet<string>())
+    public Biosonar85DatasetSample()
     {
         Utils.ConfigureGlobalLog4netProperties(Biosonar85Utils.WorkingDirectory, Biosonar85Utils.NAME);
         Utils.ConfigureThreadLog4netProperties(Biosonar85Utils.WorkingDirectory, Biosonar85Utils.NAME);
     }
 
-
-    public override int[] X_Shape(int batchSize) => throw new NotImplementedException(); //!D TODO
     public override int[] Y_Shape(int batchSize) => throw new NotImplementedException(); //!D TODO
-
-
-    public override string[] CategoricalFeatures { get; } = { };
+    public override int NumClass => 1;
     public override string IdColumn => "id";
     public override string[] TargetLabels { get; } = { "pos_label" };
+    public override bool IsCategoricalColumn(string columnName) => DefaultIsCategoricalColumn(columnName);
     public override Objective_enum GetObjective()
     {
         return Objective_enum.Classification;
     }
-    public override int NumClass => 1;
-    public override string[] TargetLabelDistinctValues => Biosonar85Utils.TargetLabelDistinctValues;
-    
     public override DataSet FullTrainingAndValidation()
     {
         return LoadAndEncodeDataset_If_Needed().fullTrainingAndValidation;
@@ -276,28 +270,26 @@ public class Biosonar85DatasetSample : AbstractDatasetSample
         return new TrainingAndTestDataset(training, validation, Name);
     }
 
-    public override int[] GetInputShapeOfSingleElement()
+    public override int[] X_Shape(int batchSize)
     {
         switch (InputDataType)
         {
             case InputDataTypeEnum.TRANSFORMERS_3D:
-                return GetInputShapeOfSingleElement(xTrainBin_TRANSFORMERS_3D).Skip(1).ToArray();
-                //ex: return new[] {101, 64 };
+                return X_Shape(xTrainBin_TRANSFORMERS_3D, batchSize).ToArray();
             case InputDataTypeEnum.NETWORK_4D:
-                return GetInputShapeOfSingleElement(xTrainBin_TRANSFORMERS_3D);
-                //ex: return new[] {1, 101, 64 };
+                return X_Shape(xTrainBin_TRANSFORMERS_3D, batchSize);
             case InputDataTypeEnum.PNG_1CHANNEL:
-                return new[] { 1, 129, 401 };
+                return new[] { batchSize, 129, 401 };
             case InputDataTypeEnum.PNG_1CHANNEL_V2:
-                return GetInputShapeOfSingleElement(xTrainBin_PNG_1CHANNEL_V2);
+                return X_Shape(xTrainBin_PNG_1CHANNEL_V2, batchSize);
             case InputDataTypeEnum.MEL_SPECTROGRAM_64_401:
-                return GetInputShapeOfSingleElement(xTrainBin_MEL_SPECTROGRAM_64_401);
+                return X_Shape(xTrainBin_MEL_SPECTROGRAM_64_401, batchSize);
             case InputDataTypeEnum.MEL_SPECTROGRAM_128_401:
-                return GetInputShapeOfSingleElement(xTrainBin_MEL_SPECTROGRAM_128_401);
+                return X_Shape(xTrainBin_MEL_SPECTROGRAM_128_401, batchSize);
             case InputDataTypeEnum.MEL_SPECTROGRAM_SMALL_128_401:
-                return GetInputShapeOfSingleElement(xTrainBin_MEL_SPECTROGRAM_SMALL_128_401);
+                return X_Shape(xTrainBin_MEL_SPECTROGRAM_SMALL_128_401, batchSize);
             case InputDataTypeEnum.MEL_SPECTROGRAM_256_801:
-                return GetInputShapeOfSingleElement(xTrainBin_MEL_SPECTROGRAM_256_801);
+                return X_Shape(xTrainBin_MEL_SPECTROGRAM_256_801, batchSize);
             case InputDataTypeEnum.LIBROSA_FEATURES:
                 throw new ArgumentException();
             default:
@@ -305,11 +297,11 @@ public class Biosonar85DatasetSample : AbstractDatasetSample
         }
     }
 
-    private static int[] GetInputShapeOfSingleElement(string path)
+    private static int[] X_Shape(string path, int batchSize)
     {
-        var shape = (int[])Biosonar85Utils.ProcessXFileName(path).shape.Clone();
-        shape[0] = 1;
-        return shape;
+        var x_shape = (int[])Biosonar85Utils.ProcessXFileName(path).shape.Clone();
+        x_shape[0] = batchSize;
+        return x_shape;
     }
 
     private readonly object _lockObject = new ();

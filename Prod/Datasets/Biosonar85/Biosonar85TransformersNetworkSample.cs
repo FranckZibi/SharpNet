@@ -1,4 +1,5 @@
-﻿using SharpNet.GPU;
+﻿using System.Linq;
+using SharpNet.GPU;
 using SharpNet.Layers;
 using SharpNet.Networks;
 // ReSharper disable FieldCanBeMadeReadOnly.Global
@@ -9,7 +10,7 @@ namespace SharpNet.Datasets.Biosonar85;
 public class Biosonar85TransformersNetworkSample : NetworkSample
 {
 
-    #region Hyper Parameters
+    #region Hyperparameters
     public double batchNorm_momentum = 0.99;
     public bool Use_MaxPooling = false;
     public bool Use_AvgPooling = false;
@@ -45,7 +46,7 @@ public class Biosonar85TransformersNetworkSample : NetworkSample
     }
     public override void BuildLayers(Network nn, AbstractDatasetSample datasetSample)
     {
-        nn.Input(datasetSample.GetInputShapeOfSingleElement());
+        nn.Input(datasetSample.X_Shape(1).Skip(1).ToArray());
 
         nn.Convolution(8, 5, 2, ConvolutionLayer.PADDING_TYPE.VALID, lambdaL2Regularization, true); //padding =2
         nn.Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU);
@@ -73,7 +74,7 @@ public class Biosonar85TransformersNetworkSample : NetworkSample
         }
         nn.Flatten();
         nn.Dense(datasetSample.NumClass, lambdaL2Regularization, true);
-        nn.Activation(datasetSample.GetActivationForLastLayer(nn.ModelSample.GetObjective()));
+        nn.Activation(nn.NetworkSample.GetActivationForLastLayer(datasetSample.NumClass));
     }
 
 }

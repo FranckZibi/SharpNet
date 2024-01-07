@@ -3,7 +3,7 @@ using SharpNet.MathTools;
 
 namespace SharpNet.HPO
 {
-    public class SingleHyperParameterValueStatistics
+    public class SingleHyperparameterValueStatistics
     {
         public readonly DoubleAccumulator CostToDecrease = new();
         private readonly DoubleAccumulator ElapsedTimeInSeconds = new();

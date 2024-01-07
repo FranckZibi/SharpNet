@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using SharpNet.Datasets;
 using SharpNet.Datasets.CFM60;
 using SharpNet.GPU;
@@ -252,6 +253,7 @@ public class EncoderDecoder_NetworkSample: NetworkSample
     /// The default Search Space for this Model
     /// </summary>
     /// <returns></returns>
+    [SuppressMessage("ReSharper", "ArrangeStaticMemberQualifier")]
     // ReSharper disable once UnusedMember.Global
     public static Dictionary<string, object> DefaultSearchSpace()
     {
@@ -269,7 +271,7 @@ public class EncoderDecoder_NetworkSample: NetworkSample
             { nameof(NetworkSample.lambdaL2Regularization), new[] { 0, 1e-5, 1e-4, 1e-3, 1e-2, 1e-1 } },
 
             // Learning Rate
-            { nameof(NetworkSample.InitialLearningRate), AbstractHyperParameterSearchSpace.Range(1e-5f, 1f, AbstractHyperParameterSearchSpace.range_type.normal) },
+            { nameof(NetworkSample.InitialLearningRate), HyperparameterSearchSpace.Range(1e-5f, 1f, HyperparameterSearchSpace.range_type.normal) },
             // Learning Rate Scheduler
             { nameof(NetworkSample.LearningRateSchedulerType), new[] { "CyclicCosineAnnealing", "OneCycle", "Linear" } },
             { "EmbeddingDim", new[] { 0, 4, 8, 12 } },

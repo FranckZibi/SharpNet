@@ -12,7 +12,7 @@ using log4net;
 using SharpNet.CPU;
 using SharpNet.Data;
 using SharpNet.DataAugmentation;
-using SharpNet.HyperParameters;
+using SharpNet.Hyperparameters;
 using SharpNet.Models;
 using SharpNet.Networks;
 using SharpNet.Pictures;
@@ -43,6 +43,8 @@ namespace SharpNet.Datasets
         /// </summary>
         private long alreadyComputedMiniBatchId = -1;
         private readonly Random[] _rands;
+
+        [NotNull] private readonly Func<string, bool> _isCategoricalColumn;
         #endregion
 
 
@@ -52,7 +54,8 @@ namespace SharpNet.Datasets
         /// the entire list of columns in the training DataSet (with all Id Columns & Features), but without the Target Columns
         /// </summary>
         [NotNull] public string[] ColumnNames { get; }
-        [NotNull] public string[] CategoricalFeatures { get; }
+        //[NotNull] public string[] CategoricalFeatures { get; }
+
 
         /// <summary>
         /// the content of the Y_ID column in the prediction file in target format
@@ -80,7 +83,7 @@ namespace SharpNet.Datasets
             List<Tuple<float, float>> meanAndVolatilityForEachChannel,
             ResizeStrategyEnum resizeStrategy,
             [NotNull] string[] columnNames,
-            [NotNull] string[] categoricalFeatures,
+            [CanBeNull] Func<string,bool> isCategoricalColumn = null,
             [CanBeNull] string[] y_IDs = null,
             [CanBeNull] string idColumn = null,
             char separator = ',')
@@ -90,6 +93,8 @@ namespace SharpNet.Datasets
             MeanAndVolatilityForEachChannel = meanAndVolatilityForEachChannel;
             ResizeStrategy = resizeStrategy;
             ColumnNames = columnNames;
+            _isCategoricalColumn = isCategoricalColumn??((columnName)=>Equals(columnName, idColumn));
+
             Separator = separator;
             if (y_IDs != null)
             {
@@ -107,13 +112,14 @@ namespace SharpNet.Datasets
                 _rands[i] = new Random(i);
             }
 
-            var invalidCategoricalFeatures = Utils.Without(categoricalFeatures, ColumnNames);
-            if (invalidCategoricalFeatures.Count != 0)
-            {
-                Log.Error($"{invalidCategoricalFeatures.Count} invalid CategoricalFeatures: {string.Join(' ', invalidCategoricalFeatures)} => IGNORING");
-                categoricalFeatures = Utils.Intersect(categoricalFeatures, ColumnNames).ToArray();
-            }
-            CategoricalFeatures = categoricalFeatures;
+            //var invalidCategoricalFeatures = Utils.Without(categoricalFeatures, ColumnNames);
+            //if (invalidCategoricalFeatures.Count != 0)
+            //{
+            //    Log.Error($"{invalidCategoricalFeatures.Count} invalid CategoricalFeatures: {string.Join(' ', invalidCategoricalFeatures)} => IGNORING");
+            //    categoricalFeatures = Utils.Intersect(categoricalFeatures, ColumnNames).ToArray();
+            //}
+            //CategoricalFeatures = categoricalFeatures;
+
         }
         #endregion
 
@@ -148,6 +154,9 @@ namespace SharpNet.Datasets
             }
             throw new NotImplementedException($"The method {nameof(Y_Shape)} must be overriden for class {GetType()}");
         }
+
+
+        public bool IsCategoricalColumn(string columnName) => _isCategoricalColumn(columnName);
 
 
         /// <summary>

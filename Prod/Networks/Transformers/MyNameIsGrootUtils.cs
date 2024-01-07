@@ -6,7 +6,7 @@ using log4net;
 using SharpNet.CPU;
 using SharpNet.Datasets;
 using SharpNet.HPO;
-using SharpNet.HyperParameters;
+using SharpNet.Hyperparameters;
 // ReSharper disable UnusedMember.Global
 
 namespace SharpNet.Networks.Transformers;
@@ -233,7 +233,7 @@ public static class MyNameIsGrootUtils
 
         var hpo = new RandomSearchHPO(searchSpace, () => ModelAndDatasetPredictionsSample.New(GetModelSample(), new MyNameIsGrootDatasetSample()), WorkingDirectory);
         IScore bestScoreSoFar = null;
-        hpo.Process(t => SampleUtils.TrainWithHyperParameters((ModelAndDatasetPredictionsSample)t, WorkingDirectory, false, ref bestScoreSoFar), maxAllowedSecondsForAllComputation);
+        hpo.Process(t => SampleUtils.TrainWithHyperparameters((ModelAndDatasetPredictionsSample)t, WorkingDirectory, false, ref bestScoreSoFar), maxAllowedSecondsForAllComputation);
     }
 
     private static TransformerNetworkSample GetModelSample()

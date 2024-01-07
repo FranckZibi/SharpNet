@@ -6,7 +6,7 @@ using System.Text;
 using log4net;
 using SharpNet.DataAugmentation;
 using SharpNet.HPO;
-using SharpNet.HyperParameters;
+using SharpNet.Hyperparameters;
 using SharpNet.MathTools;
 using SharpNet.Networks;
 
@@ -26,7 +26,7 @@ public static class EffiSciences95Utils
         //find the coordinates of the box with the labels (old or young) for each pictures in directory 'Unlabeled' (test dataset)
         //and stores those coordinates in a file 'EffiSciences95_Unlabeled.csv'
         LabelFinder.FindLabelCoordinates("Unlabeled");
-        // launch a hyper parameter search (for 1 hour) using an EfficientNet Neural Network (with 30 epochs) to train on the Labeled dataset
+        // launch a Hyperparameters search (for 1 hour) using an EfficientNet Neural Network (with 30 epochs) to train on the Labeled dataset
         // Each picture will have the box with the label removed before being used as a training picture
         // (see method 'OriginalElementContent' in class 'EffiSciences95DirectoryDataSet')
         Launch_HPO(30, 3600);
@@ -42,7 +42,7 @@ public static class EffiSciences95Utils
     #endregion
 
     #region load of datasets
-    public static readonly int[] Shape_CHW = { 3, 218, 178 };
+    public static readonly string[] TargetLabelDistinctValues = { "old", "young" };
     private static string WorkingDirectory => Path.Combine(Utils.ChallengesPath, NAME);
     public static string DataDirectory => Path.Combine(WorkingDirectory, "Data");
     // ReSharper disable once MemberCanBePrivate.Global
@@ -102,7 +102,7 @@ public static class EffiSciences95Utils
         File.WriteAllText(predictionPaths, sb.ToString());
     }
     /// <summary>
-    /// The default EfficientNet Hyper-Parameters for the Deep Learning model
+    /// The default EfficientNet Hyperparameters for the Deep Learning model
     /// </summary>
     /// <returns></returns>
     private static EfficientNetNetworkSample DefaultEfficientNetNetworkSample()
@@ -134,7 +134,7 @@ public static class EffiSciences95Utils
 
     }
     /// <summary>
-    /// the method uses a Bayesian Search to find the best hyper-parameters for the EfficientNet Deep Learning model
+    /// the method uses a Bayesian Search to find the best Hyperparameters for the EfficientNet Deep Learning model
     /// </summary>
     /// <param name="numEpochs"></param>
     /// <param name="maxAllowedSecondsForAllComputation"></param>
@@ -188,6 +188,6 @@ public static class EffiSciences95Utils
         var hpo = new BayesianSearchHPO(searchSpace, () => ModelAndDatasetPredictionsSample.New(DefaultEfficientNetNetworkSample(), new EffiSciences95DatasetSample()), WorkingDirectory);
         IScore bestScoreSoFar = null;
         const bool retrainOnFullDatasetIfBetterModelFound = false;
-        hpo.Process(t => SampleUtils.TrainWithHyperParameters((ModelAndDatasetPredictionsSample)t, WorkingDirectory, retrainOnFullDatasetIfBetterModelFound, ref bestScoreSoFar), maxAllowedSecondsForAllComputation);
+        hpo.Process(t => SampleUtils.TrainWithHyperparameters((ModelAndDatasetPredictionsSample)t, WorkingDirectory, retrainOnFullDatasetIfBetterModelFound, ref bestScoreSoFar), maxAllowedSecondsForAllComputation);
     }
 }

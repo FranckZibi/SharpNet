@@ -4,12 +4,11 @@ using System.Diagnostics;
 using SharpNet.Datasets;
 using SharpNet.Models;
 
-namespace SharpNet.HyperParameters;
+namespace SharpNet.Hyperparameters;
 
 public abstract class AbstractModelSample : AbstractSample, IMetricConfig
 {
-    protected AbstractModelSample(HashSet<string> mandatoryCategoricalHyperParameters) : base(
-        mandatoryCategoricalHyperParameters)
+    protected AbstractModelSample(HashSet<string> mandatoryCategoricalHyperparameters = null) : base(mandatoryCategoricalHyperparameters)
     {
     }
 

@@ -1,6 +1,6 @@
 ﻿using System.Collections.Generic;
 
-namespace SharpNet.HyperParameters;
+namespace SharpNet.Hyperparameters;
 
 public interface IMetricConfig
 {

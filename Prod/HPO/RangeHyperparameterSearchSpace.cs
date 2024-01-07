@@ -5,12 +5,12 @@ using System.Linq;
 
 namespace SharpNet.HPO;
 
-public abstract class AbstractRangeHyperParameterSearchSpace : AbstractHyperParameterSearchSpace
+public abstract class RangeHyperparameterSearchSpace : HyperparameterSearchSpace
 {
     #region private fields
     private const int BucketCount = 5;
     protected readonly range_type _rangeType;
-    protected readonly SingleHyperParameterValueStatistics[] StatsByBucket;
+    protected readonly SingleHyperparameterValueStatistics[] StatsByBucket;
     #endregion
    
     public override string BayesianSearchFloatValue_to_SampleStringValue(float f)
@@ -34,16 +34,16 @@ public abstract class AbstractRangeHyperParameterSearchSpace : AbstractHyperPara
     }
     public override int LengthForGridSearch => BucketCount;
 
-    protected AbstractRangeHyperParameterSearchSpace(range_type rangeType) : base(false)
+    protected RangeHyperparameterSearchSpace(range_type rangeType) : base(false)
     {
         _rangeType = rangeType;
-        StatsByBucket = new SingleHyperParameterValueStatistics[BucketCount];
+        StatsByBucket = new SingleHyperparameterValueStatistics[BucketCount];
         for (int i = 0; i < StatsByBucket.Length; ++i)
         {
-            StatsByBucket[i] = new SingleHyperParameterValueStatistics();
+            StatsByBucket[i] = new SingleHyperparameterValueStatistics();
         }
     }
-    protected static float Next_BayesianSearchFloatValue(float min, float max, Random rand, range_type rangeType, RANDOM_SEARCH_OPTION randomSearchOption, SingleHyperParameterValueStatistics[] statsByBucket)
+    protected static float Next_BayesianSearchFloatValue(float min, float max, Random rand, range_type rangeType, RANDOM_SEARCH_OPTION randomSearchOption, SingleHyperparameterValueStatistics[] statsByBucket)
     {
         Debug.Assert(max>=min);
         if (MathF.Abs(max - min) < 1e-6f)
