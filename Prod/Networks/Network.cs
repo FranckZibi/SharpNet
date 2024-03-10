@@ -913,6 +913,42 @@ namespace SharpNet.Networks
         }
         #endregion
 
+        #region PyTorch support
+
+        public string ToPytorchModule()
+        {
+            var constructorLines = new List<string>(new []{"super().__init__()", "torch.manual_seed(0)", "np.random.seed(0)"});
+            List<string> forwardLines = new();
+            foreach (var layer in Layers)
+            {
+                layer.ToPytorchModule(constructorLines, forwardLines);
+            }
+            var last_output_variable = forwardLines[^1].Split(new[] { ' ', '=' })[0];
+            forwardLines.Add("return "+ last_output_variable);
+
+            var sb = new StringBuilder();
+            sb.AppendLine("");
+            sb.AppendLine("import torch");
+            sb.AppendLine("import numpy as np");
+            sb.AppendLine("");
+            sb.AppendLine("class " + ModelName + "(torch.nn.Module):");
+            sb.AppendLine("    def __init__(self):");
+            foreach (var line in constructorLines)
+            {
+                sb.AppendLine("        " + line);
+            }
+            sb.AppendLine("");
+            sb.AppendLine("    def forward(self, x: torch.Tensor) -> torch.Tensor:");
+            foreach (var line in forwardLines)
+            {
+                sb.AppendLine("        " + line);
+            }
+            return sb.ToString();
+        }
+
+        #endregion
+
+
         public void OnLayerAddOrRemove()
         {
             if (_compactedParametersIfAny != null)

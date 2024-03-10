@@ -195,11 +195,7 @@ namespace SharpNet.Networks
         ///         DataSet.PercentageToUseForLossAndAccuracyFastEstimate
         /// </summary>
         public bool AlwaysUseFullTestDataSetForLossAndAccuracy = true;
-        /// <summary>
-        /// true if we should use the same conventions then TensorFlow
-        /// </summary>
-        public bool TensorFlowCompatibilityMode => CompatibilityMode == CompatibilityModeEnum.TensorFlow;
-
+      
         /// <summary>
         /// true if we want to display statistics about the weights tensors.
         /// Used only for debugging 
@@ -209,7 +205,7 @@ namespace SharpNet.Networks
         public bool SaveNetworkStatsAfterEachEpoch = false;
         /// <summary>
         /// Interval in minutes for saving the network
-        /// If less then 0
+        /// If less than 0
         ///     => this option will be disabled
         /// If == 0
         ///     => the network will be saved after each iteration
@@ -597,6 +593,7 @@ namespace SharpNet.Networks
         {
             SharpNet,
             TensorFlow,
+            PyTorch
         }
 
         

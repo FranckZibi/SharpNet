@@ -87,6 +87,12 @@ namespace SharpNet.Layers
         }
         public override string LayerType() { return "InputLayer"; }
 
+        #region PyTorch support
+        public override void ToPytorchModule(List<string> constructorLines, List<string> forwardLines)
+        {
+        }
+        #endregion
+
         protected override string ComputeLayerName()
         {
             return base.ComputeLayerName().Replace("inputlayer", "input");

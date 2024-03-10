@@ -2350,7 +2350,7 @@ namespace SharpNet.CPU
             for (int i = 0; i < gradient.Length; ++i)
             {
                 var error = predicted[i] - expected[i];
-                gradient[i] = error / gradient.Length;
+                gradient[i] = (2*error) / gradient.Length;
             }
         }
 

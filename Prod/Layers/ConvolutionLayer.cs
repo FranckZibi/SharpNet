@@ -487,6 +487,30 @@ namespace SharpNet.Layers
             }
         }
 
+
+        #region PyTorch support
+        public override void ToPytorchModule(List<string> constructorLines, List<string> forwardLines)
+        {
+            if (_isDepthwiseConvolution)
+            {
+                throw new NotImplementedException();
+            }
+            //see: https://pytorch.org/docs/stable/generated/torch.nn.Conv2d.html
+            var input_shape = PreviousLayers.Count == 0 ? new[] { -1, -1, -1,-1 } : PreviousLayers[0].OutputShape(666);
+            int in_channels = input_shape[1];
+            int out_channels = _filtersCount;
+            var padding = _paddingType.ToString().ToLower();
+            var bias = UseBias?"True":"False";
+            constructorLines.Add("self." + LayerName + " = torch.nn.Conv2d(in_channels=" + in_channels+ ", out_channels=" + out_channels+
+                ", kernel_size=("+ _kernelHeight+","+ _kernelWidth+"), stride="+_stride+", padding='"+padding+"', bias="+ bias+")");
+            forwardLines.Add(GetPyTorchOutputVariableName() + " = self." + LayerName + "(" + GetInputVariableName() + ")");
+            if (UseBias)
+            {
+                constructorLines.Add("torch.nn.init.zeros_(self." + LayerName + ".bias)");
+            }
+        }
+
+        #endregion
         private static int OutputLength(int inputLength, int kernelSize, int stride, PADDING_TYPE paddingType)
         {
             switch (paddingType)

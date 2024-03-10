@@ -97,7 +97,7 @@ public abstract class Model: IDisposable
 
     public static string MetricsToString(IEnumerable<KeyValuePair<EvaluationMetricEnum, double>> metrics, string prefix)
     {
-        return string.Join(" - ", metrics.Select(e => prefix + Utils.ToString(e.Key) + ": " + Math.Round(e.Value, 4))).ToLowerInvariant();
+        return string.Join(" - ", metrics.Select(e => prefix + Utils.ToString(e.Key) + ": " + e.Value)).ToLowerInvariant();
     }
     public static string TrainingAndValidationMetricsToString(IEnumerable<KeyValuePair<EvaluationMetricEnum, double>> trainingMetrics, IEnumerable<KeyValuePair<EvaluationMetricEnum, double>> validationMetrics)
     {

@@ -62,6 +62,23 @@ public class FlattenLayer : Layer
     public override void AddToOtherNetwork(Network otherNetwork) { AddToOtherNetwork(otherNetwork, Deserialize); }
     #endregion
 
+
+    #region PyTorch support
+    public override void ToPytorchModule(List<string> constructorLines, List<string> forwardLines)
+    {
+        var input_shape = PreviousLayers.Count == 0 ? new[] { -1, -1 } : PreviousLayers[0].OutputShape(666);
+        if (_flattenInputTensorOnLastDimension)
+        {
+            constructorLines.Add("self." + LayerName + " = torch.nn.Flatten(0, " + (input_shape.Length-2)+ ")");
+        }
+        else
+        {
+            constructorLines.Add("self." + LayerName + " = torch.nn.Flatten()");
+        }
+        UpdateForwardLines(forwardLines);
+    }
+
+    #endregion
     public override int[] OutputShape(int batchSize)
     {
         var inputShape = PrevLayer.OutputShape(batchSize);

@@ -87,6 +87,7 @@ __pycache__/
 
 
 Tests/TensorFlow/*
+Tests/NonReg/TensorFlow/
 ImageScanSplitter/Install/Dump/*
 SharpNet/Tests/Data/*
 Prod/Datasets/SNCF89/*

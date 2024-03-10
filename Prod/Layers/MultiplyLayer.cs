@@ -67,6 +67,18 @@ namespace SharpNet.Layers
         public override void AddToOtherNetwork(Network otherNetwork) { AddToOtherNetwork(otherNetwork, Deserialize); }
         #endregion
 
+
+
+
+        #region PyTorch support
+        //see : https://pytorch.org/docs/stable/generated/torch.nn.Linear.html
+        public override void ToPytorchModule(List<string> constructorLines, List<string> forwardLines)
+        {
+            forwardLines.Add(GetPyTorchOutputVariableName() + " = " + PreviousLayerMainMatrix.GetPyTorchOutputVariableName() + " * " + PreviousLayerDiagonalMatrix.GetPyTorchOutputVariableName());
+        }
+
+        #endregion
+
         public override int[] OutputShape(int batchSize)
         {
             var result1 = PreviousLayerMainMatrix.OutputShape(batchSize);

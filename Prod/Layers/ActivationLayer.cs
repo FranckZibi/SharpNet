@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using SharpNet.Data;
 using SharpNet.GPU;
@@ -104,7 +105,29 @@ namespace SharpNet.Layers
                 default: return ToString(ActivationFunction);
             }
         }
+        #region PyTorch support
+        public override void ToPytorchModule(List<string> constructorLines, List<string> forwardLines)
+        {
+            //special case : for cross entropy loss, we do need to use the softmax function in PyTorch torch.nn.Module
+            if (Network.Sample.GetLoss() == EvaluationMetricEnum.CategoricalCrossentropy && LayerIndex == (Layers.Count-1))
+            {
+                return;
+            }
+            constructorLines.Add("self." + LayerName + " = "+ ToPytorchConstructor());
+            UpdateForwardLines(forwardLines);
+        }
+        private string ToPytorchConstructor()
+        {
+            switch (ActivationFunction)
+            {
+                case cudnnActivationMode_t.CUDNN_ACTIVATION_RELU:
+                    return "torch.nn.ReLU()";
+                default:
+                    throw new NotImplementedException(ActivationFunction.ToString());
+            }
+        }
 
+        #endregion
 
         private static string ToString(cudnnActivationMode_t activationFunction)
         {

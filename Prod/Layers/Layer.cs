@@ -383,6 +383,40 @@ namespace SharpNet.Layers
             return true; //we need to keep layer output in memory : it will be needed by BackwardPropagation
         }
 
+
+        #region PyTorch support
+        public virtual void ToPytorchModule(List<string> constructorLines, List<string> forwardLines)
+        {
+            var input_shape = PreviousLayers.Count == 0 ? "" : Utils.ShapeToString(PreviousLayers[0].OutputShape(666));
+            var output_shape = Utils.ShapeToString(OutputShape(666));
+            constructorLines.Add("self." + LayerName + " = torch.nn." + GetType() + "(" + input_shape + " => " + output_shape + ")");
+            UpdateForwardLines(forwardLines);
+        }
+
+        protected void UpdateForwardLines(List<string> forwardLines)
+        {
+            forwardLines.Add(GetPyTorchOutputVariableName() + " = self." + LayerName + "(" + GetInputVariableName() + ")");
+        }
+
+        protected string GetInputVariableName()
+        {
+            if (LayerIndex <= 0)
+            {
+                return "x";
+            }
+            return string.Join(", ", PreviousLayers.Select(l => l.GetPyTorchOutputVariableName()));
+        }
+        public string GetPyTorchOutputVariableName()
+        {
+            if (IsInputLayer)
+            {
+                return "x";
+            }
+            return "y_" + LayerName;
+        }
+        #endregion
+
+
         /// <summary>
         /// true if the BackwardPropagation method will be called for this layer
         /// </summary>
@@ -415,7 +449,8 @@ namespace SharpNet.Layers
         {
             return Utils.ShapeToStringWithBatchSize(PrevLayer?.OutputShape(1)) + "=>" + Utils.ShapeToStringWithBatchSize(OutputShape(1));
         }
-        public Layer PrevLayer => (PreviousLayerIndexes.Count == 0) ? null : Layers[PreviousLayerIndexes[0]];
+
+        protected Layer PrevLayer => (PreviousLayerIndexes.Count == 0) ? null : Layers[PreviousLayerIndexes[0]];
         #region memory management
         protected void GetFloatTensor(ref Tensor bufferIfAny, int[] shape)
         {
@@ -477,5 +512,6 @@ namespace SharpNet.Layers
         /// </summary>
         private List<Layer> NextLayers => NextLayerIndexes.Select(idx => Layers[idx]).ToList();
         private bool HasParameters => Parameters.Count != 0;
+
     }
 }

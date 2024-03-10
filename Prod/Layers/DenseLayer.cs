@@ -7,6 +7,7 @@ using SharpNet.CPU;
 using SharpNet.Data;
 using SharpNet.Networks;
 using SharpNet.Optimizers;
+using static SharpNet.Networks.NetworkSample;
 
 namespace SharpNet.Layers
 {
@@ -158,11 +159,10 @@ namespace SharpNet.Layers
 
             //we compute dW
             var multiplier = 1f / batchSize;
-            if (sample.TensorFlowCompatibilityMode)
+            if (sample.CompatibilityMode == CompatibilityModeEnum.TensorFlow || sample.CompatibilityMode == CompatibilityModeEnum.PyTorch)
             {
                 multiplier = 1f; //used only for tests and parallel run
             }
-
             weightGradients.Dot(xAs2DMatrix, true, dyAs2DMatrix, false, multiplier, 0);
 
             //L2 regularization on dW
@@ -269,7 +269,7 @@ namespace SharpNet.Layers
             return nbDisabledWeights;
         }
 
-        public override IDictionary<string, CpuTensor<float>> GetParametersAsCpuFloatTensors(NetworkSample.CompatibilityModeEnum originFramework)
+        public override IDictionary<string, CpuTensor<float>> GetParametersAsCpuFloatTensors(CompatibilityModeEnum originFramework)
         {
             var result = new Dictionary<string, CpuTensor<float>>();
             result.Add(WeightDatasetPath, _weights.ToCpuFloat());
@@ -277,7 +277,7 @@ namespace SharpNet.Layers
             {
                 // ReSharper disable once PossibleNullReferenceException
                 result.Add(BiasDatasetPath, _bias.ToCpuFloat());
-                if (originFramework == NetworkSample.CompatibilityModeEnum.TensorFlow)
+                if (originFramework == CompatibilityModeEnum.TensorFlow)
                 {
                     // ReSharper disable once PossibleNullReferenceException
                     Debug.Assert(_bias.Count == _bias.Shape[1]);
@@ -313,6 +313,35 @@ namespace SharpNet.Layers
                 (string)serialized[nameof(LayerName)]);
         }
         public override void AddToOtherNetwork(Network otherNetwork) { AddToOtherNetwork(otherNetwork, Deserialize); }
+        #endregion
+
+
+        #region PyTorch support
+        //see : https://pytorch.org/docs/stable/generated/torch.nn.Linear.html
+        public override void ToPytorchModule(List<string> constructorLines, List<string> forwardLines)
+        {
+            var input_shape = PreviousLayers.Count == 0 ? new[]{-1,-1} : PreviousLayers[0].OutputShape(666);
+            var bias = UseBias ? "True" : "False";
+            if (_flattenInputTensorOnLastDimension || input_shape.Length == 2)
+            {
+                constructorLines.Add("self." + LayerName + " = torch.nn.Linear(in_features=" + input_shape[^1] + ", out_features=" + Units + ", bias="+ bias + ")");
+                UpdateForwardLines(forwardLines);
+            }
+            else
+            {
+                string flattenLayerName = "flatten_" + LayerName;
+                constructorLines.Add("self." + flattenLayerName + " = torch.nn.Flatten(1)");
+                var in_features = string.Join("*", input_shape.Skip(1));
+                constructorLines.Add("self." + LayerName + " = torch.nn.Linear(in_features=" + in_features + ", out_features=" + Units + ", bias=" + bias + ")");
+                forwardLines.Add("y_" + flattenLayerName+" = self." + flattenLayerName + "(" + GetInputVariableName() + ")");
+                forwardLines.Add("y_" + LayerName + " = self." + LayerName + "(y_" + flattenLayerName + ")");
+            }
+            if (UseBias)
+            {
+                constructorLines.Add("torch.nn.init.zeros_(self." + LayerName + ".bias)");
+            }
+        }
+
         #endregion
 
         public override int[] OutputShape(int batchSize)

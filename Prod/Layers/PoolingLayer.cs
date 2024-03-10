@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using SharpNet.Data;
@@ -180,6 +181,24 @@ namespace SharpNet.Layers
 
             return outputShape;
         }
+
+
+
+        #region PyTorch support
+        public override void ToPytorchModule(List<string> constructorLines, List<string> forwardLines)
+        {
+            //see : https://pytorch.org/docs/stable/generated/torch.nn.AvgPool2d.html
+            if (_poolingHeight != -1 || _poolingWidth != -1 || _verticalStride != -1 || _horizontalStride != -1)
+            {
+                //base.ToPytorchModule(constructorLines, forwardLines);
+                throw new NotImplementedException();
+            }
+            var input_shape = PreviousLayers.Count == 0 ? new[] { -1, -1, -1, -1 } : PreviousLayers[0].OutputShape(666);
+            constructorLines.Add("self." + LayerName + " = torch.nn.AvgPool2d(kernel_size=(" + input_shape[2] + "," + input_shape[3] + ") )");
+            UpdateForwardLines(forwardLines);
+        }
+
+        #endregion
 
         private static int PoolingHeight(int defaultPoolingHeight, int[] inputShape) { return (defaultPoolingHeight == -1) ? inputShape[^2] : defaultPoolingHeight; }
         private static int VerticalStride(int defaultVerticalStride, int[] inputShape) { return (defaultVerticalStride == -1) ? inputShape[^2] : defaultVerticalStride; }
