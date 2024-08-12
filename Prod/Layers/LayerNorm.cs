@@ -13,7 +13,7 @@ namespace SharpNet.Layers;
 /// <summary>
 /// Layer Normalization, see https://arxiv.org/abs/1607.06450
 /// </summary>
-public sealed class LayerNormalizationLayer : Layer
+public sealed class LayerNorm : Layer
 {
     #region Private fields
     private readonly double _epsilon;
@@ -26,7 +26,7 @@ public sealed class LayerNormalizationLayer : Layer
     //          we'll normalize over [C,H]
     //          the input tensor will be treated as a 2D matrix (N, C*H)
     //  if D == 1 and input shape is [N,C]:
-    //          we'll normalize over the last dimension [D]
+    //          we'll normalize over the last dimension [C]
     //          the input tensor will be treated as a 2D matrix (N, C)
     // 
     private readonly int _last_D_dimension;
@@ -58,7 +58,7 @@ public sealed class LayerNormalizationLayer : Layer
 
     public const float DEFAULT_EPSILON = 1e-5f;
 
-    public LayerNormalizationLayer(int last_D_dimension, double epsilon, bool trainable, Network network, string layerName, int prevLayerIndex) : base(network, prevLayerIndex == -1 ? new[]{network.LastLayerIndex}:new[]{ prevLayerIndex }, layerName)
+    public LayerNorm(int last_D_dimension, double epsilon, bool trainable, Network network, string layerName, int prevLayerIndex) : base(network, prevLayerIndex == -1 ? new[]{network.LastLayerIndex}:new[]{ prevLayerIndex }, layerName)
     {
         _last_D_dimension = last_D_dimension;
         _epsilon = epsilon;
@@ -95,7 +95,7 @@ public sealed class LayerNormalizationLayer : Layer
         int reshape_cols = _gammas.Count;
         if (x.Count % reshape_cols != 0)
         {
-            throw new Exception("LayerNormalizationLayer: input tensor count (" + x.Count + ") is not a multiple of the number of gammas (" + reshape_cols + ")");
+            throw new Exception("LayerNorm: input tensor count (" + x.Count + ") is not a multiple of the number of gammas (" + reshape_cols + ")");
         }
         int reshape_rows = allX[0].Count / reshape_cols;
 
@@ -223,10 +223,10 @@ public sealed class LayerNormalizationLayer : Layer
             .Add(nameof(_epsilon), _epsilon)
             .ToString();
     }
-    public static LayerNormalizationLayer Deserialize(IDictionary<string, object> serialized, Network network)
+    public static LayerNorm Deserialize(IDictionary<string, object> serialized, Network network)
     {
         int prevLayerIndex = ((int[])serialized[nameof(PreviousLayerIndexes)])[0];
-        return new LayerNormalizationLayer(
+        return new LayerNorm(
             (int)serialized[nameof(_last_D_dimension)],
             (double)serialized[nameof(_epsilon)],
             (bool)serialized[nameof(Trainable)],
@@ -236,6 +236,18 @@ public sealed class LayerNormalizationLayer : Layer
     }
     public override void AddToOtherNetwork(Network otherNetwork) { AddToOtherNetwork(otherNetwork, Deserialize); }
     #endregion
+
+    #region PyTorch support
+    //see: https://pytorch.org/docs/stable/generated/torch.nn.LayerNorm.html
+    public override void ToPytorchModule(List<string> constructorLines, List<string> forwardLines)
+    {
+        var input_shape = PreviousLayers.Count == 0 ? new[] { -1, -1, -1, -1 } : PreviousLayers[0].OutputShape(666);
+        var normalized_shape = Utils.ShapeToString(input_shape.Skip(input_shape.Length - _last_D_dimension).ToArray());
+        constructorLines.Add("self." + LayerName + " = torch.nn.LayerNorm(normalized_shape=" + normalized_shape + ", eps=" + _epsilon + ")");
+        UpdateForwardLines(forwardLines);
+    }
+    #endregion
+
 
     public override string ToString()
     {

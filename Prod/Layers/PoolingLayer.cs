@@ -185,16 +185,17 @@ namespace SharpNet.Layers
 
 
         #region PyTorch support
+        //see: https://pytorch.org/docs/stable/generated/torch.nn.AdaptiveAvgPool2d.html
+        //see: https://pytorch.org/docs/stable/generated/torch.nn.AdaptiveMaxPool2d.html
         public override void ToPytorchModule(List<string> constructorLines, List<string> forwardLines)
         {
-            //see : https://pytorch.org/docs/stable/generated/torch.nn.AvgPool2d.html
             if (_poolingHeight != -1 || _poolingWidth != -1 || _verticalStride != -1 || _horizontalStride != -1)
             {
                 //base.ToPytorchModule(constructorLines, forwardLines);
                 throw new NotImplementedException();
             }
-            var input_shape = PreviousLayers.Count == 0 ? new[] { -1, -1, -1, -1 } : PreviousLayers[0].OutputShape(666);
-            constructorLines.Add("self." + LayerName + " = torch.nn.AvgPool2d(kernel_size=(" + input_shape[2] + "," + input_shape[3] + ") )");
+            var pytorchName = IsMaxPooling(_poolingMode)? "AdaptiveMaxPool2d" : "AdaptiveAvgPool2d";
+            constructorLines.Add("self." + LayerName + " = torch.nn."+ pytorchName+ "(output_size=1)");
             UpdateForwardLines(forwardLines);
         }
 

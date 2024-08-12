@@ -199,7 +199,7 @@ public static class PlumeLabs88Utils
         }
         Console.WriteLine($"FULL, accTotal={accTotal}, logAccTotal={logAccTotal}");
     }
-    public static void Launch_HPO(int numEpochs = 10, int maxAllowedSecondsForAllComputation = 0)
+    public static void Launch_HPO(int num_epochs = 10, int maxAllowedSecondsForAllComputation = 0)
     {
         Utils.ConfigureGlobalLog4netProperties(WorkingDirectory, NAME);
         Utils.ConfigureThreadLog4netProperties(WorkingDirectory, NAME);
@@ -222,7 +222,7 @@ public static class PlumeLabs88Utils
             //{ nameof(AbstractDatasetSample.PercentageInTraining), 0.9}, //will be automatically set to 1 if KFold is enabled
             { nameof(AbstractDatasetSample.PercentageInTraining), 0.9}, //will be automatically set to 1 if KFold is enabled
             { nameof(NetworkSample.BatchSize), new[] {100} },
-            { nameof(NetworkSample.NumEpochs), new[] { numEpochs } },
+            { nameof(NetworkSample.num_epochs), new[] { num_epochs } },
             // Optimizer 
             { nameof(NetworkSample.OptimizerType), new[] { "AdamW", } },
             //{ nameof(NetworkSample.OptimizerType), new[] { "SGD"} },
@@ -277,7 +277,7 @@ public static class PlumeLabs88Utils
                    CompatibilityMode = NetworkSample.CompatibilityModeEnum.TensorFlow,
                    lambdaL2Regularization = 0.0005,
                    //!D WorkingDirectory = Path.Combine(NetworkSample.DefaultWorkingDirectory, CIFAR10DataSet.NAME),
-                   NumEpochs = 10,
+                   num_epochs = 10,
                    BatchSize = 1000,
                    InitialLearningRate = 0.01,
 
@@ -288,7 +288,7 @@ public static class PlumeLabs88Utils
                    HorizontalFlip = false,
                    VerticalFlip = false,
                    FillMode = ImageDataGenerator.FillModeEnum.Reflect,
-                   AlphaMixup = 0.0,
+                   AlphaMixUp = 0.0,
                    AlphaCutMix = 0.0,
                    CutoutPatchPercentage = 0.0
                }

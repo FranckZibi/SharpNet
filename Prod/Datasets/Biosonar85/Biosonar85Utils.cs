@@ -28,10 +28,10 @@ public static class Biosonar85Utils
         Utils.ConfigureGlobalLog4netProperties(WorkingDirectory, NAME, true);
         Utils.ConfigureThreadLog4netProperties(WorkingDirectory, NAME, true);
 
-        //Mixup.DisplayStatsForAlphaMixup();return;
+        //MixUp.DisplayStatsForAlphaMixUp();return;
 
-        //var trainDataset = Load("X_train_23168_101_64_1024_512.bin", "Y_train_23168_1_64_1024_512.bin", true);
-        //var testDataset = Load("X_test_950_101_64_1024_512.bin", "Y_test_950_1_64_1024_512.bin", false);
+        //var trainDataset = Load("X_train_23168_101_64_1024_512.bin", "Y_train.bin", true);
+        //var testDataset = Load("X_test_950_101_64_1024_512.bin", "Y_test.bin", false);
 
         //var bin_file = Path.Combine(DataDirectory, "Y_train_ofTdMHi.csv.bin");
         //var tensor = CpuTensor<float>.LoadFromBinFile(bin_file, new[] { -1, 101, 64});
@@ -40,21 +40,23 @@ public static class Biosonar85Utils
         //Log.Info(AllCombinations(0.4, 0.7));return;
         //Log.Info(AllCombinations(0.701, 0.85));return;
 
-        //ChallengeTools.Retrain(Path.Combine(WorkingDirectory, "Dump"), "2A4F619211", null, percentageInTraining:0.5, retrainOnFullDataset:false, useAllAvailableCores:true);return;
+        ChallengeTools.Retrain(Path.Combine(WorkingDirectory, "Dump"), "7BA5CBAEEE", null, percentageInTraining:0.5, retrainOnFullDataset:false, useAllAvailableCores:true);return;
+        //ChallengeTools.Retrain(Path.Combine(WorkingDirectory, "Dump"), "transformers001", null, percentageInTraining:0.5, retrainOnFullDataset:false, useAllAvailableCores:true);return;
+        //ChallengeTools.Retrain(Path.Combine(WorkingDirectory, "Dump"), "1EF57E45FC", null, percentageInTraining:0.5, retrainOnFullDataset:false, useAllAvailableCores:true);return;
         //ChallengeTools.Retrain(Path.Combine(WorkingDirectory, "Dump"), "FCB789043E_18", null, percentageInTraining: 0.5, retrainOnFullDataset: false, useAllAvailableCores: true); return;
         //ChallengeTools.Retrain(Path.Combine(WorkingDirectory, "Dump"), "9811DDD19E_19", null, percentageInTraining: 0.5, retrainOnFullDataset: false, useAllAvailableCores: true); return;
         //ChallengeTools.Retrain(Path.Combine(WorkingDirectory, "Dump"), "E5BA77E393", null, percentageInTraining: 0.5, retrainOnFullDataset: false, useAllAvailableCores: true); return;
 
 
         //ChallengeTools.ComputeAndSaveFeatureImportance(WorkingDirectory, "674CD08C52", true); return;
-
+        //LaunchPyTorch();
 
         //ComputeAverage_avg();return;
 
         //Launch_HPO_spectrogram(20); return;
 
         //Launch_HPO_MEL_SPECTROGRAM_256_801_BinaryCrossentropy(20); return;
-        Launch_HPO_MEL_SPECTROGRAM_256_801_BCEWithFocalLoss(20); return;
+        // ?D Launch_HPO_MEL_SPECTROGRAM_256_801_BCEWithFocalLoss(20); return;
         //Launch_HPO_MEL_SPECTROGRAM_64_401(10); return;
         //Launch_HPO_MEL_SPECTROGRAM_SMALL_128_401(10); return;
         //Launch_HPO_MEL_SPECTROGRAM_128_401_BinaryCrossentropy(20); return;
@@ -64,9 +66,17 @@ public static class Biosonar85Utils
 
         //LaunchLightGBMHPO(350);return;
 
-        //Launch_HPO_Transformers(10); return;
+        Launch_HPO_Transformers(10); return;
         //Launch_HPO(10);return;
         //OptimizeModel_AE0F13543C();
+    }
+
+
+    private static void LaunchPyTorch()
+    {
+
+        ChallengeTools.Retrain(Path.Combine(WorkingDirectory, "PyTorch"), "DEE753FA84", null, percentageInTraining:0.5, retrainOnFullDataset:false, useAllAvailableCores:true);return;
+
     }
 
 
@@ -79,7 +89,7 @@ public static class Biosonar85Utils
                              Tuple.Create("HeightShiftRangeInPercentage","0.1"),
                              Tuple.Create("SkipConnectionsDropoutRate","0.5"),
                              Tuple.Create("SkipConnectionsDropoutRate","0.3"),
-                             Tuple.Create("AlphaMixup","1"),
+                             Tuple.Create("AlphaMixUp","1"),
                              Tuple.Create("InitialLearningRate","0.002"),
                              Tuple.Create("InitialLearningRate","0.003"),
                              Tuple.Create("CutoutPatchPercentage","0.1"),
@@ -257,23 +267,25 @@ public static class Biosonar85Utils
     public static void ComputeAverage_avg()
     {
         var dfs = new List<DataFrame>();
-        const string path = @"\\RYZEN2700X-DEV\Challenges\Biosonar85\Submit\";
+        const string path = "C:/Projects/Challenges/Biosonar85/bbb";
         foreach (var file in new[]
                  {
-                     @"7E45F84676_predict_test_0,9353867531264475.csv",
-                     @"569C5C14D2_predict_test_0.936063704706595.csv",
+                     @"09A06BF085_predict_test_.csv",
+                     @"1EF57E45FC_16_predict_test_0,9637474614315744.csv",
+                     @"1EF57E45FC_16_predict_test_0,9637474614315744.csv",
+                     @"1EF57E45FC_16_predict_test_0,9637474614315744.csv",
                  })
         {
             dfs.Add(DataFrame.read_csv(Path.Combine(path, file), true, x => x == "id" ? typeof(string) : typeof(float)));
         }
-        DataFrame.Average(dfs.ToArray()).to_csv(Path.Combine(path, "7E45F84676_569C5C14D2_avg.csv"));
+        DataFrame.Average(dfs.ToArray()).to_csv(Path.Combine(path, "1EF57E45FC_16_09A06BF085.csv"));
     }
 
 
     public static (int[] shape, string n_fft, string hop_len, string f_min, string f_max, string top_db) ProcessXFileName(string xPath)
     {
         var xSplitted = Path.GetFileNameWithoutExtension(xPath).Split("_");
-        var xShape = new[] { int.Parse(xSplitted[^8]), int.Parse(xSplitted[^7]), int.Parse(xSplitted[^6]) };
+        var xShape = new[] { int.Parse(xSplitted[^8]), 1, int.Parse(xSplitted[^7]), int.Parse(xSplitted[^6]) };
         var n_fft = xSplitted[^5];
         var hop_len = xSplitted[^4];
         var f_min = xSplitted[^3];
@@ -282,7 +294,7 @@ public static class Biosonar85Utils
         return (xShape, n_fft, hop_len, f_min, f_max, top_db);
     }
 
-    public static InMemoryDataSet Load(string xFileName, [CanBeNull] string yFileNameIfAny, string csvPath, float mean = 0f, float stdDev = 1f)
+    public static InMemoryDataSet Load(string xFileName, [CanBeNull] string yFileNameIfAny, string csvPath, float mean, float stdDev, bool is_transformers_3d)
     {
         
         var meanAndVolatilityForEachChannel = new List<Tuple<float, float>> { Tuple.Create(mean, stdDev) };
@@ -294,6 +306,15 @@ public static class Biosonar85Utils
 
 
         var xTensor = CpuTensor<float>.LoadFromBinFile(xPath, xShape);
+
+        if (is_transformers_3d)
+        {
+            xTensor.ReshapeInPlace(xShape[0], xShape[2], xShape[3]);
+            var xTensorNew = new CpuTensor<float>(new []{ xTensor.Shape[0], xTensor.Shape[2], xTensor.Shape[1] });
+            xTensor.SwitchSecondAndThirdDimension(xTensorNew);
+            xTensor = xTensorNew;
+        }
+
         var yTensor = string.IsNullOrEmpty(yFileNameIfAny)
             ?null //no Y available for Dataset
             :CpuTensor<float>.LoadFromBinFile(Path.Join(DataDirectory, yFileNameIfAny), new []{ xShape[0], 1 });
@@ -398,53 +419,52 @@ public static class Biosonar85Utils
 
     // ReSharper disable once UnusedMember.Global
     // ReSharper disable once UnusedMember.Local
-    private static void Launch_HPO_Transformers(int numEpochs = 10, int maxAllowedSecondsForAllComputation = 0)
+    private static void Launch_HPO_Transformers(int num_epochs = 10, int maxAllowedSecondsForAllComputation = 0)
     {
         var searchSpace = new Dictionary<string, object>
         {
             //{ nameof(AbstractDatasetSample.PercentageInTraining), 0.5},
-            { nameof(AbstractDatasetSample.PercentageInTraining), new[]{0.5,0.8}},
+            { nameof(AbstractDatasetSample.PercentageInTraining), new[]{0.5}},
             
             { nameof(AbstractDatasetSample.ShuffleDatasetBeforeSplit), true},
             { nameof(Biosonar85DatasetSample.InputDataType), nameof(Biosonar85DatasetSample.InputDataTypeEnum.TRANSFORMERS_3D)},
-            { nameof(NetworkSample.MinimumRankingScoreToSaveModel), 0.87},
+            { nameof(NetworkSample.MinimumRankingScoreToSaveModel), 0.85},
 
             //related to model
-            { nameof(NetworkSample.LossFunction), nameof(EvaluationMetricEnum.BCEWithFocalLoss)},
+            //{ nameof(NetworkSample.LossFunction), nameof(EvaluationMetricEnum.BCEWithFocalLoss)},
+            { nameof(NetworkSample.LossFunction), nameof(EvaluationMetricEnum.BinaryCrossentropy)},
             { nameof(NetworkSample.EvaluationMetrics), nameof(EvaluationMetricEnum.Accuracy)/*+","+nameof(EvaluationMetricEnum.AUC)*/},
-            { nameof(NetworkSample.BCEWithFocalLoss_Gamma), new []{0, /*0.35*/}},
-            { nameof(NetworkSample.BCEWithFocalLoss_PercentageInTrueClass), 0.5},
-            //{ nameof(NetworkSample.BatchSize), new[] {1024} },
-            { nameof(NetworkSample.BatchSize), new[] {256} },
+            //{ nameof(NetworkSample.BCEWithFocalLoss_Gamma), new []{0, /*0.35*/}},
+            //{ nameof(NetworkSample.BCEWithFocalLoss_PercentageInTrueClass), 0.5},
+            { nameof(NetworkSample.BatchSize), new[] {1024} },
+            
 
             {nameof(TransformerNetworkSample.embedding_dim), 64},
             {nameof(TransformerNetworkSample.input_is_already_embedded), true },
-            {nameof(TransformerNetworkSample.encoder_num_transformer_blocks), new[]{4} },
+            {nameof(TransformerNetworkSample.encoder_num_transformer_blocks), new[]{4} }, //4
             {nameof(TransformerNetworkSample.encoder_num_heads), new[]{8} },
-            {nameof(TransformerNetworkSample.encoder_mha_use_bias_Q_V_K), new[]{false /*,true*/ } },
+            {nameof(TransformerNetworkSample.encoder_mha_use_bias_Q_K_V), new[]{false ,true } },
             {nameof(TransformerNetworkSample.encoder_mha_use_bias_O), true  }, // must be true
-            {nameof(TransformerNetworkSample.encoder_mha_dropout), new[]{0.2, 0.4 } },
+            {nameof(TransformerNetworkSample.encoder_mha_dropout), new[]{0.4 } }, //0.2 or 0.4
             {nameof(TransformerNetworkSample.encoder_feed_forward_dim), 4*64},
-            {nameof(TransformerNetworkSample.encoder_feed_forward_dropout), new[]{ 0.2,0.4 }}, //0.2
-            {nameof(TransformerNetworkSample.encoder_use_causal_mask), true},
+            {nameof(TransformerNetworkSample.encoder_feed_forward_dropout), new[]{ 0.2}}, //0.2
+            {nameof(TransformerNetworkSample.encoder_is_causal), true}, //true
             {nameof(TransformerNetworkSample.output_shape_must_be_scalar), true},
-            {nameof(TransformerNetworkSample.pooling_before_dense_layer), new[]{ nameof(POOLING_BEFORE_DENSE_LAYER.NONE) /*,nameof(POOLING_BEFORE_DENSE_LAYER.GlobalAveragePooling), nameof(POOLING_BEFORE_DENSE_LAYER.GlobalMaxPooling)*/ } }, //must be NONE
+            {nameof(TransformerNetworkSample.pooling_before_dense_layer), new[]{ nameof(POOLING_BEFORE_DENSE_LAYER.NONE) } }, //must be NONE
             {nameof(TransformerNetworkSample.layer_norm_before_last_dense), false}, // must be false
 
-            { nameof(NetworkSample.NumEpochs), new[] { numEpochs } },
+            { nameof(NetworkSample.num_epochs), new[] { num_epochs } },
 
             { nameof(NetworkSample.ShuffleDatasetBeforeEachEpoch), true},
             // Optimizer 
             { nameof(NetworkSample.OptimizerType), new[] { "AdamW" } },
-            //{ nameof(NetworkSample.lambdaL2Regularization), 0.0005 },
             { nameof(NetworkSample.lambdaL2Regularization), 0},
             
-            { nameof(NetworkSample.AdamW_L2Regularization), 0.00005},
-            //{ nameof(NetworkSample.AdamW_L2Regularization), new[]{0.00001,0.00005, 0.0001,0.0005,0.001, 0.005,0.01}},
+            { nameof(NetworkSample.AdamW_L2Regularization), new[]{0.0002}},
 
             // Learning Rate
-            { nameof(NetworkSample.InitialLearningRate),0.005},
-            //{ nameof(NetworkSample.InitialLearningRate),new[]{0.0001,0.0005,0.001, 0.005, 0.01, 0.05, 0.1}},
+            //{ nameof(NetworkSample.InitialLearningRate),new[]{0.005},
+            { nameof(NetworkSample.InitialLearningRate),new[]{0.07 }}, // 0.07 or 0.05
 
             // Learning Rate Scheduler
             //{nameof(NetworkSample.LearningRateSchedulerType), new[]{"OneCycle", "CyclicCosineAnnealing" } },
@@ -454,26 +474,25 @@ public static class Biosonar85Utils
             {nameof(NetworkSample.DisableReduceLROnPlateau), true},
             {nameof(NetworkSample.OneCycle_DividerForMinLearningRate), 20},
             {nameof(NetworkSample.OneCycle_PercentInAnnealing),0.1},
-            {nameof(NetworkSample.CyclicCosineAnnealing_MinLearningRate), 1e-6},
-            {nameof(NetworkSample.CyclicCosineAnnealing_nbEpochsInFirstRun), 10},
-            {nameof(NetworkSample.CyclicCosineAnnealing_nbEpochInNextRunMultiplier), 2},
+            //{nameof(NetworkSample.CyclicCosineAnnealing_MinLearningRate), 1e-6},
+            //{nameof(NetworkSample.CyclicCosineAnnealing_nbEpochsInFirstRun), 10},
+            //{nameof(NetworkSample.CyclicCosineAnnealing_nbEpochInNextRunMultiplier), 2},
 
             
             // DataAugmentation
             { nameof(NetworkSample.DataAugmentationType), nameof(ImageDataGenerator.DataAugmentationEnum.DEFAULT) },
-            { nameof(NetworkSample.AlphaCutMix), new[]{0,0.5215608}},
-            { nameof(NetworkSample.AlphaMixup), new[]{0,1.2}},
-            { nameof(NetworkSample.CutoutPatchPercentage), new[]{0,0.06450188,0.1477559}},
-            { nameof(NetworkSample.CutoutCount), 1 },
-            //{ nameof(NetworkSample.RowsCutoutPatchPercentage), new[]{0.12661687}  },
-            { nameof(NetworkSample.RowsCutoutPatchPercentage), new[]{ 0, 0.047216333 }  },
-            { nameof(NetworkSample.RowsCutoutCount), 1 },
-            { nameof(NetworkSample.ColumnsCutoutPatchPercentage), new[] {  0, 0.007914994} },
-            { nameof(NetworkSample.ColumnsCutoutCount), new[] { 1} },
+            { nameof(NetworkSample.AlphaCutMix), new[]{0}},
+            { nameof(NetworkSample.AlphaMixUp), new[]{1}},
+            { nameof(NetworkSample.CutoutPatchPercentage), new[]{0, 0.1477559}},
+            { nameof(NetworkSample.CutoutCount), new[]{0,1} },
+            { nameof(NetworkSample.RowsCutoutPatchPercentage), new[]{0, 0.12661687}  },
+            { nameof(NetworkSample.RowsCutoutCount), new[]{0, 1} },
+            { nameof(NetworkSample.ColumnsCutoutPatchPercentage), new[] { 0, 0.12661687 } },
+           { nameof(NetworkSample.ColumnsCutoutCount), new[] { 0, 1} },
             //{ nameof(NetworkSample.FillMode),new[]{ nameof(ImageDataGenerator.FillModeEnum.Reflect)} },
             { nameof(NetworkSample.FillMode),new[]{ nameof(ImageDataGenerator.FillModeEnum.Nearest)} },
-            { nameof(NetworkSample.WidthShiftRangeInPercentage), new[] { 0, 0.034252543 } },
-            { nameof(NetworkSample.HeightShiftRangeInPercentage), new[] {0, 0.06299627, 0.008304262 } },
+            { nameof(NetworkSample.WidthShiftRangeInPercentage), new[] { 0} },
+            { nameof(NetworkSample.HeightShiftRangeInPercentage), new[] {0} },
             
 
 
@@ -487,7 +506,7 @@ public static class Biosonar85Utils
 
     // ReSharper disable once UnusedMember.Global
     // ReSharper disable once UnusedMember.Local
-    private static void Launch_HPO(int numEpochs = 10, int maxAllowedSecondsForAllComputation = 0)
+    private static void Launch_HPO(int num_epochs = 10, int maxAllowedSecondsForAllComputation = 0)
     {
         var searchSpace = new Dictionary<string, object>
         {
@@ -498,7 +517,7 @@ public static class Biosonar85Utils
             { nameof(NetworkSample.LossFunction), nameof(EvaluationMetricEnum.BinaryCrossentropy)},
             { nameof(NetworkSample.EvaluationMetrics), nameof(EvaluationMetricEnum.AUC)},
             { nameof(NetworkSample.BatchSize), new[] {256} },
-            { nameof(NetworkSample.NumEpochs), new[] { numEpochs } },
+            { nameof(NetworkSample.num_epochs), new[] { num_epochs } },
             { nameof(NetworkSample.ShuffleDatasetBeforeEachEpoch), true},
             // Optimizer 
             { nameof(NetworkSample.OptimizerType), new[] { "AdamW" } },
@@ -519,7 +538,7 @@ public static class Biosonar85Utils
             // DataAugmentation
             { nameof(NetworkSample.DataAugmentationType), nameof(ImageDataGenerator.DataAugmentationEnum.DEFAULT) },
             { nameof(NetworkSample.AlphaCutMix), 0.5}, //must be > 0
-            { nameof(NetworkSample.AlphaMixup), new[] { 0 /*, 0.25*/} }, // must be 0
+            { nameof(NetworkSample.AlphaMixUp), new[] { 0 /*, 0.25*/} }, // must be 0
             { nameof(NetworkSample.CutoutPatchPercentage), new[] {0, 0.1,0.2} },
             { nameof(NetworkSample.RowsCutoutPatchPercentage), 0.2 },
             { nameof(NetworkSample.ColumnsCutoutPatchPercentage), new[] {0.1, 0.2} },
@@ -558,7 +577,7 @@ public static class Biosonar85Utils
 
     // ReSharper disable once UnusedMember.Global
     // ReSharper disable once UnusedMember.Local
-    private static void Launch_HPO_spectrogram(int numEpochs = 10, int maxAllowedSecondsForAllComputation = 0)
+    private static void Launch_HPO_spectrogram(int num_epochs = 10, int maxAllowedSecondsForAllComputation = 0)
     {
         var searchSpace = new Dictionary<string, object>
         {
@@ -577,7 +596,7 @@ public static class Biosonar85Utils
             { nameof(NetworkSample.EvaluationMetrics), nameof(EvaluationMetricEnum.Accuracy)/*+","+nameof(EvaluationMetricEnum.AUC)*/},
             { nameof(NetworkSample.BatchSize), new[] {128} },
             
-            { nameof(NetworkSample.NumEpochs), new[] { numEpochs } },
+            { nameof(NetworkSample.num_epochs), new[] { num_epochs } },
             
             { nameof(NetworkSample.ShuffleDatasetBeforeEachEpoch), true},
             // Optimizer 
@@ -611,7 +630,7 @@ public static class Biosonar85Utils
             // DataAugmentation
             { nameof(NetworkSample.DataAugmentationType), nameof(ImageDataGenerator.DataAugmentationEnum.DEFAULT) },
             { nameof(NetworkSample.AlphaCutMix), new[] { 0.0,  1.0} }, //0
-            { nameof(NetworkSample.AlphaMixup), new[] { 0.0,  1.0} }, // 1 or 0 , 1 seems better
+            { nameof(NetworkSample.AlphaMixUp), new[] { 0.0,  1.0} }, // 1 or 0 , 1 seems better
             { nameof(NetworkSample.CutoutPatchPercentage), new[] {/*0,*/ 0.05, 0.1} }, //0.1 or 0.2
             { nameof(NetworkSample.RowsCutoutPatchPercentage), new[] {/*0 ,*/ 0.1} }, //0 or 0.1
             { nameof(NetworkSample.ColumnsCutoutPatchPercentage),  0 }, // must be 0            
@@ -630,20 +649,20 @@ public static class Biosonar85Utils
         searchSpace[nameof(NetworkSample.HeightShiftRangeInPercentage)] = 0.05;
         searchSpace[nameof(NetworkSample.AdamW_L2Regularization)] = 0.00025;
         searchSpace[nameof(NetworkSample.AlphaCutMix)] = 0;
-        searchSpace[nameof(NetworkSample.AlphaMixup)] = 1;
+        searchSpace[nameof(NetworkSample.AlphaMixUp)] = 1;
         searchSpace[nameof(NetworkSample.CutoutPatchPercentage)] = 0.1;
         searchSpace[nameof(NetworkSample.RowsCutoutPatchPercentage)] = 0.1;
         searchSpace[nameof(NetworkSample.InitialLearningRate)] = 0.0025;
         searchSpace[nameof(NetworkSample.HorizontalFlip)] = true;
         searchSpace[nameof(AbstractDatasetSample.PercentageInTraining)] = 0.5;
-        searchSpace[nameof(NetworkSample.NumEpochs)] = 20;
+        searchSpace[nameof(NetworkSample.num_epochs)] = 20;
         searchSpace[nameof(NetworkSample.MinimumRankingScoreToSaveModel)] = 0.93;
 
 
         //!D
         searchSpace[nameof(NetworkSample.HeightShiftRangeInPercentage)] = HyperparameterSearchSpace.Range(0.025f, 0.075f);
         searchSpace[nameof(NetworkSample.AdamW_L2Regularization)] = HyperparameterSearchSpace.Range(0.0002f, 0.0003f);
-        searchSpace[nameof(NetworkSample.AlphaMixup)] = HyperparameterSearchSpace.Range(0.75f, 1.25f);
+        searchSpace[nameof(NetworkSample.AlphaMixUp)] = HyperparameterSearchSpace.Range(0.75f, 1.25f);
         searchSpace[nameof(NetworkSample.InitialLearningRate)] = HyperparameterSearchSpace.Range(0.002f, 0.03f);
         searchSpace[nameof(NetworkSample.CutoutPatchPercentage)] = HyperparameterSearchSpace.Range(0.05f, 0.15f);
         searchSpace[nameof(NetworkSample.RowsCutoutPatchPercentage)] = HyperparameterSearchSpace.Range(0.05f, 0.15f);
@@ -664,7 +683,7 @@ public static class Biosonar85Utils
 
 
     // ReSharper disable once UnusedMember.Local
-    private static void Launch_HPO_MEL_SPECTROGRAM_SMALL_128_401(int numEpochs = 10, int maxAllowedSecondsForAllComputation = 0)
+    private static void Launch_HPO_MEL_SPECTROGRAM_SMALL_128_401(int num_epochs = 10, int maxAllowedSecondsForAllComputation = 0)
     {
      
 
@@ -684,7 +703,7 @@ public static class Biosonar85Utils
             { nameof(NetworkSample.EvaluationMetrics), nameof(EvaluationMetricEnum.Accuracy)/*+","+nameof(EvaluationMetricEnum.AUC)*/},
             { nameof(NetworkSample.BatchSize), 32}, //because of memory issues, we have to use small batches
 
-            { nameof(NetworkSample.NumEpochs), 1},
+            { nameof(NetworkSample.num_epochs), 1},
 
             { nameof(NetworkSample.ShuffleDatasetBeforeEachEpoch), false},
             // Optimizer 
@@ -715,7 +734,7 @@ public static class Biosonar85Utils
             // DataAugmentation
             { nameof(NetworkSample.DataAugmentationType), nameof(ImageDataGenerator.DataAugmentationEnum.DEFAULT) },
             //{ nameof(NetworkSample.AlphaCutMix), 0 },
-            { nameof(NetworkSample.AlphaMixup), 0},
+            { nameof(NetworkSample.AlphaMixUp), 0},
             //{ nameof(NetworkSample.CutoutPatchPercentage), 0.0 },
             //{ nameof(NetworkSample.CutoutCount), 0 },
             //{ nameof(NetworkSample.ColumnsCutoutPatchPercentage), 0.2},
@@ -740,13 +759,13 @@ public static class Biosonar85Utils
 
 
     // ReSharper disable once UnusedMember.Local
-    private static void Launch_HPO_MEL_SPECTROGRAM_128_401_BinaryCrossentropy(int numEpochs = 10, int maxAllowedSecondsForAllComputation = 0)
+    private static void Launch_HPO_MEL_SPECTROGRAM_128_401_BinaryCrossentropy(int num_epochs = 10, int maxAllowedSecondsForAllComputation = 0)
     {
         //when LossFunction = BinaryCrossentropy
         //  InitialLearningRate ==
         //  AdamW_L2Regularization == 0.00025
         //  OneCycle_PercentInAnnealing == 0
-        //  AlphaMixup == 1.2
+        //  AlphaMixUp == 1.2
         //  SkipConnectionsDropoutRate >= 0.4
 
 
@@ -775,7 +794,7 @@ public static class Biosonar85Utils
             { nameof(NetworkSample.EvaluationMetrics), nameof(EvaluationMetricEnum.Accuracy)/*+","+nameof(EvaluationMetricEnum.AUC)*/},
             { nameof(NetworkSample.BatchSize), new[] {128} }, //because of memory issues, we have to use small batches
 
-            { nameof(NetworkSample.NumEpochs), new[] { numEpochs } },
+            { nameof(NetworkSample.num_epochs), new[] { num_epochs } },
 
             { nameof(NetworkSample.ShuffleDatasetBeforeEachEpoch), true},
             // Optimizer 
@@ -806,7 +825,7 @@ public static class Biosonar85Utils
             // DataAugmentation
             { nameof(NetworkSample.DataAugmentationType), nameof(ImageDataGenerator.DataAugmentationEnum.DEFAULT) },
             { nameof(NetworkSample.AlphaCutMix), 0 },
-            { nameof(NetworkSample.AlphaMixup), new[] { 1.0, 1.2} },
+            { nameof(NetworkSample.AlphaMixUp), new[] { 1.0, 1.2} },
             { nameof(NetworkSample.CutoutPatchPercentage), new[] {0, 0.1, 0.2} },
             { nameof(NetworkSample.RowsCutoutPatchPercentage), new[] {0.1, 0.2} },
             { nameof(NetworkSample.ColumnsCutoutPatchPercentage),  0 },
@@ -821,14 +840,14 @@ public static class Biosonar85Utils
         //model: FB0927A468_17
         searchSpace[nameof(NetworkSample.AdamW_L2Regularization)] = 0.00025;
         searchSpace[nameof(NetworkSample.AlphaCutMix)] = 0;
-        searchSpace[nameof(NetworkSample.AlphaMixup)] = 1;
+        searchSpace[nameof(NetworkSample.AlphaMixUp)] = 1;
         searchSpace[nameof(NetworkSample.CutoutPatchPercentage)] = 0.1;
         searchSpace[nameof(EfficientNetNetworkSample.DefaultMobileBlocksDescriptionCount)] = -1;
         searchSpace[nameof(NetworkSample.HeightShiftRangeInPercentage)] = 0.05;
         searchSpace[nameof(NetworkSample.HorizontalFlip)] = true;
         searchSpace[nameof(NetworkSample.InitialLearningRate)] = 0.0025;
         searchSpace[nameof(NetworkSample.MinimumRankingScoreToSaveModel)] = 0.94;
-        searchSpace[nameof(NetworkSample.NumEpochs)] = 20;
+        searchSpace[nameof(NetworkSample.num_epochs)] = 20;
         searchSpace[nameof(AbstractDatasetSample.PercentageInTraining)] = 0.5;
         searchSpace[nameof(NetworkSample.RowsCutoutPatchPercentage)] = 0.1;
 
@@ -837,7 +856,7 @@ public static class Biosonar85Utils
 
         searchSpace[nameof(NetworkSample.AdamW_L2Regularization)] = new[] { 0.00025, 0.0005 };
         searchSpace[nameof(NetworkSample.AlphaCutMix)] = 0;
-        searchSpace[nameof(NetworkSample.AlphaMixup)] = 1.0; //new[] { 1, 1.2, 1.5, 2.0,3 };
+        searchSpace[nameof(NetworkSample.AlphaMixUp)] = 1.0; //new[] { 1, 1.2, 1.5, 2.0,3 };
         searchSpace[nameof(NetworkSample.ColumnsCutoutPatchPercentage)] = 0;
         searchSpace[nameof(NetworkSample.ColumnsCutoutCount)] = 0;
         searchSpace[nameof(NetworkSample.CutoutPatchPercentage)] = 0.1;
@@ -845,7 +864,7 @@ public static class Biosonar85Utils
         searchSpace[nameof(NetworkSample.HeightShiftRangeInPercentage)] = 0.05;
         searchSpace[nameof(NetworkSample.InitialLearningRate)] = 0.02;
         searchSpace[nameof(NetworkSample.LossFunction)] = nameof(EvaluationMetricEnum.BinaryCrossentropy);
-        searchSpace[nameof(NetworkSample.NumEpochs)] = 20;
+        searchSpace[nameof(NetworkSample.num_epochs)] = 20;
         searchSpace[nameof(NetworkSample.OneCycle_DividerForMinLearningRate)] = 20;
         searchSpace[nameof(NetworkSample.OneCycle_PercentInAnnealing)] = new[]{0,0.1};
         searchSpace[nameof(NetworkSample.RowsCutoutPatchPercentage)] = 0.1;
@@ -862,7 +881,7 @@ public static class Biosonar85Utils
 
         searchSpace[nameof(NetworkSample.AdamW_L2Regularization)] = 0.00025; //new[] { 0.00025, 0.0005 };
         searchSpace[nameof(NetworkSample.AlphaCutMix)] = 0;
-        searchSpace[nameof(NetworkSample.AlphaMixup)] = 1.0; //new[] { 1, 1.2, 1.5, 2.0,3 };
+        searchSpace[nameof(NetworkSample.AlphaMixUp)] = 1.0; //new[] { 1, 1.2, 1.5, 2.0,3 };
         searchSpace[nameof(NetworkSample.ColumnsCutoutPatchPercentage)] = 0;
         searchSpace[nameof(NetworkSample.ColumnsCutoutCount)] = 0;
         searchSpace[nameof(NetworkSample.CutoutPatchPercentage)] = 0.1;
@@ -870,7 +889,7 @@ public static class Biosonar85Utils
         searchSpace[nameof(NetworkSample.HeightShiftRangeInPercentage)] = 0.05;
         searchSpace[nameof(NetworkSample.InitialLearningRate)] = 0.02;
         searchSpace[nameof(NetworkSample.LossFunction)] = nameof(EvaluationMetricEnum.BinaryCrossentropy);
-        searchSpace[nameof(NetworkSample.NumEpochs)] = 20;
+        searchSpace[nameof(NetworkSample.num_epochs)] = 20;
         searchSpace[nameof(NetworkSample.OneCycle_DividerForMinLearningRate)] = 20;
         searchSpace[nameof(NetworkSample.OneCycle_PercentInAnnealing)] = 0; //new[] { 0, 0.1 };
         searchSpace[nameof(NetworkSample.RowsCutoutPatchPercentage)] = 0.1;
@@ -893,17 +912,17 @@ public static class Biosonar85Utils
         searchSpace[nameof(EfficientNetNetworkSample.TopDropoutRate)] = new[] { 0.0f, 0.2f, 0.4f };
         searchSpace[nameof(EfficientNetNetworkSample.SkipConnectionsDropoutRate)] = new[] { 0.0f, 0.2f, 0.4f, 0.5f };
         searchSpace[nameof(NetworkSample.OneCycle_PercentInAnnealing)] = new[] { 0, 0.1 };
-        searchSpace[nameof(NetworkSample.AlphaMixup)] = new[] { 1, 1.2, 1.5};
+        searchSpace[nameof(NetworkSample.AlphaMixUp)] = new[] { 1, 1.2, 1.5};
         searchSpace[nameof(EfficientNetNetworkSample.DefaultMobileBlocksDescriptionCount)] = 5; //new[] { 5, -1 }; //new[]{2,3,4,5,6, -1};
         //best: 0.9511 9CEE8F0073
-        //AlphaMixup = 1.2
+        //AlphaMixUp = 1.2
         //LossFunction = BinaryCrossentropy
         //SkipConnectionsDropoutRate = 0.5
         //TopDropoutRate = 0.4
         //OneCycle_PercentInAnnealing = 0
         #region stats (hpo_16380.csv)
         /*
-         * Stats for AlphaMixup:
+         * Stats for AlphaMixUp:
          1.2:-0.9425161921459696 +/- 0.005026113550600352 (23 evals at 549.6s/eval) (target Time: 44.9%)
          1.5:-0.9396843284368515 +/- 0.00708116208620747 (20 evals at 546.7s/eval) (target Time: 30%)
          1:-0.9385012310484181 +/- 0.007097887046079005 (23 evals at 545.1s/eval) (target Time: 25.1%)
@@ -934,7 +953,7 @@ public static class Biosonar85Utils
 
         searchSpace[nameof(NetworkSample.AdamW_L2Regularization)] = 0.00025; //new[] { 0.00025, 0.0005 };
         searchSpace[nameof(NetworkSample.AlphaCutMix)] = 0;
-        searchSpace[nameof(NetworkSample.AlphaMixup)] = 1.2; //1.0; //new[] { 1, 1.2, 1.5, 2.0,3 };
+        searchSpace[nameof(NetworkSample.AlphaMixUp)] = 1.2; //1.0; //new[] { 1, 1.2, 1.5, 2.0,3 };
         searchSpace[nameof(NetworkSample.ColumnsCutoutPatchPercentage)] = 0;
         searchSpace[nameof(NetworkSample.ColumnsCutoutCount)] = 0;
         searchSpace[nameof(NetworkSample.CutoutPatchPercentage)] = 0.1;
@@ -942,7 +961,7 @@ public static class Biosonar85Utils
         searchSpace[nameof(NetworkSample.HeightShiftRangeInPercentage)] = 0.05;
         searchSpace[nameof(NetworkSample.InitialLearningRate)] = new[]{0.01,0.02,0.04};
         searchSpace[nameof(NetworkSample.LossFunction)] = nameof(EvaluationMetricEnum.BinaryCrossentropy);
-        searchSpace[nameof(NetworkSample.NumEpochs)] = 20;
+        searchSpace[nameof(NetworkSample.num_epochs)] = 20;
         searchSpace[nameof(NetworkSample.OneCycle_DividerForMinLearningRate)] = 20;
         searchSpace[nameof(NetworkSample.OneCycle_PercentInAnnealing)] = 0; //new[] { 0, 0.1 };
         searchSpace[nameof(NetworkSample.RowsCutoutPatchPercentage)] = 0.1;
@@ -983,7 +1002,7 @@ public static class Biosonar85Utils
             { nameof(NetworkSample.EvaluationMetrics), nameof(EvaluationMetricEnum.Accuracy)},
             { nameof(NetworkSample.BatchSize), new[] {128} }, //because of memory issues, we have to use small batches
 
-            { nameof(NetworkSample.NumEpochs), new[] { numEpochs } },
+            { nameof(NetworkSample.num_epochs), new[] { num_epochs } },
 
             { nameof(NetworkSample.ShuffleDatasetBeforeEachEpoch), true},
             // Optimizer 
@@ -1017,7 +1036,7 @@ public static class Biosonar85Utils
             // DataAugmentation
             { nameof(NetworkSample.DataAugmentationType), nameof(ImageDataGenerator.DataAugmentationEnum.DEFAULT) },
             //{ nameof(NetworkSample.AlphaCutMix), 0 },
-            { nameof(NetworkSample.AlphaMixup), 1.2 },
+            { nameof(NetworkSample.AlphaMixUp), 1.2 },
             { nameof(NetworkSample.CutoutPatchPercentage), new[] { 0, 0.05, 0.1} },
             { nameof(NetworkSample.CutoutCount), 1 },
             { nameof(NetworkSample.RowsCutoutPatchPercentage), new[] { 0, 0.05, 0.1 } },
@@ -1094,12 +1113,12 @@ public static class Biosonar85Utils
 
 
     // ReSharper disable once UnusedMember.Local
-    private static void Launch_HPO_MEL_SPECTROGRAM_128_401_BCEWithFocalLoss(int numEpochs = 10, int maxAllowedSecondsForAllComputation = 0)
+    private static void Launch_HPO_MEL_SPECTROGRAM_128_401_BCEWithFocalLoss(int num_epochs = 10, int maxAllowedSecondsForAllComputation = 0)
     {
         //when LossFunction = BCEWithFocalLoss && PercentageInTraining == 0.5
         //  InitialLearningRate == 0.01
         //  AdamW_L2Regularization == 0.0005
-        //  AlphaMixup == 1.2
+        //  AlphaMixUp == 1.2
 
         var searchSpace = new Dictionary<string, object>
         {
@@ -1117,7 +1136,7 @@ public static class Biosonar85Utils
             { nameof(NetworkSample.EvaluationMetrics), nameof(EvaluationMetricEnum.Accuracy)/*+","+nameof(EvaluationMetricEnum.AUC)*/},
             { nameof(NetworkSample.BatchSize), new[] {128} }, //because of memory issues, we have to use small batches
 
-            { nameof(NetworkSample.NumEpochs), new[] { numEpochs } },
+            { nameof(NetworkSample.num_epochs), new[] { num_epochs } },
 
             { nameof(NetworkSample.ShuffleDatasetBeforeEachEpoch), true},
             // Optimizer 
@@ -1146,7 +1165,7 @@ public static class Biosonar85Utils
             // DataAugmentation
             { nameof(NetworkSample.DataAugmentationType), nameof(ImageDataGenerator.DataAugmentationEnum.DEFAULT) },
             { nameof(NetworkSample.AlphaCutMix), 0 },
-            { nameof(NetworkSample.AlphaMixup), new[] { 1.0, 1.2} },
+            { nameof(NetworkSample.AlphaMixUp), new[] { 1.0, 1.2} },
             { nameof(NetworkSample.CutoutPatchPercentage), new[] {0, 0.1, 0.2} },
             { nameof(NetworkSample.RowsCutoutPatchPercentage), new[] {0.1, 0.2} },
             { nameof(NetworkSample.ColumnsCutoutPatchPercentage),  0 },
@@ -1162,7 +1181,7 @@ public static class Biosonar85Utils
 
         searchSpace[nameof(NetworkSample.AdamW_L2Regularization)] = new[] { 0.000125, 0.00025, 0.0005 };
         searchSpace[nameof(NetworkSample.AlphaCutMix)] = 0;
-        searchSpace[nameof(NetworkSample.AlphaMixup)] = 1.2; //1.0; //new[] { 1, 1.2, 1.5, 2.0,3 };
+        searchSpace[nameof(NetworkSample.AlphaMixUp)] = 1.2; //1.0; //new[] { 1, 1.2, 1.5, 2.0,3 };
         searchSpace[nameof(NetworkSample.BCEWithFocalLoss_Gamma)] = new[] { 0, 0.7 };
         searchSpace[nameof(NetworkSample.BCEWithFocalLoss_PercentageInTrueClass)] = new[] { 0.4, 0.5, 0.6 };
         searchSpace[nameof(NetworkSample.ColumnsCutoutPatchPercentage)] = 0;
@@ -1172,7 +1191,7 @@ public static class Biosonar85Utils
         searchSpace[nameof(NetworkSample.HeightShiftRangeInPercentage)] = 0.05;
         searchSpace[nameof(NetworkSample.InitialLearningRate)] = new[] { 0.01, 0.02, 0.04 };
         searchSpace[nameof(NetworkSample.LossFunction)] = nameof(EvaluationMetricEnum.BCEWithFocalLoss); //new[]{nameof(EvaluationMetricEnum.BinaryCrossentropy), nameof(EvaluationMetricEnum.BCEWithFocalLoss)};
-        searchSpace[nameof(NetworkSample.NumEpochs)] = 20;
+        searchSpace[nameof(NetworkSample.num_epochs)] = 20;
         searchSpace[nameof(NetworkSample.OneCycle_DividerForMinLearningRate)] = 20;
         searchSpace[nameof(NetworkSample.OneCycle_PercentInAnnealing)] = new[] { 0, 0.1 };
         searchSpace[nameof(NetworkSample.RowsCutoutPatchPercentage)] = 0.1;
@@ -1184,7 +1203,7 @@ public static class Biosonar85Utils
         //best score: 0.9530 DEE753FA84
         //frequencies filtered in [1Khz, 127 KHz]
         //AdamW_L2Regularization = 0.0005
-        //AlphaMixup = 1.2
+        //AlphaMixUp = 1.2
         //BCEWithFocalLoss_Gamma = 0.7
         //InitialLearningRate = 0.01
         //LossFunction = BCEWithFocalLoss
@@ -1225,7 +1244,7 @@ public static class Biosonar85Utils
 
         searchSpace[nameof(NetworkSample.AdamW_L2Regularization)] = new[] { 0.0005, 0.001 };
         searchSpace[nameof(NetworkSample.AlphaCutMix)] = 0;
-        searchSpace[nameof(NetworkSample.AlphaMixup)] = new[] { 1, 1.2, 1.5 }; //1.2; //1.0; //new[] { 1, 1.2, 1.5, 2.0,3 };
+        searchSpace[nameof(NetworkSample.AlphaMixUp)] = new[] { 1, 1.2, 1.5 }; //1.2; //1.0; //new[] { 1, 1.2, 1.5, 2.0,3 };
         searchSpace[nameof(NetworkSample.BCEWithFocalLoss_Gamma)] = 0.7; //new[] { 0, 0.7 };
         searchSpace[nameof(NetworkSample.BCEWithFocalLoss_PercentageInTrueClass)] = 0.5; //new[] { 0.4, 0.5, 0.6 };
         searchSpace[nameof(NetworkSample.ColumnsCutoutPatchPercentage)] = 0;
@@ -1235,7 +1254,7 @@ public static class Biosonar85Utils
         searchSpace[nameof(NetworkSample.HeightShiftRangeInPercentage)] = 0.05;
         searchSpace[nameof(NetworkSample.InitialLearningRate)] = new[] { 0.001, 0.005, 0.01 };
         searchSpace[nameof(NetworkSample.LossFunction)] = nameof(EvaluationMetricEnum.BCEWithFocalLoss); //new[]{nameof(EvaluationMetricEnum.BinaryCrossentropy), nameof(EvaluationMetricEnum.BCEWithFocalLoss)};
-        searchSpace[nameof(NetworkSample.NumEpochs)] = 20;
+        searchSpace[nameof(NetworkSample.num_epochs)] = 20;
         searchSpace[nameof(NetworkSample.OneCycle_DividerForMinLearningRate)] = 20;
         searchSpace[nameof(NetworkSample.OneCycle_PercentInAnnealing)] = 0.1; //new[] { 0, 0.1 };
         searchSpace[nameof(NetworkSample.RowsCutoutPatchPercentage)] = 0.1;
@@ -1248,7 +1267,7 @@ public static class Biosonar85Utils
         //best score: 0.95264935 DEE753FA84_17 (hpo_21260.csv)
         //frequencies filtered in [1Khz, 127 KHz]
         //AdamW_L2Regularization = 0.0005
-        //AlphaMixup = 1.2
+        //AlphaMixUp = 1.2
         //InitialLearningRate = 0.01
         //LossFunction = BCEWithFocalLoss
         //PercentageInTraining = 0.5
@@ -1259,7 +1278,7 @@ public static class Biosonar85Utils
         Stats for AdamW_L2Regularization:
          0.0005:-0.9448478031158447 +/- 0.0038517154463265633 (25 evals at 555.4s/eval) (target Time: 57.8%)
          0.001:-0.9433955659991816 +/- 0.004668487760529163 (38 evals at 547.2s/eval) (target Time: 42.2%)
-        Stats for AlphaMixup:
+        Stats for AlphaMixUp:
          1.2:-0.9440867602825165 +/- 0.00512021404690902 (22 evals at 549.9s/eval) (target Time: 34.1%)
          1:-0.9440645830971854 +/- 0.004245862810450181 (21 evals at 553.4s/eval) (target Time: 34%)
          1.5:-0.9437480807304383 +/- 0.0037019231444786107 (20 evals at 548s/eval) (target Time: 31.9%)
@@ -1281,7 +1300,7 @@ public static class Biosonar85Utils
 
         searchSpace[nameof(NetworkSample.AdamW_L2Regularization)] = 0.0005; //new[] { 0.0005, 0.001 };
         searchSpace[nameof(NetworkSample.AlphaCutMix)] = 0;
-        searchSpace[nameof(NetworkSample.AlphaMixup)] = 1.2; //new[] { 1, 1.2, 1.5 }; //1.2; //1.0; //new[] { 1, 1.2, 1.5, 2.0,3 };
+        searchSpace[nameof(NetworkSample.AlphaMixUp)] = 1.2; //new[] { 1, 1.2, 1.5 }; //1.2; //1.0; //new[] { 1, 1.2, 1.5, 2.0,3 };
         searchSpace[nameof(NetworkSample.BCEWithFocalLoss_Gamma)] = 0.7; //new[] { 0, 0.7 };
         searchSpace[nameof(NetworkSample.BCEWithFocalLoss_PercentageInTrueClass)] = 0.5; //new[] { 0.4, 0.5, 0.6 };
         searchSpace[nameof(NetworkSample.ColumnsCutoutPatchPercentage)] = 0;
@@ -1291,7 +1310,7 @@ public static class Biosonar85Utils
         searchSpace[nameof(NetworkSample.HeightShiftRangeInPercentage)] = 0.05;
         searchSpace[nameof(NetworkSample.InitialLearningRate)] = 0.01; //new[] { 0.001, 0.005, 0.01 };
         searchSpace[nameof(NetworkSample.LossFunction)] = nameof(EvaluationMetricEnum.BCEWithFocalLoss); //new[]{nameof(EvaluationMetricEnum.BinaryCrossentropy), nameof(EvaluationMetricEnum.BCEWithFocalLoss)};
-        searchSpace[nameof(NetworkSample.NumEpochs)] = 20;
+        searchSpace[nameof(NetworkSample.num_epochs)] = 20;
         searchSpace[nameof(NetworkSample.OneCycle_DividerForMinLearningRate)] = 20;
         searchSpace[nameof(NetworkSample.OneCycle_PercentInAnnealing)] = 0.1; //new[] { 0, 0.1 };
         searchSpace[nameof(NetworkSample.RowsCutoutPatchPercentage)] = 0.1;
@@ -1326,7 +1345,7 @@ public static class Biosonar85Utils
 
         searchSpace[nameof(NetworkSample.AdamW_L2Regularization)] = 0.0005; //new[] { 0.0005, 0.001 };
         searchSpace[nameof(NetworkSample.AlphaCutMix)] = 0;
-        searchSpace[nameof(NetworkSample.AlphaMixup)] = 1.2; //new[] { 1, 1.2, 1.5 }; //1.2; //1.0; //new[] { 1, 1.2, 1.5, 2.0,3 };
+        searchSpace[nameof(NetworkSample.AlphaMixUp)] = 1.2; //new[] { 1, 1.2, 1.5 }; //1.2; //1.0; //new[] { 1, 1.2, 1.5, 2.0,3 };
         searchSpace[nameof(NetworkSample.BCEWithFocalLoss_Gamma)] = 0.7; //new[] { 0, 0.7 };
         searchSpace[nameof(NetworkSample.BCEWithFocalLoss_PercentageInTrueClass)] = 0.5; //new[] { 0.4, 0.5, 0.6 };
         searchSpace[nameof(NetworkSample.ColumnsCutoutPatchPercentage)] = 0;
@@ -1336,7 +1355,7 @@ public static class Biosonar85Utils
         searchSpace[nameof(NetworkSample.HeightShiftRangeInPercentage)] = 0.05;
         searchSpace[nameof(NetworkSample.InitialLearningRate)] = new[] { 0.005, 0.01 };
         searchSpace[nameof(NetworkSample.LossFunction)] = nameof(EvaluationMetricEnum.BCEWithFocalLoss); //new[]{nameof(EvaluationMetricEnum.BinaryCrossentropy), nameof(EvaluationMetricEnum.BCEWithFocalLoss)};
-        searchSpace[nameof(NetworkSample.NumEpochs)] = 20;
+        searchSpace[nameof(NetworkSample.num_epochs)] = 20;
         searchSpace[nameof(NetworkSample.OneCycle_DividerForMinLearningRate)] = 20;
         searchSpace[nameof(NetworkSample.OneCycle_PercentInAnnealing)] = new[] { 0, 0.1 }; //0.1; //new[] { 0, 0.1 };
         searchSpace[nameof(NetworkSample.RowsCutoutPatchPercentage)] = 0.1;
@@ -1379,7 +1398,7 @@ public static class Biosonar85Utils
 
         searchSpace[nameof(NetworkSample.AdamW_L2Regularization)] = 0.0005;
         searchSpace[nameof(NetworkSample.AlphaCutMix)] = 0;
-        searchSpace[nameof(NetworkSample.AlphaMixup)] = 1.2; //new[] { 1, 1.2, 1.5 }; //1.2; //1.0; //new[] { 1, 1.2, 1.5, 2.0,3 };
+        searchSpace[nameof(NetworkSample.AlphaMixUp)] = 1.2; //new[] { 1, 1.2, 1.5 }; //1.2; //1.0; //new[] { 1, 1.2, 1.5, 2.0,3 };
         searchSpace[nameof(NetworkSample.BCEWithFocalLoss_Gamma)] = 0.7; //new[] { 0, 0.7 };
         searchSpace[nameof(NetworkSample.BCEWithFocalLoss_PercentageInTrueClass)] = 0.5; //new[] { 0.4, 0.5, 0.6 };
         searchSpace[nameof(NetworkSample.ColumnsCutoutPatchPercentage)] = 0;
@@ -1389,7 +1408,7 @@ public static class Biosonar85Utils
         searchSpace[nameof(NetworkSample.HeightShiftRangeInPercentage)] = 0.05;
         searchSpace[nameof(NetworkSample.InitialLearningRate)] = 0.01; //new[] { 0.001, 0.005, 0.01 };
         searchSpace[nameof(NetworkSample.LossFunction)] = nameof(EvaluationMetricEnum.BCEWithFocalLoss); //new[]{nameof(EvaluationMetricEnum.BinaryCrossentropy), nameof(EvaluationMetricEnum.BCEWithFocalLoss)};
-        searchSpace[nameof(NetworkSample.NumEpochs)] = 20;
+        searchSpace[nameof(NetworkSample.num_epochs)] = 20;
         searchSpace[nameof(NetworkSample.OneCycle_DividerForMinLearningRate)] = 20;
         searchSpace[nameof(NetworkSample.OneCycle_PercentInAnnealing)] = 0.1; //new[] { 0, 0.1 };
         searchSpace[nameof(NetworkSample.RowsCutoutPatchPercentage)] = 0.1;
@@ -1403,7 +1422,7 @@ public static class Biosonar85Utils
         //best score: 0.95264935 DEE753FA84_17 (hpo_21260.csv)
         //frequencies filtered in [1Khz, 127 KHz]
         //AdamW_L2Regularization = 0.0005
-        //AlphaMixup = 1.2
+        //AlphaMixUp = 1.2
         //InitialLearningRate = 0.01
         //LossFunction = BCEWithFocalLoss
         //PercentageInTraining = 0.5
@@ -1423,9 +1442,9 @@ public static class Biosonar85Utils
     }
 
     // ReSharper disable once UnusedMember.Local
-    private static void Launch_HPO_MEL_SPECTROGRAM_256_801_BinaryCrossentropy(int numEpochs = 10, int maxAllowedSecondsForAllComputation = 0)
+    private static void Launch_HPO_MEL_SPECTROGRAM_256_801_BinaryCrossentropy(int num_epochs = 10, int maxAllowedSecondsForAllComputation = 0)
     {
-        //for numEpochs = 20
+        //for num_epochs = 20
         //HorizontalFlip = False
         //AdamW_L2Regularization: 0.000125 (or 0.0000625)
         //InitialLearningRate: 0.0025, (or 0.00125)
@@ -1454,7 +1473,7 @@ public static class Biosonar85Utils
             { nameof(NetworkSample.EvaluationMetrics), nameof(EvaluationMetricEnum.Accuracy)/*+","+nameof(EvaluationMetricEnum.AUC)*/},
             { nameof(NetworkSample.BatchSize), new[] {32} }, //because of memory issues, we have to use small batches
 
-            { nameof(NetworkSample.NumEpochs), new[] { numEpochs } },
+            { nameof(NetworkSample.num_epochs), new[] { num_epochs } },
 
             { nameof(NetworkSample.ShuffleDatasetBeforeEachEpoch), true},
             // Optimizer 
@@ -1483,7 +1502,7 @@ public static class Biosonar85Utils
             // DataAugmentation
             { nameof(NetworkSample.DataAugmentationType), nameof(ImageDataGenerator.DataAugmentationEnum.DEFAULT) },
             { nameof(NetworkSample.AlphaCutMix), 0 },
-            { nameof(NetworkSample.AlphaMixup), new[] { 1.0, 1.2} },
+            { nameof(NetworkSample.AlphaMixUp), new[] { 1.0, 1.2} },
             { nameof(NetworkSample.CutoutPatchPercentage), new[] {0, 0.1, 0.2} },
             { nameof(NetworkSample.RowsCutoutPatchPercentage), new[] {0.1, 0.2} },
             { nameof(NetworkSample.ColumnsCutoutPatchPercentage),  0 },
@@ -1511,7 +1530,7 @@ public static class Biosonar85Utils
             { nameof(NetworkSample.EvaluationMetrics), nameof(EvaluationMetricEnum.Accuracy)/*+","+nameof(EvaluationMetricEnum.AUC)*/},
             { nameof(NetworkSample.BatchSize), new[] {42} }, //because of memory issues, we have to use small batches
 
-            { nameof(NetworkSample.NumEpochs), new[] { numEpochs } },
+            { nameof(NetworkSample.num_epochs), new[] { num_epochs } },
 
             { nameof(NetworkSample.ShuffleDatasetBeforeEachEpoch), true},
             // Optimizer 
@@ -1541,7 +1560,7 @@ public static class Biosonar85Utils
             // DataAugmentation
             { nameof(NetworkSample.DataAugmentationType), nameof(ImageDataGenerator.DataAugmentationEnum.DEFAULT) },
             //{ nameof(NetworkSample.AlphaCutMix), 0 },
-            { nameof(NetworkSample.AlphaMixup), 1.2 },
+            { nameof(NetworkSample.AlphaMixUp), 1.2 },
             { nameof(NetworkSample.CutoutPatchPercentage), 0.1477559 },
             { nameof(NetworkSample.CutoutCount), 1 },
             { nameof(NetworkSample.RowsCutoutPatchPercentage), 0.12661687 },
@@ -1590,7 +1609,7 @@ public static class Biosonar85Utils
 
 
     // ReSharper disable once UnusedMember.Local
-    private static void Launch_HPO_MEL_SPECTROGRAM_256_801_BCEWithFocalLoss(int numEpochs = 20, int maxAllowedSecondsForAllComputation = 0)
+    private static void Launch_HPO_MEL_SPECTROGRAM_256_801_BCEWithFocalLoss(int num_epochs = 20, int maxAllowedSecondsForAllComputation = 0)
     {
         // DefaultMobileBlocksDescriptionCount = 6 (bad: 5)
         // PercentageInTraining = 0.5
@@ -1615,7 +1634,7 @@ public static class Biosonar85Utils
             { nameof(NetworkSample.BCEWithFocalLoss_PercentageInTrueClass), 0.5},
             { nameof(NetworkSample.BatchSize), new[] {32} }, //because of memory issues, we have to use small batches
 
-            { nameof(NetworkSample.NumEpochs), new[] { numEpochs } },
+            { nameof(NetworkSample.num_epochs), new[] { num_epochs } },
 
             { nameof(NetworkSample.ShuffleDatasetBeforeEachEpoch), true},
             // Optimizer 
@@ -1646,7 +1665,7 @@ public static class Biosonar85Utils
             // DataAugmentation
             { nameof(NetworkSample.DataAugmentationType), nameof(ImageDataGenerator.DataAugmentationEnum.DEFAULT) },
             { nameof(NetworkSample.AlphaCutMix), 0 },
-            { nameof(NetworkSample.AlphaMixup), 1.2 },
+            { nameof(NetworkSample.AlphaMixUp), 1.2 },
             { nameof(NetworkSample.CutoutPatchPercentage), 0.1477559 /*new[] {0, 0.1, 0.2}*/ },
             { nameof(NetworkSample.CutoutCount), 1 },
             { nameof(NetworkSample.RowsCutoutPatchPercentage), 0.12661687 /*new[] {0.1, 0.2}*/ },
@@ -1702,7 +1721,7 @@ public static class Biosonar85Utils
             { nameof(NetworkSample.BCEWithFocalLoss_PercentageInTrueClass), 0.5},
             { nameof(NetworkSample.BatchSize), new[] {32} }, //because of memory issues, we have to use small batches
 
-            { nameof(NetworkSample.NumEpochs), new[] { numEpochs } },
+            { nameof(NetworkSample.num_epochs), new[] { num_epochs } },
 
             { nameof(NetworkSample.ShuffleDatasetBeforeEachEpoch), true},
             // Optimizer 
@@ -1733,7 +1752,7 @@ public static class Biosonar85Utils
             // DataAugmentation
             { nameof(NetworkSample.DataAugmentationType), nameof(ImageDataGenerator.DataAugmentationEnum.DEFAULT) },
             //{ nameof(NetworkSample.AlphaCutMix), 0 },
-            { nameof(NetworkSample.AlphaMixup), 1.2 },
+            { nameof(NetworkSample.AlphaMixUp), 1.2 },
             { nameof(NetworkSample.CutoutPatchPercentage), 0.1477559 /*new[] {0, 0.1, 0.2}*/ },
             { nameof(NetworkSample.CutoutCount), 1 },
             { nameof(NetworkSample.RowsCutoutPatchPercentage), 0.12661687 /*new[] {0.1, 0.2}*/ },
@@ -1790,7 +1809,7 @@ public static class Biosonar85Utils
             { nameof(NetworkSample.BCEWithFocalLoss_PercentageInTrueClass), 0.5},
             { nameof(NetworkSample.BatchSize), new[] {42} }, //because of memory issues, we have to use small batches
 
-            { nameof(NetworkSample.NumEpochs), new[] { numEpochs } },
+            { nameof(NetworkSample.num_epochs), new[] { num_epochs } },
 
             { nameof(NetworkSample.ShuffleDatasetBeforeEachEpoch), true},
             // Optimizer 
@@ -1820,7 +1839,7 @@ public static class Biosonar85Utils
             // DataAugmentation
             { nameof(NetworkSample.DataAugmentationType), nameof(ImageDataGenerator.DataAugmentationEnum.DEFAULT) },
             //{ nameof(NetworkSample.AlphaCutMix), 0 },
-            { nameof(NetworkSample.AlphaMixup), 1.2 },
+            { nameof(NetworkSample.AlphaMixUp), 1.2 },
             { nameof(NetworkSample.CutoutPatchPercentage), new[] {0.1, 0.2} /*0.1477559 */ },
             { nameof(NetworkSample.CutoutCount), 1 },
             { nameof(NetworkSample.RowsCutoutPatchPercentage), new[] {0.1, 0.15} /*0.12661687 */ },
@@ -1879,7 +1898,7 @@ public static class Biosonar85Utils
             { nameof(NetworkSample.BCEWithFocalLoss_PercentageInTrueClass), 0.5},
             { nameof(NetworkSample.BatchSize), new[] {42} }, //because of memory issues, we have to use small batches
 
-            { nameof(NetworkSample.NumEpochs), new[] { numEpochs } },
+            { nameof(NetworkSample.num_epochs), new[] { num_epochs } },
 
             { nameof(NetworkSample.ShuffleDatasetBeforeEachEpoch), true},
             // Optimizer 
@@ -1909,7 +1928,7 @@ public static class Biosonar85Utils
             // DataAugmentation
             { nameof(NetworkSample.DataAugmentationType), nameof(ImageDataGenerator.DataAugmentationEnum.DEFAULT) },
             //{ nameof(NetworkSample.AlphaCutMix), 0 },
-            { nameof(NetworkSample.AlphaMixup), 1.2 },
+            { nameof(NetworkSample.AlphaMixUp), 1.2 },
             { nameof(NetworkSample.CutoutPatchPercentage), 0.1477559 },
             { nameof(NetworkSample.CutoutCount), 1 },
             { nameof(NetworkSample.RowsCutoutPatchPercentage), 0.12661687  },
@@ -1958,7 +1977,7 @@ public static class Biosonar85Utils
             { nameof(NetworkSample.BCEWithFocalLoss_PercentageInTrueClass), 0.5},
             { nameof(NetworkSample.BatchSize), new[] {42} }, //because of memory issues, we have to use small batches
 
-            { nameof(NetworkSample.NumEpochs), new[] { numEpochs } },
+            { nameof(NetworkSample.num_epochs), new[] { num_epochs } },
 
             { nameof(NetworkSample.ShuffleDatasetBeforeEachEpoch), true},
             // Optimizer 
@@ -1988,7 +2007,7 @@ public static class Biosonar85Utils
             // DataAugmentation
             { nameof(NetworkSample.DataAugmentationType), nameof(ImageDataGenerator.DataAugmentationEnum.DEFAULT) },
             //{ nameof(NetworkSample.AlphaCutMix), 0 },
-            { nameof(NetworkSample.AlphaMixup), 1.2 },
+            { nameof(NetworkSample.AlphaMixUp), 1.2 },
             { nameof(NetworkSample.CutoutPatchPercentage), 0.1477559 },
             { nameof(NetworkSample.CutoutCount), 1 },
             { nameof(NetworkSample.RowsCutoutPatchPercentage), 0.12661687  },
@@ -2045,7 +2064,7 @@ public static class Biosonar85Utils
             { nameof(NetworkSample.BCEWithFocalLoss_PercentageInTrueClass), 0.5},
             { nameof(NetworkSample.BatchSize), new[] {42} }, //because of memory issues, we have to use small batches
 
-            { nameof(NetworkSample.NumEpochs), new[] { numEpochs } },
+            { nameof(NetworkSample.num_epochs), new[] { num_epochs } },
 
             { nameof(NetworkSample.ShuffleDatasetBeforeEachEpoch), true},
             // Optimizer 
@@ -2075,7 +2094,7 @@ public static class Biosonar85Utils
             // DataAugmentation
             { nameof(NetworkSample.DataAugmentationType), nameof(ImageDataGenerator.DataAugmentationEnum.DEFAULT) },
             //{ nameof(NetworkSample.AlphaCutMix), 0 },
-            { nameof(NetworkSample.AlphaMixup), 1.2 },
+            { nameof(NetworkSample.AlphaMixUp), 1.2 },
             { nameof(NetworkSample.CutoutPatchPercentage), 0.1477559 },
             { nameof(NetworkSample.CutoutCount), 1 },
             { nameof(NetworkSample.RowsCutoutPatchPercentage), 0.12661687  },
@@ -2115,7 +2134,7 @@ public static class Biosonar85Utils
             { nameof(NetworkSample.BCEWithFocalLoss_PercentageInTrueClass), 0.5},
             { nameof(NetworkSample.BatchSize), new[] {42} }, //because of memory issues, we have to use small batches
 
-            { nameof(NetworkSample.NumEpochs), new[] { numEpochs } },
+            { nameof(NetworkSample.num_epochs), new[] { num_epochs } },
 
             { nameof(NetworkSample.ShuffleDatasetBeforeEachEpoch), true},
             // Optimizer 
@@ -2148,7 +2167,7 @@ public static class Biosonar85Utils
             // DataAugmentation
             { nameof(NetworkSample.DataAugmentationType), nameof(ImageDataGenerator.DataAugmentationEnum.DEFAULT) },
             //{ nameof(NetworkSample.AlphaCutMix), 0 },
-            { nameof(NetworkSample.AlphaMixup), 1.2 },
+            { nameof(NetworkSample.AlphaMixUp), 1.2 },
             { nameof(NetworkSample.CutoutPatchPercentage), 0.1477559 },
             { nameof(NetworkSample.CutoutCount), 1 },
             { nameof(NetworkSample.RowsCutoutPatchPercentage), new[]{0.12661687,0.25}  },
@@ -2175,7 +2194,7 @@ public static class Biosonar85Utils
         searchSpace[nameof(NetworkSample.InitialLearningRate)] = 0.25;
 
         //changes on 1EF57E45FC_16
-        searchSpace[nameof(NetworkSample.NumEpochs)] = new[]{/*50,100*/ 50};
+        searchSpace[nameof(NetworkSample.num_epochs)] = new[]{/*50,100*/ 50};
         searchSpace[nameof(NetworkSample.InitialLearningRate)] = new[] { /*0.001, */0.001};
         searchSpace[nameof(EfficientNetNetworkSample.SkipConnectionsDropoutRate)] = 0.75; //new[] { 0.4, 0.5, 0.6, 0.65}; //0.4
         searchSpace[nameof(EfficientNetNetworkSample.TopDropoutRate)] = 0.5; //new[] { 0.3, 0.5, 0.6, 0.65 }; //0.3
@@ -2192,7 +2211,7 @@ public static class Biosonar85Utils
 
 
     // ReSharper disable once UnusedMember.Local
-    private static void Launch_HPO_MEL_SPECTROGRAM_64_401(int numEpochs = 10, int maxAllowedSecondsForAllComputation = 0)
+    private static void Launch_HPO_MEL_SPECTROGRAM_64_401(int num_epochs = 10, int maxAllowedSecondsForAllComputation = 0)
     {
         // stats from FindBestLearningRate
         //     DefaultMobileBlocksDescriptionCount     BatchSize   Best learning rate:
@@ -2219,7 +2238,7 @@ public static class Biosonar85Utils
 
             { nameof(NetworkSample.BatchSize), new[] {128} },
 
-            { nameof(NetworkSample.NumEpochs), new[] { numEpochs } },
+            { nameof(NetworkSample.num_epochs), new[] { num_epochs } },
 
             { nameof(NetworkSample.ShuffleDatasetBeforeEachEpoch), true},
             // Optimizer 
@@ -2248,7 +2267,7 @@ public static class Biosonar85Utils
             // DataAugmentation
             { nameof(NetworkSample.DataAugmentationType), nameof(ImageDataGenerator.DataAugmentationEnum.DEFAULT) },
             { nameof(NetworkSample.AlphaCutMix), 0 },
-            { nameof(NetworkSample.AlphaMixup), new[] { 1.0, 1.2} },
+            { nameof(NetworkSample.AlphaMixUp), new[] { 1.0, 1.2} },
             { nameof(NetworkSample.CutoutPatchPercentage), new[] {0, 0.1, 0.2} },
             { nameof(NetworkSample.RowsCutoutPatchPercentage), new[] {0, 0.1, 0.2} },
             { nameof(NetworkSample.RowsCutoutCount), new[] {1, 3, 5} },
@@ -2283,7 +2302,7 @@ public static class Biosonar85Utils
             CompatibilityMode = CompatibilityModeEnum.TensorFlow,
             lambdaL2Regularization = 0.0005,
             //!D WorkingDirectory = Path.Combine(NetworkSample.DefaultWorkingDirectory, CIFAR10DataSet.NAME),
-            NumEpochs = 10,
+            num_epochs = 10,
             BatchSize = 64,
             InitialLearningRate = 0.01,
 
@@ -2291,7 +2310,7 @@ public static class Biosonar85Utils
             //Data augmentation
             DataAugmentationType = ImageDataGenerator.DataAugmentationEnum.DEFAULT,
             FillMode = ImageDataGenerator.FillModeEnum.Reflect,
-            //AlphaMixup = 0.0,
+            //AlphaMixUp = 0.0,
             //AlphaCutMix = 0.0,
             //CutoutPatchPercentage = 0.0
         }

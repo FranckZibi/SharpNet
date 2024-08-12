@@ -20,7 +20,7 @@ namespace SharpNetTests.DataAugmentation
             da.FillModeConstantVal = 0.45;
             da.CutoutPatchPercentage = 0.6;
             da.AlphaCutMix = 0.75;
-            da.AlphaMixup = 0.9;
+            da.AlphaMixUp = 0.9;
             da.RotationRangeInDegrees = 1.05;
             da.ZoomRange = 1.2;
 

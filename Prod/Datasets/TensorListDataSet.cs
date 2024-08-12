@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using JetBrains.Annotations;
 using SharpNet.CPU;
 
@@ -116,7 +117,12 @@ public class TensorListDataSet : DataSet
         return _yInMemoryDataSet;
     }
 
-    public override int[] X_Shape(int batchSize) => throw new NotImplementedException(); //!D TODO
+    public override int[] X_Shape(int batchSize)
+    {
+        var elementShape = _xList[0].Shape.ToList();
+        elementShape.Insert(0, batchSize);
+        return elementShape.ToArray();
+    }
     public override int[] Y_Shape(int batchSize) => Utils.CloneShapeWithNewCount(_yInMemoryDataSet?.Shape, batchSize);
 
     public override int Count => _xList.Count;

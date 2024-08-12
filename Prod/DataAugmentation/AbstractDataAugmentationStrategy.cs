@@ -15,13 +15,13 @@ namespace SharpNet.DataAugmentation
         protected readonly Random _rand;
         protected readonly double _cutoutPatchPercentage;
         protected readonly double _alphaCutMix;
-        protected readonly double _alphaMixup;
+        protected readonly double _alphaMixUp;
         protected int NbRows => _xOriginalMiniBatch.Shape[2];
         protected int NbCols => _xOriginalMiniBatch.Shape[3];
         protected AbstractDataAugmentationStrategy(int indexInMiniBatch, 
             CpuTensor<float> xOriginalMiniBatch,
             List<Tuple<float, float>> meanAndVolatilityForEachChannel, Lazy<ImageStatistic> stats, Random rand,
-            double cutoutPatchPercentage, double alphaCutMix, double alphaMixup)
+            double cutoutPatchPercentage, double alphaCutMix, double alphaMixUp)
         {
             Debug.Assert(stats != null);
             _indexInMiniBatch = indexInMiniBatch;
@@ -31,7 +31,7 @@ namespace SharpNet.DataAugmentation
             _rand = rand;
             _cutoutPatchPercentage = cutoutPatchPercentage;
             _alphaCutMix = alphaCutMix;
-            _alphaMixup = alphaMixup;
+            _alphaMixUp = alphaMixUp;
         }
 
         ///  <summary>

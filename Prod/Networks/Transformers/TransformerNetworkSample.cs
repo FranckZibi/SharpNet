@@ -18,7 +18,7 @@ public class TransformerNetworkSample : NetworkSample
 
     #region Hyperparameters
 
-    public float layer_norm_epsilon = LayerNormalizationLayer.DEFAULT_EPSILON;
+    public float layer_norm_epsilon = LayerNorm.DEFAULT_EPSILON;
     public int embedding_dim = -1; // == d_model
     public cudnnActivationMode_t LastActivationLayer = cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX_LAST_DIMENSION;
     public int N_PositionalEncoding = PositionalEncodingAttnIsAllYouNeedLayer.DEFAULT_N_POSITIONAL_ENCODING;
@@ -48,12 +48,12 @@ public class TransformerNetworkSample : NetworkSample
     //encoders Hyperparameters
     public int encoder_num_transformer_blocks = -1;
     public int encoder_num_heads = -1; //must be a divider of 'embedding_dim'
-    public bool encoder_mha_use_bias_Q_V_K = false;         
+    public bool encoder_mha_use_bias_Q_K_V = false;         
     public bool encoder_mha_use_bias_O = true;
     public float encoder_mha_dropout = 0.2f;
     public int encoder_feed_forward_dim = -1;
     public float encoder_feed_forward_dropout = 0.2f;
-    public bool encoder_use_causal_mask = false;
+    public bool encoder_is_causal = false;
     public bool encoder_add_layer_norm_before_mha = true;   //should be true
     public bool encoder_add_layer_norm_after_mha = false;   //should be false
 
@@ -63,7 +63,7 @@ public class TransformerNetworkSample : NetworkSample
     //decoders Hyperparameters
     public int decoder_num_transformer_blocks = -1;
     public int decoder_num_heads = -1; //must be a divider of 'embedding_dim'
-    public bool decoder_mha_use_bias_Q_V_K = false;
+    public bool decoder_mha_use_bias_Q_K_V = false;
     public bool decoder_mha_use_bias_O = true;
     public float decoder_mha_dropout = 0.2f;
     public int decoder_feed_forward_dim = -1;
@@ -80,7 +80,7 @@ public class TransformerNetworkSample : NetworkSample
     //            LossFunction = EvaluationMetricEnum.CategoricalCrossentropy,
     //            CompatibilityMode = CompatibilityModeEnum.TensorFlow,
     //            lambdaL2Regularization = 0.0005,
-    //            NumEpochs = 150,
+    //            num_epochs = 150,
     //            BatchSize = 128,
     //            InitialLearningRate = 0.1,
 
@@ -138,7 +138,7 @@ public class TransformerNetworkSample : NetworkSample
         throw new NotSupportedException("only full encoders are currently supported");
     }
 
-    //private TransformerNetworkSample WithEncoders(int N, int num_heads, bool use_bias, float mha_dropout, int feed_forward_dim, float feed_forward_dropout, bool use_causal_mask = false, bool add_layer_norm_before_mha = false, bool add_layer_norm_after_mha = true)
+    //private TransformerNetworkSample WithEncoders(int N, int num_heads, bool use_bias, float mha_dropout, int feed_forward_dim, float feed_forward_dropout, bool is_causal = false, bool add_layer_norm_before_mha = false, bool add_layer_norm_after_mha = true)
     //{
     //    encoder_num_transformer_blocks = N;
     //    encoder_num_heads = num_heads;
@@ -146,7 +146,7 @@ public class TransformerNetworkSample : NetworkSample
     //    encoder_mha_dropout = mha_dropout;
     //    encoder_feed_forward_dim = feed_forward_dim;
     //    encoder_feed_forward_dropout = feed_forward_dropout;
-    //    encoder_use_causal_mask = use_causal_mask;
+    //    encoder_is_causal = is_causal;
     //    encoder_add_layer_norm_after_mha = add_layer_norm_after_mha;
     //    return this;
     //}
@@ -231,7 +231,7 @@ public class TransformerNetworkSample : NetworkSample
             // Multi-Head Self Attention in Encoder
             AddMultiHeadAttentionBlock(network, layerPrefix+"mha_",
                 network.LastLayerIndex, encoder_num_heads, 
-                encoder_mha_use_bias_Q_V_K, encoder_mha_use_bias_O, encoder_use_causal_mask, inputLayerIndex, inputLayerIndex, inputLayerIndex, encoder_mha_dropout, layer_norm_epsilon, encoder_add_layer_norm_before_mha, encoder_add_layer_norm_after_mha);
+                encoder_mha_use_bias_Q_K_V, encoder_mha_use_bias_O, encoder_is_causal, inputLayerIndex, inputLayerIndex, inputLayerIndex, encoder_mha_dropout, layer_norm_epsilon, encoder_add_layer_norm_before_mha, encoder_add_layer_norm_after_mha);
 
             //Feed Forward in Encoder
             AddFeedForwardBlock(network, layerPrefix+"ffd_", embedding_dim, encoder_feed_forward_dim, encoder_feed_forward_dropout, layer_norm_epsilon, layer_norm_before_ffd, layer_norm_after_ffd);
@@ -270,12 +270,12 @@ public class TransformerNetworkSample : NetworkSample
             // Masked Multi-Head Self Attention in Decoder
             AddMultiHeadAttentionBlock(network, layerPrefix+"_masked_mha",
                 layerIndexOutputEmbedding, decoder_num_heads, 
-                decoder_mha_use_bias_Q_V_K, decoder_mha_use_bias_O,true, layerIndexOutputEmbedding, layerIndexOutputEmbedding, layerIndexOutputEmbedding, decoder_mha_dropout, layer_norm_epsilon, encoder_add_layer_norm_before_mha, encoder_add_layer_norm_after_mha);
+                decoder_mha_use_bias_Q_K_V, decoder_mha_use_bias_O,true, layerIndexOutputEmbedding, layerIndexOutputEmbedding, layerIndexOutputEmbedding, decoder_mha_dropout, layer_norm_epsilon, encoder_add_layer_norm_before_mha, encoder_add_layer_norm_after_mha);
 
             // Multi-Head Cross Attention in Decoder
             AddMultiHeadAttentionBlock(network, layerPrefix+"_mha",
                 network.LastLayerIndex, decoder_num_heads, 
-                decoder_mha_use_bias_Q_V_K, decoder_mha_use_bias_O, false, network.LastLayerIndex, layerIndexOutputEncoders, layerIndexOutputEncoders, decoder_mha_dropout, layer_norm_epsilon, decoder_add_layer_norm_before_mha, decoder_add_layer_norm_after_mha);
+                decoder_mha_use_bias_Q_K_V, decoder_mha_use_bias_O, false, network.LastLayerIndex, layerIndexOutputEncoders, layerIndexOutputEncoders, decoder_mha_dropout, layer_norm_epsilon, decoder_add_layer_norm_before_mha, decoder_add_layer_norm_after_mha);
 
             //Feed Forward in Decoder
             AddFeedForwardBlock(network, layerPrefix+"_ffd", embedding_dim, decoder_feed_forward_dim, decoder_feed_forward_dropout, layer_norm_epsilon, layer_norm_before_ffd, layer_norm_after_ffd);
@@ -283,7 +283,7 @@ public class TransformerNetworkSample : NetworkSample
     }
 
     private static void AddMultiHeadAttentionBlock(Network network, string layerPrefix, int inputLayerIndex, int num_heads,
-        bool use_bias_Q_V_K, bool use_bias_O, bool use_causal_mask,
+        bool use_bias_Q_K_V, bool use_bias_O, bool is_causal,
         int queriesLayerIndex, int valuesLayerIndex, int keysLayerIndex, float dropoutRate, float layer_norm_epsilon, bool addLayerNormBeforeMha, bool addLayerNormAfterMha)
     {
         if (addLayerNormBeforeMha)
@@ -298,7 +298,7 @@ public class TransformerNetworkSample : NetworkSample
         int embedding_dim = network.Layers[valuesLayerIndex].OutputShape(1)[2];
         int key_dim = embedding_dim / num_heads;
         int value_dim = embedding_dim / num_heads;
-        network.MultiHeadAttention(num_heads, key_dim, value_dim, use_bias_Q_V_K, use_bias_O, use_causal_mask, queriesLayerIndex, valuesLayerIndex, keysLayerIndex, layerPrefix + "mha");
+        network.MultiHeadAttention(num_heads, key_dim, value_dim, use_bias_Q_K_V, use_bias_O, is_causal, queriesLayerIndex, keysLayerIndex, valuesLayerIndex, layerPrefix + "mha");
         network.Dropout(dropoutRate, layerPrefix + "dropout");
         network.AddLayer(network.LastLayerIndex, inputLayerIndex, layerPrefix + "add");
         if (addLayerNormAfterMha)

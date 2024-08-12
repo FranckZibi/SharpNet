@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Diagnostics;
 using SharpNet.Data;
 using SharpNet.GPU;
@@ -18,7 +17,7 @@ namespace SharpNet.Layers
         #endregion
 
         //No need to configure the number of channels by filter: it is always the same as in previous layer
-        public ActivationLayer(cudnnActivationMode_t activationFunctionType, Tensor activationParameter, Network network, string layerName) : base(network, layerName)
+        public ActivationLayer(cudnnActivationMode_t activationFunctionType, Tensor activationParameter, Network network, string layerName, int lastLayerIndex = -1) : base(network, new[] { lastLayerIndex==-1 ?(network.Layers.Count - 1):lastLayerIndex }, layerName)
         {
             if (activationParameter != null && activationParameter.UseGPU != Network.UseGPU)
             {
@@ -118,13 +117,7 @@ namespace SharpNet.Layers
         }
         private string ToPytorchConstructor()
         {
-            switch (ActivationFunction)
-            {
-                case cudnnActivationMode_t.CUDNN_ACTIVATION_RELU:
-                    return "torch.nn.ReLU()";
-                default:
-                    throw new NotImplementedException(ActivationFunction.ToString());
-            }
+            return PyTorchUtils.ToPytorch(ActivationFunction, _activationParameter);
         }
 
         #endregion

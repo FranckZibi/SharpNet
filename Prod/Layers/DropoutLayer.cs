@@ -1,5 +1,6 @@
 ﻿using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
 using SharpNet.Data;
 using SharpNet.GPU;
 using SharpNet.Networks;
@@ -66,6 +67,16 @@ namespace SharpNet.Layers
             return new DropoutLayer(dropoutRate, network, (string)serialized[nameof(LayerName)]);
         }
         public override void AddToOtherNetwork(Network otherNetwork) { AddToOtherNetwork(otherNetwork, Deserialize); }
+        #endregion
+
+
+        #region PyTorch support
+        public override void ToPytorchModule(List<string> constructorLines, List<string> forwardLines)
+        {
+            //see: https://pytorch.org/docs/stable/generated/torch.nn.Dropout.html
+            constructorLines.Add("self." + LayerName + " = torch.nn.Dropout(p=" + _dropoutRate.ToString(CultureInfo.InvariantCulture) + ", inplace=False)");
+            UpdateForwardLines(forwardLines);
+        }
         #endregion
 
         public override void Dispose()

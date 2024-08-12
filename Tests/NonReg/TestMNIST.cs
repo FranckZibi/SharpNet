@@ -21,7 +21,7 @@ namespace SharpNetTests.NonReg
                 new NetworkSample
                     {
                         BatchSize = 32,
-                        NumEpochs = 1000,
+                        num_epochs = 1000,
                         DisableReduceLROnPlateau = true,
                         ResourceIds = new List<int> { useGpu ? 0 : -1 },
                         InitialLearningRate = 0.01

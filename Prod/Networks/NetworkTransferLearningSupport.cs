@@ -21,7 +21,7 @@ namespace SharpNet.Networks
             if (Layers.Count >= 2 && Layers[Layers.Count - 1] is ActivationLayer && Layers[Layers.Count - 2] is DenseLayer)
             {
                 var denseLayer = (DenseLayer) Layers[Layers.Count - 2];
-                if (denseLayer.Units == newNumClass)
+                if (denseLayer.out_features == newNumClass)
                 {
                     LogInfo("no need to set the NumClass to " + newNumClass);
                     return; //already at target category count

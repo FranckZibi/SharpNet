@@ -95,6 +95,13 @@ public abstract class Model: IDisposable
         }
     }
 
+
+    public virtual string ToPytorchModule(int datasetRows)
+    {
+        return "# Not implemented for "+GetType();
+    }
+
+
     public static string MetricsToString(IEnumerable<KeyValuePair<EvaluationMetricEnum, double>> metrics, string prefix)
     {
         return string.Join(" - ", metrics.Select(e => prefix + Utils.ToString(e.Key) + ": " + e.Value)).ToLowerInvariant();

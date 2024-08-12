@@ -240,9 +240,9 @@ namespace SharpNet.Layers
                 case nameof(EmbeddingLayer): return EmbeddingLayer.Deserialize(serialized, network);
                 case nameof(FlattenLayer): return FlattenLayer.Deserialize(serialized, network);
                 case nameof(InputLayer): return InputLayer.Deserialize(serialized, network);
-                case nameof(LayerNormalizationLayer): return LayerNormalizationLayer.Deserialize(serialized, network);
+                case nameof(LayerNorm): return LayerNorm.Deserialize(serialized, network);
                 case nameof(LinearFunctionLayer): return LinearFunctionLayer.Deserialize(serialized, network);
-                case nameof(MultiHeadAttentionLayer): return MultiHeadAttentionLayer.Deserialize(serialized, network);
+                case nameof(MultiheadAttention): return MultiheadAttention.Deserialize(serialized, network);
                 case nameof(MultiplyLayer): return MultiplyLayer.Deserialize(serialized, network);
                 case nameof(NonMaxSuppressionLayer): return NonMaxSuppressionLayer.Deserialize(serialized, network);
                 case nameof(PoolingLayer): return PoolingLayer.Deserialize(serialized, network);
@@ -270,15 +270,6 @@ namespace SharpNet.Layers
         // ReSharper disable once MemberCanBeMadeStatic.Global
         public void LogDebug(string msg) {Model.Log.Debug(msg);}
 
-        public int n_x
-        {
-            get
-            {
-                var result = Utils.Product(OutputShape(1));
-                Debug.Assert(result>= 1);
-                return result;
-            }
-        }
         public bool IsSigmoidActivationLayer()
         {
             return GetType() == typeof(ActivationLayer) &&((ActivationLayer) this).ActivationFunction == cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID;

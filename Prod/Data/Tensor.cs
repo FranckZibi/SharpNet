@@ -61,7 +61,7 @@ namespace SharpNet.Data
 
 
         /// <summary>
-        /// compute the transpose of 'this' tensor and stores it in 'output'
+        /// compute the transpose of 'this' tensor and stores it in 'transposed'
         /// </summary>
         /// <param name="transposed"></param>
         public abstract void Transpose(Tensor transposed);

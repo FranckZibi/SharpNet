@@ -33,6 +33,19 @@ public class AddLayer : Layer
     public override bool InputNeededForBackwardPropagation => false;
     #endregion
 
+
+
+
+    #region PyTorch support
+    //see : https://pytorch.org/docs/stable/generated/torch.nn.Linear.html
+    public override void ToPytorchModule(List<string> constructorLines, List<string> forwardLines)
+    {
+        forwardLines.Add(GetPyTorchOutputVariableName() + " = " + PreviousLayers[0].GetPyTorchOutputVariableName() + " + " + PreviousLayers[1].GetPyTorchOutputVariableName());
+    }
+    #endregion
+
+
+
     #region serialization
 
     public static AddLayer Deserialize(IDictionary<string, object> serialized, Network network)

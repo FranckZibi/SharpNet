@@ -177,6 +177,16 @@ namespace SharpNet.Datasets
             }
             return yBuffer;
         }
+        // ReSharper disable once VirtualMemberNeverOverridden.Global
+        public virtual CpuTensor<float> LoadFullX()
+        {
+            var xBuffer = new CpuTensor<float>(X_Shape(Count));
+            for (int elementId = 0; elementId < Count; elementId++)
+            {
+                LoadAt(elementId, elementId, xBuffer, null, false, false);
+            }
+            return xBuffer;
+        }
         public Random FirstRandom => _rands[0];
         /// <summary>
         /// Load 'miniBatch' (= xMiniBatch.Shape[0](') elements from the 'this' DataSet and copy them into 'xMiniBatch' (and 'yMiniBatch') tensors

@@ -37,7 +37,7 @@ public class WideResNetNetworkSample : NetworkSample
             ConvolutionAlgoPreference = GPUWrapper.ConvolutionAlgoPreference.FASTEST_DETERMINIST,
             lambdaL2Regularization = 0.0005,
             //!D WorkingDirectory = Path.Combine(NetworkSample.DefaultWorkingDirectory, CIFAR10DataSet.NAME),
-            NumEpochs = 150, //changed on 8-aug-2019 : new default batch size : 150 (was 200)
+            num_epochs = 150, //changed on 8-aug-2019 : new default batch size : 150 (was 200)
             BatchSize = 128,
             InitialLearningRate = 0.1,
 
@@ -57,8 +57,8 @@ public class WideResNetNetworkSample : NetworkSample
             HorizontalFlip = true,
             VerticalFlip = false,
             FillMode = ImageDataGenerator.FillModeEnum.Reflect,
-            //Mixup is discarded
-            AlphaMixup = 0.0,
+            //MixUp is discarded
+            AlphaMixUp = 0.0,
             //We use CutMix, lambda will follow a uniform distribution in [0,1]
             AlphaCutMix = 1.0, //validated on 14-aug-2019 : +15 bps
                                //Cutout discarded on 14-aug-2019: do not improve the use of CutMix
@@ -86,7 +86,7 @@ public class WideResNetNetworkSample : NetworkSample
             ConvolutionAlgoPreference = GPUWrapper.ConvolutionAlgoPreference.FASTEST_DETERMINIST,
             lambdaL2Regularization = 0.0005,
             //!D WorkingDirectory = Path.Combine(NetworkSample.DefaultWorkingDirectory, CIFAR100DataSet.NAME),
-            NumEpochs = 150,
+            num_epochs = 150,
             BatchSize = 128,
             InitialLearningRate = 0.1,
 
@@ -102,7 +102,7 @@ public class WideResNetNetworkSample : NetworkSample
             HorizontalFlip = true,
             VerticalFlip = false,
             FillMode = ImageDataGenerator.FillModeEnum.Reflect,
-            AlphaMixup = 0.0,
+            AlphaMixUp = 0.0,
             AlphaCutMix = 1.0,
             CutoutPatchPercentage = 0.0,
         }

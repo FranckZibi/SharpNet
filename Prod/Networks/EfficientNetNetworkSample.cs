@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using SharpNet.DataAugmentation;
@@ -65,7 +66,7 @@ public class EfficientNetNetworkSample : NetworkSample
             CompatibilityMode = CompatibilityModeEnum.TensorFlow,
             lambdaL2Regularization = 0.0005,
             //!D WorkingDirectory = Path.Combine(NetworkSample.DefaultWorkingDirectory, "ImageNet"),
-            NumEpochs = 150,
+            num_epochs = 150,
             BatchSize = 128,
             InitialLearningRate = 0.1,
 
@@ -94,7 +95,7 @@ public class EfficientNetNetworkSample : NetworkSample
             lambdaL2Regularization = 0.0005,
             //!D WorkingDirectory = Path.Combine(NetworkSample.DefaultWorkingDirectory, "Cancel"),
             AlwaysUseFullTestDataSetForLossAndAccuracy = false,
-            NumEpochs = 150,
+            num_epochs = 150,
             BatchSize = 128,
             InitialLearningRate = 0.03,
 
@@ -110,7 +111,7 @@ public class EfficientNetNetworkSample : NetworkSample
             VerticalFlip = false,
             Rotate180Degrees = true,
             FillMode = ImageDataGenerator.FillModeEnum.Reflect,
-            AlphaMixup = 0.0, //Mixup is discarded
+            AlphaMixUp = 0.0, //MixUp is discarded
             AlphaCutMix = 0.0, //CutMix is discarded
             CutoutPatchPercentage = 0.1
         }
@@ -132,7 +133,7 @@ public class EfficientNetNetworkSample : NetworkSample
             CompatibilityMode = CompatibilityModeEnum.TensorFlow,
             lambdaL2Regularization = 0.0005,
             //!D WorkingDirectory = Path.Combine(NetworkSample.DefaultWorkingDirectory, CIFAR10DataSet.NAME),
-            NumEpochs = 150,
+            num_epochs = 150,
             BatchSize = 128,
             InitialLearningRate = 0.1,
 
@@ -143,8 +144,8 @@ public class EfficientNetNetworkSample : NetworkSample
             HorizontalFlip = true,
             VerticalFlip = false,
             FillMode = ImageDataGenerator.FillModeEnum.Reflect,
-            //Mixup is discarded
-            AlphaMixup = 0.0,
+            //MixUp is discarded
+            AlphaMixUp = 0.0,
             AlphaCutMix = 1.0,
             CutoutPatchPercentage = 0.0
         }
@@ -291,15 +292,15 @@ public class EfficientNetNetworkSample : NetworkSample
     /// <param name="layerPrefix"></param>
     private void AddMBConvBlock(Network network, MobileBlocksDescription block_args, float blockSkipConnectionsDropoutRate, string layerPrefix)
     {
-        int inputChannels = network.Layers.Last().OutputShape(1)[1];
+        int in_channels = network.Layers.Last().OutputShape(1)[1];
         var inputLayerIndex = network.LastLayerIndex;
 
         //Expansion phase
         var config = network.Sample;
-        var filters = inputChannels * block_args.ExpandRatio;
+        var hidden_dim = in_channels * block_args.ExpandRatio;
         if (block_args.ExpandRatio != 1)
         {
-            network.Convolution(filters, 1, 1, ConvolutionLayer.PADDING_TYPE.SAME, config.lambdaL2Regularization, false, layerPrefix + "expand_conv")
+            network.Convolution(hidden_dim, 1, 1, ConvolutionLayer.PADDING_TYPE.SAME, config.lambdaL2Regularization, false, layerPrefix + "expand_conv")
                 .BatchNorm(BatchNormMomentum, BatchNormEpsilon, layerPrefix + "expand_bn")
                 .Activation(DefaultActivation, layerPrefix + "expand_activation");
         }
@@ -314,11 +315,11 @@ public class EfficientNetNetworkSample : NetworkSample
         if (hasSe)
         {
             var xLayerIndex = network.LastLayerIndex;
-            var num_reduced_filters = Math.Max(1, (int)(inputChannels * block_args.SeRatio));
+            var num_reduced_filters = Math.Max(1, (int)(in_channels * block_args.SeRatio));
             network.GlobalAvgPooling(layerPrefix + "se_squeeze");
             network.Convolution(num_reduced_filters, 1, 1, ConvolutionLayer.PADDING_TYPE.SAME, config.lambdaL2Regularization, true, layerPrefix + "se_reduce")
                 .Activation(DefaultActivation);
-            network.Convolution(filters, 1, 1, ConvolutionLayer.PADDING_TYPE.SAME, config.lambdaL2Regularization, true, layerPrefix + "se_expand")
+            network.Convolution(hidden_dim, 1, 1, ConvolutionLayer.PADDING_TYPE.SAME, config.lambdaL2Regularization, true, layerPrefix + "se_expand")
                 .Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID);
             network.MultiplyLayer(xLayerIndex, network.LastLayerIndex /*diagonal matrix */, layerPrefix + "se_excite");
         }
@@ -326,7 +327,7 @@ public class EfficientNetNetworkSample : NetworkSample
         //Output phase
         network.Convolution(block_args.OutputFilters, 1, 1, ConvolutionLayer.PADDING_TYPE.SAME, config.lambdaL2Regularization, false, layerPrefix + "project_conv");
         network.BatchNorm(BatchNormMomentum, BatchNormEpsilon, layerPrefix + "project_bn");
-        if (block_args.IdSkip && block_args.RowStride == 1 && block_args.ColStride == 1 && block_args.OutputFilters == inputChannels)
+        if (block_args.IdSkip && block_args.RowStride == 1 && block_args.ColStride == 1 && block_args.OutputFilters == in_channels)
         {
             if (blockSkipConnectionsDropoutRate > 0.000001)
             {
@@ -509,6 +510,40 @@ public class EfficientNetNetworkSample : NetworkSample
         POOLING_BEFORE_DENSE_LAYER pooling = POOLING_BEFORE_DENSE_LAYER.NONE)
     {
         return EfficientNet(2.0f, 3.1f, /*600,*/ 2.5f* TopDropoutRate, SkipConnectionsDropoutRate, 8, blocks, network, includeTop, weights, inputShape_CHW, pooling, numClass);
+    }
+
+
+    public override string ToPytorchModule(Network model)
+    {
+        var inputShape = "["+string.Join(", ",  model.Layers[0].OutputShape(1).Skip(1).ToList())+"]";
+        double widthCoefficient = 1.0;
+        double depthCoefficient = 1.0;
+        int depthDivisor = 8;
+        if (EfficientNetName != enum_efficientnet_name.EfficientNetB0)
+        {
+            throw new NotImplementedException("Only EfficientNetB0 is implemented");
+        }
+        var res = "model = EfficientNet(" + Environment.NewLine;
+        res += "        widthCoefficient = "+ widthCoefficient.ToString(CultureInfo.InvariantCulture) + ","+Environment.NewLine;
+        res += "        depthCoefficient = "+ depthCoefficient.ToString(CultureInfo.InvariantCulture) + ","+Environment.NewLine;
+        res += "        topDropoutRate = "+TopDropoutRate.ToString(CultureInfo.InvariantCulture) + "," + Environment.NewLine;
+        res += "        skipConnectionsDropoutRate = "+SkipConnectionsDropoutRate.ToString(CultureInfo.InvariantCulture) + "," + Environment.NewLine;
+        res += "        depthDivisor = "+ depthDivisor + "," + Environment.NewLine;
+        if (DefaultMobileBlocksDescriptionCount == -1 && DefaultMobileBlocksDescriptionCount == 7)
+        {
+            res += "        blocks = MobileBlocksDescription.default()" + "," + Environment.NewLine;
+        }
+        else
+        {
+            res += "        blocks = MobileBlocksDescription.default()[0:"+ DefaultMobileBlocksDescriptionCount+"]," + Environment.NewLine;
+        }
+
+        res += "        inputShape_CHW = "+ inputShape + "," + Environment.NewLine;
+        res += "        numClass = " + model.YPredicted_MiniBatch_Shape(1)[1] + "," + Environment.NewLine;
+        res += "        DefaultActivation = " + PyTorchUtils.ToPytorch(DefaultActivation, null) + "," + Environment.NewLine;
+        res += "        LastActivationLayer = " + PyTorchUtils.ToPytorch(LastActivationLayer, null) + "," + Environment.NewLine;
+        res += ").to(device)";
+        return res;
     }
 
     public static string GetKerasModelPath(string modelFileName)

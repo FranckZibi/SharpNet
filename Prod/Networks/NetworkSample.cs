@@ -57,7 +57,7 @@ namespace SharpNet.Networks
         /// <summary>
         /// when set to true, will log all forward and backward propagation
         /// </summary>
-        public bool LogNetworkPropagation { get; set; } = false;
+        public bool LogNetworkPropagation { get; set; }= false;
         #endregion
 
 
@@ -156,13 +156,19 @@ namespace SharpNet.Networks
             }
         }
 
-        public int NumEpochs;
+        public int num_epochs;
         public int BatchSize;
         public override EvaluationMetricEnum GetLoss() => LossFunction;
         public override EvaluationMetricEnum GetRankingEvaluationMetric()
         {
             var metrics = GetAllEvaluationMetrics();
             return metrics.Count != 0 ? metrics[0] : EvaluationMetricEnum.DEFAULT_VALUE;
+        }
+
+
+        public virtual string ToPytorchModule(Network model)
+        {
+            return "# Not implemented for " + GetType();
         }
 
         protected override List<EvaluationMetricEnum> GetAllEvaluationMetrics()
@@ -319,9 +325,9 @@ namespace SharpNet.Networks
             switch (LearningRateSchedulerType)
             {
                 case LearningRateSchedulerEnum.OneCycle:
-                    return new OneCycleLearningRateScheduler(InitialLearningRate, OneCycle_DividerForMinLearningRate, OneCycle_PercentInAnnealing, NumEpochs);
+                    return new OneCycleLearningRateScheduler(InitialLearningRate, OneCycle_DividerForMinLearningRate, OneCycle_PercentInAnnealing, num_epochs);
                 case LearningRateSchedulerEnum.CyclicCosineAnnealing:
-                    return new CyclicCosineAnnealingLearningRateScheduler(CyclicCosineAnnealing_MinLearningRate, InitialLearningRate, CyclicCosineAnnealing_nbEpochsInFirstRun, CyclicCosineAnnealing_nbEpochInNextRunMultiplier, NumEpochs);
+                    return new CyclicCosineAnnealingLearningRateScheduler(CyclicCosineAnnealing_MinLearningRate, InitialLearningRate, CyclicCosineAnnealing_nbEpochsInFirstRun, CyclicCosineAnnealing_nbEpochInNextRunMultiplier, num_epochs);
                 case LearningRateSchedulerEnum.Cifar10DenseNet:
                     return LearningRateScheduler.ConstantByInterval(1, InitialLearningRate, 150, InitialLearningRate / 10, 225, InitialLearningRate / 100);
                 case LearningRateSchedulerEnum.Cifar10ResNet:
@@ -331,7 +337,7 @@ namespace SharpNet.Networks
                 case LearningRateSchedulerEnum.Cifar10WideResNet:
                     return LearningRateScheduler.ConstantByInterval(1, InitialLearningRate, 60, InitialLearningRate / 5, 120, InitialLearningRate / 25, 160, InitialLearningRate / 125);
                 case LearningRateSchedulerEnum.Linear:
-                    return LearningRateScheduler.Linear(InitialLearningRate, NumEpochs, InitialLearningRate / Linear_DividerForMinLearningRate);
+                    return LearningRateScheduler.Linear(InitialLearningRate, num_epochs, InitialLearningRate / Linear_DividerForMinLearningRate);
                 case LearningRateSchedulerEnum.Constant:
                     return LearningRateScheduler.Constant(InitialLearningRate);
                 default:
@@ -394,21 +400,21 @@ namespace SharpNet.Networks
             if (!MustUseGPU)
             {
                 //this is the only supported mode on CPU
-                ConvolutionAlgoPreference = ConvolutionAlgoPreference.FASTEST_DETERMINIST;
+                ConvolutionAlgoPreference = ConvolutionAlgoPreference.FASTEST_DETERMINIST_NO_TRANSFORM;
             }
 
             if (DataAugmentationType == ImageDataGenerator.DataAugmentationEnum.NO_AUGMENTATION)
             {
-                ZoomRange = RotationRangeInDegrees = AlphaCutMix = AlphaMixup = CutoutPatchPercentage = RowsCutoutPatchPercentage = ColumnsCutoutPatchPercentage = FillModeConstantVal = AlphaMixup = AlphaCutMix = WidthShiftRangeInPercentage = HeightShiftRangeInPercentage = 0;
+                ZoomRange = RotationRangeInDegrees = AlphaCutMix = AlphaMixUp = CutoutPatchPercentage = RowsCutoutPatchPercentage = ColumnsCutoutPatchPercentage = FillModeConstantVal = AlphaMixUp = AlphaCutMix = WidthShiftRangeInPercentage = HeightShiftRangeInPercentage = 0;
                 HorizontalFlip = VerticalFlip = Rotate180Degrees= Rotate90Degrees = false;
             }
 
-            if (AlphaMixup>0 && AlphaCutMix>0)
+            if (AlphaMixUp>0 && AlphaCutMix>0)
             {
-                // Mixup and CutMix can not be used at the same time: we need to disable one of them
+                // MixUp and CutMix can not be used at the same time: we need to disable one of them
                 if (Utils.RandomCoinFlip())
                 {
-                    AlphaMixup = 0; //We disable Mixup
+                    AlphaMixUp = 0; //We disable MixUp
                 }
                 else
                 {
@@ -589,6 +595,88 @@ namespace SharpNet.Networks
         }
 
 
+
+        #region PyTorch support
+        public string PytorchOptimizer()
+        {
+            switch (OptimizerType)
+            {
+                case Optimizer.OptimizationEnum.Adam:
+                    //see https://pytorch.org/docs/stable/generated/torch.optim.Adam.html
+                    string resAdam = "torch.optim.Adam(model.parameters(), lr = " + InitialLearningRate.ToString(CultureInfo.InvariantCulture);
+                    resAdam += ", betas=(" + Adam_beta1.ToString(CultureInfo.InvariantCulture) + ", " + Adam_beta2.ToString(CultureInfo.InvariantCulture) + ")";
+                    resAdam += ", eps=" + Adam_epsilon.ToString(CultureInfo.InvariantCulture);
+                    if (lambdaL2Regularization > 0)
+                    {
+                        Debug.Assert(AdamW_L2Regularization == 0);
+                        resAdam += ", weight_decay=" + lambdaL2Regularization.ToString(CultureInfo.InvariantCulture);
+                    }
+                    return resAdam + ")";
+                case Optimizer.OptimizationEnum.AdamW:
+                    //see: https://pytorch.org/docs/stable/generated/torch.optim.AdamW.html
+                    string resAdamW = "torch.optim.AdamW(model.parameters(), lr = " + InitialLearningRate.ToString(CultureInfo.InvariantCulture);
+                    resAdamW += ", betas=(" + Adam_beta1.ToString(CultureInfo.InvariantCulture) + ", " + Adam_beta2.ToString(CultureInfo.InvariantCulture) + ")";
+                    resAdamW += ", eps=" + Adam_epsilon.ToString(CultureInfo.InvariantCulture);
+                    if (AdamW_L2Regularization > 0)
+                    {
+                        resAdamW += ", weight_decay=" + AdamW_L2Regularization.ToString(CultureInfo.InvariantCulture);
+                    }
+                    return resAdamW + ")";
+                case Optimizer.OptimizationEnum.SGD:
+                    //see: https://pytorch.org/docs/stable/generated/torch.optim.SGD.html
+                    string resSGD = "torch.optim.SGD(model.parameters(), lr = "+InitialLearningRate.ToString(CultureInfo.InvariantCulture);
+                    if (SGD_momentum > 0)
+                    {
+                        resSGD += ", momentum=" + SGD_momentum.ToString(CultureInfo.InvariantCulture);
+                    }
+                    if (lambdaL2Regularization > 0)
+                    {
+                        resSGD += ", weight_decay=" + lambdaL2Regularization.ToString(CultureInfo.InvariantCulture);
+                    }
+                    if (SGD_usenesterov)
+                    {
+                        resSGD += ", nesterov=True";
+                    }
+                    return resSGD + ")";
+                case Optimizer.OptimizationEnum.VanillaSGD:
+                    string resVanillaSGD = "torch.optim.SGD(model.parameters(), lr = " + InitialLearningRate.ToString(CultureInfo.InvariantCulture);
+                    return resVanillaSGD + ")";
+                default:
+                    return "TODO: torch.optim."+ OptimizerType + "(model.parameters(), lr = lr, ...)";
+            }
+
+        }
+
+
+        public string PytorchLoss()
+        {
+            switch (LossFunction)
+            {
+                case EvaluationMetricEnum.CategoricalCrossentropy:
+                    return "torch.nn.CrossEntropyLoss()";
+                case EvaluationMetricEnum.BinaryCrossentropy:
+                    return "torch.nn.BCELoss()";
+                case EvaluationMetricEnum.BCEWithFocalLoss:
+                    string alpha = "-1";
+                    if (Math.Abs(BCEWithFocalLoss_PercentageInTrueClass - 0.5) > 1e-6)
+                    {
+                        alpha = "?";
+                    }
+                    return $"BinaryFocalLoss(alpha="+ alpha + ", gamma=" + BCEWithFocalLoss_Gamma.ToString(CultureInfo.InvariantCulture)  +", reduction='mean')";
+                case EvaluationMetricEnum.Mse:
+                    return "torch.nn.MSELoss()";
+                case EvaluationMetricEnum.Mae:
+                    return "torch.nn.L1Loss()";
+                case EvaluationMetricEnum.Huber:
+                    return "torch.nn.HuberLoss(delta="+ Get_Huber_Delta().ToString(CultureInfo.InvariantCulture) + ")";
+                default:
+                    return "TODO: torch.nn." + LossFunction + "Loss()";
+            }
+
+        }
+        #endregion
+
+
         public enum CompatibilityModeEnum
         {
             SharpNet,
@@ -725,11 +813,11 @@ namespace SharpNet.Networks
 
 
         /// <summary>
-        /// The alpha coefficient used to compute lambda in Mixup
-        /// A value less or equal to 0.0 wil disable Mixup (see: https://arxiv.org/pdf/1710.09412.pdf)
+        /// The alpha coefficient used to compute lambda in MixUp
+        /// A value less or equal to 0.0 wil disable MixUp (see: https://arxiv.org/pdf/1710.09412.pdf)
         /// A value of 1.0 will use a uniform random distribution in [0,1] for lambda
         /// </summary>
-        public double AlphaMixup = 0.0;
+        public double AlphaMixUp = 0.0;
 
         /// <summary>
         /// rotation range in degrees, in [0,180] range.

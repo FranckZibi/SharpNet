@@ -177,7 +177,7 @@ public static class MyNameIsGrootUtils
         ChallengeTools.Retrain(speedTestWorkingDirectory, "v0", null, 0.9, retrainOnFullDataset: false, useAllAvailableCores: false, computeAndSavePredictions: false, computeValidationRankingScore: false, saveTrainedModel: false);
     }
 
-    public static void LaunchNeuralNetworkHPO(int numEpochs, int maxAllowedSecondsForAllComputation = 0)
+    public static void LaunchNeuralNetworkHPO(int num_epochs, int maxAllowedSecondsForAllComputation = 0)
     {
         var searchSpace = new Dictionary<string, object>
         {
@@ -205,7 +205,7 @@ public static class MyNameIsGrootUtils
             //{"layer_norm_epsilon", new[]{1e-5, 1e-6 } },
             {"encoder_num_transformer_blocks", new[]{1 /*,6*/ } },
             {"encoder_num_heads", new[]{1} },
-            {"encoder_mha_use_bias_Q_V_K", false},
+            {"encoder_mha_use_bias_Q_K_V", false},
             //{"encoder_mha_use_bias_O", new[]{true,false } },
             //{"encoder_mha_dropout", new[]{0.2f,0f ,0.1f} },
 
@@ -214,7 +214,7 @@ public static class MyNameIsGrootUtils
 
             {"encoder_feed_forward_dim", 1},
             //{"encoder_feed_forward_dropout", new[]{0.2f,0f,0.1f }},
-            {"encoder_use_causal_mask", true},
+            {"encoder_is_causal", true},
             {"vocab_size", 4},
             // Optimizer 
             { nameof(NetworkSample.OptimizerType), "AdamW" },
@@ -226,7 +226,7 @@ public static class MyNameIsGrootUtils
             { nameof(NetworkSample.LearningRateSchedulerType), "Constant"},
             //{ nameof(NetworkSample.LearningRateSchedulerType), "Constant"},
             { nameof(NetworkSample.BatchSize), new[]{256} },
-            { nameof(NetworkSample.NumEpochs), numEpochs },
+            { nameof(NetworkSample.num_epochs), num_epochs },
             
 
         };

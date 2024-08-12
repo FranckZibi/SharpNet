@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
 using System.Linq;
 using JetBrains.Annotations;
 using SharpNet.CPU;
@@ -20,6 +21,7 @@ namespace SharpNet.Layers
         /// it is equal to:
         ///     1-exponentialAverageSmoothingFactor
         ///     (see https://en.wikipedia.org/wiki/Exponential_smoothing)
+        /// The PyTorch momentum is (1 - _momentum)
         /// </summary>
         private readonly double _momentum;
         private readonly double _epsilon;
@@ -237,7 +239,24 @@ namespace SharpNet.Layers
         }
         public override void AddToOtherNetwork(Network otherNetwork) { AddToOtherNetwork(otherNetwork, Deserialize); }
         #endregion
-        
+
+        #region PyTorch support
+        //see: https://pytorch.org/docs/stable/generated/torch.nn.BatchNorm2d.html
+        public override void ToPytorchModule(List<string> constructorLines, List<string> forwardLines)
+        {
+            var input_shape = PreviousLayers.Count == 0 ? new[] { -1, -1, -1, -1 } : PreviousLayers[0].OutputShape(666);
+            int num_features = input_shape[1];
+            constructorLines.Add("self." + LayerName + " = torch.nn.BatchNorm2d(num_features=" + num_features + ", eps=" + _epsilon.ToString(CultureInfo.InvariantCulture) + ", momentum=" + PyTorch_momentum().ToString(CultureInfo.InvariantCulture) + ")");
+            UpdateForwardLines(forwardLines);
+        }
+        //see: https://stackoverflow.com/questions/48345857/batchnorm-momentum-convention-pytorch
+        private double PyTorch_momentum() => 1-_momentum;
+        #endregion
+        #region Tensorflow support
+        // ReSharper disable once UnusedMember.Global
+        public double Tensorflow_momentum() => _momentum;
+        #endregion
+
         public override string ToString()
         {
             var result = LayerName + ": " + ShapeChangeDescription();

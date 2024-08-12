@@ -225,6 +225,7 @@ public static class ChallengeTools
             var swPercentageInTraining = Stopwatch.StartNew();
             using var modelAndDataset = ModelAndDatasetPredictions.LoadWithNewPercentageInTrainingNoKFold(percentageInTraining.Value, workingDirectory, modelName, useAllAvailableCores);
             Model.Log.Info($"Training Model '{modelAndDataset.Model.ModelName}' (= Model '{modelName}' with {Math.Round(100* percentageInTraining.Value,1)}% in training no KFold)");
+            //Model.Log.Info(modelAndDataset.Model.ToPytorchModule(256));
             newModelName = modelAndDataset.Model.ModelName;
             modelAndDataset.Fit(computeAndSavePredictions, computeValidationRankingScore, saveTrainedModel);
             ISample.Log.Info($"Model '{modelAndDataset.Model.ModelName}' trained in {swPercentageInTraining.Elapsed.TotalSeconds}");

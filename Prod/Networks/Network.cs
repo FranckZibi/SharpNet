@@ -176,10 +176,11 @@ namespace SharpNet.Networks
             return this;
         }
 
-        public Network SimpleRNN(int hiddenSize, bool returnSequences, bool isBidirectional, string layerName = "")
+        public Network SimpleRNN(int hiddenSize, bool returnSequences, bool isBidirectional, int numLayers = 1, string layerName = "")
         {
             Debug.Assert(Layers.Count >= 1);
-            var simpleRnn = new RecurrentLayer(hiddenSize, cudnnRNNMode_t.CUDNN_RNN_TANH, cudnnRNNBiasMode_t.CUDNN_RNN_SINGLE_INP_BIAS, returnSequences, isBidirectional, 1, 0.0, false /* isEncoder */,-1 /* encoder layer index */, true, this, layerName);
+            var biasMode = Sample.CompatibilityMode == NetworkSample.CompatibilityModeEnum.PyTorch? cudnnRNNBiasMode_t.CUDNN_RNN_DOUBLE_BIAS: cudnnRNNBiasMode_t.CUDNN_RNN_SINGLE_INP_BIAS;
+            var simpleRnn = new RecurrentLayer(hiddenSize, cudnnRNNMode_t.CUDNN_RNN_TANH, biasMode, returnSequences, isBidirectional, numLayers, 0.0, false /* isEncoder */,-1 /* encoder layer index */, true, this, layerName);
             Layers.Add(simpleRnn);
             return this;
         }
@@ -376,27 +377,27 @@ namespace SharpNet.Networks
         }
 
         // ReSharper disable once UnusedMember.Global
-        public Network ScaledDotProductAttention(bool use_scale, bool use_causal_mask = false, string layerName = "")
+        public Network ScaledDotProductAttention(bool use_scale, bool is_causal = false, string layerName = "")
         {
             var previousLayerIndex = Layers.Count - 1;
             int queriesLayerIndex = previousLayerIndex;
-            int valuesLayerIndex = previousLayerIndex;
             int keysLayerIndex = previousLayerIndex;
-            return ScaledDotProductAttention(use_scale, use_causal_mask, queriesLayerIndex, valuesLayerIndex, keysLayerIndex, layerName);
+            int valuesLayerIndex = previousLayerIndex;
+            return ScaledDotProductAttention(use_scale, is_causal, queriesLayerIndex, keysLayerIndex, valuesLayerIndex, layerName);
         }
-        public Network ScaledDotProductAttention(bool use_scale, bool use_causal_mask, int queriesLayerIndex, int valuesLayerIndex, int keysLayerIndex, string layerName = "")
+        public Network ScaledDotProductAttention(bool use_scale, bool is_causal, int queriesLayerIndex, int keysLayerIndex, int valuesLayerIndex, string layerName = "")
         {
             Debug.Assert(Layers.Count >= 1);
-            Layers.Add(new ScaledDotProductAttentionLayer(use_scale, use_causal_mask, queriesLayerIndex, valuesLayerIndex, keysLayerIndex, this, layerName));
+            Layers.Add(new ScaledDotProductAttentionLayer(use_scale, is_causal, queriesLayerIndex, keysLayerIndex, valuesLayerIndex, this, layerName));
             return this;
         }
 
         public Network MultiHeadAttention(int num_heads, int key_dim, int value_dim, bool use_bias_K_V_K, bool use_bias_O,
-            bool use_causal_mask, int queriesLayerIndex, int valuesLayerIndex, int keysLayerIndex,
+            bool is_causal, int queriesLayerIndex, int keysLayerIndex, int valuesLayerIndex,
             string layerName = "")
         {
             Debug.Assert(Layers.Count >= 1);
-            Layers.Add(new MultiHeadAttentionLayer(num_heads, key_dim, value_dim, use_bias_K_V_K, use_bias_O, use_causal_mask, queriesLayerIndex, valuesLayerIndex, keysLayerIndex, this, layerName));
+            Layers.Add(new MultiheadAttention(num_heads, key_dim, value_dim, use_bias_K_V_K, use_bias_O, is_causal, queriesLayerIndex, keysLayerIndex, valuesLayerIndex, this, layerName));
             return this;
         }
 
@@ -425,14 +426,14 @@ namespace SharpNet.Networks
             }
             return this;
         }
-        public Network Activation(cudnnActivationMode_t activationFunction, string layerName = "")
+        public Network Activation(cudnnActivationMode_t activationFunction, string layerName = "", int lastLayerIndex = -1)
         {
-            return Activation(activationFunction, null, layerName);
+            return Activation(activationFunction, null, layerName, lastLayerIndex);
         }
-        public Network Activation(cudnnActivationMode_t activationFunction, Tensor activationParameter, string layerName = "")
+        public Network Activation(cudnnActivationMode_t activationFunction, Tensor activationParameter, string layerName = "", int lastLayerIndex = -1)
         {
             Debug.Assert(Layers.Count >= 1);
-            Layers.Add(new ActivationLayer(activationFunction, activationParameter, this, layerName));
+            Layers.Add(new ActivationLayer(activationFunction, activationParameter, this, layerName, lastLayerIndex));
             return this;
         }
 
@@ -482,7 +483,7 @@ namespace SharpNet.Networks
         }
         public Network GlobalMaxPooling(int previousLayerIndex, string layerName = "")
         {
-            return MaxPooling(-1, -1, -1, previousLayerIndex, layerName);
+            return MaxPooling(-1, -1, -1, -1, previousLayerIndex, layerName);
         }
         // ReSharper disable once UnusedMethodReturnValue.Global
         public Network GlobalAvgPooling_And_GlobalMaxPooling()
@@ -500,11 +501,11 @@ namespace SharpNet.Networks
             return this;
         }
 
-        public Network LayerNorm(int last_D_dimension = 1, double epsilon = LayerNormalizationLayer.DEFAULT_EPSILON, string layerName = "", int lastLayerIndex = -1)
+        public Network LayerNorm(int last_D_dimension = 1, double epsilon = SharpNet.Layers.LayerNorm.DEFAULT_EPSILON, string layerName = "", int lastLayerIndex = -1)
         {
             Debug.Assert(Layers.Count >= 1);
             Debug.Assert(last_D_dimension >= 1);
-            Layers.Add(new LayerNormalizationLayer(last_D_dimension, epsilon, true, this, layerName, lastLayerIndex));
+            Layers.Add(new LayerNorm(last_D_dimension, epsilon, true, this, layerName, lastLayerIndex));
             return this;
         }
 
@@ -623,7 +624,7 @@ namespace SharpNet.Networks
                 {
                     LogDebug("Validation dataset: " + validationDatasetIfAny);
                 }
-                LogInfo("#Epochs=" + Sample.NumEpochs + " BatchSize=" + miniBatchSizeForAllWorkers+" Name="+ModelName);
+                LogInfo("#Epochs=" + Sample.num_epochs + " BatchSize=" + miniBatchSizeForAllWorkers+" Name="+ModelName);
                 if (Sample.DisplayTensorContentStats)
                 {
                     LogDebug("Initial Tensor Content stats" + Environment.NewLine + ContentStats() + Environment.NewLine);
@@ -643,7 +644,7 @@ namespace SharpNet.Networks
                 for (;;)
                 {
                     int epoch = EpochData.Count + 1;
-                    if (epoch > Sample.NumEpochs)
+                    if (epoch > Sample.num_epochs)
                     {
                         break;
                     }
@@ -695,10 +696,10 @@ namespace SharpNet.Networks
                     double secondsForEpoch = swEpoch.Elapsed.TotalSeconds;
                     double nbStepsByEpoch = ((double)trainingDataset.Count) / miniBatchSizeForAllWorkers;
                     var msByStep = (1000 * secondsForEpoch) / nbStepsByEpoch;
-                    LogInfo("Epoch " + epoch + "/" + Sample.NumEpochs + " - " + Math.Round(secondsForEpoch, 0) + "s " + Math.Round(msByStep, 0) + "ms/step - lr: " + Math.Round(learningRateAtEpochStart, 8) + " - " + lossAndAccuracyMsg + " - " + ModelName);
+                    LogInfo("Epoch " + epoch + "/" + Sample.num_epochs + " - " + Math.Round(secondsForEpoch, 0) + "s " + Math.Round(msByStep, 0) + "ms/step - lr: " + Math.Round(learningRateAtEpochStart, 8) + " - " + lossAndAccuracyMsg + " - " + ModelName);
                     LogDebug(MemoryInfo());
                     //if it is the last epoch, we'll save Layer KPI
-                    if (epoch == Sample.NumEpochs)
+                    if (epoch == Sample.num_epochs)
                     {
                         LogInfo(LayersKpi());
                     }
@@ -708,7 +709,7 @@ namespace SharpNet.Networks
                     EpochData.Add(currentEpochData);
                     #endregion
 
-                    var modelNameForEpoch = (epoch == Sample.NumEpochs) ? ModelName : (ModelName + "_" + epoch);
+                    var modelNameForEpoch = (epoch == Sample.num_epochs) ? ModelName : (ModelName + "_" + epoch);
                     #region we save the network in disk if necessary
                     bool isNewBestIterationToSave = IsNewBestIterationToSave();
                     if (ShouldSaveNetwork(learningRateComputer, savedNetworks, epoch) || isNewBestIterationToSave)
@@ -738,7 +739,7 @@ namespace SharpNet.Networks
                     }
                 }
 
-                LogInfo("Training '"+ ModelName+"' for " + Sample.NumEpochs + " epochs took: " + _spInternalFit.Elapsed.TotalSeconds + "s");
+                LogInfo("Training '"+ ModelName+"' for " + Sample.num_epochs + " epochs took: " + _spInternalFit.Elapsed.TotalSeconds + "s");
                 if (!string.IsNullOrEmpty(ModelName))
                 {
                     LogDebug("Network Name: "+ModelName);
@@ -770,7 +771,7 @@ namespace SharpNet.Networks
                 return false;
             }
             return   //if we have finished training
-                     (epoch == Sample.NumEpochs && Sample.NumEpochs >= 10)
+                     (epoch == Sample.num_epochs && Sample.num_epochs >= 10)
                      //or if we should save the network every 'Config.AutoSaveIntervalInMinutes' minutes
                      || (savedNetworks.Count>0 && (DateTime.Now - savedNetworks.Keys.Max()).TotalMinutes > Sample.AutoSaveIntervalInMinutes)
                      || learningRateComputer.ShouldCreateSnapshotForEpoch(epoch)
@@ -896,7 +897,7 @@ namespace SharpNet.Networks
 
         private bool ShouldUseFullTestDataSetForLossAndAccuracy(ILearningRateComputer learningRateComputer, int epoch)
         {
-            if (Sample.AlwaysUseFullTestDataSetForLossAndAccuracy || epoch == 1 || epoch == Sample.NumEpochs)
+            if (Sample.AlwaysUseFullTestDataSetForLossAndAccuracy || epoch == 1 || epoch == Sample.num_epochs)
             {
                 return true;
             }
@@ -914,8 +915,7 @@ namespace SharpNet.Networks
         #endregion
 
         #region PyTorch support
-
-        public string ToPytorchModule()
+        public override string ToPytorchModule(int datasetRows)
         {
             var constructorLines = new List<string>(new []{"super().__init__()", "torch.manual_seed(0)", "np.random.seed(0)"});
             List<string> forwardLines = new();
@@ -930,21 +930,68 @@ namespace SharpNet.Networks
             sb.AppendLine("");
             sb.AppendLine("import torch");
             sb.AppendLine("import numpy as np");
-            sb.AppendLine("");
-            sb.AppendLine("class " + ModelName + "(torch.nn.Module):");
-            sb.AppendLine("    def __init__(self):");
-            foreach (var line in constructorLines)
+            sb.AppendLine("import torch.nn.functional as F");
+            sb.AppendLine("device = 'cuda'");
+
+            sb.AppendLine(Sample.ToPytorchModule(this));
+
+            if (Sample is not EfficientNetNetworkSample)
             {
-                sb.AppendLine("        " + line);
+                sb.AppendLine("");
+                sb.AppendLine("class " + ModelName + "(torch.nn.Module):");
+                sb.AppendLine("    def __init__(self):");
+                foreach (var line in constructorLines)
+                {
+                    sb.AppendLine("        " + line);
+                }
+
+                sb.AppendLine("");
+                sb.AppendLine("    def forward(self, x: torch.Tensor) -> torch.Tensor:");
+                foreach (var line in forwardLines)
+                {
+                    sb.AppendLine("        " + line);
+                }
+                sb.AppendLine();
+                sb.AppendLine("model = " + ModelName + "().to(device)");
             }
-            sb.AppendLine("");
-            sb.AppendLine("    def forward(self, x: torch.Tensor) -> torch.Tensor:");
-            foreach (var line in forwardLines)
+
+            sb.AppendLine("sample = dict()");
+            sb.AppendLine("sample['num_epochs'] = " + Sample.num_epochs);
+            sb.AppendLine("sample['batch_size'] = " + Sample.BatchSize);
+            sb.AppendLine("# batch_size = " + Sample.BatchSize);
+            sb.AppendLine("# epochs = " + Sample.num_epochs);
+            sb.AppendLine("loss_criterion = " + Sample.PytorchLoss());
+            sb.AppendLine("optimizer = "+Sample.PytorchOptimizer());
+            if (Sample.LearningRateSchedulerType == NetworkSample.LearningRateSchedulerEnum.OneCycle)
             {
-                sb.AppendLine("        " + line);
+                sb.AppendLine($"scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer, max_lr={Sample.InitialLearningRate}, steps_per_epoch=len(training_dataset)//batch_size, epochs=epochs, pct_start={(1-Sample.OneCycle_PercentInAnnealing)/2}, anneal_strategy='linear', div_factor={Sample.OneCycle_DividerForMinLearningRate}, three_phase=True )");
             }
+            else
+            {
+                sb.AppendLine($"scheduler = None");
+            }
+            var shape_numpy_array_for_tests = "["+datasetRows+", "+string.Join(", ", Layers[0].OutputShape(666).Skip(1))+"]";
+
+            sb.AppendLine("# loss_before, loss_after = Train(model,");
+            sb.AppendLine("Train(model,");
+            sb.AppendLine("#    numpy_array_for_tests("+ shape_numpy_array_for_tests+"),");
+            var shape_y_numpy_array_for_tests =datasetRows+ ", " + string.Join(", ", Layers.Last().OutputShape(666).Skip(1));
+            sb.AppendLine("#    y_numpy_array_for_tests("+ shape_y_numpy_array_for_tests+"),");
+            sb.AppendLine("    training_dataset,");
+            sb.AppendLine("    validation_dataset,");
+            sb.AppendLine("    #device = device,");
+            sb.AppendLine("    loss_criterion = loss_criterion");
+            sb.AppendLine("    optimizer = optimizer,");
+            sb.AppendLine("    scheduler = scheduler,");
+            sb.AppendLine("    sample = sample,");
+            sb.AppendLine("    #num_epochs = epochs,");
+            sb.AppendLine("    #batch_size = batch_size");
+            sb.AppendLine("    )");
+
             return sb.ToString();
         }
+
+      
 
         #endregion
 

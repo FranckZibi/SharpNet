@@ -1554,5 +1554,10 @@ namespace SharpNet
             int r = x % modulo;
             return r < 0 ? r + modulo : r;
         }
+
+        public static string ToPython(bool b)
+        {
+            return b?"True":"False";
+        }
     }
 }

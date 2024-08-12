@@ -11,13 +11,9 @@ namespace SharpNet.Datasets.Biosonar85;
 
 public class Biosonar85DatasetSample : AbstractDatasetSample
 {
-    public const string f_min = "1000";
-    public const string f_max = "150000";
-    public const string max_db = "250";
-
-    private static string xTrainBin_TRANSFORMERS_3D => "X_train_23168_101_64_1024_512_"+f_min+"_"+f_max+"_"+max_db+".bin";
-    private static string yTrainBin_TRANSFORMERS_3D => "Y_train_23168_1_64_1024_512_" + f_min + "_" + f_max + "_" + max_db + ".bin";
-    private static string xTestBin_TRANSFORMERS_3D => "X_test_950_101_64_1024_512_" + f_min + "_" + f_max + "_" + max_db +".bin";
+    private static string xTrainBin_TRANSFORMERS_3D => "X_train_23168_64_201_512_256_1001_127000_250.bin";
+    private static string yTrainBin_TRANSFORMERS_3D => "Y_train.bin";
+    private static string xTestBin_TRANSFORMERS_3D => "X_test_950_64_201_512_256_1001_127000_250.bin";
 
 
     //const float x_train_mean = -37.149295f;       //for train dataset only 
@@ -32,13 +28,13 @@ public class Biosonar85DatasetSample : AbstractDatasetSample
 
     //spectrogram with shape (129,401)
     private const string xTrainBin_PNG_1CHANNEL_V2 = "X_train_23168_129_401_256_128_5000_100000_250.bin";
-    private const string yTrainBin_PNG_1CHANNEL_V2 = "Y_train_23168_1_None_256_128_5000_100000_250.bin";
+    private const string yTrainBin_PNG_1CHANNEL_V2 = "Y_train.bin";
     private const string xTestBin_PNG_1CHANNEL_V2 = "X_test_950_129_401_256_128_5000_100000_250.bin";
 
 
     //MEL_SPECTROGRAM with shape (64,401)
     private const string xTrainBin_MEL_SPECTROGRAM_64_401 = "X_train_23168_64_401_256_128_1001_127000_250.bin";
-    private const string yTrainBin_MEL_SPECTROGRAM_64_401 = "Y_train_23168_1_64_256_128_1001_127000_250.bin";
+    private const string yTrainBin_MEL_SPECTROGRAM_64_401 = "Y_train.bin";
     private const string xTestBin_MEL_SPECTROGRAM_64_401 = "X_test_950_64_401_256_128_1001_127000_250.bin";
     private const float x_train_mean_MEL_SPECTROGRAM_64_401 = float.NaN;       // for train dataset
     private const float x_train_volatility_MEL_SPECTROGRAM_64_401 = float.NaN;  // for train dataset
@@ -47,15 +43,21 @@ public class Biosonar85DatasetSample : AbstractDatasetSample
     private const string xTrainBin_MEL_SPECTROGRAM_128_401 = "X_train_23168_128_401_256_128_1001_127000_250.bin";
     //private const string xAugmentedTrainBin_MEL_SPECTROGRAM_128_401 = "augmented501_X_train_23168_128_401_256_128_1001_127000_250.bin";
     private const string xAugmentedTrainBin_MEL_SPECTROGRAM_128_401 = null;
-    private const string yTrainBin_MEL_SPECTROGRAM_128_401 = "Y_train_23168_1_128_256_128_1001_127000_250.bin";
+    private const string yTrainBin_MEL_SPECTROGRAM_128_401 = "Y_train.bin";
     private const string xTestBin_MEL_SPECTROGRAM_128_401 = "X_test_950_128_401_256_128_1001_127000_250.bin";
     private const float x_train_mean_MEL_SPECTROGRAM_128_401 = -65.779617f;       // for train dataset
     private const float x_train_volatility_MEL_SPECTROGRAM_128_401 = 23.741558f;  // for train dataset
 
+
+    //PyTorch compatibility
     //MEL_SPECTROGRAM_SMALL with shape (128,401) , frequencies filtered in [1Khz, 127 KHz]
+    
     private const string xTrainBin_MEL_SPECTROGRAM_SMALL_128_401 = "X_train_small_256_128_401_256_128_1001_127000_250.bin";
-    private const string xAugmentedTrainBin_MEL_SPECTROGRAM_SMALL_128_401 = "augmented2_X_train_small_256_128_401_256_128_1001_127000_250.bin";
-    private const string yTrainBin_MEL_SPECTROGRAM_SMALL_128_401 = "Y_train_small_256_1_128_256_128_1001_127000_250.bin";
+
+    private const string xAugmentedTrainBin_MEL_SPECTROGRAM_SMALL_128_401 = null; //"augmented2_X_train_small_256_128_401_256_128_1001_127000_250.bin";
+    
+    private const string yTrainBin_MEL_SPECTROGRAM_SMALL_128_401 = "Y_train_small.bin";
+
     private const string xTestBin_MEL_SPECTROGRAM_SMALL_128_401 = "X_test_950_128_401_256_128_1001_127000_250.bin";
     private const float x_train_mean_MEL_SPECTROGRAM_SMALL_128_401 = float.NaN;       // for train dataset
     private const float x_train_volatility_MEL_SPECTROGRAM_SMALL_128_401 = float.NaN;  // for train dataset
@@ -63,7 +65,7 @@ public class Biosonar85DatasetSample : AbstractDatasetSample
 
     //MEL_SPECTROGRAM with shape (128,401), no filter on frequencies
     //private const string xTrainBin_MEL_SPECTROGRAM_128_401 = "X_train_23168_128_401_256_128_0_None_250.bin";
-    //private const string yTrainBin_MEL_SPECTROGRAM_128_401 = "Y_train_23168_1_128_256_128_0_None_250.bin";
+    //private const string yTrainBin_MEL_SPECTROGRAM_128_401 = "Y_train.bin";
     //private const string xTestBin_MEL_SPECTROGRAM_128_401 = "X_test_950_128_401_256_128_0_None_250.bin";
     //private const float x_train_mean_MEL_SPECTROGRAM_128_401 = float.NaN;       // for train dataset
     //private const float x_train_volatility_MEL_SPECTROGRAM_128_401 = float.NaN;  // for train dataset
@@ -71,9 +73,10 @@ public class Biosonar85DatasetSample : AbstractDatasetSample
 
     //MEL_SPECTROGRAM with shape (256,801)
     private const string xTrainBin_MEL_SPECTROGRAM_256_801 = "X_train_23168_256_801_128_64_1001_127000_250.bin";
-    private const string yTrainBin_MEL_SPECTROGRAM_256_801 = "Y_train_23168_1_256_128_64_1001_127000_250.bin";
+    private const string yTrainBin_MEL_SPECTROGRAM_256_801 = "Y_train.bin";
     //private const string xTrainBin_MEL_SPECTROGRAM_256_801 = "X_train_small_256_256_801_128_64_1001_127000_250.bin";
-    //private const string yTrainBin_MEL_SPECTROGRAM_256_801 = "Y_train_small_256_1_256_128_64_1001_127000_250.bin";
+    //private const string yTrainBin_MEL_SPECTROGRAM_256_801 = "Y_train_small.bin";
+    public static string Y_train_small_path = Path.Join(Biosonar85Utils.DataDirectory, "Y_train_small.csv");
     //public static string Y_train_path = Y_train_small_path;
 
     private const string xTestBin_MEL_SPECTROGRAM_256_801 = "X_test_950_256_801_128_64_1001_127000_250.bin";
@@ -86,18 +89,7 @@ public class Biosonar85DatasetSample : AbstractDatasetSample
 
     public static string Y_test_path = Path.Join(Biosonar85Utils.DataDirectory, "Y_random_Xwjr6aB.csv");
     // ReSharper disable once UnusedMember.Global
-    public static string Y_train_small_path = Path.Join(Biosonar85Utils.DataDirectory, "Y_train_small.csv");
-
-    public static string PNG_train_directory = Path.Join(Biosonar85Utils.DataDirectory, "X_train_64_256_128_1000_150000_250");
-    public static string PNG_test_directory = Path.Join(Biosonar85Utils.DataDirectory, "X_test_64_256_128_1000_150000_250");
-
-
     public static string Y_train_path = Path.Join(Biosonar85Utils.DataDirectory, "Y_train_ofTdMHi.csv");
-
-
-    //private static string xTrainBinV2 => "X_train_23168_65_401_128_128_1000_150000_250.bin";
-    //private static string yTrainBinV2 => "Y_train_23168_1_None_128_128_1000_150000_250.bin";
-    //private static string xTestBinV2 => "X_test_950_65_401_128_128_1000_150000_250.bin";
 
 
     #region private fields
@@ -274,7 +266,8 @@ public class Biosonar85DatasetSample : AbstractDatasetSample
         switch (InputDataType)
         {
             case InputDataTypeEnum.TRANSFORMERS_3D:
-                return X_Shape(xTrainBin_TRANSFORMERS_3D, batchSize).ToArray();
+                var tmp = X_Shape(xTrainBin_TRANSFORMERS_3D, batchSize).ToArray();
+                return new[] { batchSize, tmp[3], tmp[2] };
             case InputDataTypeEnum.NETWORK_4D:
                 return X_Shape(xTrainBin_TRANSFORMERS_3D, batchSize);
             case InputDataTypeEnum.PNG_1CHANNEL_V2:
@@ -312,16 +305,16 @@ public class Biosonar85DatasetSample : AbstractDatasetSample
                 case InputDataTypeEnum.TRANSFORMERS_3D:
                     if (trainDataset_TRANSFORMERS_3D == null)
                     {
-                        trainDataset_TRANSFORMERS_3D = Biosonar85Utils.Load(xTrainBin_TRANSFORMERS_3D, yTrainBin_TRANSFORMERS_3D, Y_train_path, x_train_mean_TRANSFORMERS_3D, x_train_volatility_TRANSFORMERS_3D);
-                        testDataset_TRANSFORMERS_3D = Biosonar85Utils.Load(xTestBin_TRANSFORMERS_3D, null, Y_test_path, x_train_mean_TRANSFORMERS_3D, x_train_volatility_TRANSFORMERS_3D);
+                        trainDataset_TRANSFORMERS_3D = Biosonar85Utils.Load(xTrainBin_TRANSFORMERS_3D, yTrainBin_TRANSFORMERS_3D, Y_train_path, x_train_mean_TRANSFORMERS_3D, x_train_volatility_TRANSFORMERS_3D, true);
+                        testDataset_TRANSFORMERS_3D = Biosonar85Utils.Load(xTestBin_TRANSFORMERS_3D, null, Y_test_path, x_train_mean_TRANSFORMERS_3D, x_train_volatility_TRANSFORMERS_3D, true);
                         Log.Info($"Loading of raw files took {sw.Elapsed.Seconds}s");
                     }
                     return (trainDataset_TRANSFORMERS_3D, testDataset_TRANSFORMERS_3D);
                 case InputDataTypeEnum.NETWORK_4D:
                     if (trainDataset_NETWORK_4D == null)
                     {
-                        trainDataset_NETWORK_4D = Biosonar85Utils.Load(xTrainBin_TRANSFORMERS_3D, yTrainBin_TRANSFORMERS_3D, Y_train_path, x_train_mean_TRANSFORMERS_3D, x_train_volatility_TRANSFORMERS_3D);
-                        testDataset_NETWORK_4D = Biosonar85Utils.Load(xTestBin_TRANSFORMERS_3D, null, Y_test_path, x_train_mean_TRANSFORMERS_3D, x_train_volatility_TRANSFORMERS_3D);
+                        trainDataset_NETWORK_4D = Biosonar85Utils.Load(xTrainBin_TRANSFORMERS_3D, yTrainBin_TRANSFORMERS_3D, Y_train_path, x_train_mean_TRANSFORMERS_3D, x_train_volatility_TRANSFORMERS_3D, false);
+                        testDataset_NETWORK_4D = Biosonar85Utils.Load(xTestBin_TRANSFORMERS_3D, null, Y_test_path, x_train_mean_TRANSFORMERS_3D, x_train_volatility_TRANSFORMERS_3D, false);
                         trainDataset_NETWORK_4D.X.ReshapeInPlace(trainDataset_NETWORK_4D.X.Shape[0], 1, trainDataset_NETWORK_4D.X.Shape[2], trainDataset_NETWORK_4D.X.Shape[3]);
                         testDataset_NETWORK_4D.X.ReshapeInPlace(testDataset_NETWORK_4D.X.Shape[0], 1, testDataset_NETWORK_4D.X.Shape[2], testDataset_NETWORK_4D.X.Shape[3]);
                         Log.Info($"Loading of raw files took {sw.Elapsed.Seconds}s");
@@ -330,7 +323,6 @@ public class Biosonar85DatasetSample : AbstractDatasetSample
                 case InputDataTypeEnum.PNG_1CHANNEL_V2:
                     if (trainDataset_PNG_1CHANNEL_V2 == null)
                     {
-                        //trainDataset_PNG_1CHANNEL_V2 = Biosonar85Utils.Load("X_train_small_10_129_401_256_128_1000_150000_250.bin", "Y_train_small_10_1_None_256_128_1000_150000_250.bin", Y_train_small_path, Biosonar85Utils.x_train_mean_PNG_1CHANNEL_V2, Biosonar85Utils.x_train_volatility_PNG_1CHANNEL_V2);
                         trainDataset_PNG_1CHANNEL_V2 = Biosonar85Utils.LoadTensorListDataSet(xTrainBin_PNG_1CHANNEL_V2, null, yTrainBin_PNG_1CHANNEL_V2, Y_train_path, x_train_mean_PNG_1CHANNEL_V2, x_train_volatility_PNG_1CHANNEL_V2);
                         testDataset_PNG_1CHANNEL_V2 = Biosonar85Utils.LoadTensorListDataSet(xTestBin_PNG_1CHANNEL_V2, null, null, Y_test_path, x_train_mean_PNG_1CHANNEL_V2, x_train_volatility_PNG_1CHANNEL_V2);
                         Log.Info($"Loading of raw files took {sw.Elapsed.Seconds}s");

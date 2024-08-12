@@ -27,14 +27,14 @@ namespace SharpNet.DataAugmentation.Operations
             {
                 throw new ArgumentException(typeof(Cutout) + " operation must be the last one in the list");
             }
-            //CutMix and Mixup can't be used at the same time
-            if (dico.ContainsKey(typeof(CutMix)) && dico.ContainsKey(typeof(Mixup)))
+            //CutMix and MixUp can't be used at the same time
+            if (dico.ContainsKey(typeof(CutMix)) && dico.ContainsKey(typeof(MixUp)))
             {
-                throw new ArgumentException(typeof(CutMix) + " and "+typeof(Mixup)+" can't appear at the same time in the list");
+                throw new ArgumentException(typeof(CutMix) + " and "+typeof(MixUp)+" can't appear at the same time in the list");
             }
 
-            //CutMix and Mixup must be the last operations (only Cutout is allowed to be after them)
-            foreach (var t in new[] {typeof(CutMix), typeof(Mixup)})
+            //CutMix and MixUp must be the last operations (only Cutout is allowed to be after them)
+            foreach (var t in new[] {typeof(CutMix), typeof(MixUp)})
             {
                 if (dico.ContainsKey(t) && operations.Last().GetType() != t)
                 {

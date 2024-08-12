@@ -113,7 +113,7 @@ public static class EffiSciences95Utils
             CompatibilityMode = NetworkSample.CompatibilityModeEnum.TensorFlow,
             lambdaL2Regularization = 0.0005,
             //!D WorkingDirectory = Path.Combine(NetworkSample.DefaultWorkingDirectory, CIFAR10DataSet.NAME),
-            NumEpochs = 10,
+            num_epochs = 10,
             BatchSize = 64,
             InitialLearningRate = 0.01,
 
@@ -124,7 +124,7 @@ public static class EffiSciences95Utils
             HorizontalFlip = true,
             VerticalFlip = false,
             FillMode = ImageDataGenerator.FillModeEnum.Reflect,
-            AlphaMixup = 0.0,
+            AlphaMixUp = 0.0,
             AlphaCutMix = 0.0,
             CutoutPatchPercentage = 0.0
         }
@@ -136,9 +136,9 @@ public static class EffiSciences95Utils
     /// <summary>
     /// the method uses a Bayesian Search to find the best Hyperparameters for the EfficientNet Deep Learning model
     /// </summary>
-    /// <param name="numEpochs"></param>
+    /// <param name="num_epochs"></param>
     /// <param name="maxAllowedSecondsForAllComputation"></param>
-    private static void Launch_HPO(int numEpochs = 10, int maxAllowedSecondsForAllComputation = 0)
+    private static void Launch_HPO(int num_epochs = 10, int maxAllowedSecondsForAllComputation = 0)
     {
         Utils.ConfigureGlobalLog4netProperties(WorkingDirectory, NAME);
         Utils.ConfigureThreadLog4netProperties(WorkingDirectory, NAME);
@@ -152,7 +152,7 @@ public static class EffiSciences95Utils
             { nameof(NetworkSample.LossFunction), nameof(EvaluationMetricEnum.CategoricalCrossentropy)},
             { nameof(NetworkSample.EvaluationMetrics), nameof(EvaluationMetricEnum.Accuracy)},
             { nameof(NetworkSample.BatchSize), new[] {64 /*, 96*/} },
-            { nameof(NetworkSample.NumEpochs), new[] { numEpochs } },
+            { nameof(NetworkSample.num_epochs), new[] { num_epochs } },
             // Optimizer 
             //{ nameof(NetworkSample.OptimizerType), new[] { "AdamW"} },
             //{ nameof(NetworkSample.SGD_usenesterov), new[] { true, false } },
@@ -175,7 +175,7 @@ public static class EffiSciences95Utils
             // DataAugmentation
             //{ nameof(NetworkSample.HorizontalFlip), new[] { true /*, false*/} }, //true
             //{ nameof(NetworkSample.VerticalFlip), new[] { false /*, true*/} }, //false
-            //{ nameof(NetworkSample.AlphaMixup), new[] { 0.0 /*, 0.5, 1.0*/ } }, //0.0
+            //{ nameof(NetworkSample.AlphaMixUp), new[] { 0.0 /*, 0.5, 1.0*/ } }, //0.0
             { nameof(NetworkSample.AlphaCutMix), new[] { 1.0, 2.0 } }, //0.0
             //{ nameof(NetworkSample.CutoutPatchPercentage), new[] { 0.0, 0.15, 0.3} },
             //{ "RotationRangeInDegrees", new[] { 0.0, 5.0, 10.0} },

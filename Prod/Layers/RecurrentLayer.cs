@@ -38,17 +38,17 @@ namespace SharpNet.Layers
 
         #region trainable parameters
         [NotNull] private Tensor _weightsAndBiases;
-        [NotNull] private readonly List<Tensor> _weights_ax = new();
-        [NotNull] private readonly List<Tensor> _weights_aa = new();
-        [NotNull] private readonly List<Tensor> _weights_ax_bias = new();
-        [NotNull] private readonly List<Tensor> _weights_aa_bias = new();
+        [NotNull] public readonly List<Tensor> _weight_ih = new();
+        [NotNull] public readonly List<Tensor> _weights_hh = new();
+        [NotNull] public readonly List<Tensor> _bias_ih = new();
+        [NotNull] public readonly List<Tensor> _bias_hh = new();
         #endregion
         #region gradients
         [NotNull] private Tensor _weightsAndBiasesGradients;
-        [NotNull] private readonly List<Tensor> _weights_ax_gradients = new();
-        [NotNull] private readonly List<Tensor> _weights_aa_gradients = new();
-        [NotNull] private readonly List<Tensor> _weights_ax_bias_gradients = new();
-        [NotNull] private readonly List<Tensor> _weights_aa_bias_gradients = new ();
+        [NotNull] private readonly List<Tensor> _weight_ih_gradients = new();
+        [NotNull] private readonly List<Tensor> _weights_hh_gradients = new();
+        [NotNull] private readonly List<Tensor> _bias_ih_gradients = new();
+        [NotNull] private readonly List<Tensor> _bias_hh_gradients = new ();
         #endregion
 
         private readonly bool _returnSequences;
@@ -128,14 +128,14 @@ namespace SharpNet.Layers
 
         /// <summary>
         /// Initialize the 8 following lists:
-        ///     _weights_ax
-        ///     _weights_aa
-        ///     _weights_ax_bias  
-        ///     _weights_aa_bias
-        ///     _weights_ax_gradients
-        ///     _weights_aa_gradients
-        ///     _weights_ax_bias_gradients
-        ///     _weights_aa_bias_gradients 
+        ///     _weight_ih
+        ///     _weights_hh
+        ///     _bias_ih  
+        ///     _bias_hh
+        ///     _weight_ih_gradients
+        ///     _weights_hh_gradients
+        ///     _bias_ih_gradients
+        ///     _bias_hh_gradients 
         /// </summary>
         private void InitializeWeightAndBiasTensorList(Tensor t, bool isGradient)
         {
@@ -171,15 +171,15 @@ namespace SharpNet.Layers
             {
                 if (isAxList)
                 {
-                    return isGradientList ? _weights_ax_bias_gradients : _weights_ax_bias;
+                    return isGradientList ? _bias_ih_gradients : _bias_ih;
                 }
-                return isGradientList ? _weights_aa_bias_gradients : _weights_aa_bias;
+                return isGradientList ? _bias_hh_gradients : _bias_hh;
             }
             if (isAxList)
             {
-                return isGradientList ? _weights_ax_gradients : _weights_ax;
+                return isGradientList ? _weight_ih_gradients : _weight_ih;
             }
-            return isGradientList ? _weights_aa_gradients : _weights_aa;
+            return isGradientList ? _weights_hh_gradients : _weights_hh;
         }
 
 
@@ -203,8 +203,8 @@ namespace SharpNet.Layers
         public override void ResetParameters(bool resetAlsoOptimizerWeights = true)
         {
             _weightsAndBiases.ZeroMemory();
-            _weights_aa.ForEach(t=>t.Orthogonal(Rand));
-            _weights_ax.ForEach(t => t.GlorotUniform(Rand));
+            _weights_hh.ForEach(t=>t.Orthogonal(Rand));
+            _weight_ih.ForEach(t => t.GlorotUniform(Rand));
         }
         #endregion
 
@@ -618,7 +618,85 @@ namespace SharpNet.Layers
                 (string) serialized[nameof(LayerName)]);
         }
         public override void AddToOtherNetwork(Network otherNetwork) { AddToOtherNetwork(otherNetwork, Deserialize); }
-#endregion
+        #endregion
+
+
+        #region PyTorch support
+        public override void ToPytorchModule(List<string> constructorLines, List<string> forwardLines)
+        {
+          
+            string extraInfo = "";
+            string functionName = nameof(RecurrentLayer);
+            switch (CellMode)
+            {
+                case cudnnRNNMode_t.CUDNN_RNN_RELU:
+                case cudnnRNNMode_t.CUDNN_RNN_TANH:
+                    //see: https://pytorch.org/docs/stable/generated/torch.nn.RNN.html
+                    //torch.nn.RNN(self, input_size, hidden_size, num_layers=1, nonlinearity='tanh', bias=True, batch_first=False, dropout=0.0, bidirectional=False, device=None, dtype=None)
+                    extraInfo += CellMode == cudnnRNNMode_t.CUDNN_RNN_RELU ? ", nonlinearity='relu'" : ", nonlinearity='tanh'";
+                    functionName = "RNN";
+                    break;
+                case cudnnRNNMode_t.CUDNN_GRU:
+                    functionName = "GRU";
+                    break;
+                case cudnnRNNMode_t.CUDNN_LSTM:
+                    functionName = "LSTM";
+                    break;
+            }
+            var input_shape = PreviousLayers.Count == 0 ? new[] { -1, -1 } : PreviousLayers[0].OutputShape(666);
+            int input_size = input_shape[^1];
+            const bool bias = true;
+            constructorLines.Add("self." + LayerName + " = torch.nn."+ functionName+"(input_size=" + input_size + ", hidden_size=" + HiddenSize 
+                                 + ", num_layers=" + NumLayers + extraInfo    
+                                 + ", bias=" + bias 
+                                 + ", batch_first=True, dropout=" + DropoutRate + ", bidirectional=" + IsBidirectional +
+                                 ")");
+            foreach (var biasParam in GetBiasPyTorchParameters(false, true))
+            {
+                constructorLines.Add("torch.nn.init.zeros_(self." + LayerName + "." + biasParam + ")");
+            }
+
+            string variableNamExtension = _returnSequences ? "" : "_return_sequences";
+
+            forwardLines.Add(GetPyTorchOutputVariableName()+ variableNamExtension + ", "+ GetPyTorchOutputVariableName() + "_hidden"+variableNamExtension +" = self." + LayerName + "(" + GetInputVariableName() + ")");
+            if (!_returnSequences)
+            {
+                //we only keep the last index of the 2nd dimension 
+                forwardLines.Add(GetPyTorchOutputVariableName() + " = " + GetPyTorchOutputVariableName() + variableNamExtension + "[:,-1,:]");
+            }
+        }
+
+        private List<string> GetBiasPyTorchParameters(bool weights, bool bias)
+        {
+            var res = new List<string>();
+            if (weights)
+            {
+                for (int i = 0; i < NumLayers; ++i)
+                {
+                    res.Add("weight_ih_l" + i);
+                    res.Add("weight_hh_l" + i);
+                }
+            }
+            if (bias)
+            {
+                for (int i = 0; i < NumLayers; ++i)
+                {
+                    res.Add("bias_ih_l" + i);
+                    res.Add("bias_hh_l" + i);
+                }
+            }
+
+            if (IsBidirectional)
+            {
+                for (int i = res.Count - 1; i >= 0; --i)
+                {
+                    res.Add(res[i]+ "_reverse");
+                }
+            }
+            return res;
+        }
+
+        #endregion
 
         public override int[] OutputShape(int batchSize)
         {

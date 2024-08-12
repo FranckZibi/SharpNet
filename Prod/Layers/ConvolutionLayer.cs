@@ -8,6 +8,7 @@ using SharpNet.Data;
 using SharpNet.GPU;
 using SharpNet.Networks;
 using SharpNet.Optimizers;
+using static SharpNet.Networks.NetworkSample;
 
 namespace SharpNet.Layers
 {
@@ -201,8 +202,15 @@ namespace SharpNet.Layers
             if (UseL2Regularization)
             {
                 var batchSize = dy4D.Shape[0];
-                var alpha = 2 * batchSize * (float)_lambdaL2Regularization;
+                var multiplier_LambdaL2Regularization = 2;
+                if (Sample.CompatibilityMode == CompatibilityModeEnum.PyTorch) { multiplier_LambdaL2Regularization = 1; }
+                var alpha = multiplier_LambdaL2Regularization * batchSize * (float)_lambdaL2Regularization;
                 _convolutionGradients.Update_Adding_Alpha_X(alpha, _convolution);
+                if (Sample.CompatibilityMode == CompatibilityModeEnum.PyTorch && UseBias)
+                {
+                    Debug.Assert(_convolutionBiasGradients != null);
+                    _convolutionBiasGradients.Update_Adding_Alpha_X(alpha, _convolutionBias);
+                }
             }
         }
 
@@ -283,7 +291,7 @@ namespace SharpNet.Layers
                 Debug.Assert(newParameters.Count == 1);
             }
         }
-        public override void LoadParameters(IDictionary<string, Tensor> h5FileDataset, NetworkSample.CompatibilityModeEnum originFramework)
+        public override void LoadParameters(IDictionary<string, Tensor> h5FileDataset, CompatibilityModeEnum originFramework)
         {
             h5FileDataset[ConvolutionDatasetPath].ChangeAxis(new[] { 3, 2, 0, 1 }).CopyTo(_convolution);
             if (UseBias) //we load bias if necessary
@@ -291,7 +299,7 @@ namespace SharpNet.Layers
                 h5FileDataset[ConvolutionBiasDatasetPath].CopyTo(_convolutionBias);
             }
         }
-        public override IDictionary<string, CpuTensor<float>> GetParametersAsCpuFloatTensors(NetworkSample.CompatibilityModeEnum originFramework)
+        public override IDictionary<string, CpuTensor<float>> GetParametersAsCpuFloatTensors(CompatibilityModeEnum originFramework)
         {
             var result = new Dictionary<string, CpuTensor<float>>();
             result.Add(ConvolutionDatasetPath,(CpuTensor<float>) _convolution.ToCpuFloat().ChangeAxis(new[] {2, 3, 1, 0}));
@@ -301,7 +309,7 @@ namespace SharpNet.Layers
                 result.Add(ConvolutionBiasDatasetPath, _convolutionBias.ToCpuFloat());
             }
 
-            if (UseBias && originFramework == NetworkSample.CompatibilityModeEnum.TensorFlow)
+            if (UseBias && originFramework == CompatibilityModeEnum.TensorFlow)
             {
                 Debug.Assert(_convolutionBias != null);
                 // ReSharper disable once PossibleNullReferenceException
@@ -455,7 +463,7 @@ namespace SharpNet.Layers
         {
             return (paddingTop != paddingBottom || paddingLeft != paddingRight);
         }
-        public static void Padding(int inputLength, int kernelSize, int stride, PADDING_TYPE paddingType, NetworkSample.CompatibilityModeEnum compatibilityMode, out int paddingStart, out int paddingEnd)
+        public static void Padding(int inputLength, int kernelSize, int stride, PADDING_TYPE paddingType, CompatibilityModeEnum compatibilityMode, out int paddingStart, out int paddingEnd)
         {
             switch (paddingType)
             {
@@ -465,7 +473,7 @@ namespace SharpNet.Layers
                 case PADDING_TYPE.SAME:
                     int outputLength = OutputLength(inputLength, kernelSize, stride, paddingType);
                     int totalPadding = Math.Max((outputLength - 1) * stride + kernelSize - inputLength, 0);
-                    if (compatibilityMode == NetworkSample.CompatibilityModeEnum.TensorFlow)
+                    if (compatibilityMode == CompatibilityModeEnum.TensorFlow)
                     {
                         //see: https://mmuratarat.github.io/2019-01-17/implementing-padding-schemes-of-tensorflow-in-python
                         paddingStart = totalPadding / 2;
@@ -491,19 +499,35 @@ namespace SharpNet.Layers
         #region PyTorch support
         public override void ToPytorchModule(List<string> constructorLines, List<string> forwardLines)
         {
-            if (_isDepthwiseConvolution)
-            {
-                throw new NotImplementedException();
-            }
             //see: https://pytorch.org/docs/stable/generated/torch.nn.Conv2d.html
             var input_shape = PreviousLayers.Count == 0 ? new[] { -1, -1, -1,-1 } : PreviousLayers[0].OutputShape(666);
             int in_channels = input_shape[1];
             int out_channels = _filtersCount;
-            var padding = _paddingType.ToString().ToLower();
-            var bias = UseBias?"True":"False";
-            constructorLines.Add("self." + LayerName + " = torch.nn.Conv2d(in_channels=" + in_channels+ ", out_channels=" + out_channels+
-                ", kernel_size=("+ _kernelHeight+","+ _kernelWidth+"), stride="+_stride+", padding='"+padding+"', bias="+ bias+")");
+
+
+            var padding = "'"+_paddingType.ToString().ToLower()+"'";
+            if (_paddingType == PADDING_TYPE.SAME && _stride != 1)
+            {
+                padding = _isConv1D ? (_kernelWidth / 2).ToString() : ("(" + (_kernelHeight / 2) + "," + (_kernelWidth / 2) + ")");
+            }
+            if (_isConv1D)
+            {
+                Debug.Assert(!_isDepthwiseConvolution);
+                constructorLines.Add("self." + LayerName + " = torch.nn.Conv1d(in_channels=" + in_channels + ", out_channels=" + out_channels + ", kernel_size="+_kernelWidth + ", stride=" + _stride + ", padding=" + padding + ", bias=" + Utils.ToPython(UseBias) + ")");
+            }
+            else
+            {
+                int groups = 1;
+                if (_isDepthwiseConvolution)
+                {
+                    groups = in_channels;
+                    out_channels = in_channels * _depthMultiplier;
+                }
+                constructorLines.Add("self." + LayerName + " = torch.nn.Conv2d(in_channels=" + in_channels + ", out_channels=" + out_channels + ", kernel_size=(" + _kernelHeight + "," + _kernelWidth + "), stride=" + _stride + ", padding=" + padding + ", groups=" + groups + ", bias=" + Utils.ToPython(UseBias) + ")");
+            }
+
             forwardLines.Add(GetPyTorchOutputVariableName() + " = self." + LayerName + "(" + GetInputVariableName() + ")");
+            constructorLines.Add("torch.nn.init.xavier_normal_(self." + LayerName + ".weight)");
             if (UseBias)
             {
                 constructorLines.Add("torch.nn.init.zeros_(self." + LayerName + ".bias)");

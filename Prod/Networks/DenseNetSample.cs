@@ -48,7 +48,7 @@ namespace SharpNet.Networks
             {
                     LossFunction = EvaluationMetricEnum.CategoricalCrossentropy,
                     lambdaL2Regularization = 1e-4,
-                    NumEpochs = 300,
+                    num_epochs = 300,
                     BatchSize = 64,
                     InitialLearningRate = 0.1,
 

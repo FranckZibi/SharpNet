@@ -285,7 +285,7 @@ namespace SharpNetTests.NonReg
                 {
                     ResourceIds = new List<int> { 0 },
                     BatchSize = 64,
-                    NumEpochs = 5,
+                    num_epochs = 5,
                     DisableReduceLROnPlateau = true
                 }.WithAdam()
                 .WithConstantLearningRateScheduler(learningRate)
@@ -317,7 +317,7 @@ namespace SharpNetTests.NonReg
                 +"MNIST;"
                 + network.GpuWrapper?.DeviceName() + ";"
                 + network.TotalParams() + ";"
-                + network.Sample.NumEpochs + ";"
+                + network.Sample.num_epochs + ";"
                 + network.Sample.BatchSize + ";"
                 + learningRate + ";"
 #if DEBUG

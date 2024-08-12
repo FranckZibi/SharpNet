@@ -18,8 +18,8 @@ namespace SharpNet.DataAugmentation
             CpuTensor<float> xOriginalMiniBatch,
             List<Tuple<float, float>> meanAndVolatilityForEachChannel, Lazy<ImageStatistic> stats, Random rand,
             double widthShiftRangeInPercentage, double heightShiftRangeInPercentage, double cutoutPatchPercentage,
-            double alphaCutMix, double alphaMixup, bool horizontalFlip, bool verticalFlip, bool rotate180Degrees) : 
-            base(indexInMiniBatch, xOriginalMiniBatch, meanAndVolatilityForEachChannel, stats, rand, cutoutPatchPercentage, alphaCutMix, alphaMixup)
+            double alphaCutMix, double alphaMixUp, bool horizontalFlip, bool verticalFlip, bool rotate180Degrees) : 
+            base(indexInMiniBatch, xOriginalMiniBatch, meanAndVolatilityForEachChannel, stats, rand, cutoutPatchPercentage, alphaCutMix, alphaMixUp)
         {
             _widthShiftRangeInPercentage = widthShiftRangeInPercentage;
             _heightShiftRangeInPercentage = heightShiftRangeInPercentage;
@@ -105,7 +105,7 @@ namespace SharpNet.DataAugmentation
                                 op1,
                                 op2,
                                 CutMix.ValueOf(_alphaCutMix, _indexInMiniBatch, _xOriginalMiniBatch, _rand),
-                                Mixup.ValueOf(_alphaMixup, _indexInMiniBatch, _xOriginalMiniBatch, _rand),
+                                MixUp.ValueOf(_alphaMixUp, _indexInMiniBatch, _xOriginalMiniBatch, _rand),
                                 Cutout.ValueOf(_cutoutPatchPercentage, _rand, NbRows, NbCols)
                             };
             subPolicy.RemoveAll(x => x == null);

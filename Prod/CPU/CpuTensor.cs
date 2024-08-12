@@ -515,7 +515,7 @@ namespace SharpNet.CPU
 
             if (isTraining)
             {
-                //'invertOfUnbiasedVolatilityBuffer' will temporary store the variance of the input 
+                //'invertOfUnbiasedVolatilityBuffer' will temporarily store the variance of the input 
                 Compute_Column_Mean_Variance(meanBuffer, invertOfUnbiasedVolatilityBuffer);
                 var variance = invertOfUnbiasedVolatilityBuffer.AsFloatCpuSpan;
 

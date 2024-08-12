@@ -10,27 +10,27 @@ using SharpNet.Optimizers;
 namespace SharpNet.Layers;
 /// <summary>
 /// Input:
-///  allX[0] = Q of shape (batch_size, query_timeSteps == input_seq_length, embedding_dim)
-///  allX[1] = V of shape (batch_size, value_timeSteps, embedding_dim)
-///  allX[2] = K of shape (batch_size, value_timeSteps, embedding_dim)
+///  allX[0] = Q of shape (batch_size, query_timeSteps == input_seq_length, embed_dim)
+///  allX[1] = V of shape (batch_size, value_timeSteps, embed_dim)
+///  allX[2] = K of shape (batch_size, value_timeSteps, embed_dim)
 ///     in most cases, K and V are the same tensor (K is optional, it's default value is V)
 /// Output:
-/// y of shape:           (batch_size, value_timeSteps, embedding_dim)
+/// y of shape:           (batch_size, value_timeSteps, embed_dim)
 ///                       (same as V shape)
 /// </summary>
-public class MultiHeadAttentionLayer : Layer
+public class MultiheadAttention : Layer
 {
     private readonly int _num_heads;
     private readonly int _key_dim;
     private readonly int _value_dim;
-    private readonly bool _use_bias_Q_V_K;
+    private readonly bool _use_bias_Q_K_V;
     private readonly bool _use_bias_O;
-    private readonly bool _use_causal_mask;
+    private readonly bool _is_causal;
     private const bool use_scale = true;
     private const bool flattenInputTensorOnLastDimension = true;
-    private const int QUERIES_LAYER_INDEX = 0;
-    private const int VALUES_LAYER_INDEX = 1;
-    private const int KEYS_LAYER_INDEX = 2;
+    private const int QUERY_LAYER_INDEX = 0;
+    private const int KEY_LAYER_INDEX = 1;
+    private const int VALUE_LAYER_INDEX = 2;
 
 
     #region Private fields
@@ -46,12 +46,12 @@ public class MultiHeadAttentionLayer : Layer
 
     #region trainable parameters
     /// <summary>
-    /// shape :   (embedding_dim, 2*num_heads * key_dim+2*num_heads* value_dim)
+    /// shape :   (embed_dim, 2*num_heads * key_dim+2*num_heads* value_dim)
     /// contains the Weights for Q, K,V & O
     /// </summary>
     public override Tensor Weights => _weights;
     /// <summary>
-    /// shape :   (1, 2*num_heads*key_dim + num_heads* value_dim + embedding_dim)
+    /// shape :   (1, 2*num_heads*key_dim + num_heads* value_dim + embed_dim)
     /// contains the Weights for Q, K,V & O
     /// </summary>
     public override Tensor Bias => _bias;
@@ -64,7 +64,7 @@ public class MultiHeadAttentionLayer : Layer
     [NotNull] private readonly Optimizer _w_Q_optimizer;
     [NotNull] private readonly Optimizer _w_K_optimizer;
     [NotNull] private readonly Optimizer _w_V_optimizer;
-    [NotNull] private readonly Optimizer _w_O_optimizer;
+    [NotNull] private readonly Optimizer _out_proj_weight_optimizer;
 
 
     //private Tensor Q_heads;             //(batch_size*query_time_steps, _num_heads*_key_dim)
@@ -97,52 +97,52 @@ public class MultiHeadAttentionLayer : Layer
     private readonly List<int> _count_w_bias_Q_K_V_O;
 
     /// <summary>
-    /// no need to have 'embedding_dim' as a parameter: it is always equal to the last dimension of 'V' (value) Layer
+    /// no need to have 'embed_dim' as a parameter: it is always equal to the last dimension of 'V' (value) Layer
     /// </summary>
     /// <param name="num_heads"></param>
     /// <param name="key_dim"></param>
     /// <param name="value_dim"></param>
-    /// <param name="use_bias_Q_V_K"></param>
+    /// <param name="use_bias_Q_K_V"></param>
     /// <param name="use_bias_O"></param>
-    /// <param name="use_causal_mask"></param>
+    /// <param name="is_causal"></param>
     /// <param name="queriesLayerIndex"></param>
-    /// <param name="valuesLayerIndex"></param>
     /// <param name="keysLayerIndex"></param>
+    /// <param name="valuesLayerIndex"></param>
     /// <param name="network"></param>
     /// <param name="layerName"></param>
-    public MultiHeadAttentionLayer(int num_heads, int key_dim, int value_dim, bool use_bias_Q_V_K, bool use_bias_O,
-        bool use_causal_mask, int queriesLayerIndex, int valuesLayerIndex, int keysLayerIndex,
+    public MultiheadAttention(int num_heads, int key_dim, int value_dim, bool use_bias_Q_K_V, bool use_bias_O,
+        bool is_causal, int queriesLayerIndex, int keysLayerIndex, int valuesLayerIndex,
         Network network, string layerName = "") : base(network,
-        new[] { queriesLayerIndex, valuesLayerIndex, keysLayerIndex }, layerName)
+        new[] { queriesLayerIndex, keysLayerIndex, valuesLayerIndex }, layerName)
     {
         _num_heads = num_heads;
         _key_dim = key_dim;
         _value_dim = value_dim;
-        _use_bias_Q_V_K = use_bias_Q_V_K;
+        _use_bias_Q_K_V = use_bias_Q_K_V;
         _use_bias_O = use_bias_O;
-        var embedding_dim = network.Layers[valuesLayerIndex].OutputShape(1)[2];
-        _use_causal_mask = use_causal_mask;
+        var embed_dim = network.Layers[valuesLayerIndex].OutputShape(1)[2];
+        _is_causal = is_causal;
 
         _shapes_w_Q_K_V_O = new List<int[]>
         {
-            new[] { embedding_dim, num_heads * key_dim },
-            new[] { embedding_dim, num_heads * key_dim },
-            new[] { embedding_dim, num_heads * value_dim },
-            new[] { num_heads * value_dim, embedding_dim }
+            new[] { num_heads * key_dim, embed_dim },
+            new[] { num_heads * key_dim, embed_dim },
+            new[] { num_heads * value_dim, embed_dim },
+            new[] { num_heads * value_dim, embed_dim }
         };
         _count_w_Q_K_V_O = _shapes_w_Q_K_V_O.Select(Utils.Product).ToList();
 
         _shapes_w_bias_Q_K_V_O =new List<int[]>
             {
-                _use_bias_Q_V_K? new[] { 1, num_heads * key_dim }:null,
-                _use_bias_Q_V_K? new[] { 1, num_heads * key_dim }:null,
-                _use_bias_Q_V_K? new[] { 1, num_heads * value_dim }:null,
-                _use_bias_O? new[] { 1, embedding_dim }:null,
+                _use_bias_Q_K_V? new[] { 1, _shapes_w_Q_K_V_O[0][1] }:null,
+                _use_bias_Q_K_V? new[] { 1, _shapes_w_Q_K_V_O[1][1] }:null,
+                _use_bias_Q_K_V? new[] { 1, _shapes_w_Q_K_V_O[2][1] }:null,
+                _use_bias_O? new[] { 1, embed_dim }:null,
             };
         _count_w_bias_Q_K_V_O = _shapes_w_bias_Q_K_V_O.Select(s => s==null?0:Utils.Product(s)).ToList();
 
         //trainable params
-        _weights = GetFloatTensor(new[] { embedding_dim, 2 * num_heads * key_dim + 2 * num_heads * value_dim });
+        _weights = GetFloatTensor(new[] { 2 * num_heads * key_dim + 2 * num_heads * value_dim, embed_dim });
         _weightGradients = GetFloatTensor(_weights.Shape);
         _bias = _count_w_bias_Q_K_V_O.Sum() > 0 ? GetFloatTensor(new[] { 1, _count_w_bias_Q_K_V_O.Sum() }) : null;
         _biasGradients = _bias == null ? null:GetFloatTensor(_bias.Shape);
@@ -150,12 +150,11 @@ public class MultiHeadAttentionLayer : Layer
         _w_Q_optimizer = Sample.GetOptimizer(_shapes_w_Q_K_V_O[0], _shapes_w_bias_Q_K_V_O[0], MemoryPool);
         _w_K_optimizer = Sample.GetOptimizer(_shapes_w_Q_K_V_O[1], _shapes_w_bias_Q_K_V_O[1], MemoryPool);
         _w_V_optimizer = Sample.GetOptimizer(_shapes_w_Q_K_V_O[2], _shapes_w_bias_Q_K_V_O[2], MemoryPool);
-        _w_O_optimizer = Sample.GetOptimizer(_shapes_w_Q_K_V_O[3], _shapes_w_bias_Q_K_V_O[3], MemoryPool);
+        _out_proj_weight_optimizer = Sample.GetOptimizer(_shapes_w_Q_K_V_O[3], _shapes_w_bias_Q_K_V_O[3], MemoryPool);
 
         // ReSharper disable once VirtualMemberCallInConstructor
         ResetParameters(false);
     }
-
 
     public override void UpdateWeights(int batchSize, double learningRate, double maxLearningRate)
     {
@@ -165,9 +164,10 @@ public class MultiHeadAttentionLayer : Layer
             _w_Q_optimizer.UpdateWeights(learningRate, maxLearningRate, batchSize, w_Q, w_Q_Gradients, w_Q_bias, w_Q_bias_Gradients);
             _w_K_optimizer.UpdateWeights(learningRate, maxLearningRate, batchSize, w_K, w_K_Gradients, w_K_bias, w_K_bias_Gradients);
             _w_V_optimizer.UpdateWeights(learningRate, maxLearningRate, batchSize, w_V, w_V_Gradients, w_V_bias, w_V_bias_Gradients);
-            _w_O_optimizer.UpdateWeights(learningRate, maxLearningRate, batchSize, w_O, w_O_Gradients, w_O_bias, w_O_bias_Gradients);
+            _out_proj_weight_optimizer.UpdateWeights(learningRate, maxLearningRate, batchSize, out_proj_weight, out_proj_weight_Gradients, out_proj_bias, out_proj_bias_Gradients);
         }
     }
+
 
 
     #region forward and backward propagation
@@ -176,9 +176,9 @@ public class MultiHeadAttentionLayer : Layer
     {
         Debug.Assert(allX.Count == 3);
 
-        var Q = allX[QUERIES_LAYER_INDEX]; // queries: (batch_size, query_timeSteps == input_seq_length, embedding_dim)
-        var V = allX[VALUES_LAYER_INDEX]; // values:  (batch_size, value_timeSteps, embedding_dim)
-        var K = allX[KEYS_LAYER_INDEX]; // keys:    (batch_size, value_timeSteps, embedding_dim)
+        var Q = allX[QUERY_LAYER_INDEX]; // queries: (batch_size, query_timeSteps == input_seq_length, embed_dim)
+        var K = allX[KEY_LAYER_INDEX];   // keys:    (batch_size, value_timeSteps, embed_dim)
+        var V = allX[VALUE_LAYER_INDEX]; // values:  (batch_size, value_timeSteps, embed_dim)
 
         if (!V.Shape.SequenceEqual(K.Shape))
         {
@@ -218,12 +218,12 @@ public class MultiHeadAttentionLayer : Layer
         V_heads_T.ReshapeInPlace(batch_size * _num_heads, key_value_time_steps, _value_dim);
 
         var attention_heads = Q_K_V_heads_buffer.Reshape(V_heads_T.Shape);
-        ScaledDotProductAttentionLayer.ScaledDotProductAttentionForwardPropagation(Q_heads_T, V_heads_T, K_heads_T, attention_heads, isTraining, ref weights_buffer, Network.MemoryPool, use_scale, _use_causal_mask);
+        ScaledDotProductAttentionLayer.ScaledDotProductAttentionForwardPropagation(Q_heads_T, K_heads_T, V_heads_T, attention_heads, isTraining, ref weights_buffer, Network.MemoryPool, use_scale, _is_causal);
 
         GetFloatTensor(ref attention_heads_T, new[] { batch_size, key_value_time_steps, _num_heads, _value_dim });
         attention_heads.Reshape(batch_size, _num_heads, key_value_time_steps, _value_dim).TransposeSecondAndThirdDimension(attention_heads_T);
         attention_heads_T.ReshapeInPlace(batch_size, key_value_time_steps, _num_heads* _value_dim);
-        DenseLayer.DenseForwardPropagation(y, attention_heads_T, w_O, w_O_bias, flattenInputTensorOnLastDimension);
+        DenseLayer.DenseForwardPropagation(y, attention_heads_T, out_proj_weight, out_proj_bias, flattenInputTensorOnLastDimension);
 
         FreeFloatTensor(Q_K_V_heads_buffer);
         if (!isTraining)
@@ -238,23 +238,23 @@ public class MultiHeadAttentionLayer : Layer
 
     public override void BackwardPropagation(List<Tensor> allX, Tensor y_NotUsed, Tensor dy, List<Tensor> allDx)
     {
-        ////dy:          (batch_size, value_timeSteps, value_embedding_dim)
-        var dQ = allDx[QUERIES_LAYER_INDEX];    // queries:    (batch_size, query_timeSteps == input_seq_length, embedding_dim)
-        var dV = allDx[VALUES_LAYER_INDEX];     // values:     (batch_size, value_timeSteps, embedding_dim)
-        var dK = allDx[KEYS_LAYER_INDEX];       // keys:       (batch_size, value_timeSteps, embedding_dim)
+        ////dy:          (batch_size, value_timeSteps, value_embed_dim)
+        var dQ = allDx[QUERY_LAYER_INDEX];    // queries:    (batch_size, query_timeSteps == input_seq_length, embed_dim)
+        var dK = allDx[KEY_LAYER_INDEX];       // keys:       (batch_size, value_timeSteps, embed_dim)
+        var dV = allDx[VALUE_LAYER_INDEX];     // values:     (batch_size, value_timeSteps, embed_dim)
         //Debug.Assert(weights_buffer != null);
         var batch_size = dK.Shape[0];
         var query_time_steps = dQ.Shape[1];
         var value_time_steps = dV.Shape[1];
-        var Q = allX[QUERIES_LAYER_INDEX];
-        var V = allX[VALUES_LAYER_INDEX];
-        var K = allX[KEYS_LAYER_INDEX];
+        var Q = allX[QUERY_LAYER_INDEX];
+        var K = allX[KEY_LAYER_INDEX];
+        var V = allX[VALUE_LAYER_INDEX];
         
         var dQ_dK_dV_heads_buffer = GetFloatTensor(new[] { Math.Max(batch_size * query_time_steps * _num_heads * _key_dim, batch_size * value_time_steps * _num_heads * _value_dim) });
 
         var d_attention_heads_T = dQ_dK_dV_heads_buffer.Reshape(attention_heads_T.Shape);
-        DenseLayer.DenseBackwardPropagation(d_attention_heads_T, w_O_Gradients, w_O_bias_Gradients,
-            attention_heads_T, dy, w_O,
+        DenseLayer.DenseBackwardPropagation(d_attention_heads_T, out_proj_weight_Gradients, out_proj_bias_Gradients,
+            attention_heads_T, dy, out_proj_weight, out_proj_bias,
             Network.Sample, 0, false, flattenInputTensorOnLastDimension);
 
         var d_attention_heads = GetFloatTensor(V_heads_T.Shape);
@@ -266,18 +266,18 @@ public class MultiHeadAttentionLayer : Layer
         var dV_heads_T = GetFloatTensor(V_heads_T.Shape);
 
         ScaledDotProductAttentionLayer.ScaledDotProductAttentionBackwardPropagation( 
-            /* Out */ dQ_heads_T, /* Out */dV_heads_T, /* Out */ dK_heads_T, 
-            /* In */ Q_heads_T, /* In */ V_heads_T, /* In */ K_heads_T, /* In */ d_attention_heads, /* In */ ref weights_buffer,
+            /* Out */ dQ_heads_T, /* Out */ dK_heads_T, /* Out */dV_heads_T, 
+            /* In */ Q_heads_T, /* In */ K_heads_T,  /* In */ V_heads_T, /* In */ d_attention_heads, /* In */ ref weights_buffer,
             Network.MemoryPool, use_scale);
 
         dQ_heads_T.Reshape(batch_size, _num_heads, query_time_steps, _key_dim).TransposeSecondAndThirdDimension(dQ_dK_dV_heads_buffer  /* dQ_heads */);
-        DenseLayer.DenseBackwardPropagation(dQ, w_Q_Gradients, w_Q_bias_Gradients, Q, dQ_dK_dV_heads_buffer.Reshape(batch_size * query_time_steps, -1), w_Q, Network.Sample, 0, false, flattenInputTensorOnLastDimension);
+        DenseLayer.DenseBackwardPropagation(dQ, w_Q_Gradients, w_Q_bias_Gradients, Q, dQ_dK_dV_heads_buffer.Reshape(batch_size * query_time_steps, -1), w_Q, w_Q_bias, Network.Sample, 0, false, flattenInputTensorOnLastDimension);
 
         dK_heads_T.Reshape(batch_size, _num_heads, query_time_steps, _key_dim).TransposeSecondAndThirdDimension(dQ_dK_dV_heads_buffer  /* dK_heads */);
-        DenseLayer.DenseBackwardPropagation(dK, w_K_Gradients, w_K_bias_Gradients, K, dQ_dK_dV_heads_buffer.Reshape(batch_size * query_time_steps, -1), w_K, Network.Sample, 0, false, flattenInputTensorOnLastDimension);
+        DenseLayer.DenseBackwardPropagation(dK, w_K_Gradients, w_K_bias_Gradients, K, dQ_dK_dV_heads_buffer.Reshape(batch_size * query_time_steps, -1), w_K, w_K_bias, Network.Sample, 0, false, flattenInputTensorOnLastDimension);
 
         dV_heads_T.Reshape(batch_size, _num_heads, value_time_steps, _value_dim).TransposeSecondAndThirdDimension(dQ_dK_dV_heads_buffer /* dV_heads */);
-        DenseLayer.DenseBackwardPropagation(dV, w_V_Gradients, w_V_bias_Gradients, V, dQ_dK_dV_heads_buffer.Reshape(batch_size * value_time_steps, -1), w_V, Network.Sample, 0, false, flattenInputTensorOnLastDimension);
+        DenseLayer.DenseBackwardPropagation(dV, w_V_Gradients, w_V_bias_Gradients, V, dQ_dK_dV_heads_buffer.Reshape(batch_size * value_time_steps, -1), w_V, w_V_bias, Network.Sample, 0, false, flattenInputTensorOnLastDimension);
 
         FreeFloatTensor(dQ_dK_dV_heads_buffer);
         FreeFloatTensor(d_attention_heads);
@@ -294,13 +294,13 @@ public class MultiHeadAttentionLayer : Layer
     
 
     public override string LayerType() { return "multi_head_attention"; }
-    private Optimizer[] AllOptimizer => new[] { _w_Q_optimizer, _w_K_optimizer, _w_V_optimizer, _w_O_optimizer };
+    private Optimizer[] AllOptimizer => new[] { _w_Q_optimizer, _w_K_optimizer, _w_V_optimizer, _out_proj_weight_optimizer };
 
 
     public override void ResetParameters(bool resetAlsoOptimizerWeights = true)
     {
         //trainable params
-        foreach (var w in new[] { w_Q, w_K, w_V, w_O })
+        foreach (var w in new[] { w_Q, w_K, w_V, out_proj_weight })
         {
             w.GlorotUniform(Rand);
         }
@@ -323,21 +323,21 @@ public class MultiHeadAttentionLayer : Layer
             .Add(nameof(_num_heads), _num_heads)
             .Add(nameof(_key_dim), _key_dim)
             .Add(nameof(_value_dim), _value_dim)
-            .Add(nameof(_use_bias_Q_V_K), _use_bias_Q_V_K)
+            .Add(nameof(_use_bias_Q_K_V), _use_bias_Q_K_V)
             .Add(nameof(_use_bias_O), _use_bias_O)
-            .Add(nameof(_use_causal_mask), _use_causal_mask)
+            .Add(nameof(_is_causal), _is_causal)
             .ToString();
     }
-    public static MultiHeadAttentionLayer Deserialize(IDictionary<string, object> serialized, Network network)
+    public static MultiheadAttention Deserialize(IDictionary<string, object> serialized, Network network)
     {
         var num_heads = (int)serialized[nameof(_num_heads)];
         var key_dim = (int)serialized[nameof(_key_dim)];
         var value_dim = (int)serialized[nameof(_value_dim)];
-        var use_bias_Q_V_K = (bool)serialized[nameof(_use_bias_Q_V_K)];
+        var use_bias_Q_K_V = (bool)serialized[nameof(_use_bias_Q_K_V)];
         var use_bias_O = (bool)serialized[nameof(_use_bias_O)];
-        var use_causal_mask = (bool)serialized[nameof(_use_causal_mask)];
+        var is_causal = (bool)serialized[nameof(_is_causal)];
         var previousLayerIndexes = (int[])serialized[nameof(PreviousLayerIndexes)];
-        return new MultiHeadAttentionLayer(num_heads, key_dim, value_dim, use_bias_Q_V_K, use_bias_O, use_causal_mask, previousLayerIndexes[0], previousLayerIndexes[1], previousLayerIndexes[2], network, (string)serialized[nameof(LayerName)]);
+        return new MultiheadAttention(num_heads, key_dim, value_dim, use_bias_Q_K_V, use_bias_O, is_causal, previousLayerIndexes[0], previousLayerIndexes[1], previousLayerIndexes[2], network, (string)serialized[nameof(LayerName)]);
     }
     public override void AddToOtherNetwork(Network otherNetwork) { AddToOtherNetwork(otherNetwork, Deserialize); }
     #endregion
@@ -424,26 +424,93 @@ public class MultiHeadAttentionLayer : Layer
     /// <returns></returns>
     public override int[] OutputShape(int batchSize)
     {
-        return PreviousLayers[VALUES_LAYER_INDEX].OutputShape(batchSize);
+        return PreviousLayers[VALUE_LAYER_INDEX].OutputShape(batchSize);
     }
 
-    public Tensor w_Q => _weights.Slice(0, _shapes_w_Q_K_V_O[0]); // (embedding_dim, num_heads*key_dim)
-    public Tensor w_K => _weights.Slice(_count_w_Q_K_V_O[0], _shapes_w_Q_K_V_O[1]); // (embedding_dim, num_heads*key_dim)
-    public Tensor w_V => _weights.Slice(_count_w_Q_K_V_O[0] + _count_w_Q_K_V_O[1], _shapes_w_Q_K_V_O[2]); // (embedding_dim, num_heads*value_dim)
-    public Tensor w_O => _weights.Slice(_count_w_Q_K_V_O[0] + _count_w_Q_K_V_O[1] + _count_w_Q_K_V_O[2], _shapes_w_Q_K_V_O[3]); // (num_heads*value_dim, embedding_dim)
 
-    private Tensor w_Q_bias => !_use_bias_Q_V_K ? null:_bias?.Slice(0, _shapes_w_bias_Q_K_V_O[0]); // (1, num_heads*key_dim)
-    private Tensor w_K_bias => !_use_bias_Q_V_K ? null : _bias?.Slice(_count_w_bias_Q_K_V_O[0], _shapes_w_bias_Q_K_V_O[1]); // (1, num_heads*key_dim)
-    private Tensor w_V_bias => !_use_bias_Q_V_K ? null : _bias?.Slice(_count_w_bias_Q_K_V_O[0] + _count_w_bias_Q_K_V_O[1], _shapes_w_bias_Q_K_V_O[2]); // (1, num_heads*value_dim)
-    private Tensor w_O_bias => !_use_bias_O ?null: _bias?.Slice(_count_w_bias_Q_K_V_O[0] + _count_w_bias_Q_K_V_O[1] + _count_w_bias_Q_K_V_O[2], _shapes_w_bias_Q_K_V_O[3]); // (1, embedding_dim)
-    private Tensor w_Q_Gradients => _weightGradients.Slice(0, _shapes_w_Q_K_V_O[0]); // (embedding_dim, num_heads*key_dim)
-    private Tensor w_K_Gradients => _weightGradients.Slice(_count_w_Q_K_V_O[0], _shapes_w_Q_K_V_O[1]); // (embedding_dim, num_heads*key_dim)
-    private Tensor w_V_Gradients => _weightGradients.Slice(_count_w_Q_K_V_O[0] + _count_w_Q_K_V_O[1], _shapes_w_Q_K_V_O[2]); // (embedding_dim, num_heads*value_dim)
-    private Tensor w_O_Gradients => _weightGradients.Slice(_count_w_Q_K_V_O[0] + _count_w_Q_K_V_O[1] + _count_w_Q_K_V_O[2], _shapes_w_Q_K_V_O[3]); // (num_heads*value_dim, embedding_dim)
-    private Tensor w_Q_bias_Gradients => !_use_bias_Q_V_K ? null : _biasGradients?.Slice(0, _shapes_w_bias_Q_K_V_O[0]); // (1, num_heads*key_dim)
-    private Tensor w_K_bias_Gradients => !_use_bias_Q_V_K ? null : _biasGradients?.Slice(_count_w_bias_Q_K_V_O[0], _shapes_w_bias_Q_K_V_O[1]); // (1, num_heads*key_dim)
-    private Tensor w_V_bias_Gradients => !_use_bias_Q_V_K ? null : _biasGradients?.Slice(_count_w_bias_Q_K_V_O[0] + _count_w_bias_Q_K_V_O[1], _shapes_w_bias_Q_K_V_O[2]); // (1, num_heads*value_dim)
-    private Tensor w_O_bias_Gradients => !_use_bias_O?null: _biasGradients?.Slice(_count_w_bias_Q_K_V_O[0] + _count_w_bias_Q_K_V_O[1] + _count_w_bias_Q_K_V_O[2], _shapes_w_bias_Q_K_V_O[3]); // (1, embedding_dim)
 
+    #region PyTorch support
+    //see : https://pytorch.org/docs/stable/generated/torch.nn.MultiheadAttention.html
+    public override void ToPytorchModule(List<string> constructorLines, List<string> forwardLines)
+    {
+        var embed_dim = ValueLayer.OutputShape(1)[2];
+
+        if (_is_causal)
+        {
+            const string attn_mask_dict_line = "self.attn_mask_dict = dict()";
+            if (!constructorLines.Contains(attn_mask_dict_line))
+            {
+                constructorLines.Add(attn_mask_dict_line);
+            }
+        }
+
+        if (_use_bias_Q_K_V != _use_bias_O)
+        {
+            throw new ArgumentException($"use_bias_Q_K_V ({_use_bias_Q_K_V}) must be equal to use_bias_O ({_use_bias_O}) in PyTorch");
+        }
+
+        constructorLines.Add("self." + LayerName + " = torch.nn.MultiheadAttention("
+                             + "embed_dim="+ embed_dim
+                             + ", num_heads="+_num_heads
+                             + ", dropout=0"
+                             + ", bias="+ Utils.ToPython(_use_bias_Q_K_V)
+                             + ", add_bias_kv=False"
+                             + ", add_zero_attn=False"
+                             + ", batch_first=True"
+                             + ")");
+
+        string attn_mask = "None";
+        if (_is_causal)
+        {
+            //we build the attention mask 'attn_mask'
+            int L = QueryLayer.OutputShape(1)[1]; // Target sequence Length
+            int S = ValueLayer.OutputShape(1)[1]; // Source sequence Length
+            if (S != L)
+            {
+                throw new ArgumentException($"Source sequence Length ({S}) must be equal to Target sequence Length ({L}) to build attention mask");
+            }
+            forwardLines.Add("");
+            forwardLines.Add("# We build the attention mask 'attn_mask'");
+            forwardLines.Add("sz = "+QueryLayer.GetPyTorchOutputVariableName()+".size(1)  # L: Target sequence Length");
+            forwardLines.Add("if sz not in self.attn_mask_dict: self.attn_mask_dict[sz] = torch.nn.Transformer.generate_square_subsequent_mask(sz, device = x.device, dtype = x.dtype)");
+            forwardLines.Add("");
+            attn_mask = "self.attn_mask_dict[sz]";
+        }
+        forwardLines.Add(GetPyTorchOutputVariableName() + ", _ = self." + LayerName+"("
+                                                        + QueryLayer.GetPyTorchOutputVariableName()
+                                                        + ", " + KeyLayer.GetPyTorchOutputVariableName()
+                                                        + ", " + ValueLayer.GetPyTorchOutputVariableName()
+                                                        + ", key_padding_mask=None"
+                                                        + ", need_weights=False"
+                                                        + ", attn_mask="+ attn_mask
+                                                        + ", average_attn_weights=False"
+                                                        + ", is_causal=" + Utils.ToPython(_is_causal)
+                                                        + ")");
+    }
+
+    #endregion
+
+
+    public Tensor w_Q => _weights.Slice(0, _shapes_w_Q_K_V_O[0]); // (num_heads*key_dim, embed_dim)
+    public Tensor w_K => _weights.Slice(_count_w_Q_K_V_O[0], _shapes_w_Q_K_V_O[1]); // (num_heads*key_dim, embed_dim)
+    public Tensor w_V => _weights.Slice(_count_w_Q_K_V_O[0] + _count_w_Q_K_V_O[1], _shapes_w_Q_K_V_O[2]); // (num_heads*value_dim, embed_dim)
+    public Tensor in_proj_weight => _weights.Slice(0, new []{ _shapes_w_Q_K_V_O[0][0] + _shapes_w_Q_K_V_O[1][0]+ _shapes_w_Q_K_V_O[2][0], _shapes_w_Q_K_V_O[0][1]});
+    public Tensor out_proj_weight => _weights.Slice(_count_w_Q_K_V_O[0] + _count_w_Q_K_V_O[1] + _count_w_Q_K_V_O[2], _shapes_w_Q_K_V_O[3]); // (num_heads*value_dim, embed_dim)
+    private Tensor w_Q_bias => !_use_bias_Q_K_V ? null:_bias?.Slice(0, _shapes_w_bias_Q_K_V_O[0]); // (1, num_heads*key_dim)
+    private Tensor w_K_bias => !_use_bias_Q_K_V ? null : _bias?.Slice(_count_w_bias_Q_K_V_O[0], _shapes_w_bias_Q_K_V_O[1]); // (1, num_heads*key_dim)
+    private Tensor w_V_bias => !_use_bias_Q_K_V ? null : _bias?.Slice(_count_w_bias_Q_K_V_O[0] + _count_w_bias_Q_K_V_O[1], _shapes_w_bias_Q_K_V_O[2]); // (1, num_heads*value_dim)
+    private Tensor out_proj_bias => !_use_bias_O ?null: _bias?.Slice(_count_w_bias_Q_K_V_O[0] + _count_w_bias_Q_K_V_O[1] + _count_w_bias_Q_K_V_O[2], _shapes_w_bias_Q_K_V_O[3]); // (1, embed_dim)
+    private Tensor w_Q_Gradients => _weightGradients.Slice(0, _shapes_w_Q_K_V_O[0]); // (num_heads*key_dim, embed_dim)
+    private Tensor w_K_Gradients => _weightGradients.Slice(_count_w_Q_K_V_O[0], _shapes_w_Q_K_V_O[1]); // (num_heads*key_dim, embed_dim)
+    private Tensor w_V_Gradients => _weightGradients.Slice(_count_w_Q_K_V_O[0] + _count_w_Q_K_V_O[1], _shapes_w_Q_K_V_O[2]); // (num_heads*value_dim, embed_dim)
+    private Tensor out_proj_weight_Gradients => _weightGradients.Slice(_count_w_Q_K_V_O[0] + _count_w_Q_K_V_O[1] + _count_w_Q_K_V_O[2], _shapes_w_Q_K_V_O[3]); // (embed_dim, num_heads*value_dim )
+    private Tensor w_Q_bias_Gradients => !_use_bias_Q_K_V ? null : _biasGradients?.Slice(0, _shapes_w_bias_Q_K_V_O[0]); // (1, num_heads*key_dim)
+    private Tensor w_K_bias_Gradients => !_use_bias_Q_K_V ? null : _biasGradients?.Slice(_count_w_bias_Q_K_V_O[0], _shapes_w_bias_Q_K_V_O[1]); // (1, num_heads*key_dim)
+    private Tensor w_V_bias_Gradients => !_use_bias_Q_K_V ? null : _biasGradients?.Slice(_count_w_bias_Q_K_V_O[0] + _count_w_bias_Q_K_V_O[1], _shapes_w_bias_Q_K_V_O[2]); // (1, num_heads*value_dim)
+    private Tensor out_proj_bias_Gradients => !_use_bias_O?null: _biasGradients?.Slice(_count_w_bias_Q_K_V_O[0] + _count_w_bias_Q_K_V_O[1] + _count_w_bias_Q_K_V_O[2], _shapes_w_bias_Q_K_V_O[3]); // (1, embed_dim)
+
+    private Layer QueryLayer => PreviousLayers[QUERY_LAYER_INDEX];
+    private Layer KeyLayer => PreviousLayers[KEY_LAYER_INDEX];
+    private Layer ValueLayer => PreviousLayers[VALUE_LAYER_INDEX];
 
 }

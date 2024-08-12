@@ -438,7 +438,7 @@ public class CFM60DatasetSample : DatasetSampleForTimeSeries
 
 
 
-    public static void TrainNetwork(int numEpochs = 1, int maxAllowedSecondsForAllComputation = 0)
+    public static void TrainNetwork(int num_epochs = 1, int maxAllowedSecondsForAllComputation = 0)
     {
         var searchSpace = new Dictionary<string, object>
         {
@@ -453,7 +453,7 @@ public class CFM60DatasetSample : DatasetSampleForTimeSeries
             {nameof(NetworkSample.ShuffleDatasetBeforeEachEpoch), true},
             {nameof(NetworkSample.CompatibilityMode), "TensorFlow"},
             {nameof(NetworkSample.BatchSize), 2048},
-            {nameof(NetworkSample.NumEpochs), numEpochs},
+            {nameof(NetworkSample.num_epochs), num_epochs},
             {nameof(NetworkSample.InitialLearningRate), 0.002},
             {"Use_day", true},
             {"Use_LS", false},

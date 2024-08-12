@@ -19,9 +19,9 @@ namespace SharpNet.DataAugmentation
             DEFAULT,
             NO_AUGMENTATION,
             AUTO_AUGMENT_CIFAR10,
-            AUTO_AUGMENT_CIFAR10_CUTOUT_CUTMIX_MIXUP,
+            AUTO_AUGMENT_CIFAR10_CUTOUT_CUTMIX_MixUp,
             AUTO_AUGMENT_CIFAR10_AND_MANDATORY_CUTMIX,
-            AUTO_AUGMENT_CIFAR10_AND_MANDATORY_MIXUP,
+            AUTO_AUGMENT_CIFAR10_AND_MANDATORY_MixUp,
             AUTO_AUGMENT_IMAGENET,
             RAND_AUGMENT,
             // ReSharper disable once UnusedMember.Global
@@ -62,19 +62,19 @@ namespace SharpNet.DataAugmentation
                     Debug.Assert(_sample.Rotate180Degrees == false);
                     Debug.Assert(_sample.Rotate90Degrees == false);
                     return new AutoAugment(indexInMiniBatch, xOriginalMiniBatch, meanAndVolatilityForEachChannel, indexInOriginalMiniBatchToImageStatistic(indexInMiniBatch), rand, 0, 0, 0.5, 0, 0, _sample.HorizontalFlip, _sample.VerticalFlip, _sample.Rotate180Degrees).GetSubPolicyCifar10();
-                case DataAugmentationEnum.AUTO_AUGMENT_CIFAR10_CUTOUT_CUTMIX_MIXUP:
+                case DataAugmentationEnum.AUTO_AUGMENT_CIFAR10_CUTOUT_CUTMIX_MixUp:
                     Debug.Assert(_sample.HorizontalFlip == true);
                     Debug.Assert(_sample.VerticalFlip == false);
                     Debug.Assert(_sample.Rotate180Degrees == false);
                     Debug.Assert(_sample.Rotate90Degrees == false);
-                    return new AutoAugment(indexInMiniBatch, xOriginalMiniBatch, meanAndVolatilityForEachChannel, indexInOriginalMiniBatchToImageStatistic(indexInMiniBatch), rand, _sample.WidthShiftRangeInPercentage, _sample.HeightShiftRangeInPercentage, _sample.CutoutPatchPercentage, _sample.AlphaCutMix, _sample.AlphaMixup, _sample.HorizontalFlip, _sample.VerticalFlip, _sample.Rotate180Degrees).GetSubPolicyCifar10();
+                    return new AutoAugment(indexInMiniBatch, xOriginalMiniBatch, meanAndVolatilityForEachChannel, indexInOriginalMiniBatchToImageStatistic(indexInMiniBatch), rand, _sample.WidthShiftRangeInPercentage, _sample.HeightShiftRangeInPercentage, _sample.CutoutPatchPercentage, _sample.AlphaCutMix, _sample.AlphaMixUp, _sample.HorizontalFlip, _sample.VerticalFlip, _sample.Rotate180Degrees).GetSubPolicyCifar10();
                 case DataAugmentationEnum.AUTO_AUGMENT_CIFAR10_AND_MANDATORY_CUTMIX:
                     Debug.Assert(_sample.HorizontalFlip == true);
                     Debug.Assert(_sample.VerticalFlip == false);
                     Debug.Assert(_sample.Rotate180Degrees == false);
                     Debug.Assert(_sample.Rotate90Degrees == false);
                     return new AutoAugment(indexInMiniBatch, xOriginalMiniBatch, meanAndVolatilityForEachChannel, indexInOriginalMiniBatchToImageStatistic(indexInMiniBatch), rand, 0, 0, 0, 1.0, 0, _sample.HorizontalFlip, _sample.VerticalFlip, _sample.Rotate180Degrees).GetSubPolicyCifar10();
-                case DataAugmentationEnum.AUTO_AUGMENT_CIFAR10_AND_MANDATORY_MIXUP:
+                case DataAugmentationEnum.AUTO_AUGMENT_CIFAR10_AND_MANDATORY_MixUp:
                     Debug.Assert(_sample.HorizontalFlip == true);
                     Debug.Assert(_sample.VerticalFlip == false);
                     Debug.Assert(_sample.Rotate180Degrees == false);
@@ -171,17 +171,17 @@ namespace SharpNet.DataAugmentation
                 result.Add(new Contrast((float)_sample.ContrastOperationEnhancementFactor, lazyStats.Value.GreyMean(meanAndVolatilityForEachChannel)));
             }
 
-            //we can not use CutMix && Mixup at the same time: if they are both enabled we need to disable one of them (randomly)
+            //we can not use CutMix && MixUp at the same time: if they are both enabled we need to disable one of them (randomly)
             var alphaCutMix = _sample.AlphaCutMix;
             var alphaColumnsCutMix = _sample.AlphaColumnsCutMix;
             var alphaRowsCutMix = _sample.AlphaRowsCutMix;
-            var alphaMixup = _sample.AlphaMixup;
-            if (alphaCutMix > 0 && alphaMixup > 0)
+            var alphaMixUp = _sample.AlphaMixUp;
+            if (alphaCutMix > 0 && alphaMixUp > 0)
             {
-                // Mixup and CutMix can not be used at the same time: we need to disable one of them
+                // MixUp and CutMix can not be used at the same time: we need to disable one of them
                 if (Utils.RandomCoinFlip())
                 {
-                    alphaMixup = 0; //We disable Mixup
+                    alphaMixUp = 0; //We disable MixUp
                 }
                 else
                 {
@@ -193,7 +193,7 @@ namespace SharpNet.DataAugmentation
             result.Add(CutMix.ValueOfColumnsCutMix(alphaColumnsCutMix, indexInMiniBatch, xOriginalMiniBatch, rand));
             result.Add(CutMix.ValueOfRowsCutMix(alphaRowsCutMix, indexInMiniBatch, xOriginalMiniBatch, rand));
 
-            result.Add(Mixup.ValueOf(alphaMixup, indexInMiniBatch, xOriginalMiniBatch, rand));
+            result.Add(MixUp.ValueOf(alphaMixUp, indexInMiniBatch, xOriginalMiniBatch, rand));
             for (int i = 0; i < _sample.CutoutCount; i++)
             {
                 result.Add(Cutout.ValueOf(_sample.CutoutPatchPercentage, rand, nbRows, nbCols));

@@ -61,5 +61,14 @@ namespace SharpNet.Layers
             result[1] = PreviousLayers.Select(l => l.OutputShape(1)[1]).Sum();
             return result;
         }
+
+        #region PyTorch support
+        //see : https://discuss.pytorch.org/t/multiple-inputs-concatenate-layers/101792/2
+        public override void ToPytorchModule(List<string> constructorLines, List<string> forwardLines)
+        {
+            var previousLayers = "(" + string.Join(", ", PreviousLayers.Select(t => t.GetPyTorchOutputVariableName())) + ")";
+            forwardLines.Add(GetPyTorchOutputVariableName() + " = torch.cat(" + previousLayers + ", dim = 1)");
+        }
+        #endregion
     }
 }
