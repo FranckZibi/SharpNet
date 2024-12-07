@@ -490,7 +490,7 @@ namespace SharpNet.GPU
 
     public static unsafe class CudnnWrapper
     {
-        private const string DLL_NAME = "cudnn64_8.dll";
+        private const string DLL_NAME = "cudnn64_9.dll";
 
         public static void EnableAPILogging(string fileName)
         {

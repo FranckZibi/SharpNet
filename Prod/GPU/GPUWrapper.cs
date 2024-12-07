@@ -9,7 +9,7 @@ using SharpNet.Hyperparameters;
 
 namespace SharpNet.GPU
 {
-    public enum CUDA_Versions { CUDA_10_1, CUDA_10_2, CUDA_11_0, CUDA_11_4, CUDA_12_0, CUDA_12_1 };
+    public enum CUDA_Versions { CUDA_10_1, CUDA_10_2, CUDA_11_0, CUDA_11_4, CUDA_12_0, CUDA_12_1, CUDA_12_6 };
 
     [DebuggerDisplay("{"+nameof(DeviceName)+"()}")]
     public unsafe class GPUWrapper : IDisposable
@@ -107,7 +107,7 @@ namespace SharpNet.GPU
             _cublasVersion = Utils.NewVersion(cublasVersion);
 
             //We retrieve the cudnn version
-            _cuDNNVersion = Utils.NewVersion((int)(ulong)CudnnWrapper.cudnnGetVersion());
+            _cuDNNVersion = Utils.NewVersionXXYYZZ((int)(ulong)CudnnWrapper.cudnnGetVersion());
 
             _deviceHandle = GetDeviceHandle(deviceId);
 
@@ -711,6 +711,7 @@ namespace SharpNet.GPU
             {
                 if (cudaVersion.Minor == 0) { return CUDA_Versions.CUDA_12_0; }
                 if (cudaVersion.Minor == 1) { return CUDA_Versions.CUDA_12_1; }
+                if (cudaVersion.Minor == 6) { return CUDA_Versions.CUDA_12_6; }
             }
             throw new Exception("cuda " + cudaVersion + " is not supported");
         }

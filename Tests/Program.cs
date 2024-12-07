@@ -78,11 +78,11 @@ namespace SharpNetTests
             //SharpNet.Datasets.EffiSciences95.EffiSciences95Utils.Launch_HPO(30, -1); return;
             
             //SharpNet.Networks.Transformers.TextTransformersUtils.Run();  return;
-            SharpNet.Networks.Transformers.MyNameIsGrootUtils.Run();  return;
+            //SharpNet.Networks.Transformers.MyNameIsGrootUtils.Run();  return;
 
             //SharpNet.Datasets.PlumeLabs88.PlumeLabs88Utils.Run();
             //SharpNet.Datasets.CFM84.CFM84Utils.Run();return;
-            //SharpNet.Datasets.Biosonar85.Biosonar85Utils.Run();return;
+            SharpNet.Datasets.Biosonar85.Biosonar85Utils.Run();return;
             //SharpNet.Datasets.SNCF89.SNCF89Utils.Run(); return;
             //SharpNet.Datasets.BNP104.BNP104Utils.Run(); return;
         }

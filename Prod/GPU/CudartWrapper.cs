@@ -72,6 +72,7 @@ namespace SharpNet.GPU
                     return CudartWrapper_cudart64_110.cudaGetDevice(out device);
                 case CUDA_Versions.CUDA_12_0:
                 case CUDA_Versions.CUDA_12_1:
+                case CUDA_Versions.CUDA_12_6:
                     return CudartWrapper_cudart64_12.cudaGetDevice(out device);
                 default:
                     throw new ArgumentException("invalid cuda version " + _cudaVersion);
@@ -90,6 +91,7 @@ namespace SharpNet.GPU
                     return CudartWrapper_cudart64_110.cudaSetDevice(device);
                 case CUDA_Versions.CUDA_12_0:
                 case CUDA_Versions.CUDA_12_1:
+                case CUDA_Versions.CUDA_12_6:
                     return CudartWrapper_cudart64_12.cudaSetDevice(device);
                 default:
                     throw new ArgumentException("invalid cuda version " + _cudaVersion);
@@ -108,6 +110,7 @@ namespace SharpNet.GPU
                     return CudartWrapper_cudart64_110.cudaDeviceReset();
                 case CUDA_Versions.CUDA_12_0:
                 case CUDA_Versions.CUDA_12_1:
+                case CUDA_Versions.CUDA_12_6:
                     return CudartWrapper_cudart64_12.cudaDeviceReset();
                 default:
                     throw new ArgumentException("invalid cuda version " + _cudaVersion);
@@ -126,6 +129,7 @@ namespace SharpNet.GPU
                     return CudartWrapper_cudart64_110.cudaMemcpyPeerAsync(dst, dstDevice, src, srcDevice, count, stream);
                 case CUDA_Versions.CUDA_12_0:
                 case CUDA_Versions.CUDA_12_1:
+                case CUDA_Versions.CUDA_12_6:
                     return CudartWrapper_cudart64_12.cudaMemcpyPeerAsync(dst, dstDevice, src, srcDevice, count, stream);
                 default:
                     throw new ArgumentException("invalid cuda version " + _cudaVersion);
@@ -144,6 +148,7 @@ namespace SharpNet.GPU
                     return CudartWrapper_cudart64_110.cudaMemcpyPeer(dst, dstDevice, src, srcDevice, count);
                 case CUDA_Versions.CUDA_12_0:
                 case CUDA_Versions.CUDA_12_1:
+                case CUDA_Versions.CUDA_12_6:
                     return CudartWrapper_cudart64_12.cudaMemcpyPeer(dst, dstDevice, src, srcDevice, count);
                 default:
                     throw new ArgumentException("invalid cuda version " + _cudaVersion);

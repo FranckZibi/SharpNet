@@ -54,6 +54,7 @@ namespace SharpNet.GPU
                     return CublasWrapper_cublas64_11.cublasCreate_v2(ref cublasHandle);
                 case CUDA_Versions.CUDA_12_0:
                 case CUDA_Versions.CUDA_12_1:
+                case CUDA_Versions.CUDA_12_6:
                     return CublasWrapper_cublas64_12.cublasCreate_v2(ref cublasHandle);
                 default:
                     throw new ArgumentException("invalid cuda version " + _cudaVersion);
@@ -73,6 +74,7 @@ namespace SharpNet.GPU
                     return CublasWrapper_cublas64_11.cublasDestroy_v2(cublasHandle);
                 case CUDA_Versions.CUDA_12_0:
                 case CUDA_Versions.CUDA_12_1:
+                case CUDA_Versions.CUDA_12_6:
                     return CublasWrapper_cublas64_12.cublasDestroy_v2(cublasHandle);
                 default:
                     throw new ArgumentException("invalid cuda version " + _cudaVersion);
@@ -92,6 +94,7 @@ namespace SharpNet.GPU
                     return CublasWrapper_cublas64_11.cublasScopy_v2(cublasHandle, n, x, incx, y, incy);
                 case CUDA_Versions.CUDA_12_0:
                 case CUDA_Versions.CUDA_12_1:
+                case CUDA_Versions.CUDA_12_6:
                     return CublasWrapper_cublas64_12.cublasScopy_v2(cublasHandle, n, x, incx, y, incy);
                 default:
                     throw new ArgumentException("invalid cuda version " + _cudaVersion);
@@ -111,6 +114,7 @@ namespace SharpNet.GPU
                     return CublasWrapper_cublas64_11.cublasSgemm_v2(cublasHandle, transa, transb, m, n, k, ref alpha, A, lda, B, ldb, ref beta, C, ldc);
                 case CUDA_Versions.CUDA_12_0:
                 case CUDA_Versions.CUDA_12_1:
+                case CUDA_Versions.CUDA_12_6:
                     return CublasWrapper_cublas64_12.cublasSgemm_v2(cublasHandle, transa, transb, m, n, k, ref alpha, A, lda, B, ldb, ref beta, C, ldc);
                 default:
                     throw new ArgumentException("invalid cuda version " + _cudaVersion);
@@ -143,6 +147,7 @@ namespace SharpNet.GPU
                     return CublasWrapper_cublas64_11.cublasSgemmStridedBatched(cublasHandle, transa, transb, m, n, k, ref alpha, A, lda, strideA, B, ldb, strideB, ref beta, C, ldc, strideC, batchCount);
                 case CUDA_Versions.CUDA_12_0:
                 case CUDA_Versions.CUDA_12_1:
+                case CUDA_Versions.CUDA_12_6:
                     return CublasWrapper_cublas64_12.cublasSgemmStridedBatched(cublasHandle, transa, transb, m, n, k, ref alpha, A, lda, strideA, B, ldb, strideB, ref beta, C, ldc, strideC, batchCount);
                 default:
                     throw new ArgumentException("invalid cuda version " + _cudaVersion);
@@ -162,6 +167,7 @@ namespace SharpNet.GPU
                     return CublasWrapper_cublas64_11.cublasSgeam(cublasHandle, transa, transb, m, n, ref alpha, A, lda, ref beta, B, ldb, C, ldc);
                 case CUDA_Versions.CUDA_12_0:
                 case CUDA_Versions.CUDA_12_1:
+                case CUDA_Versions.CUDA_12_6:
                     return CublasWrapper_cublas64_12.cublasSgeam(cublasHandle, transa, transb, m, n, ref alpha, A, lda, ref beta, B, ldb, C, ldc);
                 default:
                     throw new ArgumentException("invalid cuda version " + _cudaVersion);
@@ -182,6 +188,7 @@ namespace SharpNet.GPU
                     return CublasWrapper_cublas64_11.cublasSdgmm(cublasHandle, mode, m, n, A, lda, x, incx, C, ldc);
                 case CUDA_Versions.CUDA_12_0:
                 case CUDA_Versions.CUDA_12_1:
+                case CUDA_Versions.CUDA_12_6:
                     return CublasWrapper_cublas64_12.cublasSdgmm(cublasHandle, mode, m, n, A, lda, x, incx, C, ldc);
                 default:
                     throw new ArgumentException("invalid cuda version " + _cudaVersion);
@@ -201,6 +208,7 @@ namespace SharpNet.GPU
                     return CublasWrapper_cublas64_11.cublasGetVersion_v2(cublasHandle, out cublasVersion);
                 case CUDA_Versions.CUDA_12_0:
                 case CUDA_Versions.CUDA_12_1:
+                case CUDA_Versions.CUDA_12_6:
                     return CublasWrapper_cublas64_12.cublasGetVersion_v2(cublasHandle, out cublasVersion);
                 default:
                     throw new ArgumentException("invalid cuda version " + _cudaVersion);
