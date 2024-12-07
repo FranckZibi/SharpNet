@@ -942,7 +942,7 @@ namespace SharpNet.Data
                     return buffer.F1PrecisionRecallMicro(yExpected, yPredicted).f1;
                 default:
                     ComputeLossBufferForEvaluationMetric(yExpected, yPredicted, evaluationMetric, metricConfig);
-                    return BufferToEvaluationMetric(evaluationMetric, Count);
+                    return BufferToEvaluationMetric(evaluationMetric);
             }
         }
 
@@ -961,7 +961,7 @@ namespace SharpNet.Data
         /// what has been predicted by the NN (in each row the biggest value is the NN favorite)
         /// shape is (batch_size, numClass) </param>
         /// <returns></returns>
-        protected abstract void CategoricalCrossentropyLossBuffer([NotNull] Tensor yExpectedOneHot, [NotNull] Tensor yPredicted);
+        protected abstract void ComputeCategoricalCrossentropyLossBuffer([NotNull] Tensor yExpectedOneHot, [NotNull] Tensor yPredicted);
 
         protected abstract void CategoricalCrossentropyWithHierarchyLossBuffer([NotNull] Tensor yExpected, [NotNull] Tensor yPredicted);
         /// <summary>
@@ -973,11 +973,11 @@ namespace SharpNet.Data
         /// what has been predicted by the NN (in each row the biggest value is the NN favorite)
         /// shape is (batch_size, numClass) </param>
         /// <returns></returns>
-        protected abstract void SparseCategoricalCrossentropyLossBuffer([NotNull] Tensor yExpectedSparse, [NotNull] Tensor yPredicted);
+        protected abstract void ComputeSparseCategoricalCrossentropyLossBuffer([NotNull] Tensor yExpectedSparse, [NotNull] Tensor yPredicted);
         public double SparseCategoricalCrossentropyLoss([NotNull] Tensor yExpectedSparse, [NotNull] Tensor yPredicted)
         {
-            ComputeLossBufferForEvaluationMetric(yExpectedSparse, yPredicted, EvaluationMetricEnum.SparseCategoricalCrossentropy, null);
-            return BufferToEvaluationMetric(EvaluationMetricEnum.SparseCategoricalCrossentropy, Count);
+            ComputeSparseCategoricalCrossentropyLossBuffer(yExpectedSparse, yPredicted);
+            return BufferToEvaluationMetric(EvaluationMetricEnum.SparseCategoricalCrossentropy);
         }
         #endregion
 
@@ -995,15 +995,15 @@ namespace SharpNet.Data
         protected abstract void ComputeSparseAccuracyBuffer([NotNull] Tensor yExpected, [NotNull] Tensor yPredicted);
         public double ComputeSparseAccuracy(Tensor yExpectedSparse, Tensor yPredicted)
         {
-            ComputeLossBufferForEvaluationMetric(yExpectedSparse, yPredicted, EvaluationMetricEnum.SparseAccuracy, null);
-            return BufferToEvaluationMetric(EvaluationMetricEnum.SparseAccuracy, Count);
+            ComputeSparseAccuracyBuffer(yExpectedSparse, yPredicted);
+            return BufferToEvaluationMetric(EvaluationMetricEnum.SparseAccuracy);
         }
 
         protected abstract void ComputeAccuracyCategoricalCrossentropyWithHierarchyBuffer([NotNull] Tensor yExpected, [NotNull] Tensor yPredicted);
         public double ComputeAccuracyCategoricalCrossentropyWithHierarchy(Tensor yExpected, Tensor yPredicted)
         {
-            ComputeLossBufferForEvaluationMetric(yExpected, yPredicted, EvaluationMetricEnum.AccuracyCategoricalCrossentropyWithHierarchy, null);
-            return BufferToEvaluationMetric(EvaluationMetricEnum.AccuracyCategoricalCrossentropyWithHierarchy, Count);
+            ComputeAccuracyCategoricalCrossentropyWithHierarchyBuffer(yExpected, yPredicted);
+            return BufferToEvaluationMetric(EvaluationMetricEnum.AccuracyCategoricalCrossentropyWithHierarchy);
         }
         /// <summary>
         /// this = buffer 
@@ -1014,8 +1014,8 @@ namespace SharpNet.Data
         protected abstract void ComputeAccuracyBuffer([NotNull] Tensor yExpected, [NotNull] Tensor yPredicted);
         public double ComputeAccuracy([NotNull] Tensor yExpected, [NotNull] Tensor yPredicted)
         {
-            ComputeLossBufferForEvaluationMetric(yExpected, yPredicted, EvaluationMetricEnum.Accuracy, null);
-            return BufferToEvaluationMetric(EvaluationMetricEnum.Accuracy, Count);
+            ComputeAccuracyBuffer(yExpected, yPredicted);
+            return BufferToEvaluationMetric(EvaluationMetricEnum.Accuracy);
         }
         private static bool IsSparseMetric(EvaluationMetricEnum metricEnum)
         {
@@ -1097,11 +1097,11 @@ namespace SharpNet.Data
 
         #region AUC
         public abstract void ComputeAUCBuffer([NotNull] Tensor yExpected, [NotNull] Tensor yPredicted);
-        public double ComputeAUC(Tensor yExpectedSparse, Tensor yPredicted)
+        public double ComputeAUC(Tensor yExpected, Tensor yPredicted)
         {
             var buffer = this;
             Debug.Assert(buffer.Count == 1);
-            ComputeLossBufferForEvaluationMetric(yExpectedSparse, yPredicted, EvaluationMetricEnum.AUC, null);
+            ComputeAUCBuffer(yExpected, yPredicted);
             return buffer.ContentAsFloatArray()[0];
         }
         #endregion
@@ -1112,20 +1112,20 @@ namespace SharpNet.Data
         {
             var buffer = this;
             Debug.Assert(buffer.Count == 1);
-            ComputeLossBufferForEvaluationMetric(yExpectedSparse, yPredicted, EvaluationMetricEnum.AveragePrecisionScore, null);
+            ComputeAveragePrecisionScoreBuffer(yExpectedSparse, yPredicted);
             return buffer.ContentAsFloatArray()[0];
         }
         #endregion
 
         // ReSharper disable once UnusedParameter.Global
-        private double BufferToEvaluationMetric(EvaluationMetricEnum evaluationMetric, int elementCountInBuffer)
+        private double BufferToEvaluationMetric(EvaluationMetricEnum evaluationMetric)
         {
             var buffer = this;
             if (evaluationMetric == EvaluationMetricEnum.Rmse)
             {
-                return Math.Sqrt(buffer.BufferToEvaluationMetric(EvaluationMetricEnum.Mse, elementCountInBuffer));
+                return Math.Sqrt(buffer.BufferToEvaluationMetric(EvaluationMetricEnum.Mse));
             }
-            return buffer.ContentAsFloatArray().Sum() / elementCountInBuffer;
+            return buffer.ContentAsFloatArray().Average();
         }
 
 
@@ -1188,7 +1188,7 @@ namespace SharpNet.Data
                     buffer.ComputeSparseAccuracyBuffer(yExpected, yPredicted);
                     return;
                 case EvaluationMetricEnum.SparseCategoricalCrossentropy:
-                    buffer.SparseCategoricalCrossentropyLossBuffer(yExpected, yPredicted);
+                    buffer.ComputeSparseCategoricalCrossentropyLossBuffer(yExpected, yPredicted);
                     return;
                 case EvaluationMetricEnum.PearsonCorrelation:
                     throw new NotImplementedException();
@@ -1215,7 +1215,7 @@ namespace SharpNet.Data
                     buffer.BCEWithFocalLossLossBuffer(yExpected, yPredicted, metricConfig.Get_BCEWithFocalLoss_PercentageInTrueClass(), metricConfig.Get_BCEWithFocalLoss_Gamma());
                     return;
                 case EvaluationMetricEnum.CategoricalCrossentropy:
-                    buffer.CategoricalCrossentropyLossBuffer(yExpected, yPredicted);
+                    buffer.ComputeCategoricalCrossentropyLossBuffer(yExpected, yPredicted);
                     return;
                 case EvaluationMetricEnum.CategoricalCrossentropyWithHierarchy:
                     buffer.CategoricalCrossentropyWithHierarchyLossBuffer(yExpected, yPredicted);

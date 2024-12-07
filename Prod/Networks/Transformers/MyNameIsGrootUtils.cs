@@ -7,6 +7,8 @@ using SharpNet.CPU;
 using SharpNet.Datasets;
 using SharpNet.HPO;
 using SharpNet.Hyperparameters;
+using static SharpNet.Networks.NetworkSample;
+using static SharpNet.Optimizers.Optimizer;
 // ReSharper disable UnusedMember.Global
 
 namespace SharpNet.Networks.Transformers;
@@ -21,6 +23,91 @@ public static class MyNameIsGrootUtils
     #endregion
 
     public static string WorkingDirectory => Path.Combine(Utils.ChallengesPath, NAME);
+
+    public static void Run()
+    {
+        Utils.ConfigureGlobalLog4netProperties(WorkingDirectory, "log");
+        Utils.ConfigureThreadLog4netProperties(WorkingDirectory, "log");
+
+        //CharLevelTransformerInference();
+        //Retrain();
+        LaunchNeuralNetworkHPO(5);
+        //SpeedTest();
+        //PredictNextWord("97B423C404", "my name is", 1, 0.0);
+        //PredictNextWord("97B423C404", "groot is my", 50, 0.0);
+    }
+
+    public static void Retrain()
+    {
+        ChallengeTools.Retrain(WorkingDirectory, "1E68E0FFA0", null, 0.9, retrainOnFullDataset: false, useAllAvailableCores: true);
+    }
+
+    public static void LaunchNeuralNetworkHPO(int num_epochs, int maxAllowedSecondsForAllComputation = 0)
+    {
+        var searchSpace = new Dictionary<string, object>
+        {
+
+            //related to Dataset
+            //{ "KFold", 3 },
+            {nameof(AbstractDatasetSample.PercentageInTraining), 0.8},
+            {nameof(AbstractDatasetSample.ShuffleDatasetBeforeSplit), true},
+
+            //related to model
+            //{nameof(NetworkSample.LossFunction), nameof(EvaluationMetricEnum.SparseCategoricalCrossentropy)},
+            //{nameof(NetworkSample.EvaluationMetrics), nameof(EvaluationMetricEnum.SparseAccuracy)},
+            {nameof(NetworkSample.LossFunction), nameof(EvaluationMetricEnum.CategoricalCrossentropy)},
+            {nameof(NetworkSample.EvaluationMetrics), nameof(EvaluationMetricEnum.Accuracy)},
+
+            {nameof(NetworkSample.CompatibilityMode), new[]{CompatibilityModeEnum.PyTorch}},
+            //{nameof(NetworkSample.CompatibilityMode), new[]{nameof(CompatibilityModeEnum.TensorFlow),nameof(CompatibilityModeEnum.PyTorch)}},
+
+            {nameof(TransformerDatasetSample.max_length), 3 },
+            {nameof(TransformerDatasetSample.vocab_size), 4},
+            //{nameof(TransformerDatasetSample.layer_norm_epsilon), new[]{1e-5, 1e-6 } },
+            {nameof(TransformerNetworkSample.embedding_dim), 2},
+            {nameof(TransformerNetworkSample.decoder_num_transformer_blocks), new[]{1 /*,6*/ } },
+            {nameof(TransformerNetworkSample.decoder_num_heads), new[]{1} },
+            {nameof(TransformerNetworkSample.decoder_mha_use_bias_Q_K_V), false},
+            {nameof(TransformerNetworkSample.decoder_mha_use_bias_O), false },
+            //{nameof(TransformerNetworkSample.decoder_mha_dropout), new[]{0.2f,0f ,0.1f} },
+            //{nameof(TransformerNetworkSample.decoder_add_layer_norm_before_mha), false},
+            {nameof(TransformerNetworkSample.decoder_feed_forward_dim), 1},
+            //{nameof(TransformerNetworkSample.decoder_feed_forward_dropout), new[]{0.2f,0f,0.1f }},
+            {nameof(TransformerNetworkSample.flattenInputTensorOnLastDimension_in_last_dense), false},
+
+            {nameof(TransformerNetworkSample.decoder_mha_dropout), new[]{0.0,0.2,0.4 } },
+            {nameof(TransformerNetworkSample.decoder_feed_forward_dropout), new[]{0.0,0.2,0.4 } },
+
+
+            
+
+            // Optimizer 
+            { nameof(NetworkSample.OptimizerType), new[]{OptimizationEnum.AdamW}},
+            //{ nameof(NetworkSample.OptimizerType), new[]{nameof(OptimizationEnum.AdamW), nameof(OptimizationEnum.Adam), nameof(OptimizationEnum.SGD), nameof(OptimizationEnum.VanillaSGD)}},
+            //{ nameof(NetworkSample.AdamW_L2Regularization), 0.01},
+            // Learning Rate
+            //{ nameof(NetworkSample.InitialLearningRate), new[]{0.05 } },
+            //{ nameof(NetworkSample.InitialLearningRate), new[]{10, 5, 1.0,0.5,0.1,0.05,0.01,0.005,0.001,0.0005,0.0001,0.00005, 0.00001, 0.000005, 0.000001 , 0.0000005, 0.0000001 } },
+            { nameof(NetworkSample.InitialLearningRate), new[]{0.1, 0.5, 0.05 } },
+            // Learning Rate Scheduler
+            { nameof(NetworkSample.LearningRateSchedulerType), new[] { LearningRateSchedulerEnum.OneCycle } },
+            //{ nameof(NetworkSample.LearningRateSchedulerType), new[] { "CyclicCosineAnnealing", "OneCycle", "Linear", "Constant" } },
+
+
+            { nameof(NetworkSample.BatchSize), new[]{256} },
+
+            { nameof(NetworkSample.num_epochs), num_epochs },
+
+            //{ "ResourceIds", -1},
+            
+
+
+        };
+
+        var hpo = new RandomSearchHPO(searchSpace, () => ModelAndDatasetPredictionsSample.New(GetModelSample(), new MyNameIsGrootDatasetSample()), WorkingDirectory);
+        IScore bestScoreSoFar = null;
+        hpo.Process(t => SampleUtils.TrainWithHyperparameters((ModelAndDatasetPredictionsSample)t, WorkingDirectory, false, ref bestScoreSoFar), maxAllowedSecondsForAllComputation);
+    }
 
 
     private static string GenerateText(Network nn, int textLength, double maxAllowedError)
@@ -92,18 +179,6 @@ public static class MyNameIsGrootUtils
         return probaWithIndex[r.Next(selectionChoice)].Item2;
     }
 
-    public static void Run()
-    {
-        Utils.ConfigureGlobalLog4netProperties(WorkingDirectory, "log");
-        Utils.ConfigureThreadLog4netProperties(WorkingDirectory, "log");
-
-        //CharLevelTransformerInference();
-        //Retrain();
-        //LaunchNeuralNetworkHPO(1);
-        //SpeedTest();
-        PredictNextWord("97B423C404", "my name is", 1, 0.0);
-        //PredictNextWord("97B423C404", "groot is my", 50, 0.0);
-    }
 
     private static string PredictNextWord(string networkName, string startingText, int nbTokenToPredictAfterText,double maxAllowedError)
     {
@@ -164,11 +239,6 @@ public static class MyNameIsGrootUtils
         return;
     }
 
-    public static void Retrain()
-    {
-        ChallengeTools.Retrain(WorkingDirectory, "1E68E0FFA0", null, 0.9, retrainOnFullDataset: false, useAllAvailableCores: true);
-    }
-
     private static void SpeedTest()
     {
         var speedTestWorkingDirectory = Path.Join(WorkingDirectory, "SpeedTest");
@@ -177,64 +247,6 @@ public static class MyNameIsGrootUtils
         ChallengeTools.Retrain(speedTestWorkingDirectory, "v0", null, 0.9, retrainOnFullDataset: false, useAllAvailableCores: false, computeAndSavePredictions: false, computeValidationRankingScore: false, saveTrainedModel: false);
     }
 
-    public static void LaunchNeuralNetworkHPO(int num_epochs, int maxAllowedSecondsForAllComputation = 0)
-    {
-        var searchSpace = new Dictionary<string, object>
-        {
-            //related to Dataset
-            //{"MaxCharacterLengthForTraining", 1000 },
-            //{ "KFold", 3 },
-            {nameof(AbstractDatasetSample.PercentageInTraining), new[]{0.5}},
-            {nameof(AbstractDatasetSample.ShuffleDatasetBeforeSplit), true},
-
-            //related to model
-            //{nameof(NetworkSample.LossFunction), nameof(EvaluationMetricEnum.SparseCategoricalCrossentropy)},
-            //{nameof(NetworkSample.EvaluationMetrics), nameof(EvaluationMetricEnum.SparseAccuracy)},
-            {nameof(NetworkSample.LossFunction), nameof(EvaluationMetricEnum.CategoricalCrossentropy)},
-            {nameof(NetworkSample.EvaluationMetrics), nameof(EvaluationMetricEnum.Accuracy)},
-            {nameof(NetworkSample.CompatibilityMode), "TensorFlow"},
-            {"max_length", new[]{3} },
-            
-            {"embedding_dim", new[]{2} },
-            
-
-            //{"max_length", 256},
-            //{"embedding_dim", 384},
-            //{"max_length", 256},
-            //{"embedding_dim", 64},
-            //{"layer_norm_epsilon", new[]{1e-5, 1e-6 } },
-            {"encoder_num_transformer_blocks", new[]{1 /*,6*/ } },
-            {"encoder_num_heads", new[]{1} },
-            {"encoder_mha_use_bias_Q_K_V", false},
-            //{"encoder_mha_use_bias_O", new[]{true,false } },
-            //{"encoder_mha_dropout", new[]{0.2f,0f ,0.1f} },
-
-            
-            //{"encoder_add_layer_norm_before_mha", false},
-
-            {"encoder_feed_forward_dim", 1},
-            //{"encoder_feed_forward_dropout", new[]{0.2f,0f,0.1f }},
-            {"encoder_is_causal", true},
-            {"vocab_size", 4},
-            // Optimizer 
-            { nameof(NetworkSample.OptimizerType), "AdamW" },
-            //{ nameof(NetworkSample.AdamW_L2Regularization), 0.01},
-            // Learning Rate
-            { nameof(NetworkSample.InitialLearningRate), new[]{0.05} },
-            // Learning Rate Scheduler
-            //{ nameof(NetworkSample.LearningRateSchedulerType), new[] { "CyclicCosineAnnealing", "OneCycle", "Linear" } },
-            { nameof(NetworkSample.LearningRateSchedulerType), "Constant"},
-            //{ nameof(NetworkSample.LearningRateSchedulerType), "Constant"},
-            { nameof(NetworkSample.BatchSize), new[]{256} },
-            { nameof(NetworkSample.num_epochs), num_epochs },
-            
-
-        };
-
-        var hpo = new RandomSearchHPO(searchSpace, () => ModelAndDatasetPredictionsSample.New(GetModelSample(), new MyNameIsGrootDatasetSample()), WorkingDirectory);
-        IScore bestScoreSoFar = null;
-        hpo.Process(t => SampleUtils.TrainWithHyperparameters((ModelAndDatasetPredictionsSample)t, WorkingDirectory, false, ref bestScoreSoFar), maxAllowedSecondsForAllComputation);
-    }
 
     private static TransformerNetworkSample GetModelSample()
     {

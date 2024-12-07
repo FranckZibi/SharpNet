@@ -133,7 +133,7 @@ public class DiscreteHyperparameterSearchSpace : HyperparameterSearchSpace
         {
             return ToStringObjects((string[])parameterValues);
         }
-        if (parameterValues is bool || parameterValues is int || parameterValues is float || parameterValues is double || parameterValues is string)
+        if (parameterValues is bool || parameterValues is int || parameterValues is float || parameterValues is double || parameterValues is string || parameterValues.GetType().IsEnum)
         {
             return new[] { Utils.FieldValueToString(parameterValues) };
         }

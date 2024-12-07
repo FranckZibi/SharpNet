@@ -166,7 +166,7 @@ namespace SharpNet.Layers
             var multiplier = 1f / batchSize;
             if (sample.CompatibilityMode == CompatibilityModeEnum.TensorFlow || sample.CompatibilityMode == CompatibilityModeEnum.PyTorch)
             {
-                multiplier = 1f; //used only for tests and parallel run
+                multiplier = 1f;
             }
 
             weightGradients.Dot(dyAs2DMatrix, true, xAs2DMatrix, false, multiplier, 0);

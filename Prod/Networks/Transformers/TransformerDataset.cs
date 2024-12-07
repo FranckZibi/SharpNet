@@ -40,12 +40,23 @@ public class TransformerDataset : DataSet
                 xBufferSpan[j] = _textToSequence[elementId+j];
             }
         }
+
         if (yBuffer != null)
         {
             var yBufferSpan = yBuffer.RowSpanSlice(indexInBuffer, 1);
             Debug.Assert(yBufferSpan.Length == TransformerDatasetSample.vocab_size);
             yBufferSpan.Clear();
             yBufferSpan[_textToSequence[elementId + TransformerDatasetSample.max_length]] = 1;
+            /*
+            Debug.Assert(yBufferSpan.Length == TransformerDatasetSample.max_length * TransformerDatasetSample.vocab_size);
+            yBufferSpan.Clear();
+            for (int j = 0; j< TransformerDatasetSample.max_length; ++j)
+            {
+                Debug.Assert( (elementId + j + 1) < _textToSequence.Length);
+                var new_token_index_in_vocab_size = _textToSequence[elementId+j+1];
+                yBufferSpan[j*TransformerDatasetSample.vocab_size + new_token_index_in_vocab_size] = 1;
+            }
+            */
         }
     }
 

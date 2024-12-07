@@ -96,7 +96,7 @@ public abstract class Model: IDisposable
     }
 
 
-    public virtual string ToPytorchModule(int datasetRows)
+    public virtual string ToPytorchModule(int batch_size)
     {
         return "# Not implemented for "+GetType();
     }

@@ -11,6 +11,7 @@ public abstract class TransformerDatasetSample : AbstractDatasetSample
 
     public override int[] X_Shape(int batchSize) => new[] { batchSize, max_length };
     public override int[] Y_Shape(int batchSize) => new[] { batchSize, vocab_size };
+    //public override int[] Y_Shape(int batchSize) => new[] { batchSize, max_length , vocab_size };
     public override int NumClass => vocab_size;
 
 }

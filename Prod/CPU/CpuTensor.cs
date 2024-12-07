@@ -1853,7 +1853,7 @@ namespace SharpNet.CPU
         }
 
 
-        protected override void SparseCategoricalCrossentropyLossBuffer([NotNull] Tensor yExpectedSparse, [NotNull] Tensor yPredicted)
+        protected override void ComputeSparseCategoricalCrossentropyLossBuffer([NotNull] Tensor yExpectedSparse, [NotNull] Tensor yPredicted)
         {
             var buffer = this;
             (yExpectedSparse, yPredicted, _) = ReformatTo2DTensorsSparse(yExpectedSparse, yPredicted);
@@ -1874,7 +1874,7 @@ namespace SharpNet.CPU
             }
         }
 
-        protected override void CategoricalCrossentropyLossBuffer(Tensor yExpectedOneHot, Tensor yPredicted)
+        protected override void ComputeCategoricalCrossentropyLossBuffer(Tensor yExpectedOneHot, Tensor yPredicted)
         {
             MergeInPlaceByRow(yExpectedOneHot.AsFloatCpu, yPredicted.AsFloatCpu, (expected, prediction) => -expected * MathF.Log(prediction), 1);
         }

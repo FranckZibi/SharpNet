@@ -840,7 +840,7 @@ namespace SharpNet.GPU
             _wrapper.RunKernel("ComputeSparseAccuracy", rows, new object[] { numClass, buffer, yExpectedSparse, yPredicted });
         }
 
-    protected override void SparseCategoricalCrossentropyLossBuffer(Tensor yExpectedSparse, Tensor yPredicted)
+    protected override void ComputeSparseCategoricalCrossentropyLossBuffer(Tensor yExpectedSparse, Tensor yPredicted)
     {
         (yExpectedSparse, yPredicted, _) = ReformatTo2DTensorsSparse(yExpectedSparse, yPredicted);
         //yExpectedSparse shape:    (batchSize*timeSteps, 1)
@@ -850,7 +850,7 @@ namespace SharpNet.GPU
         CallCudaForLossBuffer(yExpectedSparse, yPredicted, EvaluationMetricEnum.SparseCategoricalCrossentropy);
     }
 
-    protected override void CategoricalCrossentropyLossBuffer(Tensor yExpectedOneHot, Tensor yPredicted)
+    protected override void ComputeCategoricalCrossentropyLossBuffer(Tensor yExpectedOneHot, Tensor yPredicted)
     {
         CallCudaForLossBuffer(yExpectedOneHot, yPredicted, EvaluationMetricEnum.CategoricalCrossentropy);
     }

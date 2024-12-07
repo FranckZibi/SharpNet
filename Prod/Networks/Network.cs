@@ -520,7 +520,10 @@ namespace SharpNet.Networks
 
         public override string ToString()
         {
-            return Summary();
+            var res = Summary();
+            res += ToPytorchModule(256);
+            return res;
+            //return Summary();
         }
         /// <summary>
         /// Change the last activation layer from SoftMax to SoftMaxWithHierarchy
@@ -915,7 +918,7 @@ namespace SharpNet.Networks
         #endregion
 
         #region PyTorch support
-        public override string ToPytorchModule(int datasetRows)
+        public override string ToPytorchModule(int batch_size)
         {
             var constructorLines = new List<string>(new []{"super().__init__()", "torch.manual_seed(0)", "np.random.seed(0)"});
             List<string> forwardLines = new();
@@ -970,12 +973,12 @@ namespace SharpNet.Networks
             {
                 sb.AppendLine($"scheduler = None");
             }
-            var shape_numpy_array_for_tests = "["+datasetRows+", "+string.Join(", ", Layers[0].OutputShape(666).Skip(1))+"]";
+            var shape_numpy_array_for_tests = "["+batch_size+", "+string.Join(", ", Layers[0].OutputShape(666).Skip(1))+"]";
 
             sb.AppendLine("# loss_before, loss_after = Train(model,");
             sb.AppendLine("Train(model,");
             sb.AppendLine("#    numpy_array_for_tests("+ shape_numpy_array_for_tests+"),");
-            var shape_y_numpy_array_for_tests =datasetRows+ ", " + string.Join(", ", Layers.Last().OutputShape(666).Skip(1));
+            var shape_y_numpy_array_for_tests =batch_size+ ", " + string.Join(", ", Layers.Last().OutputShape(666).Skip(1));
             sb.AppendLine("#    y_numpy_array_for_tests("+ shape_y_numpy_array_for_tests+"),");
             sb.AppendLine("    training_dataset,");
             sb.AppendLine("    validation_dataset,");
