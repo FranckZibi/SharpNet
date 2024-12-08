@@ -26,7 +26,7 @@ namespace SharpNet.Svm
         /// <param name="modelName">the name of the model to use</param>
         /// <exception cref="Exception"></exception>
         [SuppressMessage("ReSharper", "VirtualMemberCallInConstructor")]
-        public SVMModel(SVMSample SVMModelSample, string workingDirectory, [JetBrains.Annotations.NotNull] string modelName) : base(SVMModelSample, workingDirectory, modelName)
+        public SVMModel(SVMSample SVMModelSample, string workingDirectory, [NotNull] string modelName) : base(SVMModelSample, workingDirectory, modelName)
         {
             if (!File.Exists(TrainExePath))
             {

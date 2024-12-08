@@ -310,6 +310,26 @@ namespace SharpNetTests
             }
         }
 
+        [Test]
+        public void Test_RMSNorm()
+        {
+            foreach (var epsilon in new[] { 1e-3f, 1e-5f })
+            foreach (var batchSize in new[] { 1, 4, 9 })
+            {
+                var xShape = new[] { batchSize, ChannelsCount, Height, Width };
+                foreach (var cols in new[] { Width, Width * Height, Width * Height * ChannelsCount })
+                {
+                    var rows = Utils.Product(xShape) / cols;
+                    var x = RandomTensor(xShape);
+                    var y = RandomTensor(xShape);
+                    var gammas = RandomTensor(new[] { 1, cols });
+                    var mean_squares = RandomTensor(new[] { rows, 1 });
+                    x.Compute_Mean_Squares_Buffer(mean_squares);
+                    TestAll(new[] { x, y, gammas, mean_squares }, tensors => tensors[0].RMSNormalization(tensors[1], tensors[2], tensors[3], epsilon));
+                }
+            }
+        }
+
 
         [Test]
         public void Test_LayerNormalizationBackward()

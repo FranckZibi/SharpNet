@@ -11,9 +11,9 @@ using SharpNet.Optimizers;
 namespace SharpNet.Layers;
 
 /// <summary>
-/// Layer Normalization, see https://arxiv.org/abs/1607.06450
+/// Root Mean Square Layer Normalization, see https://arxiv.org/abs/1910.07467
 /// </summary>
-public sealed class LayerNorm : Layer
+public sealed class RMSNorm : Layer
 {
     #region Private fields
     private readonly double _epsilon;
@@ -34,21 +34,15 @@ public sealed class LayerNorm : Layer
     /// <summary>
     /// Scale (= gammas) Tensor
     /// </summary>
-    [CanBeNull] private Tensor _gammas;
-    /// <summary>
-    /// Bias (= betas = offset) Tensor
-    /// </summary>
-    [CanBeNull] private Tensor _betas;                           // same shape as '_gammas"
+    private Tensor _gammas;
     #endregion
 
     #region buffers
-    [CanBeNull] private Tensor _mean_buffer;
-    [CanBeNull] private Tensor _variance_buffer;
+    [CanBeNull] private Tensor _mean_squares_buffer;
     #endregion
 
     #region gradients
-    [CanBeNull] private Tensor _gammasGradients;         // same shape as '_gammas"
-    [CanBeNull] private Tensor _betasGradients;        // same shape as '_gammas"
+    [NotNull] private Tensor _gammasGradients;         // same shape as '_gammas"
     #endregion
     /// <summary>
     /// Adam or SGD optimizer or Vanilla SGD
@@ -56,9 +50,10 @@ public sealed class LayerNorm : Layer
     [NotNull] private readonly Optimizer _optimizer;
     #endregion
 
-    public const float DEFAULT_EPSILON = 1e-5f;
+    // to check with actual value used in PyTorch
+    public const float DEFAULT_EPSILON = 1.2f * 1e-7f;
 
-    public LayerNorm(int last_D_dimension, double epsilon, bool trainable, Network network, string layerName, int prevLayerIndex) : base(network, prevLayerIndex == -1 ? new[]{network.LastLayerIndex}:new[]{ prevLayerIndex }, layerName)
+    public RMSNorm(int last_D_dimension, double epsilon, bool trainable, Network network, string layerName, int prevLayerIndex) : base(network, prevLayerIndex == -1 ? new[] { network.LastLayerIndex } : new[] { prevLayerIndex }, layerName)
     {
         _last_D_dimension = last_D_dimension;
         _epsilon = epsilon;
@@ -68,23 +63,14 @@ public sealed class LayerNorm : Layer
 
         //trainable parameters 
         _gammas = GetFloatTensor(scaleAndBiasShape);
-        _betas = GetFloatTensor(scaleAndBiasShape);
 
         //gradients
         _gammasGradients = GetFloatTensor(scaleAndBiasShape);
-        _betasGradients = GetFloatTensor(scaleAndBiasShape);
 
-        _optimizer = Sample.GetOptimizer(_gammas.Shape, _betas.Shape, MemoryPool);
+        _optimizer = Sample.GetOptimizer(_gammas.Shape, null, MemoryPool);
 
         //no need to reset optimizer weights: it has just been done above
         ResetParameters(false);
-
-        ////We disable bias for the previous layers
-        //var nbDisabledWeights = PreviousLayers.Select(l => l.DisableBias()).Sum();
-        //if (nbDisabledWeights != 0)
-        //{
-        //    Log(nbDisabledWeights + " weights (bias) disabled thanks to LayerNormalization layer " + LayerName);
-        //}
     }
 
     #region forward and backward propagation
@@ -95,15 +81,14 @@ public sealed class LayerNorm : Layer
         int reshape_cols = _gammas.Count;
         if (x.Count % reshape_cols != 0)
         {
-            throw new Exception("LayerNorm: input tensor count (" + x.Count + ") is not a multiple of the number of gammas (" + reshape_cols + ")");
+            throw new Exception("RMSNorm: input tensor count (" + x.Count + ") is not a multiple of the number of gammas (" + reshape_cols + ")");
         }
         int reshape_rows = allX[0].Count / reshape_cols;
 
-        // we compute the mean / variance 
-        GetFloatTensor(ref _mean_buffer, new[] { 1, reshape_rows });
-        GetFloatTensor(ref _variance_buffer, _mean_buffer.Shape);
-        x.Compute_Row_Mean_Variance(_mean_buffer, _variance_buffer, false);
-        x.LayerNormalization(y, _gammas, _betas, _mean_buffer, _variance_buffer, (float)_epsilon);
+        // we compute the sum of squares
+        GetFloatTensor(ref _mean_squares_buffer, new[] { 1, reshape_rows });
+        x.Compute_Mean_Squares_Buffer(_mean_squares_buffer);
+        x.RMSNormalization(y, _gammas, _mean_squares_buffer, (float)_epsilon);
     }
 
     public override void BackwardPropagation(List<Tensor> allX, Tensor y_NotUsed, Tensor dy, List<Tensor> allDx)
@@ -111,45 +96,38 @@ public sealed class LayerNorm : Layer
         var dx = allDx[0];
         var x = allX[0];
 
-        //we compute '_betasGradients'
-        //_betasGradients = 	np.sum(dy, axis = 0)
-        dy.numpy_sum(_betasGradients, 0);
-
         //we compute '_gammasGradients'
-        //hat_x = (x - mean) / np.sqrt(variance + eps)
+        //hat_x = x / np.sqrt(variance + eps)
         //dgamma = np.sum(dy * hat_x, axis = 0)
         var hat_x = dx;
         x.CopyTo(hat_x);
-        hat_x.StandardizeInPlace(_mean_buffer, _variance_buffer, 1, (float)_epsilon);
+        hat_x.RMSStandardizeInPlace(_mean_squares_buffer, (float)_epsilon);
         hat_x.Update_Multiply_By_x(dy);
         hat_x.numpy_sum(_gammasGradients, 0);
 
-        var dmean_row = GetFloatTensor(_mean_buffer.Shape);
-        var dvariance_row = GetFloatTensor(_mean_buffer.Shape);
+        var dmean_squares_row = GetFloatTensor(_mean_squares_buffer.Shape);
         //we compute 'dx'
-        x.LayerNormalizationBackward(dy, dx, _gammas, _mean_buffer, _variance_buffer, (float)_epsilon, dmean_row, dvariance_row);
+        x.RMSNormalizationBackward(dy, dx, _gammas, _mean_squares_buffer, (float)_epsilon, dmean_squares_row);
 
-        FreeFloatTensor(dmean_row);
-        FreeFloatTensor(dvariance_row);
+        FreeFloatTensor(dmean_squares_row);
     }
     public override bool OutputNeededForBackwardPropagation => false;
     #endregion
 
     #region parameters and gradients
     public override Tensor Weights => _gammas;
-    public override Tensor Bias => _betas;
+    public override Tensor Bias => null;
     public override Tensor WeightGradients => _gammasGradients;
-    public override Tensor BiasGradients => _betasGradients;
+    public override Tensor BiasGradients => null;
     protected override Optimizer Optimizer => _optimizer;
     public override List<Tuple<Tensor, string>> Parameters
     {
         get
         {
             var result = new List<Tuple<Tensor, string>>
-            {
-                Tuple.Create(_gammas, GammasDatasetPath),
-                Tuple.Create(_betas, BetasDatasetPath),
-            };
+                         {
+                             Tuple.Create(_gammas, GammasDatasetPath),
+                         };
             return result;
         }
     }
@@ -158,7 +136,6 @@ public sealed class LayerNorm : Layer
     {
         //trainable params
         _gammas.SetValue(1);
-        _betas.ZeroMemory();
         if (resetAlsoOptimizerWeights)
         {
             _optimizer.ZeroMemory();
@@ -171,23 +148,11 @@ public sealed class LayerNorm : Layer
         Debug.Assert(newParameters.Count == 2);
         FreeFloatTensor(ref _gammas);
         _gammas = newParameters[0];
-        FreeFloatTensor(ref _betas);
-        _betas = newParameters[1];
     }
     public override void ReplaceGradients(List<Tensor> newGradients)
     {
         FreeFloatTensor(ref _gammasGradients);
         _gammasGradients = newGradients[0];
-        if (_betasGradients != null)
-        {
-            Debug.Assert(newGradients.Count == 2);
-            FreeFloatTensor(ref _betasGradients);
-            _betasGradients = newGradients[1];
-        }
-        else
-        {
-            Debug.Assert(newGradients.Count == 1);
-        }
     }
     #endregion
 
@@ -206,13 +171,11 @@ public sealed class LayerNorm : Layer
     {
         var result = new Dictionary<string, CpuTensor<float>>();
         result[GammasDatasetPath] = _gammas.ToCpuFloat();
-        result[BetasDatasetPath] = _betas.ToCpuFloat();
         return result;
     }
 
 
     private string GammasDatasetPath => DatasetNameToDatasetPath("gamma:0");
-    private string BetasDatasetPath => DatasetNameToDatasetPath("beta:0");
     #endregion
 
     #region serialization
@@ -223,10 +186,10 @@ public sealed class LayerNorm : Layer
             .Add(nameof(_epsilon), _epsilon)
             .ToString();
     }
-    public static LayerNorm Deserialize(IDictionary<string, object> serialized, Network network)
+    public static RMSNorm Deserialize(IDictionary<string, object> serialized, Network network)
     {
         int prevLayerIndex = ((int[])serialized[nameof(PreviousLayerIndexes)])[0];
-        return new LayerNorm(
+        return new RMSNorm(
             (int)serialized[nameof(_last_D_dimension)],
             (double)serialized[nameof(_epsilon)],
             (bool)serialized[nameof(Trainable)],
@@ -238,12 +201,12 @@ public sealed class LayerNorm : Layer
     #endregion
 
     #region PyTorch support
-    //see: https://pytorch.org/docs/stable/generated/torch.nn.LayerNorm.html
+    //see: https://pytorch.org/docs/stable/generated/torch.nn.RMSNorm.html
     public override void ToPytorchModule(List<string> constructorLines, List<string> forwardLines)
     {
         var input_shape = PreviousLayers.Count == 0 ? new[] { -1, -1, -1, -1 } : PreviousLayers[0].OutputShape(666);
         var normalized_shape = Utils.ShapeToString(input_shape.Skip(input_shape.Length - _last_D_dimension).ToArray());
-        constructorLines.Add("self." + LayerName + " = torch.nn.LayerNorm(normalized_shape=" + normalized_shape + ", eps=" + _epsilon + ")");
+        constructorLines.Add("self." + LayerName + " = torch.nn.RMSNorm(normalized_shape=" + normalized_shape + ", eps=" + _epsilon + ")");
         UpdateForwardLines(forwardLines);
     }
     #endregion
@@ -259,16 +222,16 @@ public sealed class LayerNorm : Layer
     protected override List<Tensor> EmbeddedTensors(bool includeOptimizeTensors)
     {
         var result = base.EmbeddedTensors(includeOptimizeTensors);
-        result.AddRange(new[] { _mean_buffer, _variance_buffer});
+        result.AddRange(new[] { _mean_squares_buffer});
         result.RemoveAll(t => t == null);
         return result;
     }
 
-    
+
 
     protected override string ComputeLayerName()
     {
-        return "layer_normalization";
+        return "RMSNorm";
     }
 
     private int[] ScaleAndBiasShape()

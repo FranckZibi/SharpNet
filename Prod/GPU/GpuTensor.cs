@@ -194,6 +194,19 @@ namespace SharpNet.GPU
             _wrapper.RunKernel("Compute_Row_Mean_Variance", rows, new object[] { cols, x, row_mean, row_variance, unbiasedVariance });
         }
 
+        public override void Compute_Mean_Squares_Buffer(Tensor mean_squares_buffer)
+        {
+            var x = this;
+            Debug.Assert(AreCompatible(new List<Tensor> { this, mean_squares_buffer }));
+            int rows = mean_squares_buffer.Count;
+            if (x.Count % rows != 0)
+            {
+                throw new ArgumentException("x.Count % rows != 0");
+            }
+            int cols = x.Count / rows;
+            _wrapper.RunKernel("Compute_Mean_Squares_Buffer", rows, new object[] { cols, x, mean_squares_buffer });
+        }
+
         // ReSharper disable once UnusedMember.Local
         private void Compute_Row_Mean_VarianceV2(Tensor row_mean, Tensor row_variance, bool unbiasedVariance)
         {
@@ -236,6 +249,25 @@ namespace SharpNet.GPU
             }
             throw new NotSupportedException("Only axis=1 is supported");
         }
+
+        public override void RMSStandardizeInPlace(Tensor mean_squares, float epsilon)
+        {
+            var x = this;
+            Debug.Assert(AreCompatible(new List<Tensor> { this, mean_squares }));
+
+            //we'll standardize each row
+            int rows = mean_squares.Count;
+            if (x.Count % rows != 0)
+            {
+                throw new ArgumentException("The number of elements in the tensor must be a multiple of the number of rows");
+            }
+            int cols = x.Count / rows;
+
+            const int pointsByThread = 8;
+            int threadsByRow = (cols + pointsByThread - 1) / pointsByThread;
+            _wrapper.RunKernel("RMSStandardizeInPlace", rows * threadsByRow, new object[] { cols, pointsByThread, threadsByRow, x, mean_squares, epsilon });
+        }
+
         public override void StandardizeRowsInPlaceBroadcastGammasBetas(Tensor row_mean, Tensor row_variance, float epsilon, Tensor col_gammas, Tensor col_betas)
         {
             var x = this;
@@ -259,6 +291,27 @@ namespace SharpNet.GPU
             _wrapper.RunKernel("StandardizeRowsInPlaceBroadcastGammasBetas", rows * threadsByRow, new object[] { cols, pointsByThread, threadsByRow, x, row_mean, row_variance, epsilon, col_gammas, col_betas });
         }
 
+        protected override void RMSStandardizeRowsInPlaceBroadcastGammas(Tensor row_mean_squares, float epsilon, Tensor col_gammas)
+        {
+            var x = this;
+            Debug.Assert(AreCompatible(new List<Tensor> { this, row_mean_squares, col_gammas}));
+            //we'll standardize each row
+            int rows = row_mean_squares.Count;
+            if (x.Count % rows != 0)
+            {
+                throw new ArgumentException("The number of elements in the tensor must be a multiple of the number of rows");
+            }
+            int cols = col_gammas.Count;
+            if (x.Count != rows * cols)
+            {
+                throw new ArgumentException("x.Count != rows * cols");
+            }
+
+            const int pointsByThread = 8;
+            int threadsByRow = (cols + pointsByThread - 1) / pointsByThread;
+            _wrapper.RunKernel("RMSStandardizeRowsInPlaceBroadcastGammas", rows * threadsByRow, new object[] { cols, pointsByThread, threadsByRow, x, row_mean_squares, epsilon, col_gammas});
+        }
+
         public override void LayerNormalizationBackward(Tensor dy, Tensor dx, Tensor col_gammas, Tensor row_mean, Tensor row_variance, float epsilon, Tensor dmean_row, Tensor dvariance_row)
         {
             var x = this;
@@ -277,6 +330,25 @@ namespace SharpNet.GPU
             int threadsByRow = (cols + pointsByThread - 1) / pointsByThread;
             _wrapper.RunKernel("LayerNormalizationBackward_dx", rows * threadsByRow, new object[] { cols, pointsByThread, threadsByRow, x, dy, dx, col_gammas, row_mean, row_variance, epsilon, dmean_row, dvariance_row });
         }
+
+        public override void RMSNormalizationBackward(/* in */ Tensor dy, /* out */ Tensor dx, /* in */ Tensor col_gammas, /* in */ Tensor mean_squares_row, float epsilon, /* out */ Tensor dmean_squares_row)
+        {
+            var x = this;
+            Debug.Assert(AreCompatible(new List<Tensor> { x, dy, dx, col_gammas, mean_squares_row }));
+            Debug.Assert(x.SameShape(dy, dx));
+            int rows = mean_squares_row.Count;
+            int cols = col_gammas.Count;
+            if (x.Count != rows * cols)
+            {
+                throw new ArgumentException("x.Count != rows * cols");
+            }
+
+            _wrapper.RunKernel("RMSNormalizationBackward_dmean_squares_row", rows, new object[] { cols, x, dy, col_gammas, mean_squares_row, epsilon, dmean_squares_row });
+            const int pointsByThread = 8;
+            int threadsByRow = (cols + pointsByThread - 1) / pointsByThread;
+            _wrapper.RunKernel("RMSNormalizationBackward_dx", rows * threadsByRow, new object[] { cols, pointsByThread, threadsByRow, x, dy, dx, col_gammas, mean_squares_row, epsilon, dmean_squares_row });
+        }
+
         #endregion
 
         public override void numpy_sum(Tensor sum_result, int axis)

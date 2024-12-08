@@ -48,6 +48,32 @@ extern "C" {
 		}
 	}
 
+
+	// for each row of tensor 'x' (of shape (N, cols), normalize the value
+	//  y = x/RMS(all elements in X vector)
+	__global__ void RMSStandardizeInPlace(int N, int cols, int pointsByThread, int threadsByRow, float* __restrict x, float* __restrict mean_squares, float epsilon)
+	{
+		int idx = blockIdx.x * blockDim.x + threadIdx.x;
+		if (idx < N) {
+			//N == cols * threadsByRow
+			int row = idx / threadsByRow;
+			int col = pointsByThread * (idx % threadsByRow);
+			int startIndex = row * cols + col;
+			int endIndex = startIndex + fminf(pointsByThread - 1, cols - col - 1);
+
+			float rms = sqrtf(mean_squares[row] + epsilon);
+			for (int i = startIndex; i <= endIndex; ++i)
+			{
+				x[i] = x[i]  / rms;
+			}
+		}
+	}
+
+
+	
+
+
+
 	// for each row of tensor 'x' (of shape (N, cols),
 	//  1.normalize the value:
 	//		y[row,col] = (x[row,col]-mean[row])/volatility[row]
@@ -72,6 +98,32 @@ extern "C" {
             }
 		}
 	}
+
+
+	// for each row of tensor 'x' (of shape (N, cols),
+		//  1.normalize the value:
+		//		y[row,col] = x[row,col]/ root(mean( sum of squares of row ) )
+		// 2. update with gammas and betas
+		//      y[row,col] = gamma[col]*y[row,col]
+	__global__ void RMSStandardizeRowsInPlaceBroadcastGammas(int N, int cols, int pointsByThread, int threadsByRow, float* __restrict x, float* __restrict row_mean_squares, float epsilon, float* col_gammas)
+	{
+		int idx = blockIdx.x * blockDim.x + threadIdx.x;
+		if (idx < N) {
+			//N == cols * threadsByRow
+			int row = idx / threadsByRow;
+			int col = pointsByThread * (idx % threadsByRow);
+			int startIndex = row * cols + col;
+			int endIndex = startIndex + fminf(pointsByThread - 1, cols - col - 1);
+
+			float slope = 1.0f / sqrtf(row_mean_squares[row] + epsilon);
+			for (int i = startIndex; i <= endIndex; ++i)
+			{
+				x[i] = col_gammas[col] * (slope * x[i]);
+				++col;
+			}
+		}
+	}
+	
 	__global__ void numpy_sum_ColByCol(int cols, int rows, const T* __restrict x, T* __restrict sum_buffer) 
 	{
 		int col = blockIdx.x * blockDim.x + threadIdx.x;
@@ -162,6 +214,45 @@ extern "C" {
 	}
 
 
+	// compute dmean and  dvariance vectors
+	__global__ void RMSNormalizationBackward_dmean_squares_row(int rows, int cols, const float* __restrict x, const float* __restrict dy, const float* __restrict gammas, const float* __restrict mean_squares_row, float epsilon, float* dmean_squares_row)
+	{
+		int row = blockIdx.x * blockDim.x + threadIdx.x;
+		if (row < rows) {
+			float temp_dmean_squares_row = 0;
+			int index = row * cols;
+			for (int col = 0; col < cols; ++col)
+			{
+				float tmp0 = (dy[index + col] * gammas[col]);
+				temp_dmean_squares_row += tmp0 * x[index + col];
+			}
+			temp_dmean_squares_row *= (-0.5f * powf(mean_squares_row[row] + epsilon, -1.5f));
+			dmean_squares_row[row] = temp_dmean_squares_row;
+		}
+	}
+
+	
+		// compute dx tensor
+	__global__ void RMSNormalizationBackward_dx(int N, int cols, int pointsByThread, int threadsByRow, const float* __restrict x, const float* __restrict dy, float* __restrict dx, const float* __restrict gammas, const float* __restrict mean_squares_row, float epsilon, const float* dmean_squares_row)
+	{
+		int idx = blockIdx.x * blockDim.x + threadIdx.x;
+		if (idx < N) {
+			//N == cols * threadsByRow
+			int row = idx / threadsByRow;
+			int col = pointsByThread * (idx % threadsByRow);
+			int startIndex = row * cols + col;
+			int endIndex = startIndex + fminf(pointsByThread - 1, cols - col - 1);
+
+			float rms_of_row = sqrtf(mean_squares_row[row] + epsilon);
+			float slope_x = dmean_squares_row[row] * (2.0f / cols);
+			for (int i = startIndex; i <= endIndex; ++i)
+			{
+				dx[i] = (dy[i] * gammas[col]) / rms_of_row + slope_x * x[i];
+				++col;
+			}
+			}
+	}
+
 
 	// for each row of tensor 'x' (of shape (rows, cols), compute the associate mean and variance
 	// and stores it in tensor mean and variance (both of shape (rows,1))
@@ -187,6 +278,24 @@ extern "C" {
 		}
 	}
 
+
+	// for each row of tensor 'x' (of shape (rows, cols), compute the mean of the squares of each element of the row
+	// and stores it in tensor mean_squares_buffer (of shape (rows,1))
+	__global__ void Compute_Mean_Squares_Buffer(int N, int cols, const float* __restrict x, float* __restrict mean_squares_buffer)
+	{
+		int rowId = blockIdx.x * blockDim.x + threadIdx.x;
+		if (rowId < N) {
+			int startIndex = rowId * cols;
+			int endIndex = startIndex + cols - 1;
+			double sumSquare = 0.0;
+			for (int i = startIndex; i <= endIndex; ++i)
+			{
+				double x_i = x[i];
+				sumSquare += x_i * x_i;
+			}
+			mean_squares_buffer[rowId] = (float)(sumSquare/cols);
+		}
+	}
 
 	__global__ void ComputeAccuracy(int N, int numClass, float *buffer, const float* __restrict yExpectedOneHot, const float* __restrict yPredicted) 
 	{

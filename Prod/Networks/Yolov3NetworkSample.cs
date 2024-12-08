@@ -34,7 +34,7 @@ namespace SharpNet.Networks
 
         #region constructor
 
-        private Yolov3NetworkSample([JetBrains.Annotations.NotNull] List<Tuple<string, Dictionary<string, string>>> blocks)
+        private Yolov3NetworkSample([NotNull] List<Tuple<string, Dictionary<string, string>>> blocks)
         {
             _blocks = blocks;
         }

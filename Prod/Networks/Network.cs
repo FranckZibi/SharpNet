@@ -509,6 +509,14 @@ namespace SharpNet.Networks
             return this;
         }
 
+        public Network RMSNorm(int last_D_dimension = 1, double epsilon = SharpNet.Layers.RMSNorm.DEFAULT_EPSILON, string layerName = "", int lastLayerIndex = -1)
+        {
+            Debug.Assert(Layers.Count >= 1);
+            Debug.Assert(last_D_dimension >= 1);
+            Layers.Add(new RMSNorm(last_D_dimension, epsilon, true, this, layerName, lastLayerIndex));
+            return this;
+        }
+
         public Network Flatten(bool flattenInputTensorOnLastDimension = false)
         {
             Debug.Assert(Layers.Count >= 1);

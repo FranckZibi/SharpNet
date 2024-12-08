@@ -1,9 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Runtime.CompilerServices;
-using JetBrains.Annotations;
 using SharpNet.CPU;
 using SharpNet.GPU;
 using SharpNet.Hyperparameters;
@@ -578,7 +578,7 @@ namespace SharpNet.Data
         /// <param name="slope">the slope of the linear function</param>
         /// <param name="x">a tensor with the same shape as the 'this' tensor </param>
         /// <param name="intercept">optional parameter. The constant to add in the linear function</param>
-        public void LinearFunction([NotNull] Tensor slope, Tensor x, [CanBeNull] Tensor intercept)
+        public void LinearFunction([NotNull] Tensor slope, Tensor x, [JetBrains.Annotations.CanBeNull] Tensor intercept)
         {
             Debug.Assert(SameShape(slope));
             Debug.Assert(SameShape(x));
@@ -823,6 +823,9 @@ namespace SharpNet.Data
 
         public abstract void Compute_Row_Mean_Variance(Tensor row_mean, Tensor row_variance, bool unbiasedVariance);
 
+        public abstract void Compute_Mean_Squares_Buffer(Tensor mean_squares_buffer);
+        
+
         /// <summary>
         /// 
         /// </summary>
@@ -836,6 +839,13 @@ namespace SharpNet.Data
         public abstract void StandardizeInPlace(Tensor row_mean, Tensor row_variance, int axis, float epsilon);
 
 
+        /// <summary>
+        ///Standardize each row by dividing each element of row by the root of the mean of the sum of squares
+        /// </summary>
+        /// <param name="mean_squares"></param>
+        /// <param name="epsilon"></param>
+        public abstract void RMSStandardizeInPlace(Tensor mean_squares, float epsilon);
+
         ///  <summary>
         ///  we'll standardize each row (each row will have a mean of 0 and a variance of 1)
         ///  </summary>
@@ -845,6 +855,16 @@ namespace SharpNet.Data
         ///  <param name="col_gammas"></param>
         ///  <param name="col_betas"></param>
         public abstract void StandardizeRowsInPlaceBroadcastGammasBetas([NotNull] Tensor row_mean, [NotNull] Tensor row_variance, float epsilon, [NotNull] Tensor col_gammas, [NotNull] Tensor col_betas);
+
+
+        ///  <summary>
+        ///  we'll standardize each row by dividing by the Root of the Mean of Squares of each row
+        ///  </summary>
+        ///  <param name="row_mean_squares"></param>
+        ///  <param name="epsilon"></param>
+        ///  <param name="col_gammas"></param>
+        protected abstract void RMSStandardizeRowsInPlaceBroadcastGammas([NotNull] Tensor row_mean_squares, float epsilon, [NotNull] Tensor col_gammas);
+
 
 
         /// <summary>
@@ -882,6 +902,36 @@ namespace SharpNet.Data
 
         }
 
+        /// <summary>
+        /// this = x [in] unnormalized input
+        /// </summary>
+        /// <param name="dy">[in] gradient of the output 'y' tensor</param>
+        /// <param name="dx">[out] gradient of the input</param>
+        /// <param name="col_gammas">[in] scale (=gammas) tensor</param>
+        /// <param name="mean_squares_row"></param>
+        /// <param name="epsilon"></param>
+        /// <param name="dmean_squares_row"></param>
+        [SuppressMessage("ReSharper", "UnusedParameter.Global")]
+        public abstract void RMSNormalizationBackward(/* in */ Tensor dy, /* out */ Tensor dx, /* in */ Tensor col_gammas, /* in */ Tensor mean_squares_row, float epsilon, /* out */ Tensor dmean_squares_row);
+
+
+
+        /// <summary>
+        /// perform the forward propagation for RMSNorm Layer
+        ///  this = [in] x : the tensor to normalize, of shape (rows, cols)
+        /// </summary>
+        /// <param name="y">the normalized version of input tensor 'x'
+        /// y = gammas *  x / sqrt(variance+epsilon) 
+        /// </param>
+        /// <param name="gammas">a tensor of shape (1,cols)</param>
+        /// <param name="mean_squares">the mean for each row of the squares of each element of tensor 'x' , with shape (rows,1)</param>
+        /// <param name="epsilon">used for numerical stability</param>
+        public void RMSNormalization(/* out */ Tensor y, /* in */ Tensor gammas, /* in */  Tensor mean_squares, float epsilon)
+        {
+            var x = this;
+            x.CopyTo(y);
+            y.RMSStandardizeRowsInPlaceBroadcastGammas(mean_squares, epsilon, gammas);
+        }
 
         /// <summary>
         /// this = [in] x , a tensor of shape (rows,cols)

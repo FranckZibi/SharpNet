@@ -25,7 +25,7 @@ namespace SharpNet.LightGBM
         /// <param name="modelName">the name of the model to use</param>
         /// <exception cref="Exception"></exception>
         [SuppressMessage("ReSharper", "VirtualMemberCallInConstructor")]
-        public LightGBMModel(LightGBMSample lightGbmModelSample, string workingDirectory, [JetBrains.Annotations.NotNull] string modelName): base(lightGbmModelSample, workingDirectory, modelName)
+        public LightGBMModel(LightGBMSample lightGbmModelSample, string workingDirectory, [NotNull] string modelName): base(lightGbmModelSample, workingDirectory, modelName)
         {
             if (!File.Exists(ExePath))
             {

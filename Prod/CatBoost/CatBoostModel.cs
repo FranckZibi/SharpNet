@@ -24,7 +24,7 @@ namespace SharpNet.CatBoost
         /// <param name="modelName">the name of the model to use</param>
         /// <exception cref="Exception"></exception>
         [SuppressMessage("ReSharper", "VirtualMemberCallInConstructor")]
-        public CatBoostModel(CatBoostSample catBoostModelSample, string workingDirectory, [JetBrains.Annotations.NotNull] string modelName): base(catBoostModelSample, workingDirectory, modelName)
+        public CatBoostModel(CatBoostSample catBoostModelSample, string workingDirectory, [NotNull] string modelName): base(catBoostModelSample, workingDirectory, modelName)
         {
             if (!File.Exists(ExePath))
             {
@@ -267,7 +267,7 @@ namespace SharpNet.CatBoost
         private static readonly object Lock_to_column_description = new();
 
 
-        private static void to_column_description([JetBrains.Annotations.NotNull] string path, DataSet dataset, bool addTargetColumnAsFirstColumn, bool includeIdColumns, bool overwriteIfExists = false)
+        private static void to_column_description([NotNull] string path, DataSet dataset, bool addTargetColumnAsFirstColumn, bool includeIdColumns, bool overwriteIfExists = false)
         {
             lock (Lock_to_column_description)
             {
@@ -305,8 +305,8 @@ namespace SharpNet.CatBoost
         }
         private static string ExePath => Path.Combine(Utils.ChallengesPath, "bin", "catboost.exe");
 
-        [JetBrains.Annotations.NotNull] private string ModelPath => Path.Combine(WorkingDirectory, ModelName + ".json");
-        //[JetBrains.Annotations.NotNull] private string ModelPath => Path.Combine(WorkingDirectory, ModelName + ".bin");
+        [NotNull] private string ModelPath => Path.Combine(WorkingDirectory, ModelName + ".json");
+        //[NotNull] private string ModelPath => Path.Combine(WorkingDirectory, ModelName + ".bin");
         private CatBoostSample CatBoostSample => (CatBoostSample)ModelSample;
     }
 }

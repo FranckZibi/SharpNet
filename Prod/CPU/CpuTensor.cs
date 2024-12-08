@@ -635,6 +635,32 @@ namespace SharpNet.CPU
             throw new NotSupportedException("Only axis=1 is supported");
         }
 
+
+        public override void RMSStandardizeInPlace(Tensor mean_squares, float epsilon)
+        {
+            var x = this;
+            Debug.Assert(AreCompatible(new List<Tensor> { this, mean_squares }));
+
+            int rows = mean_squares.Count;
+            if (x.Count % rows != 0)
+            {
+                throw new ArgumentException("The number of elements in the tensor must be a multiple of the number of rows");
+            }
+            int cols = x.Count / rows;
+            void ProcessRow(int row)
+            {
+                var xSpan = x.AsFloatCpuSpan;
+                var mean_squares_value = mean_squares.AsFloatCpuSpan[row];
+                int startIndex = row * cols;
+                int endIndex = startIndex + cols - 1;
+                for (int i = startIndex; i <= endIndex; ++i)
+                {
+                    xSpan[i] /= MathF.Sqrt(mean_squares_value + epsilon);
+                }
+            }
+            Parallel.For(0, rows, ProcessRow);
+        }
+
         public override void StandardizeRowsInPlaceBroadcastGammasBetas(Tensor row_mean, Tensor row_variance, float epsilon, Tensor col_gammas, Tensor col_betas)
         {
             var x = this;
@@ -667,6 +693,38 @@ namespace SharpNet.CPU
             }
             Parallel.For(0, rows, ProcessRow);
         }
+
+        protected override void RMSStandardizeRowsInPlaceBroadcastGammas([NotNull] Tensor row_mean_squares, float epsilon, [NotNull] Tensor col_gammas)
+        {
+            var x = this;
+            Debug.Assert(AreCompatible(new List<Tensor> { this, row_mean_squares }));
+            //we'll standardize each row
+            int rows = row_mean_squares.Count;
+            if (x.Count % rows != 0)
+            {
+                throw new ArgumentException("The number of elements in the tensor must be a multiple of the number of rows");
+            }
+            int cols = x.Count / rows;
+            void ProcessRow(int row)
+            {
+                var xSpan = x.AsFloatCpuSpan;
+                var row_mean_squares_value = row_mean_squares.AsFloatCpuSpan[row];
+                var col_gammas_span = col_gammas.AsReadonlyFloatCpuSpan;
+
+                int startIndex = row * cols;
+                int endIndex = startIndex + cols - 1;
+                int col = 0;
+                for (int i = startIndex; i <= endIndex; ++i)
+                {
+                    xSpan[i] /= MathF.Sqrt(row_mean_squares_value+epsilon);
+                    xSpan[i] = col_gammas_span[col] * xSpan[i];
+                    ++col;
+                }
+            }
+            Parallel.For(0, rows, ProcessRow);
+        }
+
+
 
         public override void numpy_sum(Tensor sum_result, int axis)
         {
@@ -749,7 +807,32 @@ namespace SharpNet.CPU
             }
             Parallel.For(0, rows, ProcessBlock);
         }
+        public override void Compute_Mean_Squares_Buffer(Tensor mean_squares_buffer)
+        {
+            var x = this;
+            Debug.Assert(AreCompatible(new List<Tensor> { this, mean_squares_buffer }));
+            int rows = mean_squares_buffer.Count;
+            if (x.Count % rows != 0)
+            {
+                throw new ArgumentException("x.Count % rows != 0");
+            }
+            int cols = x.Count / rows;
 
+            void ProcessBlock(int rowId)
+            {
+                var xSpan = x.AsFloatCpuSpan;
+                int startIndex = rowId * cols;
+                int endIndex = startIndex + cols - 1;
+                double sumSquare = 0.0;
+                for (int i = startIndex; i <= endIndex; ++i)
+                {
+                    double xValue = xSpan[i];
+                    sumSquare += xValue * xValue;
+                }
+                mean_squares_buffer.AsFloatCpuSpan[rowId] = (float)sumSquare / cols;
+            }
+            Parallel.For(0, rows, ProcessBlock);
+        }
         public override void LayerNormalizationBackward(Tensor dy, Tensor dx, Tensor col_gammas, Tensor row_mean, Tensor row_variance, float epsilon, Tensor dmean, Tensor dvariance)
         {
             var x = this;
@@ -791,6 +874,42 @@ namespace SharpNet.CPU
                     dx_row[col] = (dy_row[col] * gammaSpan[col]) /volatility_row
                                 + dvariance_row * (2f / cols) * (x_row[col] - mean_row)
                                 + dmean_row / cols;
+                }
+            }
+            Parallel.For(0, rows, ComputeDxForRow);
+        }
+
+        public override void RMSNormalizationBackward(/* in */ Tensor dy, /* out */ Tensor dx, /* in */ Tensor col_gammas, /* in */ Tensor mean_squares, float epsilon, /* out */ Tensor dmean_squares_row)
+        {
+            var x = this;
+            Debug.Assert(AreCompatible(new List<Tensor> { x, dy, dx, col_gammas, mean_squares }));
+            Debug.Assert(x.SameShape(dy, dx));
+            int rows = mean_squares.Count;
+            int cols = col_gammas.Count;
+            if (x.Count != rows * cols)
+            {
+                throw new ArgumentException("x.Count != rows * cols");
+            }
+
+            void ComputeDxForRow(int row)
+            {
+                var gammaSpan = col_gammas.AsFloatCpuSpan;
+                var mean_square_of_row = mean_squares.AsFloatCpuSpan[row];
+                var rms_of_row = MathF.Sqrt(mean_square_of_row + epsilon);
+                var x_row = x.AsFloatCpu.SpanSlice(row * cols, cols);
+                var dy_row = dy.AsFloatCpu.SpanSlice(row * cols, cols);
+                var dvariance_row = 0f;
+                for (int col = 0; col < cols; ++col)
+                {
+                    var tmp0 = (dy_row[col] * gammaSpan[col]);
+                    dvariance_row += tmp0 * x_row[col];
+                }
+                dvariance_row *= (-0.5f * MathF.Pow(mean_square_of_row + epsilon, -1.5f));
+                var dx_row = dx.AsFloatCpu.SpanSlice(row * cols, cols);
+                for (int col = 0; col < cols; ++col)
+                {
+                    dx_row[col] = (dy_row[col] * gammaSpan[col]) / rms_of_row
+                                  + dvariance_row * (2f / cols) * x_row[col];
                 }
             }
             Parallel.For(0, rows, ComputeDxForRow);
