@@ -10,13 +10,13 @@ namespace SharpNet.Layers
     public class DropoutLayer : Layer
     {
         #region fields
-        private readonly double _dropoutRate;
+        private readonly double p; //the dropout rate
         private Tensor _dropoutReservedSpaceForTraining;
         #endregion
 
-        public DropoutLayer(double dropoutRate, Network network, string layerName) : base(network, layerName)
+        public DropoutLayer(double p, Network network, string layerName) : base(network, layerName)
         {
-            _dropoutRate = dropoutRate;
+            this.p = p;
         }
 
         #region forward and backward propagation
@@ -35,7 +35,7 @@ namespace SharpNet.Layers
                 //no need of dropout reserved space for inference
                 FreeFloatTensor(ref _dropoutReservedSpaceForTraining);
             }
-            x.DropoutForward(y, _dropoutRate, isTraining, Rand, _dropoutReservedSpaceForTraining);
+            x.DropoutForward(y, p, isTraining, Rand, _dropoutReservedSpaceForTraining);
             if (!BackwardPropagationNeeded(isTraining, FirstTrainableLayer(Layers)))
             {
                 FreeFloatTensor(ref _dropoutReservedSpaceForTraining);
@@ -48,7 +48,7 @@ namespace SharpNet.Layers
             Debug.Assert(y_NotUsed == null);
             Debug.Assert(dx.Count == 1);
             Debug.Assert(_dropoutReservedSpaceForTraining != null);
-            allX[0].DropoutBackward(dy, dx[0], _dropoutRate, _dropoutReservedSpaceForTraining);
+            allX[0].DropoutBackward(dy, dx[0], p, _dropoutReservedSpaceForTraining);
             FreeFloatTensor(ref _dropoutReservedSpaceForTraining);
         }
         public override bool OutputNeededForBackwardPropagation => false;
@@ -57,14 +57,11 @@ namespace SharpNet.Layers
         #region serialization
         public override string Serialize()
         {
-            return RootSerializer().Add(nameof(_dropoutRate), _dropoutRate).ToString();
+            return RootSerializer().Add(nameof(p), p).ToString();
         }
         public static DropoutLayer Deserialize(IDictionary<string, object> serialized, Network network)
         {
-            var dropoutRate = serialized.ContainsKey("_dropProbability") 
-                    ? (double)serialized["_dropProbability"]
-                    :(double)serialized[nameof(_dropoutRate)];
-            return new DropoutLayer(dropoutRate, network, (string)serialized[nameof(LayerName)]);
+            return new DropoutLayer((double)serialized[nameof(p)], network, (string)serialized[nameof(LayerName)]);
         }
         public override void AddToOtherNetwork(Network otherNetwork) { AddToOtherNetwork(otherNetwork, Deserialize); }
         #endregion
@@ -74,7 +71,7 @@ namespace SharpNet.Layers
         public override void ToPytorchModule(List<string> constructorLines, List<string> forwardLines)
         {
             //see: https://pytorch.org/docs/stable/generated/torch.nn.Dropout.html
-            constructorLines.Add("self." + LayerName + " = torch.nn.Dropout(p=" + _dropoutRate.ToString(CultureInfo.InvariantCulture) + ", inplace=False)");
+            constructorLines.Add("self." + LayerName + " = torch.nn.Dropout(p=" + p.ToString(CultureInfo.InvariantCulture) + ", inplace=False)");
             UpdateForwardLines(forwardLines);
         }
         #endregion

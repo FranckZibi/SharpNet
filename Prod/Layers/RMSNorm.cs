@@ -175,7 +175,7 @@ public sealed class RMSNorm : Layer
     }
 
 
-    private string GammasDatasetPath => DatasetNameToDatasetPath("gamma:0");
+    private string GammasDatasetPath => DatasetNameToDatasetPath("weight");
     #endregion
 
     #region serialization
@@ -238,6 +238,6 @@ public sealed class RMSNorm : Layer
     {
         var res = OutputShape(1);
         int cols = Utils.Product(res.Skip(res.Length - _last_D_dimension).ToArray());
-        return new[] { 1, cols };
+        return new[] { cols };
     }
 }

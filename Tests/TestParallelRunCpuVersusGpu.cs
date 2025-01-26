@@ -21,7 +21,7 @@ namespace SharpNetTests
     public class TestParallelRunCpuVersusGpu
     {
         private const int BatchSize = 9;
-        private const int FiltersCount = 8;
+        private const int OutChannels = 8;
         private const int ChannelsCount = 3;
         private const int Height = 17;
         private const int Width = 32;
@@ -43,11 +43,11 @@ namespace SharpNetTests
                 const int height = 17;
                 const int width = 32;
                 const int kernelSize = 3;
-                const int filterCount = 128;
+                const int outChannels = 128;
                 var x = RandomTensor(new[] { BatchSize, channelsCount, height, width });
                 var convolutionShape = isDepthwiseConvolution
                         ? new[] { 1, channelsCount, kernelSize, kernelSize }
-                        : new[] { filterCount, channelsCount, kernelSize, kernelSize };
+                        : new[] { outChannels, channelsCount, kernelSize, kernelSize };
                 var convolution = RandomTensor(convolutionShape);
 	            var y = RandomTensor(ConvolutionLayer.OutputShape(x.Shape, convolution.Shape, paddingType, stride, isDepthwiseConvolution));
                 ConvolutionLayer.Padding(x.Shape[2], kernelSize, stride, paddingType, compatibilityMode, out int paddingTop, out int paddingBottom);
@@ -64,8 +64,8 @@ namespace SharpNetTests
         [Test]
         public void TestConvolutionBackwardBias()
         {
-            var dxShape = new[] { BatchSize, FiltersCount, Height, Width };
-            var biasShape = new[] { 1, FiltersCount, 1, 1 };
+            var dxShape = new[] { BatchSize, OutChannels, Height, Width };
+            var biasShape = new[] { 1, OutChannels, 1, 1 };
             var dx = RandomTensor(dxShape);
             var convolutionBackwardBias = new CpuTensor<float>(biasShape);
             TestAll(new[] { dx, convolutionBackwardBias }, tensors => tensors[0].ConvolutionBackwardBias(tensors[1]));
@@ -79,9 +79,9 @@ namespace SharpNetTests
         {
             foreach (var unbiasedVariance in new[] { true, false })
             {
-                var xShape = new[] { BatchSize, FiltersCount, Height, Width };
+                var xShape = new[] { BatchSize, OutChannels, Height, Width };
                 var x = RandomTensor(xShape);
-                foreach (var rows in new[] { BatchSize, BatchSize * FiltersCount, BatchSize * FiltersCount * Height })
+                foreach (var rows in new[] { BatchSize, BatchSize * OutChannels, BatchSize * OutChannels * Height })
                 {
                     var mean = RandomTensor(new[] { rows, 1});
                     var variance = RandomTensor(mean.Shape);
@@ -95,8 +95,8 @@ namespace SharpNetTests
         {
             foreach (var axis in new[] { 0, 1})
             {
-                var xShape = new[] { BatchSize, FiltersCount, Height, Width };
-                foreach (var rows in new[] { BatchSize, BatchSize * FiltersCount, BatchSize * FiltersCount * Height })
+                var xShape = new[] { BatchSize, OutChannels, Height, Width };
+                foreach (var rows in new[] { BatchSize, BatchSize * OutChannels, BatchSize * OutChannels * Height })
                 {
                     var a = RandomTensor(xShape);
                     var cols = Utils.Product(xShape) / rows;
@@ -113,9 +113,9 @@ namespace SharpNetTests
             foreach (var unbiasedVariance in new[] { true, false })
             foreach (var epsilon in new[] {0.1f, 0.001f, 1e-8f})
             {
-                var xShape = new[] { BatchSize, FiltersCount, Height, Width };
+                var xShape = new[] { BatchSize, OutChannels, Height, Width };
                 var x = RandomTensor(xShape);
-                foreach (var rows in new[] { BatchSize, BatchSize * FiltersCount, BatchSize * FiltersCount * Height })
+                foreach (var rows in new[] { BatchSize, BatchSize * OutChannels, BatchSize * OutChannels * Height })
                 {
                     var row_mean = RandomTensor(new[] { rows, 1 });
                     var row_variance = RandomTensor(row_mean.Shape);
@@ -132,9 +132,9 @@ namespace SharpNetTests
             foreach (var unbiasedVariance in new[] { true, false })
             foreach (var epsilon in new[] { 0.1f, 0.001f, 1e-8f })
             {
-                var xShape = new[] { BatchSize, FiltersCount, Height, Width };
+                var xShape = new[] { BatchSize, OutChannels, Height, Width };
                 var x = RandomTensor(xShape);
-                foreach (var rows in new[] { BatchSize, BatchSize * FiltersCount, BatchSize * FiltersCount * Height })
+                foreach (var rows in new[] { BatchSize, BatchSize * OutChannels, BatchSize * OutChannels * Height })
                 {
                     var cols = x.Count / rows;
 
@@ -731,14 +731,14 @@ namespace SharpNetTests
 	    public void TestCompute_BiasGradient_from_dy()
 	    {
 	        var dy = RandomTensor(new[] { BatchSize, Nx });
-	        var db = RandomTensor(new[] { 1, Nx});
-	        TestAll(new[] { dy, db }, tensors => tensors[0].Compute_BiasGradient_from_dy(tensors[1]));
+	        var dBias_1D = RandomTensor(new[] { Nx});
+	        TestAll(new[] { dy, dBias_1D }, tensors => tensors[0].Compute_BiasGradient_from_dy(tensors[1]));
 	    }
 	    [Test]
 	    public void TestBroadcastConvolutionBiasToOutput()
 	    {
-            var convolutionBias = RandomTensor(new[] { 1, FiltersCount, 1, 1});
-            var y = RandomTensor(new[] { BatchSize, FiltersCount, Height, Width});
+            var convolutionBias = RandomTensor(new[] { 1, OutChannels, 1, 1});
+            var y = RandomTensor(new[] { BatchSize, OutChannels, Height, Width});
 	        TestAll(new[] { convolutionBias, y }, tensors => tensors[0].BroadcastConvolutionBiasToOutput(tensors[1]));
 	    }
         [Test]

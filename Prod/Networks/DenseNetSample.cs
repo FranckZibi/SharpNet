@@ -129,20 +129,20 @@ namespace SharpNet.Networks
 
             Debug.Assert(net.Layers.Count == 0);
             net.Input(xShape[1], xShape[2], xShape[3]);
-            var filtersCount = 2 * growthRate;
+            var out_channels = 2 * growthRate;
             var lambdaL2Regularization = sample.lambdaL2Regularization;
 
             if (subSampleInitialBlock)
             {
-                net.Convolution(filtersCount, 7, 2, ConvolutionLayer.PADDING_TYPE.SAME, lambdaL2Regularization, false)
+                net.Convolution(out_channels, 7, 2, ConvolutionLayer.PADDING_TYPE.SAME, lambdaL2Regularization, false)
                     .BatchNorm(0.99, 1e-5)
                     .Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU)
                     .MaxPooling(3, 3, 2, 2);
             }
             else
             {
-                net.Convolution(filtersCount, 3, 1, ConvolutionLayer.PADDING_TYPE.SAME, lambdaL2Regularization, false);
-                //net.Convolution(filtersCount, 3, 1, 1, 0.0, false);
+                net.Convolution(out_channels, 3, 1, ConvolutionLayer.PADDING_TYPE.SAME, lambdaL2Regularization, false);
+                //net.Convolution(out_channels, 3, 1, 1, 0.0, false);
             }
 
             for (int denseBlockId = 0; denseBlockId < nbConvBlocksInEachDenseBlock.Length; ++denseBlockId)
@@ -153,7 +153,7 @@ namespace SharpNet.Networks
                     //the last dense block does not have a transition block
                     AddTransitionBlock(net, compression, lambdaL2Regularization);
                 }
-                filtersCount = (int)Math.Round(filtersCount * compression);
+                out_channels = (int)Math.Round(out_channels * compression);
             }
 
             //we add the classification layer part
@@ -161,8 +161,8 @@ namespace SharpNet.Networks
                 .BatchNorm(0.99, 1e-5)
                 .Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU)
                 .GlobalAvgPooling()
-                //.Dense(numClass, 0.0) //!D check if lambdaL2Regularization should be 0
-                .Dense(numClass, lambdaL2Regularization, false)
+                //.Linear(numClass, 0.0) //!D check if lambdaL2Regularization should be 0
+                .Linear(numClass, true, lambdaL2Regularization, false)
                 .Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
             return net;
         }
@@ -194,7 +194,7 @@ namespace SharpNet.Networks
             }
         }
         /// <summary>
-        /// Add a Convolution block in a Dense Network
+        /// Add a Convolution block in a Linear Network
         /// </summary>
         /// <param name="network"></param>
         /// <param name="growthRate"></param>
@@ -216,7 +216,7 @@ namespace SharpNet.Networks
             }
         }
         /// <summary>
-        /// Add a transition block in a Dense Net network
+        /// Add a transition block in a Linear Net network
         /// </summary>
         /// <param name="network"></param>
         /// <param name="compression"></param>
@@ -224,8 +224,8 @@ namespace SharpNet.Networks
         /// <returns></returns>
         private static void AddTransitionBlock(Network network, double compression, double lambdaL2Regularization)
         {
-            var filtersCount = network.Layers.Last().OutputShape(1)[1];
-            network.BatchNorm_Activation_Convolution(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU, (int)Math.Round(filtersCount * compression), 1, 1, ConvolutionLayer.PADDING_TYPE.VALID, lambdaL2Regularization, true)
+            var out_channels = network.Layers.Last().OutputShape(1)[1];
+            network.BatchNorm_Activation_Convolution(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU, (int)Math.Round(out_channels * compression), 1, 1, ConvolutionLayer.PADDING_TYPE.VALID, lambdaL2Regularization, true)
                 .AvgPooling(2, 2, 2, 2);
         }
     }

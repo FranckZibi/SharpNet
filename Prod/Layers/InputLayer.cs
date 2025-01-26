@@ -95,7 +95,7 @@ namespace SharpNet.Layers
 
         protected override string ComputeLayerName()
         {
-            return base.ComputeLayerName().Replace("inputlayer", "input");
+            return base.ComputeLayerName().Replace("inputlayer", "x");
         }
 
         public void SetInputHeightAndWidth(int height, int width)

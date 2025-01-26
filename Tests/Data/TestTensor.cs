@@ -49,7 +49,7 @@ namespace SharpNetTests.Data
         {
             const int batchSize = 666;
             const int inputChannels = 1313;
-            const int filtersCount = 317;
+            const int out_channels = 317;
 
             foreach (var h in new[] { 3, 33, 50, 100, 200, 201 })
             {
@@ -58,15 +58,15 @@ namespace SharpNetTests.Data
                     foreach (var f in new[] { 3, 5, 7 })
                     {
                         var inputShape = new[] { batchSize, inputChannels, h, w };
-                        var shapeConvolution = new[] { filtersCount, inputChannels, f, f };
+                        var shapeConvolution = new[] { out_channels, inputChannels, f, f };
                         // padding = 0 , stride == 1
-                        Assert.IsTrue(ConvolutionLayer.OutputShape(inputShape, shapeConvolution, ConvolutionLayer.PADDING_TYPE.VALID, 1, false).SequenceEqual(new[] { batchSize, filtersCount, h - f + 1, w - f + 1 }));
+                        Assert.IsTrue(ConvolutionLayer.OutputShape(inputShape, shapeConvolution, ConvolutionLayer.PADDING_TYPE.VALID, 1, false).SequenceEqual(new[] { batchSize, out_channels, h - f + 1, w - f + 1 }));
                         // padding = same , stride == 1
-                        Assert.IsTrue(ConvolutionLayer.OutputShape(inputShape, shapeConvolution, ConvolutionLayer.PADDING_TYPE.SAME, 1, false).SequenceEqual(new[] { batchSize, filtersCount, h, w }));
+                        Assert.IsTrue(ConvolutionLayer.OutputShape(inputShape, shapeConvolution, ConvolutionLayer.PADDING_TYPE.SAME, 1, false).SequenceEqual(new[] { batchSize, out_channels, h, w }));
                         // padding = 0, stride == 2
-                        Assert.IsTrue(ConvolutionLayer.OutputShape(inputShape, shapeConvolution, ConvolutionLayer.PADDING_TYPE.VALID, 2, false).SequenceEqual(new[] { batchSize, filtersCount, (h - f) / 2 + 1, (w - f) / 2 + 1 }));
+                        Assert.IsTrue(ConvolutionLayer.OutputShape(inputShape, shapeConvolution, ConvolutionLayer.PADDING_TYPE.VALID, 2, false).SequenceEqual(new[] { batchSize, out_channels, (h - f) / 2 + 1, (w - f) / 2 + 1 }));
                         // padding = same, stride == 2
-                        Assert.IsTrue(ConvolutionLayer.OutputShape(inputShape, shapeConvolution, ConvolutionLayer.PADDING_TYPE.SAME, 2, false).SequenceEqual(new[] { batchSize, filtersCount, (h - 1) / 2 + 1, (w - 1) / 2 + 1 }));
+                        Assert.IsTrue(ConvolutionLayer.OutputShape(inputShape, shapeConvolution, ConvolutionLayer.PADDING_TYPE.SAME, 2, false).SequenceEqual(new[] { batchSize, out_channels, (h - 1) / 2 + 1, (w - 1) / 2 + 1 }));
                     }
                 }
             }

@@ -52,9 +52,9 @@ namespace SharpNetTests.NonReg
                 //.AddDropout(0.2)
 
                 .Convolution_BatchNorm_Activation(32, 3, 1, ConvolutionLayer.PADDING_TYPE.SAME, lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_RELU)
-                .MaxPooling(2, 2, 2, 2).Dense(1000, 0.0, false)
+                .MaxPooling(2, 2, 2, 2).Linear(1000, true, 0.0, false)
                 .Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU)
-                .Dropout(0.5).Dense(MnistDataset.NumClass, 0.0, false)
+                .Dropout(0.5).Linear(MnistDataset.NumClass, true, 0.0, false)
                 .Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID);
 
             network.Fit(mnist.Training, mnist.Test);

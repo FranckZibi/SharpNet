@@ -249,7 +249,7 @@ public class EfficientNetNetworkSample : NetworkSample
             }
 
             network.Flatten();
-            network.Dense(numClass, config.lambdaL2Regularization, false, "probs");
+            network.Linear(numClass, true, config.lambdaL2Regularization, false, "probs");
             network.Activation(LastActivationLayer);
         }
         else
@@ -342,7 +342,7 @@ public class EfficientNetNetworkSample : NetworkSample
     /// if weight is provided (ex: imagenet):
     ///      will load the weight from the provided source,
     ///      and will set the network category count to 10
-    ///      (resetting the last Dense layer weights if required to have 10 output numClass)
+    ///      (resetting the last Linear layer weights if required to have 10 output numClass)
     /// </summary>
     /// <param name="weight"></param>
     /// <param name="inputShape_CHW"></param>

@@ -494,8 +494,8 @@ namespace SharpNet.CPU
             Debug.Assert(AreCompatible(new List<Tensor>{x,y,scale,bias,runningInputMean,runningInputVariance,meanBuffer,invertOfUnbiasedVolatilityBuffer}));
             Debug.Assert(x.SameShape(y));
             Debug.Assert(scale.SameShape(bias, runningInputMean, runningInputVariance, meanBuffer, invertOfUnbiasedVolatilityBuffer));
-            bool is1C11Shape = bias.Count == bias.Shape[1];
-            var meanDivider = Count / bias.Count;  // = batchSize if (1,C,H,W) , and = batchSize*H*W if (1,C,1,1)
+            bool is_C_Shape = bias.Shape.Length == 1;
+            var meanDivider = Count / bias.Count;  // = batchSize if (1,C,H,W) , and = batchSize*H*W if (C)
 
             
             var batchSize = x.Shape[0];
@@ -538,7 +538,7 @@ namespace SharpNet.CPU
             {
                 for (int j = 0; j < MultDim0; ++j)
                 {
-                    int scaleIndex = is1C11Shape ? (j / MultDim1) : j;
+                    int scaleIndex = is_C_Shape ? (j / MultDim1) : j;
                     var xTarget = isTraining
                         ? ((xContent[idx] - meanContent[scaleIndex]) * invertOfUnbiasedVolatility[scaleIndex])
                         : (float)((xContent[idx] - runningInputMeanContent[scaleIndex]) / Math.Sqrt(runningInputVarianceContent[scaleIndex] + epsilon));
@@ -553,8 +553,8 @@ namespace SharpNet.CPU
             Debug.Assert(AreCompatible(new List<Tensor> {x, dy, dx, scale, scaleGradient, biasGradient, meanBuffer, invertOfUnbiasedVolatilityBuffer}));
             Debug.Assert(x.SameShape(dy, dx));
             Debug.Assert(scale.SameShape(scaleGradient, biasGradient, meanBuffer, invertOfUnbiasedVolatilityBuffer));
-            bool is1C11Shape = scale.Count == scale.Shape[1];
-            var meanDivider = Count / scale.Count;  // = batchSize if (1,C,H,W) , and = batchSize*H*W if (1,C,1,1)
+            bool is_C_Shape = scale.Shape.Length == 1;
+            var meanDivider = Count / scale.Count;  // = batchSize if (1,C,H,W) , and = batchSize*H*W if (C)
             scaleGradient.ZeroMemory();
             dx?.ZeroMemory();
 
@@ -576,7 +576,7 @@ namespace SharpNet.CPU
             var invertOfUnbiasedVolatility = invertOfUnbiasedVolatilityBuffer.AsFloatCpuSpan;
             for (int j = 0; j < MultDim0; ++j)
             {
-                int meanIndex = is1C11Shape ? (j / MultDim1) : j;
+                int meanIndex = is_C_Shape ? (j / MultDim1) : j;
                 double result = 0.0;
                 for (int n = 0; n < batchSize; ++n)
                 {
@@ -591,7 +591,7 @@ namespace SharpNet.CPU
             {
                 for (int j = 0; j < MultDim0; ++j)
                 {
-                    int meanIndex = is1C11Shape ? (j / MultDim1) : j;
+                    int meanIndex = is_C_Shape ? (j / MultDim1) : j;
                     int idx = i * MultDim0 + j;
                     double result = meanDivider * dyContent[idx] - biasGradientContent[meanIndex] - scaleGradientContent[meanIndex] * invertOfUnbiasedVolatility[meanIndex] * (xContent[idx] - meanBufferContent[meanIndex]);
                     if (dxContent != null)
@@ -1733,9 +1733,10 @@ namespace SharpNet.CPU
         }
         #endregion
 
-        public override void Compute_BiasGradient_from_dy(Tensor biasGradient)
+        public override void Compute_BiasGradient_from_dy(Tensor biasGradient_1D)
         {
-            ComputeSumByColumn(biasGradient);
+            Debug.Assert(biasGradient_1D.Shape.Length == 1);
+            ComputeSumByColumn(biasGradient_1D);
         }
 
         /// <summary>
@@ -3340,12 +3341,12 @@ namespace SharpNet.CPU
                 thisSpan[i] = funcInput(aSpan[i], bSpan[i], cSpan[i]);
             }
         }
-        private void ComputeSumByColumn(Tensor sumByColumn)
+        private void ComputeSumByColumn(/* out */ Tensor sumByColumn)
         {
             Debug.Assert(AreCompatible(new List<Tensor> { this, sumByColumn }));
             Debug.Assert(Dimension >= 2);
             var batchSize = Shape[0];
-            bool is1C11Shape = sumByColumn.Count == sumByColumn.Shape[1];
+            bool is_C_Shape = (sumByColumn.Shape.Length == 1) || (sumByColumn.Count == sumByColumn.Shape[1]);
 
             sumByColumn.ZeroMemory();
             var content = AsFloatCpuSpan;
@@ -3355,7 +3356,7 @@ namespace SharpNet.CPU
                 int start = MultDim0 * n;
                 for (int i = 0; i < MultDim0; ++i)
                 {
-                    int sumByColumnIndex = is1C11Shape ? (i / MultDim1) : i;
+                    int sumByColumnIndex = is_C_Shape ? (i / MultDim1) : i;
                     columnSumContent[sumByColumnIndex] += content[start + i];
                 }
             }
@@ -3367,7 +3368,7 @@ namespace SharpNet.CPU
             Debug.Assert(mean.SameShape(variance));
             //true if we have a (1,C,1,1) shape for scale and bias
             //false is we have a (1,C,H,W) shape for scale and bias
-            bool is1C11Shape = mean.Count == mean.Shape[1];
+            bool is_C_Shape = mean.Shape.Length == 1;
 
             mean.ZeroMemory();
             variance.ZeroMemory();
@@ -3381,7 +3382,7 @@ namespace SharpNet.CPU
                 for (int i = 0; i < MultDim0; ++i)
                 {
                     var d = content[start + i];
-                    int scaleIndex = is1C11Shape ? (i / MultDim1) : i;
+                    int scaleIndex = is_C_Shape ? (i / MultDim1) : i;
                     meanContent[scaleIndex] += d;
                     varianceContent[scaleIndex] += d * d;
                 }

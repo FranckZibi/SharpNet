@@ -251,10 +251,10 @@ namespace SharpNet.Networks
                 encoder.IsBidirectional, numLayers, dropoutRate, false, encoderLayerIndex, layerName);
         }
 
-        public Network Dense(int units, double lambdaL2Regularization, bool flattenInputTensorOnLastDimension, string layerName = "")
+        public Network Linear(int out_features, bool bias, double lambdaL2Regularization, bool flattenInputTensorOnLastDimension, string layerName = "")
         {
             Debug.Assert(Layers.Count >= 1);
-            var fullyConnectedLayer = new DenseLayer(units, lambdaL2Regularization, flattenInputTensorOnLastDimension, true, this, layerName);
+            var fullyConnectedLayer = new LinearLayer(out_features, bias, lambdaL2Regularization, flattenInputTensorOnLastDimension, true, this, layerName);
             Layers.Add(fullyConnectedLayer);
             return this;
         }
@@ -275,14 +275,14 @@ namespace SharpNet.Networks
             return this;
         }
 
-        public Network Convolution_BatchNorm(int filtersCount, int kernelSize, int stride, ConvolutionLayer.PADDING_TYPE paddingType, double lambdaL2Regularization)
+        public Network Convolution_BatchNorm(int out_channels, int kernelSize, int stride, ConvolutionLayer.PADDING_TYPE paddingType, double lambdaL2Regularization)
         {
-            return Convolution(filtersCount, kernelSize, stride, paddingType, lambdaL2Regularization, false)
+            return Convolution(out_channels, kernelSize, stride, paddingType, lambdaL2Regularization, false)
                 .BatchNorm(0.99, 1e-5);
         }
-        public Network Convolution_BatchNorm_Activation(int filtersCount, int kernelSize, int stride, ConvolutionLayer.PADDING_TYPE paddingType, double lambdaL2Regularization, cudnnActivationMode_t activationFunction)
+        public Network Convolution_BatchNorm_Activation(int out_channels, int kernelSize, int stride, ConvolutionLayer.PADDING_TYPE paddingType, double lambdaL2Regularization, cudnnActivationMode_t activationFunction)
         {
-            return Convolution_BatchNorm(filtersCount, kernelSize, stride, paddingType, lambdaL2Regularization)
+            return Convolution_BatchNorm(out_channels, kernelSize, stride, paddingType, lambdaL2Regularization)
                 .Activation(activationFunction);
         }
         // ReSharper disable once UnusedMethodReturnValue.Global
@@ -290,12 +290,12 @@ namespace SharpNet.Networks
         {
             return BatchNorm(0.99, 1e-5).Activation(activationFunction);
         }
-        public Network BatchNorm_Activation_Convolution(cudnnActivationMode_t activationFunction, int filtersCount, int kernelSize, int stride, ConvolutionLayer.PADDING_TYPE paddingType, double lambdaL2Regularization, bool useBias)
+        public Network BatchNorm_Activation_Convolution(cudnnActivationMode_t activationFunction, int out_channels, int kernelSize, int stride, ConvolutionLayer.PADDING_TYPE paddingType, double lambdaL2Regularization, bool useBias)
         {
             return 
                 BatchNorm(0.99, 1e-5)
                 .Activation(activationFunction)
-                .Convolution(filtersCount, kernelSize, stride, paddingType, lambdaL2Regularization, useBias);
+                .Convolution(out_channels, kernelSize, stride, paddingType, lambdaL2Regularization, useBias);
         }
         public Network AddLayer(int previousResidualLayerIndex, int previousIdentityLayerIndex, string layerName = "")
         {
@@ -346,7 +346,7 @@ namespace SharpNet.Networks
 
         //add a shortcut from layer 'AddSumLayer' to current layer, adding a Conv Layer if necessary (for matching size)
         // ReSharper disable once UnusedMethodReturnValue.Global
-        public Network Shortcut_IdentityConnection(int startOfBlockLayerIndex, int filtersCount, int stride, double lambdaL2Regularization)
+        public Network Shortcut_IdentityConnection(int startOfBlockLayerIndex, int out_channels, int stride, double lambdaL2Regularization)
         {
             int previousResidualLayerIndex = LastLayerIndex;
 
@@ -358,21 +358,21 @@ namespace SharpNet.Networks
             else
             {
                 //we need to add a convolution layer to make correct output format
-                Convolution(filtersCount, 1, stride, 0, lambdaL2Regularization, true, startOfBlockLayerIndex);
+                Convolution(out_channels, 1, stride, 0, lambdaL2Regularization, true, startOfBlockLayerIndex);
                 int convLayerIdInIdentityBlock = LastLayerIndex;
                 Layers.Add(new AddLayer(new[]{previousResidualLayerIndex, convLayerIdInIdentityBlock}, this));
                 Debug.Assert(Layers[convLayerIdInIdentityBlock].SameOutputShape(Layers[previousResidualLayerIndex]));
             }
             return this;
         }
-        public Network Convolution(int filtersCount, int kernelSize, int stride, ConvolutionLayer.PADDING_TYPE paddingType, double lambdaL2Regularization, bool useBias, string layerName = "")
+        public Network Convolution(int out_channels, int kernelSize, int stride, ConvolutionLayer.PADDING_TYPE paddingType, double lambdaL2Regularization, bool useBias, string layerName = "")
         {
-            return Convolution(filtersCount, kernelSize, stride, paddingType, lambdaL2Regularization, useBias, Layers.Count - 1, layerName);
+            return Convolution(out_channels, kernelSize, stride, paddingType, lambdaL2Regularization, useBias, Layers.Count - 1, layerName);
         }
-        public Network Convolution(int filtersCount, int kernelSize, int stride, ConvolutionLayer.PADDING_TYPE paddingType, double lambdaL2Regularization, bool useBias, int previousLayerIndex, string layerName = "")
+        public Network Convolution(int out_channels, int kernelSize, int stride, ConvolutionLayer.PADDING_TYPE paddingType, double lambdaL2Regularization, bool useBias, int previousLayerIndex, string layerName = "")
         {
             Debug.Assert(Layers.Count >= 1);
-            Layers.Add(new ConvolutionLayer(false, false, filtersCount, -1, kernelSize, kernelSize, stride, paddingType, lambdaL2Regularization, useBias, previousLayerIndex, true, this, layerName));
+            Layers.Add(new ConvolutionLayer(false, false, out_channels, -1, kernelSize, kernelSize, stride, paddingType, lambdaL2Regularization, useBias, previousLayerIndex, true, this, layerName));
             return this;
         }
 
@@ -401,14 +401,14 @@ namespace SharpNet.Networks
             return this;
         }
 
-        public Network Conv1D(int filtersCount, int kernelWidth, int stride, ConvolutionLayer.PADDING_TYPE paddingType, double lambdaL2Regularization, bool useBias, string layerName = "")
+        public Network Conv1D(int out_channels, int kernelWidth, int stride, ConvolutionLayer.PADDING_TYPE paddingType, double lambdaL2Regularization, bool useBias, string layerName = "")
         {
-            return Conv1D(filtersCount, kernelWidth, stride, paddingType, lambdaL2Regularization, useBias, Layers.Count - 1, layerName);
+            return Conv1D(out_channels, kernelWidth, stride, paddingType, lambdaL2Regularization, useBias, Layers.Count - 1, layerName);
         }
-        public Network Conv1D(int filtersCount, int kernelWidth, int stride, ConvolutionLayer.PADDING_TYPE paddingType, double lambdaL2Regularization, bool useBias, int previousLayerIndex, string layerName = "")
+        public Network Conv1D(int out_channels, int kernelWidth, int stride, ConvolutionLayer.PADDING_TYPE paddingType, double lambdaL2Regularization, bool useBias, int previousLayerIndex, string layerName = "")
         {
             Debug.Assert(Layers.Count >= 1);
-            Layers.Add(new ConvolutionLayer(false, true, filtersCount, -1, 1, kernelWidth, stride, paddingType, lambdaL2Regularization, useBias, previousLayerIndex, true, this, layerName));
+            Layers.Add(new ConvolutionLayer(false, true, out_channels, -1, 1, kernelWidth, stride, paddingType, lambdaL2Regularization, useBias, previousLayerIndex, true, this, layerName));
             return this;
         }
         public Network DepthwiseConvolution(int kernelSize, int stride, ConvolutionLayer.PADDING_TYPE paddingType, int depthMultiplier, double lambdaL2Regularization, bool useBias, string layerName = "")
@@ -517,10 +517,10 @@ namespace SharpNet.Networks
             return this;
         }
 
-        public Network Flatten(bool flattenInputTensorOnLastDimension = false)
+        public Network Flatten(int start_dim = 1, int end_dim =-1)
         {
             Debug.Assert(Layers.Count >= 1);
-            var flattenLayer = new FlattenLayer(flattenInputTensorOnLastDimension, this);
+            var flattenLayer = new FlattenLayer(start_dim, end_dim, this);
             Layers.Add(flattenLayer);
             return this;
         }

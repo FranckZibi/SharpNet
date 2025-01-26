@@ -29,11 +29,11 @@ namespace SharpNet.Layers
         /// <summary>
         /// Scale (= gammas) Tensor
         /// </summary>
-        private Tensor _scale;             // (1, C, H, W) or (1, C, 1, 1) : depending on previous layer
+        private Tensor _scale;             // (1, C, H, W) or (C) : depending on previous layer
         /// <summary>
         /// Bias (= betas = offset) Tensor
         /// </summary>
-        private Tensor _bias;                     // same shape as 'Scale"
+        private Tensor _bias;                     // same shape as '_scale'
         #endregion
         #region non trainable parameters
         /// <summary>
@@ -59,11 +59,11 @@ namespace SharpNet.Layers
         /// <summary>
         /// temporary buffer used to compute the current input (=x) mean
         /// </summary>
-        [NotNull] private readonly Tensor _meanBuffer;                // same shape as 'Scale"
+        [NotNull] private readonly Tensor _meanBuffer;                // same shape as '_scale'
         /// <summary>
         /// temporary buffer used to compute the current input (=x) variance
         /// </summary>
-        [NotNull] private readonly Tensor _invertOfUnbiasedVolatilityBuffer;            // same shape as 'Scale"
+        [NotNull] private readonly Tensor _invertOfUnbiasedVolatilityBuffer;            // same shape as '_scale'
         #endregion
         #endregion
 
@@ -96,7 +96,7 @@ namespace SharpNet.Layers
             _meanBuffer = GetFloatTensor(scaleAndBiasShape);
             _invertOfUnbiasedVolatilityBuffer = GetFloatTensor(scaleAndBiasShape);
 
-            //We disable bias for the previous layers
+            //We disable bias for the previous layer(s)
             var nbDisabledWeights = PreviousLayers.Select(l=>l.DisableBias()).Sum();
             if (nbDisabledWeights != 0)
             {
@@ -217,10 +217,10 @@ namespace SharpNet.Layers
         }
 
 
-        private string ScaleDatasetPath => DatasetNameToDatasetPath("gamma:0");
-        private string BiasDatasetPath => DatasetNameToDatasetPath("beta:0");
-        private string RunningMeanDatasetPath => DatasetNameToDatasetPath("moving_mean:0");
-        private string RunningVarianceDatasetPath => DatasetNameToDatasetPath("moving_variance:0");
+        private string ScaleDatasetPath => DatasetNameToDatasetPath("weight");
+        private string BiasDatasetPath => DatasetNameToDatasetPath("bias");
+        private string RunningMeanDatasetPath => DatasetNameToDatasetPath("running_mean");
+        private string RunningVarianceDatasetPath => DatasetNameToDatasetPath("running_var");
         #endregion
 
         #region serialization
@@ -300,11 +300,7 @@ namespace SharpNet.Layers
             {
                 return res; //shape is (1, C, H, W) or (1, C)
             }
-            for (int i = 2; i < res.Length; ++i)
-            {
-                res[i] = 1;
-            }
-            return res; //shape is (1, C, 1, 1)
+            return new[] { res[1] }; //shape is (C)
         }
     }
 }

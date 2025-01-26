@@ -193,11 +193,11 @@ public class TransformerNetworkSample : NetworkSample
             network.GlobalMaxPooling("max_pool");
         }
 
-        network.Dense(numClass, network.Sample.lambdaL2Regularization, flattenInputTensorOnLastDimension_in_last_dense, "probs");
+        network.Linear(numClass, true, network.Sample.lambdaL2Regularization, flattenInputTensorOnLastDimension_in_last_dense, "probs");
 
         if (output_shape_must_be_scalar)
         {
-            network.Dense(1, network.Sample.lambdaL2Regularization, false, "probs_scalar");
+            network.Linear(1, true, network.Sample.lambdaL2Regularization, false, "probs_scalar");
         }
 
         network.Activation(LastActivationLayer);
@@ -312,9 +312,9 @@ public class TransformerNetworkSample : NetworkSample
             network.LayerNorm(1, layer_norm_epsilon, layerPrefix + "layer_norm_before");
         }
 
-        network.Dense(feed_forward_dim, network.Sample.lambdaL2Regularization, true, layerPrefix + "dense1");
+        network.Linear(feed_forward_dim, true, network.Sample.lambdaL2Regularization, true, layerPrefix + "dense1");
         network.Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU, layerPrefix + "activation");
-        network.Dense(embedding_dim, network.Sample.lambdaL2Regularization, true, layerPrefix + "dense2");
+        network.Linear(embedding_dim, true, network.Sample.lambdaL2Regularization, true, layerPrefix + "dense2");
         
         network.Dropout(feed_forward_dropoutRate, layerPrefix + "dropout");
         network.AddLayer(network.LastLayerIndex, inputLayerIndex, layerPrefix + "add");

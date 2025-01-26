@@ -19,7 +19,7 @@ namespace SharpNet.Layers
     ///     (batchSize, out_features)                      if flattenInputTensorOnLastDimension == false
     /// </summary>
 
-    public sealed class DenseLayer : Layer
+    public sealed class LinearLayer : Layer
     {
         #region Private fields
         #region trainable parameters
@@ -62,6 +62,7 @@ namespace SharpNet.Layers
         /// dimensionality of the output space
         /// </summary>
         public int out_features { get; }
+
         /// <summary>
         /// input shape :
         ///     (batchSize, a, b, ... y, z)
@@ -69,6 +70,7 @@ namespace SharpNet.Layers
         ///     we'll flatten the input tensor x keeping the last dimension intact:     (a,b,c,d) => (a*b*c*, d)
         ///     the weight matrix will be of shape (d, out_features)
         ///     the output shape will be: (batchSize, a, b, ... y, out_features)
+        ///     this is the only supported mode in PyTorch
         /// else
         ///     we'll assume that a Flatten Layer was just before the current 'this' Layer
         ///     we'll flatten the input tensor 'x' keeping the fist dimension intact:   (batchSize, a,b,c,d) => (batchSize, a, b*c*d)
@@ -78,20 +80,8 @@ namespace SharpNet.Layers
         private readonly bool _flattenInputTensorOnLastDimension;
         #endregion
 
-        /*
-        if (_flattenInputTensorOnLastDimension)
-        {
-            var outputShape = (int[])PrevLayer.OutputShape(batchSize).Clone();
-            outputShape[^1] = out_features;
-            return outputShape;
-        }
-        return new[] { batchSize, out_features
-        };
-        */
-
-
         #region constructor
-        public DenseLayer(int out_features, double lambdaL2Regularization, bool flattenInputTensorOnLastDimension, bool trainable, Network network, string layerName) : base(network, layerName)
+        public LinearLayer(int out_features, bool bias, double lambdaL2Regularization, bool flattenInputTensorOnLastDimension, bool trainable, Network network, string layerName) : base(network, layerName)
         {
             _flattenInputTensorOnLastDimension = flattenInputTensorOnLastDimension;
             this.out_features = out_features;
@@ -100,11 +90,10 @@ namespace SharpNet.Layers
 
             //trainable params
             _weights = GetFloatTensor(WeightShape);
-            _bias = GetFloatTensor(new[] {1, this.out_features });
-            Debug.Assert(_bias != null);
-
+            _bias = bias?GetFloatTensor(new[] {this.out_features }):null;
+            
             _weightGradients = GetFloatTensor(_weights.Shape);
-            _biasGradients = (_bias != null) ? GetFloatTensor(_bias.Shape) : null;
+            _biasGradients = bias ? GetFloatTensor(_bias.Shape) : null;
 
             _optimizer = Sample.GetOptimizer(_weights.Shape, _bias?.Shape, MemoryPool);
             ResetParameters(false);
@@ -136,13 +125,13 @@ namespace SharpNet.Layers
             Debug.Assert(allX.Count == 1);
             DenseForwardPropagation(y, allX[0], _weights, _bias, _flattenInputTensorOnLastDimension);
         }
-        public static void DenseForwardPropagation(/* Out */ Tensor y, /* In */ Tensor x, /* In */ Tensor weights, /* In */ Tensor biasIfAny, bool flattenInputTensorOnLastDimension)
+        public static void DenseForwardPropagation(/* Out */ Tensor y, /* In */ Tensor x, /* In */ Tensor weights, /* In */ Tensor biasIfAny_1D, bool flattenInputTensorOnLastDimension)
         {
             var xAs2DMatrix = x.As2DTensor(flattenInputTensorOnLastDimension);
             var yAs2DMatrix = y.As2DTensor(flattenInputTensorOnLastDimension);
             //We compute y = x*Weights.t+B
             yAs2DMatrix.Dot(xAs2DMatrix, false, weights, true, 1, 0);
-            biasIfAny?.BroadcastAddVectorToOutput(yAs2DMatrix);
+            biasIfAny_1D?.BroadcastAddVectorToOutput(yAs2DMatrix);
         }
        
         public override void BackwardPropagation(List<Tensor> allX, Tensor y_NotUsed, Tensor dy, List<Tensor> dx)
@@ -153,7 +142,7 @@ namespace SharpNet.Layers
             DenseBackwardPropagation(dx[0], _weightGradients, _biasGradients, allX[0], dy, _weights, _bias, Sample, LambdaL2Regularization, PrevLayer.IsInputLayer, _flattenInputTensorOnLastDimension);
         }
 
-        public static void DenseBackwardPropagation(/* Out */ Tensor dx, /* Out */ Tensor weightGradients, /* Out */ Tensor biasGradients, /* In */ Tensor x, /* In */ Tensor dy, /* In */ Tensor weights, /* In */ Tensor bias, NetworkSample sample, double LambdaL2Regularization, bool prevLayerIsInputLayer, bool flattenInputTensorOnLastDimension)
+        public static void DenseBackwardPropagation(/* Out */ Tensor dx, /* Out */ Tensor weightGradients, /* Out */ Tensor biasGradients_1D, /* In */ Tensor x, /* In */ Tensor dy, /* In */ Tensor weights, /* In */ Tensor bias_1D, NetworkSample sample, double LambdaL2Regularization, bool prevLayerIsInputLayer, bool flattenInputTensorOnLastDimension)
         {
             var xAs2DMatrix = x.As2DTensor(flattenInputTensorOnLastDimension);
             var dyAs2DMatrix = dy.As2DTensor(flattenInputTensorOnLastDimension);
@@ -171,23 +160,26 @@ namespace SharpNet.Layers
 
             weightGradients.Dot(dyAs2DMatrix, true, xAs2DMatrix, false, multiplier, 0);
 
-            if (biasGradients != null)
+            if (biasGradients_1D != null)
             {
                 //Debug.Assert(_bias != null);
                 //Debug.Assert(UseBias);
-                dyAs2DMatrix.Compute_BiasGradient_from_dy(biasGradients);
+                dyAs2DMatrix.Compute_BiasGradient_from_dy(biasGradients_1D);
             }
 
             //L2 regularization on dW (and dB for PyTorch)
             if (LambdaL2Regularization > 0.0)
             {
                 var multiplier_LambdaL2Regularization = 2;
-                if (sample.CompatibilityMode == CompatibilityModeEnum.PyTorch) { multiplier_LambdaL2Regularization = 1; }
+                if (sample.CompatibilityMode == CompatibilityModeEnum.PyTorch)
+                {
+                    multiplier_LambdaL2Regularization = 1;
+                }
                 var alpha = multiplier_LambdaL2Regularization * batchSize * (float)LambdaL2Regularization;
                 weightGradients.Update_Adding_Alpha_X(alpha, weights);
-                if (sample.CompatibilityMode == CompatibilityModeEnum.PyTorch && biasGradients != null)
+                if (sample.CompatibilityMode == CompatibilityModeEnum.PyTorch && biasGradients_1D != null)
                 {
-                    biasGradients.Update_Adding_Alpha_X(alpha, bias);
+                    biasGradients_1D.Update_Adding_Alpha_X(alpha, bias_1D);
                 }
             }
 
@@ -289,35 +281,31 @@ namespace SharpNet.Layers
             {
                 // ReSharper disable once PossibleNullReferenceException
                 result.Add(BiasDatasetPath, _bias.ToCpuFloat());
-                if (originFramework == CompatibilityModeEnum.TensorFlow)
-                {
-                    // ReSharper disable once PossibleNullReferenceException
-                    Debug.Assert(_bias.Count == _bias.Shape[1]);
-                    var tensorFlowShape = new[] { _bias.Shape[1] };
-                    result[BiasDatasetPath].ReshapeInPlace(tensorFlowShape);
-                }
             }
             return result;
         }
 
-        private string WeightDatasetPath => DatasetNameToDatasetPath("kernel:0");
-        private string BiasDatasetPath => DatasetNameToDatasetPath("bias:0");
+        private string WeightDatasetPath => DatasetNameToDatasetPath("weight");
+        private string BiasDatasetPath => DatasetNameToDatasetPath("bias");
         #endregion
 
         #region serialization
         public override string Serialize()
         {
             return RootSerializer().Add(nameof(out_features), out_features)
+                .Add("bias", UseBias)
                 .Add(nameof(LambdaL2Regularization), LambdaL2Regularization)
                 .Add(nameof(_flattenInputTensorOnLastDimension), _flattenInputTensorOnLastDimension)
                 .ToString();
         }
-        public static DenseLayer Deserialize(IDictionary<string, object> serialized, Network network)
+        public static LinearLayer Deserialize(IDictionary<string, object> serialized, Network network)
         {
-            var units = serialized.ContainsKey(nameof(out_features)) ? (int)serialized[nameof(out_features)] : (int)serialized["NumClass"];
+            var out_features_value = serialized.ContainsKey(nameof(out_features)) ? (int)serialized[nameof(out_features)] : (int)serialized["NumClass"];
+            bool bias = serialized.ContainsKey("bias") ? (bool)serialized["bias"] : true;
             var flattenInputTensorOnLastDimension = serialized.ContainsKey(nameof(_flattenInputTensorOnLastDimension)) && (bool)serialized[nameof(_flattenInputTensorOnLastDimension)];
-            return new DenseLayer(
-                units,
+            return new LinearLayer(
+                out_features_value,
+                bias,
                 (double)serialized[nameof(LambdaL2Regularization)],
                 flattenInputTensorOnLastDimension,
                 (bool)serialized[nameof(Trainable)],

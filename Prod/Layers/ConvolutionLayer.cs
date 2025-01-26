@@ -18,28 +18,30 @@ namespace SharpNet.Layers
     ///     (batchSize, inputSize, timeSteps)               if _isConv1D == true
     /// Output 'y' tensor shape:
     ///     (batchSize, depthMultiplier*x.C, y.H, y.W)      if Depthwise Convolution 2D
-    ///     (batchSize, filtersCount, y.H, y.W)             if Standard Convolution 2D
+    ///     (batchSize, out_channels, y.H, y.W)             if Standard Convolution 2D
     ///             y.H = (x.H−kernelHeight+2×pads) /Stride + 1
     ///             y.W = (x.W−kernelWidth+2×pads) /Stride + 1
-    ///     (batchSize, filtersCount, newTimeSteps)         if Standard Convolution 1D
+    ///     (batchSize, out_channels, newTimeSteps)         if Standard Convolution 1D
     ///             newTimeSteps = (timeSteps−kernelWidth+2×pads) /Stride + 1
     /// </summary>
     public sealed class ConvolutionLayer : Layer
     {
         #region Private fields
         #region trainable parameters
+
         /// <summary>
         /// if Depthwise Convolution:
         ///     (_depthMultiplier, x.C, kernelHeight, kernelWidth)
         /// else
-        ///     (FiltersCount, x.C, kernelHeight, kernelWidth)
+        ///     (out_channels, x.C, kernelHeight, kernelWidth)
         /// </summary>
         [NotNull] private Tensor _convolution;
+
         /// <summary>
         /// if Depthwise Convolution:
         ///     (_depthMultiplier, x.C, 1, 1) or null is no bias should be used
         /// else
-        ///     (1, FiltersCount, 1, 1) or null is no bias should be used
+        ///     (1, out_channels, 1, 1) or null is no bias should be used
         /// </summary>
         [CanBeNull] private Tensor _convolutionBias;
         #endregion
@@ -52,7 +54,7 @@ namespace SharpNet.Layers
         #endregion
         private readonly bool _isDepthwiseConvolution;
         private readonly bool _isConv1D;
-        private readonly int _filtersCount;                     //only valid on default convolution   (_isDepthwiseConvolution=false)
+        private readonly int _out_channels;                     //only valid on default convolution   (_isDepthwiseConvolution=false)
         private readonly int _depthMultiplier;                  //only valid on depthwise convolution (_isDepthwiseConvolution=true)
         private readonly int _kernelHeight;
         private readonly int _kernelWidth;
@@ -71,17 +73,24 @@ namespace SharpNet.Layers
         /// <summary>
         /// No need to configure the number of channels by filter: it is always the same as in previous layer
         /// </summary>
-        public ConvolutionLayer(bool isDepthwiseConvolution, bool isConv1D, int filtersCount, int depthMultiplier, int kernelHeight, int kernelWidth,int stride, PADDING_TYPE paddingType, double lambdaL2Regularization, bool useBias, int previousLayerIndex, bool trainable, Network network, string layerName)
+        public ConvolutionLayer(bool isDepthwiseConvolution, bool isConv1D, int out_channels, int depthMultiplier, int kernelHeight, int kernelWidth,int stride, PADDING_TYPE paddingType, double lambdaL2Regularization, bool useBias, int previousLayerIndex, bool trainable, Network network, string layerName)
             : base(network, new[] { previousLayerIndex}, layerName)
         {
+            if (isDepthwiseConvolution)
+            {
+                if (depthMultiplier != 1)
+                {
+                    throw new NotImplementedException("only depthMultiplier=1 is supported in depthwise convolution");
+                }
+            }
+            if (isConv1D && kernelHeight != 1)
+            {
+                throw new NotImplementedException($"{nameof(kernelHeight)} must be 1 if Conv1D (found: {kernelHeight})");
+            }
             _isDepthwiseConvolution = isDepthwiseConvolution;
             _isConv1D = isConv1D;
-            _filtersCount = filtersCount;
+            _out_channels = out_channels;
             _depthMultiplier = depthMultiplier;
-            if (_isDepthwiseConvolution && depthMultiplier != 1)
-            {
-                throw new NotImplementedException("only depthMultiplier=1 is supported in depthwise convolution");
-            }
             _kernelHeight = kernelHeight;
             _kernelWidth = kernelWidth;
             _stride = stride;
@@ -293,8 +302,15 @@ namespace SharpNet.Layers
         }
         public override void LoadParameters(IDictionary<string, Tensor> h5FileDataset, CompatibilityModeEnum originFramework)
         {
-            h5FileDataset[ConvolutionDatasetPath].ChangeAxis(new[] { 3, 2, 0, 1 }).CopyTo(_convolution);
-            if (UseBias) //we load bias if necessary
+            if (originFramework == CompatibilityModeEnum.TensorFlow)
+            {
+                h5FileDataset[ConvolutionDatasetPath].ChangeAxis(new[] { 3, 2, 0, 1 }).CopyTo(_convolution);
+            }
+            else
+            {
+                h5FileDataset[ConvolutionDatasetPath].CopyTo(_convolution);
+            }
+            if (UseBias)
             {
                 h5FileDataset[ConvolutionBiasDatasetPath].CopyTo(_convolutionBias);
             }
@@ -302,23 +318,33 @@ namespace SharpNet.Layers
         public override IDictionary<string, CpuTensor<float>> GetParametersAsCpuFloatTensors(CompatibilityModeEnum originFramework)
         {
             var result = new Dictionary<string, CpuTensor<float>>();
-            result.Add(ConvolutionDatasetPath,(CpuTensor<float>) _convolution.ToCpuFloat().ChangeAxis(new[] {2, 3, 1, 0}));
-            if (UseBias) //we load bias if necessary
+            var weights = _convolution.ToCpuFloat();
+            if (originFramework == CompatibilityModeEnum.TensorFlow)
             {
-                // ReSharper disable once PossibleNullReferenceException
-                result.Add(ConvolutionBiasDatasetPath, _convolutionBias.ToCpuFloat());
+                weights = (CpuTensor<float>)weights.ChangeAxis(new[] { 2, 3, 1, 0 });
             }
-
-            if (UseBias && originFramework == CompatibilityModeEnum.TensorFlow)
+            else
             {
-                Debug.Assert(_convolutionBias != null);
-                // ReSharper disable once PossibleNullReferenceException
-                Debug.Assert(_convolutionBias.Count == _convolutionBias.Shape[1]);
-                // ReSharper disable once PossibleNullReferenceException
-                var tensorFlowShape = new[] { _convolutionBias.Shape[1] };
-                result[ConvolutionBiasDatasetPath].ReshapeInPlace(tensorFlowShape);
+                if (_isConv1D)
+                {
+                    weights = (CpuTensor<float>)weights.Reshape(weights.Shape[0], weights.Shape[1], -1);
+                }
+                if (_isDepthwiseConvolution)
+                {
+                    weights = (CpuTensor<float>)weights.Reshape(-1, 1, weights.Shape[2], weights.Shape[3]);
+                }
             }
-
+            result.Add(ConvolutionDatasetPath, weights);
+            if (UseBias)
+            {
+                var bias = _convolutionBias;
+                if (originFramework != CompatibilityModeEnum.TensorFlow)
+                {
+                    bias = bias.Reshape(-1);
+                }
+                // ReSharper disable once PossibleNullReferenceException
+                result.Add(ConvolutionBiasDatasetPath, bias.ToCpuFloat());
+            }
             return result;
         }
 
@@ -337,8 +363,8 @@ namespace SharpNet.Layers
                 Debug.Assert(newGradients.Count == 1);
             }
         }
-        private string ConvolutionDatasetPath => DatasetNameToDatasetPath(_isDepthwiseConvolution ? "depthwise_kernel:0" : "kernel:0");
-        private string ConvolutionBiasDatasetPath => DatasetNameToDatasetPath(_isDepthwiseConvolution ? "depthwise_bias:0" : "bias:0");
+        private string ConvolutionDatasetPath => DatasetNameToDatasetPath("weight");
+        private string ConvolutionBiasDatasetPath => DatasetNameToDatasetPath("bias");
         #endregion
 
         #region serialization
@@ -347,15 +373,14 @@ namespace SharpNet.Layers
             return RootSerializer()
                 .Add(nameof(_isDepthwiseConvolution), _isDepthwiseConvolution)
                 .Add(nameof(_isConv1D), _isConv1D)
-                .Add(nameof(_filtersCount), _filtersCount)
+                .Add(nameof(_out_channels), _out_channels)
                 .Add(nameof(_depthMultiplier), _depthMultiplier)
                 .Add(nameof(_kernelHeight), _kernelHeight)
                 .Add(nameof(_kernelWidth), _kernelWidth)
                 .Add(nameof(_stride), _stride)
-                .Add(nameof(_paddingType), (int)_paddingType)
+                .Add(nameof(_paddingType), _paddingType.ToString())
                 .Add(nameof(_lambdaL2Regularization), _lambdaL2Regularization)
                 .Add(nameof(UseBias), UseBias)
-                .Add(nameof(PreviousLayerIndex), PreviousLayerIndex)
                 .ToString();
         }
         public static ConvolutionLayer Deserialize(IDictionary<string, object> serialized, Network network)
@@ -368,12 +393,12 @@ namespace SharpNet.Layers
             return new ConvolutionLayer(
                 (bool) serialized[nameof(_isDepthwiseConvolution)],
                 isConv1D,
-                (int) serialized[nameof(_filtersCount)],
+                (int) serialized[nameof(_out_channels)],
                 (int) serialized[nameof(_depthMultiplier)],
                 kernelHeight,
                 kernelWidth,
                 (int)serialized[nameof(_stride)],
-                (PADDING_TYPE)serialized[nameof(_paddingType)], 
+                (PADDING_TYPE)Enum.Parse(typeof(PADDING_TYPE), (string)serialized[nameof(_paddingType)]),
                 (double)serialized[nameof(_lambdaL2Regularization)],
                 (bool)serialized[nameof(UseBias)],
                 previousLayerIndexes[0],
@@ -417,7 +442,7 @@ namespace SharpNet.Layers
         /// if isDepthwiseConvolution = true
         ///     convolution shape: (depthMultiplier, x.C, kernelHeight, kernelWidth)</param>
         /// else
-        ///     convolution shape: (filtersCount, x.C, kernelHeight, kernelWidth)
+        ///     convolution shape: (out_channels, x.C, kernelHeight, kernelWidth)
         /// <param name="paddingType"></param>
         /// <param name="stride"></param>
         /// <param name="isDepthwiseConvolution"></param>
@@ -425,7 +450,7 @@ namespace SharpNet.Layers
         /// if isDepthwiseConvolution = true
         ///     shape is (batchSize, x.C * depthMultiplier, heightOutput=H[heightInput], weightOutput=H[weightInput])
         ///else
-        ///     shape is (batchSize, filtersCount, heightOutput=H[heightInput], weightOutput=H[weightInput])
+        ///     shape is (batchSize, out_channels, heightOutput=H[heightInput], weightOutput=H[weightInput])
         /// </returns>
         public static int[] OutputShape(int[] inputShape, int[] convolutionShape, PADDING_TYPE paddingType, int stride, bool isDepthwiseConvolution)
         {
@@ -502,7 +527,7 @@ namespace SharpNet.Layers
             //see: https://pytorch.org/docs/stable/generated/torch.nn.Conv2d.html
             var input_shape = PreviousLayers.Count == 0 ? new[] { -1, -1, -1,-1 } : PreviousLayers[0].OutputShape(666);
             int in_channels = input_shape[1];
-            int out_channels = _filtersCount;
+            int out_channels = _out_channels;
 
 
             var padding = "'"+_paddingType.ToString().ToLower()+"'";
@@ -567,10 +592,10 @@ namespace SharpNet.Layers
         {
             get
             {
-                var channels = PrevLayer.OutputShape(1)[1];
+                var in_channels = PrevLayer.OutputShape(1)[1];
                 return _isDepthwiseConvolution
-                    ?new[] { _depthMultiplier, channels, _kernelHeight, _kernelWidth }
-                    :new[] { _filtersCount, channels, _kernelHeight, _kernelWidth };
+                    ?new[] { _depthMultiplier, in_channels, _kernelHeight, _kernelWidth }
+                    :new[] { _out_channels, in_channels, _kernelHeight, _kernelWidth };
             }
         }
         private bool UseBias => _convolutionBias != null;
@@ -585,7 +610,7 @@ namespace SharpNet.Layers
                 }
                 else
                 {
-                    return new[] { 1, _filtersCount, 1, 1 };
+                    return new[] { 1, _out_channels, 1, 1 };
                 }
             }
         }

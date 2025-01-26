@@ -55,7 +55,7 @@ public class NetworkSample_1DCNN : NetworkSample
         //expand(x)
         nn.BatchNorm(batchNorm_momentum, 1e-5);
         nn.Dropout(dropout_top);
-        nn.Dense(hidden_size, lambdaL2Regularization, false);
+        nn.Linear(hidden_size, true, lambdaL2Regularization, false);
         nn.BatchNorm(batchNorm_momentum, 1e-5);//nn.utils.weight_norm(, dim = None), //!D was Weight Norm
         nn.Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU); //nn.CELU(0.06) if celu else nn.ReLU()
 
@@ -114,7 +114,7 @@ public class NetworkSample_1DCNN : NetworkSample
         {
             nn.BatchNorm(batchNorm_momentum, 1e-5);
             nn.Dropout(dropout_bottom);
-            nn.Dense(datasetSample.NumClass, lambdaL2Regularization, false);
+            nn.Linear(datasetSample.NumClass, true, lambdaL2Regularization, false);
             if (weight_norm) { nn.BatchNorm(batchNorm_momentum, 1e-5); }
             nn.Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_LEAKY_RELU); // * x
         }
@@ -122,7 +122,7 @@ public class NetworkSample_1DCNN : NetworkSample
         {
             nn.BatchNorm(batchNorm_momentum, 1e-5);
             nn.Dropout(dropout_bottom);
-            nn.Dense(datasetSample.NumClass, lambdaL2Regularization, false);
+            nn.Linear(datasetSample.NumClass, true, lambdaL2Regularization, false);
             if (weight_norm) { nn.BatchNorm(batchNorm_momentum, 1e-5); }
         }
         nn.Activation(nn.NetworkSample.GetActivationForLastLayer(datasetSample.NumClass));

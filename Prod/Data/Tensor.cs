@@ -640,7 +640,7 @@ namespace SharpNet.Data
         ///             convolution shape is (depthMultiplier=1, inputChannels, f1, f2)
         ///             outputChannels = inputChannels*depthMultiplier
         /// else
-        ///             convolution shape is (filtersCount=outputChannels, inputChannels, f1,f2)
+        ///             convolution shape is (out_channels, inputChannels, f1,f2)
         /// </param>
         /// <param name="paddingTop">zero-padding height: number of rows of zeros implicitly concatenated onto the top of input images</param>
         /// <param name="paddingBottom">zero-padding height: number of rows of zeros implicitly concatenated onto the bottom of input images</param>
@@ -707,7 +707,7 @@ namespace SharpNet.Data
         public abstract void CopyTo(Tensor b);
         public abstract void CopyTo(int startElement, Tensor other, int otherStartElement, int elementCount);
         //this = dy
-        public abstract void Compute_BiasGradient_from_dy(Tensor biasGradient);
+        public abstract void Compute_BiasGradient_from_dy(Tensor biasGradient_1D);
         //this = Weights or B
         public abstract void UpdateAdamOptimizer(double learningRate, double beta1, double beta2, double epsilon, double adamW_l2Regularization, Tensor dW, Tensor adam_vW, Tensor adam_sW, int timeStep);
         //this = Weights or B
@@ -1186,7 +1186,6 @@ namespace SharpNet.Data
             {
                 case EvaluationMetricEnum.BinaryCrossentropy:
                 case EvaluationMetricEnum.BCEContinuousY:
-                    //Debug.Assert(_layers.Last().IsSigmoidActivationLayer());
                     //we compute: _dyPredicted = (1.0/numClass) * (yPredicted - yExpected)
                     dyPredicted.BinaryCrossentropyGradient(yExpected, yPredicted);
                     break;

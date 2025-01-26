@@ -224,9 +224,9 @@ public class EncoderDecoder_NetworkSample: NetworkSample
             nn.Dropout(DropoutRate_After_EncoderDecoder);
         }
 
-        nn.Dense(DenseUnits, nn.Sample.lambdaL2Regularization, true)
+        nn.Linear(DenseUnits, true, nn.Sample.lambdaL2Regularization, true)
             .Activation(ActivationFunctionAfterFirstDense);
-        nn.Dense(1, nn.Sample.lambdaL2Regularization, true);
+        nn.Linear(1, true, nn.Sample.lambdaL2Regularization, true);
         nn.Flatten();
 
         if (WithSpecialEndV1)

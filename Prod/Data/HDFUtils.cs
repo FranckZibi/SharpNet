@@ -21,6 +21,10 @@ namespace SharpNet.Data
         {
             var datasetId = H5D.open(objectId, datasetPath);
             var shape = DatasetShape(datasetId);
+            if (shape == null || shape.Length == 0)
+            {
+                return null;
+            }
             var type = H5D.get_type(datasetId);
             H5D.close(datasetId);
             H5T.class_t typeClass = H5T.get_class(type);
@@ -63,7 +67,7 @@ namespace SharpNet.Data
         /// </summary>
         /// <param name="datasetPath">the datasetPath to split (ex: /batch_normalization_10/batch_normalization_10/beta:0)</param>
         /// <param name="path">the associate path (ex: /batch_normalization_10/batch_normalization_10/)</param>
-        /// <param name="datasetName">the name of the dataset (ex: beta:0)</param>
+        /// <param name="datasetName">the name of the dataset (ex: '/layer_name.bias' )</param>
         public static void SplitPathAndName(string datasetPath, out string path, out string datasetName)
         {
             int lastIndex = datasetPath.LastIndexOf('/');
@@ -263,6 +267,11 @@ namespace SharpNet.Data
         }
         private static H5GroupId OpenOrCreateGroupPath(H5FileId fileId, string groupPath)
         {
+            if (groupPath == "/" || groupPath.Length == 0)
+            {
+                return H5G.open(fileId, "/");
+            }
+
             var allExistingDatasets = DatasetPaths(fileId, "/").Select(s => s.TrimStart('/')).ToList();
             var splitted = groupPath.Trim('/').Split('/').ToArray();
             for (int i = 1; i <= splitted.Length; ++i)

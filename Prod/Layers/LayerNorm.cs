@@ -211,8 +211,8 @@ public sealed class LayerNorm : Layer
     }
 
 
-    private string GammasDatasetPath => DatasetNameToDatasetPath("gamma:0");
-    private string BetasDatasetPath => DatasetNameToDatasetPath("beta:0");
+    private string GammasDatasetPath => DatasetNameToDatasetPath("weight");
+    private string BetasDatasetPath => DatasetNameToDatasetPath("bias");
     #endregion
 
     #region serialization
@@ -275,6 +275,6 @@ public sealed class LayerNorm : Layer
     {
         var res = OutputShape(1);
         int cols = Utils.Product(res.Skip(res.Length - _last_D_dimension).ToArray());
-        return new[] { 1, cols };
+        return new[] { cols };
     }
 }

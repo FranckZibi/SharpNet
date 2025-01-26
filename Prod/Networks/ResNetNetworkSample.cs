@@ -126,7 +126,7 @@ namespace SharpNet.Networks
                 stageC *= 2;
             }
             network.GlobalAvgPooling();
-            network.Dense(numClass, config.lambdaL2Regularization, false)
+            network.Linear(numClass, true, config.lambdaL2Regularization, false)
                 .Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
             return network;
         }
@@ -166,7 +166,7 @@ namespace SharpNet.Networks
                 stageC *= 2;
             }
             network.AvgPooling(8, 8, 8, 8);
-            network.Dense(CIFAR10DataSet.NumClass, config.lambdaL2Regularization, false)
+            network.Linear(CIFAR10DataSet.NumClass, true, config.lambdaL2Regularization, false)
                 .Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
             return network;
         }
@@ -216,7 +216,7 @@ namespace SharpNet.Networks
             }
             network.BatchNorm(0.99, 1e-5).Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU);
             network.AvgPooling(8, 8, 8, 8);
-            network.Dense(CIFAR10DataSet.NumClass, config.lambdaL2Regularization, false)
+            network.Linear(CIFAR10DataSet.NumClass, true, config.lambdaL2Regularization, false)
                 .Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
             return network;
         }

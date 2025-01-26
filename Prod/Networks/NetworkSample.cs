@@ -123,7 +123,7 @@ namespace SharpNet.Networks
         /// <summary>
         /// all resources (CPU or GPU) available for the current network
         /// values superior or equal to 0 means GPU resources (device)
-        /// values strictly less then 0 mean CPU resources (host)
+        /// values strictly less than 0 mean CPU resources (host)
         /// 
         /// if ResourceIds.Count == 1
         ///     if masterNetworkIfAny == null:
@@ -136,7 +136,7 @@ namespace SharpNet.Networks
         ///     slaves network will use resourceId ResourceIds[1:]
         /// 
         /// for each resourceId in this list:
-        ///     if resourceId strictly less then 0:
+        ///     if resourceId is strictly less than 0:
         ///         use CPU resource (no GPU usage)
         ///     else:
         ///         run the network on the GPU with device Id = resourceId
@@ -510,24 +510,24 @@ namespace SharpNet.Networks
 
         public enum POOLING_BEFORE_DENSE_LAYER
         {
-            /* we'll use an Average Pooling layer of size [2 x 2] before the Dense layer*/
+            /* we'll use an Average Pooling layer of size [2 x 2] before the Linear layer*/
             AveragePooling_2,
-            /* we'll use an Average Pooling layer of size [8 x 8] before the Dense layer*/
+            /* we'll use an Average Pooling layer of size [8 x 8] before the Linear layer*/
             AveragePooling_8,
 
-            /* We'll use a Global Average Pooling (= GAP) layer just before the last Dense (= fully connected) Layer
+            /* We'll use a Global Average Pooling (= GAP) layer just before the last Linear (= fully connected) Layer
             This GAP layer will transform the input feature map of shape (n,c,h,w)
             to an output feature map of shape (n,c,1,1),
             so that this output feature map is independent of the the size of the input */
             GlobalAveragePooling,
 
-            /* we'll use a Global Average Pooling layer concatenated with a Global Max Pooling layer before the Dense Layer
+            /* we'll use a Global Average Pooling layer concatenated with a Global Max Pooling layer before the Linear Layer
             This will transform the input feature map of shape (n,c,h,w)
             to an output feature map of shape (n, 2*c, 1, 1),
             so that this output feature map is independent of the the size of the input */
             GlobalAveragePooling_And_GlobalMaxPooling,
 
-            /* We'll use a Global Max Pooling layer just before the last Dense (= fully connected) Layer
+            /* We'll use a Global Max Pooling layer just before the last Linear (= fully connected) Layer
             This will transform the input feature map of shape (n,c,h,w)
             to an output feature map of shape (n,c,1,1),
             so that this output feature map is independent of the the size of the input */

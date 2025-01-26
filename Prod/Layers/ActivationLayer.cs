@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using SharpNet.Data;
 using SharpNet.GPU;
@@ -77,14 +78,15 @@ namespace SharpNet.Layers
         public override string Serialize()
         {
             return RootSerializer()
-                .Add(nameof(ActivationFunction), (int)ActivationFunction)
+                .Add(nameof(ActivationFunction), ActivationFunction.ToString())
                 .Add(nameof(_activationParameter), _activationParameter)
                 .ToString();
         }
+
         public static ActivationLayer Deserialize(IDictionary<string, object> serialized, Network network)
         {
             return new ActivationLayer(
-                (cudnnActivationMode_t)serialized[nameof(ActivationFunction)],
+                (cudnnActivationMode_t)Enum.Parse(typeof(cudnnActivationMode_t), (string)serialized[nameof(ActivationFunction)]),
                 serialized.ContainsKey(nameof(_activationParameter)) ?(Tensor)serialized[nameof(_activationParameter)]:null,
                 network,
                 (string)serialized[nameof(LayerName)]);
@@ -107,7 +109,7 @@ namespace SharpNet.Layers
         #region PyTorch support
         public override void ToPytorchModule(List<string> constructorLines, List<string> forwardLines)
         {
-            //special case : for cross entropy loss, we do need to use the softmax function in PyTorch torch.nn.Module
+            //special case : for cross entropy loss, we do not need to use the softmax function in PyTorch torch.nn.Module
             if (Network.Sample.GetLoss() == EvaluationMetricEnum.CategoricalCrossentropy && LayerIndex == (Layers.Count-1))
             {
                 return;

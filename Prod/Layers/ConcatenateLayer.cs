@@ -7,7 +7,7 @@ using SharpNet.Networks;
 namespace SharpNet.Layers
 {
     /// <summary>
-    /// used for Dense Network
+    /// used for Linear Network
     /// Layer that is the concatenation of 2 previous layers
     /// </summary>
     public class ConcatenateLayer : Layer

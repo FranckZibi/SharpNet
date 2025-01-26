@@ -103,7 +103,7 @@ namespace SharpNet.Layers
         public override string Serialize()
         {
             return RootSerializer()
-                .Add(nameof(_poolingMode), (int)_poolingMode)
+                .Add(nameof(_poolingMode), _poolingMode.ToString())
                 .Add(nameof(_poolingHeight), _poolingHeight)
                 .Add(nameof(_poolingWidth), _poolingWidth)
                 .Add(nameof(_verticalStride), _verticalStride)
@@ -113,12 +113,11 @@ namespace SharpNet.Layers
         public static PoolingLayer Deserialize(IDictionary<string, object> serialized, Network network)
         {
             var previousLayerIndexes = (int[])serialized[nameof(PreviousLayerIndexes)];
-
             var verticalStride = serialized.ContainsKey("_poolingStride")?serialized["_poolingStride"]:serialized[nameof(_verticalStride)];
             var horizontalStride = serialized.ContainsKey("_poolingStride")?serialized["_poolingStride"]:serialized[nameof(_horizontalStride)];
 
             return new PoolingLayer(
-                (cudnnPoolingMode_t) (int) serialized[nameof(_poolingMode)],
+                (cudnnPoolingMode_t)Enum.Parse(typeof(cudnnPoolingMode_t), (string) serialized[nameof(_poolingMode)]),
                 (int) serialized[nameof(_poolingHeight)],
                 (int) serialized[nameof(_poolingWidth)],
                 (int)verticalStride,

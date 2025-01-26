@@ -203,7 +203,7 @@ namespace SharpNet.Layers
 
         protected string DatasetNameToDatasetPath(string datasetName)
         {
-            return "/" + LayerName + "/" + LayerName + "/" + datasetName;
+            return "/"+LayerName + "." + datasetName;
         }
         #endregion
         #endregion
@@ -235,12 +235,13 @@ namespace SharpNet.Layers
                 case nameof(BatchNormalizationLayer): return BatchNormalizationLayer.Deserialize(serialized, network);
                 case nameof(ConcatenateLayer): return ConcatenateLayer.Deserialize(serialized, network);
                 case nameof(ConvolutionLayer): return ConvolutionLayer.Deserialize(serialized, network);
-                case nameof(DenseLayer): return DenseLayer.Deserialize(serialized, network);
+                case nameof(LinearLayer): return LinearLayer.Deserialize(serialized, network);
                 case nameof(DropoutLayer): return DropoutLayer.Deserialize(serialized, network);
                 case nameof(EmbeddingLayer): return EmbeddingLayer.Deserialize(serialized, network);
                 case nameof(FlattenLayer): return FlattenLayer.Deserialize(serialized, network);
                 case nameof(InputLayer): return InputLayer.Deserialize(serialized, network);
                 case nameof(LayerNorm): return LayerNorm.Deserialize(serialized, network);
+                case nameof(RMSNorm): return RMSNorm.Deserialize(serialized, network);
                 case nameof(LinearFunctionLayer): return LinearFunctionLayer.Deserialize(serialized, network);
                 case nameof(MultiheadAttention): return MultiheadAttention.Deserialize(serialized, network);
                 case nameof(MultiplyLayer): return MultiplyLayer.Deserialize(serialized, network);
@@ -250,6 +251,7 @@ namespace SharpNet.Layers
                 case nameof(RecurrentLayer): return RecurrentLayer.Deserialize(serialized, network);
                 case nameof(ReshapeLayer): return ReshapeLayer.Deserialize(serialized, network);
                 case nameof(ScaledDotProductAttentionLayer): return ScaledDotProductAttentionLayer.Deserialize(serialized, network);
+                case nameof(StochasticDepthLayer): return StochasticDepthLayer.Deserialize(serialized, network);
                 case nameof(SwitchSecondAndThirdDimensionLayer): return SwitchSecondAndThirdDimensionLayer.Deserialize(serialized, network);
                 case nameof(UpSampling2DLayer): return UpSampling2DLayer.Deserialize(serialized, network);
                 case nameof(YOLOV3Layer): return YOLOV3Layer.Deserialize(serialized, network);
@@ -269,11 +271,6 @@ namespace SharpNet.Layers
         protected void Log(string msg) {Model.Log.Info(msg);}
         // ReSharper disable once MemberCanBeMadeStatic.Global
         public void LogDebug(string msg) {Model.Log.Debug(msg);}
-
-        public bool IsSigmoidActivationLayer()
-        {
-            return GetType() == typeof(ActivationLayer) &&((ActivationLayer) this).ActivationFunction == cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID;
-        }
         public bool IsSoftmaxActivationLayer()
         {
             return GetType() == typeof(ActivationLayer) && ((ActivationLayer)this).ActivationFunction == cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX;

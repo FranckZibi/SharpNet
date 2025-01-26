@@ -8,20 +8,20 @@ namespace SharpNet.Networks
     public partial class Network
     {
         /// <summary>
-        /// set the number of output categories of the current network by updating the head layers (Dense+Activation layers)
+        /// set the number of output categories of the current network by updating the head layers (Linear+Activation layers)
         /// if the number of output categories is already 'newNumClass'
         ///     does nothing at all
         /// else
-        ///     update the last Dense Layers (resetting all its weights) to match the required number of categories
+        ///     update the last Linear Layers (resetting all its weights) to match the required number of categories
         /// </summary>
         /// <param name="newNumClass">the target number of categories</param>
         public void SetNumClass(int newNumClass)
         {
             LogInfo("setting number of output numClass to " + newNumClass);
-            if (Layers.Count >= 2 && Layers[Layers.Count - 1] is ActivationLayer && Layers[Layers.Count - 2] is DenseLayer)
+            if (Layers.Count >= 2 && Layers[Layers.Count - 1] is ActivationLayer && Layers[Layers.Count - 2] is LinearLayer)
             {
-                var denseLayer = (DenseLayer) Layers[Layers.Count - 2];
-                if (denseLayer.out_features == newNumClass)
+                var linearLayer = (LinearLayer) Layers[Layers.Count - 2];
+                if (linearLayer.out_features == newNumClass)
                 {
                     LogInfo("no need to set the NumClass to " + newNumClass);
                     return; //already at target category count
@@ -33,21 +33,21 @@ namespace SharpNet.Networks
                 var activationLayerName = activationLayer.LayerName;
                 RemoveAndDisposeLastLayer();
 
-                //we remove the Dense layer
-                var lambdaL2Regularization = denseLayer.LambdaL2Regularization;
-                var denseLayerName = denseLayer.LayerName;
+                //we remove the Linear layer
+                var lambdaL2Regularization = linearLayer.LambdaL2Regularization;
+                var linearLayerName = linearLayer.LayerName;
                 RemoveAndDisposeLastLayer();
 
-                //We add a new DenseLayer (with weight reseted)
-                LogInfo("Resetting weights of layer " + denseLayerName + " to have " + newNumClass + " categories");
-                Dense(newNumClass, lambdaL2Regularization, false, denseLayerName);
+                //We add a new LinearLayer (with weight reseted)
+                LogInfo("Resetting weights of layer " + linearLayerName + " to have " + newNumClass + " categories");
+                Linear(newNumClass, true, lambdaL2Regularization, false, linearLayerName);
 
                 //we put back the ActivationLayer
                 Activation(activationFunctionType, activationLayerName);
 
                 return;
             }
-            throw new NotImplementedException("can only update a network where the 2 last layers are DenseLayer & ActivationLayer");
+            throw new NotImplementedException("can only update a network where the 2 last layers are LinearLayer & ActivationLayer");
         }
         private void RemoveAndDisposeLastLayer()
         {

@@ -9,7 +9,13 @@ namespace SharpNet.Layers
 {
     public class MultiplyLayer : Layer
     {
-        public MultiplyLayer(int mainMatrixLayerIndex, int diagonalMatrixLayerIndex, Network network, string layerName) : base(network, new []{ mainMatrixLayerIndex, diagonalMatrixLayerIndex }, layerName)
+        private static bool ShouldInvertInputMatrices(int mainMatrixLayerIndex, int diagonalMatrixLayerIndex, Network network)
+        {
+            return Utils.Product(network.Layers[diagonalMatrixLayerIndex].OutputShape(1)) > Utils.Product(network.Layers[mainMatrixLayerIndex].OutputShape(1));
+        }
+
+
+        public MultiplyLayer(int mainMatrixLayerIndex, int diagonalMatrixLayerIndex, Network network, string layerName) : base(network, ShouldInvertInputMatrices(mainMatrixLayerIndex, diagonalMatrixLayerIndex, network) ?new []{ diagonalMatrixLayerIndex , mainMatrixLayerIndex}: new[] { mainMatrixLayerIndex, diagonalMatrixLayerIndex },  layerName)
         {
             Debug.Assert(LayerIndex >= 2);
             if (!ValidLayerShapeToMultiply(PreviousLayerMainMatrix.OutputShape(1), PreviousLayerDiagonalMatrix.OutputShape(1)))
@@ -24,6 +30,7 @@ namespace SharpNet.Layers
             Debug.Assert(allX.Count == 2);
             var a = allX[0];
             var diagonalMatrix = allX[1]; //vector with the content of the diagonal matrix
+            Debug.Assert(diagonalMatrix.Count <= a.Count);
             y.MultiplyTensor(a, diagonalMatrix);
         }
         public override void BackwardPropagation(List<Tensor> allX, Tensor y_NotUsed, Tensor dy, List<Tensor> allDx)
@@ -34,6 +41,7 @@ namespace SharpNet.Layers
             var dx2 = allDx[1];
             var a = allX[0];
             var diagonalMatrix = allX[1];
+            Debug.Assert(diagonalMatrix.Count <= a.Count);
             Debug.Assert(dx1.SameShape(dy));
             Debug.Assert(dx1.SameShape(a));
             Debug.Assert(dx2.SameShape(diagonalMatrix));

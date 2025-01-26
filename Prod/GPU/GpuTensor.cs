@@ -130,6 +130,11 @@ namespace SharpNet.GPU
             Debug.Assert(AreCompatible(new List<Tensor> { x, y, scale, bias, runningInputMean, runningInputVariance, meanBuffer, invertOfUnbiasedVolatilityBuffer }));
             var xDesc = TensorDesc(x);
             var yDesc = xDesc;
+
+            if (scale.Shape.Length == 1)
+            {
+                scale = scale.Reshape(1, -1, 1, 1);
+            }
             var bnScaleBiasMeanVarDesc = TensorDesc(scale);
 
             float oneFloat = 1f, zeroFloat = 0f;
@@ -161,6 +166,11 @@ namespace SharpNet.GPU
             var x = this;
             Debug.Assert(AreCompatible(new List<Tensor> { x, dy, dx, scale, scaleGradient, biasGradient, meanBuffer, invertOfUnbiasedVolatilityBuffer }));
             var xDesc = TensorDesc(x);
+
+            if (scale.Shape.Length == 1)
+            {
+                scale = scale.Reshape(1, -1, 1, 1);
+            }
             var bnScaleBiasDiffDesc = TensorDesc(scale);
 
             float oneFloat = 1f, zeroFloat = 0f;
@@ -622,7 +632,11 @@ namespace SharpNet.GPU
         }
         public override void BroadcastAddVectorToOutput(Tensor y)
         {
-            var bias = this;
+            Tensor bias = this;
+            if (bias.Shape.Length == 1)
+            {
+                bias = bias.Reshape(1, -1);
+            }
             Debug.Assert(AreCompatible(new List<Tensor> { bias, y }));
             Debug.Assert(y.Dimension >= 2);
             Debug.Assert(y.MultDim0 == Count);
@@ -669,19 +683,20 @@ namespace SharpNet.GPU
             //_wrapper.RunKernel("TransposeSecondAndThirdDimension_V3", A*B, new object[] { B, C, D, this, target });    //24.5s
         }
 
-        public override void Compute_BiasGradient_from_dy(Tensor biasGradient)
+        public override void Compute_BiasGradient_from_dy(Tensor biasGradient_1D)
         {
             var dy = this;
-            Debug.Assert(AreCompatible(new List<Tensor> { dy, biasGradient}));
+            Debug.Assert(AreCompatible(new List<Tensor> { dy, biasGradient_1D}));
             Debug.Assert(Dimension >= 2);
+            Debug.Assert(biasGradient_1D.Shape.Length == 1);
             var dyDesc = TensorDesc(dy);
-            var dbDesc = TensorDesc(biasGradient);
+            var dbDesc = TensorDesc(biasGradient_1D.Reshape(1, biasGradient_1D.Count));
 
             float oneFloat = 1f, zeroFloat = 0f;
             var zero = &zeroFloat;
             var one = &oneFloat;
 
-            var res = CudnnWrapper.cudnnConvolutionBackwardBias(CudnnHandle, one, dyDesc, dy, zero, dbDesc, biasGradient);
+            var res = CudnnWrapper.cudnnConvolutionBackwardBias(CudnnHandle, one, dyDesc, dy, zero, dbDesc, biasGradient_1D);
             CheckStatus(res);
         }
         #region Convolution

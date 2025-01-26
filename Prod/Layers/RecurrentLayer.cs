@@ -39,20 +39,20 @@ namespace SharpNet.Layers
         #region trainable parameters
         [NotNull] private Tensor _weightsAndBiases;
         [NotNull] public readonly List<Tensor> _weight_ih = new();
-        [NotNull] public readonly List<Tensor> _weights_hh = new();
+        [NotNull] public readonly List<Tensor> _weight_hh = new();
         [NotNull] public readonly List<Tensor> _bias_ih = new();
         [NotNull] public readonly List<Tensor> _bias_hh = new();
         #endregion
         #region gradients
         [NotNull] private Tensor _weightsAndBiasesGradients;
         [NotNull] private readonly List<Tensor> _weight_ih_gradients = new();
-        [NotNull] private readonly List<Tensor> _weights_hh_gradients = new();
+        [NotNull] private readonly List<Tensor> _weight_hh_gradients = new();
         [NotNull] private readonly List<Tensor> _bias_ih_gradients = new();
         [NotNull] private readonly List<Tensor> _bias_hh_gradients = new ();
         #endregion
 
         private readonly bool _returnSequences;
-        private readonly bool IsEncoder;
+        private readonly bool IsEncoderThatWillBeFollowedByDecoder;
         private readonly RNNDescriptor _rnnDescriptor;
         /// <summary>
         /// when returnSequences is false and we are in training mode (not inference) :
@@ -72,9 +72,32 @@ namespace SharpNet.Layers
         public bool IsBidirectional => _rnnDescriptor.dirMode == cudnnDirectionMode_t.CUDNN_BIDIRECTIONAL;
 
         #region constructor
-        public RecurrentLayer(int hiddenSize, cudnnRNNMode_t cellMode, cudnnRNNBiasMode_t biasMode, bool returnSequences, bool isBidirectional, int numLayers, double dropoutRate, bool isEncoder, int encoderLayerIndexIfAny, bool trainable, Network network, string layerName) : 
-            base(network, 
-                encoderLayerIndexIfAny>=0?new []{ network.Layers.Count-1, encoderLayerIndexIfAny} :new[]{ network.Layers.Count - 1 },
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="hiddenSize"></param>
+        /// <param name="cellMode"></param>
+        /// <param name="biasMode"></param>
+        /// <param name="returnSequences"></param>
+        /// <param name="isBidirectional"></param>
+        /// <param name="numLayers"></param>
+        /// <param name="dropoutRate"></param>
+        /// <param name="isEncoderThatWillBeFollowedByDecoder">
+        /// if True:
+        ///      the Layer is an Encoder that will be followed by a Decoder
+        /// </param>
+        /// <param name="encoderLayerIndexIfLayerIsDecoder">
+        /// If >= 0:
+        ///     the layer is a Decoder, and the index of the associated encoder layer is at 'encoderLayerIndexIfLayerIsDecoder'
+        /// </param>
+        /// <param name="trainable"></param>
+        /// <param name="network"></param>
+        /// <param name="layerName"></param>
+        /// <exception cref="NotImplementedException"></exception>
+        /// <exception cref="ArgumentException"></exception>
+        public RecurrentLayer(int hiddenSize, cudnnRNNMode_t cellMode, cudnnRNNBiasMode_t biasMode, bool returnSequences, bool isBidirectional, int numLayers, double dropoutRate, bool isEncoderThatWillBeFollowedByDecoder, int encoderLayerIndexIfLayerIsDecoder, bool trainable, Network network, string layerName) : 
+            base(network,
+                encoderLayerIndexIfLayerIsDecoder >= 0?new []{ network.Layers.Count-1, encoderLayerIndexIfLayerIsDecoder } :new[]{ network.Layers.Count - 1 },
                 layerName)
         {
             if (!Network.UseGPU)
@@ -101,11 +124,15 @@ namespace SharpNet.Layers
                 auxFlags);
 
             _returnSequences = returnSequences;
-            IsEncoder = isEncoder;
+            IsEncoderThatWillBeFollowedByDecoder = isEncoderThatWillBeFollowedByDecoder;  
             Trainable = trainable;
-            if (IsEncoder && _returnSequences)
+            if (IsEncoderThatWillBeFollowedByDecoder && _returnSequences)
             {
                 throw new ArgumentException("an Encoder can not return a sequence");
+            }
+            if (IsEncoderThatWillBeFollowedByDecoder && encoderLayerIndexIfLayerIsDecoder != -1)
+            {
+                throw new ArgumentException("an Encoder do not need the index that will be used by the decoder: it does not need it");
             }
 
             _cudnnRNNDescriptor_t = Network.GpuWrapper.RNNDesc(_rnnDescriptor);
@@ -129,11 +156,11 @@ namespace SharpNet.Layers
         /// <summary>
         /// Initialize the 8 following lists:
         ///     _weight_ih
-        ///     _weights_hh
+        ///     _weight_hh
         ///     _bias_ih  
         ///     _bias_hh
         ///     _weight_ih_gradients
-        ///     _weights_hh_gradients
+        ///     _weight_hh_gradients
         ///     _bias_ih_gradients
         ///     _bias_hh_gradients 
         /// </summary>
@@ -179,7 +206,7 @@ namespace SharpNet.Layers
             {
                 return isGradientList ? _weight_ih_gradients : _weight_ih;
             }
-            return isGradientList ? _weights_hh_gradients : _weights_hh;
+            return isGradientList ? _weight_hh_gradients : _weight_hh;
         }
 
 
@@ -194,7 +221,7 @@ namespace SharpNet.Layers
             Debug.Assert(tensorShape[0] == 1);
             Debug.Assert(!isBias || tensorShape[2] == 1);
             var actualShape = isBias
-                ? new[] {1, tensorShape[1] }                //for bias, tensorShape will be: {1, rows, 1}
+                ? new[] {tensorShape[1] }                   //for bias, tensorShape will be: {rows}
                 : new[] {tensorShape[1], tensorShape[2]};   //for weights, tensorShape will be: {1, rows, cols}
             return new GPUTensor<float>(actualShape, tensorAddress, Network.GpuWrapper);
         }
@@ -203,7 +230,7 @@ namespace SharpNet.Layers
         public override void ResetParameters(bool resetAlsoOptimizerWeights = true)
         {
             _weightsAndBiases.ZeroMemory();
-            _weights_hh.ForEach(t=>t.Orthogonal(Rand));
+            _weight_hh.ForEach(t=>t.Orthogonal(Rand));
             _weight_ih.ForEach(t => t.GlorotUniform(Rand));
         }
         #endregion
@@ -216,7 +243,7 @@ namespace SharpNet.Layers
             {
                 return "Decoder" + (IsBidirectional ? " Bidirectional" : "");
             }
-            if (IsEncoder)
+            if (IsEncoderThatWillBeFollowedByDecoder)
             {
                 return "Encoder" + (IsBidirectional ? " Bidirectional" : "");
             }
@@ -249,6 +276,10 @@ namespace SharpNet.Layers
             {
                 result += "_" + countBefore;
             }
+            if (_returnSequences)
+            {
+                result += "_return_sequences";
+            }
             return result;
         }
 
@@ -279,7 +310,7 @@ namespace SharpNet.Layers
             Debug.Assert(x.Shape[2] == InputSize);
             Debug.Assert(x.Shape.Length == 3);
 
-            var (y, cy) = IsEncoder? ExtractEncoderContextVector(yFull):(yFull,null);
+            var (y, cy) = IsEncoderThatWillBeFollowedByDecoder? ExtractEncoderContextVector(yFull):(yFull,null);
             var (hx, cx) = IsDecoder ? ExtractEncoderContextVector(allX[1]) : (null, null);
 
             var xRnnDataDesc = Network.GpuWrapper.RNNDataDesc(dataType, timeSteps, batchSize, InputSize);
@@ -372,7 +403,7 @@ namespace SharpNet.Layers
             var timeSteps = x.Shape[1];
             Debug.Assert(x.Shape[2] == InputSize);
 
-            var (dy, dcy) = IsEncoder ? ExtractEncoderContextVector(dyFull) : (dyFull, null);
+            var (dy, dcy) = IsEncoderThatWillBeFollowedByDecoder ? ExtractEncoderContextVector(dyFull) : (dyFull, null);
             var (hx, cx) = IsDecoder ? ExtractEncoderContextVector(allX[1]) : (null, null);
             var (dhx, dcx) = IsDecoder ? ExtractEncoderContextVector(dxList[1]) : (null, null);
 
@@ -524,14 +555,45 @@ namespace SharpNet.Layers
             //TODO : be able to disable bias
             return 0;
         }
+
+
+
+        private string ParameterExtension(int layerIndex)
+        {
+            if (IsBidirectional)
+            {
+                if (layerIndex % 2 == 0)
+                {
+                    return "_l" + (layerIndex/2);
+                }
+                return "_l" + (layerIndex / 2)+"_reverse";
+            }
+            else
+            {
+                return "_l" + layerIndex; 
+            }
+        }
         public override List<Tuple<Tensor, string>> Parameters
         {
             get
             {
-                var result = new List<Tuple<Tensor, string>>
+                var result = new List<Tuple<Tensor, string>>();
+                for (int i = 0; i < _weight_ih.Count; ++i)
                 {
-                    Tuple.Create(_weightsAndBiases, WeightDatasetPath),
-                };
+                    result.Add(Tuple.Create(_weight_ih[i], DatasetNameToDatasetPath("weight_ih" + ParameterExtension(i) )));
+                }
+                for (int i = 0; i < _weight_hh.Count; ++i)
+                {
+                    result.Add(Tuple.Create(_weight_hh[i], DatasetNameToDatasetPath("weight_hh" + ParameterExtension(i))));
+                }
+                for (int i = 0; i < _bias_ih.Count; ++i)
+                {
+                    result.Add(Tuple.Create(_bias_ih[i], DatasetNameToDatasetPath("bias_ih" + ParameterExtension(i))));
+                }
+                for (int i = 0; i < _bias_hh.Count; ++i)
+                {
+                    result.Add(Tuple.Create(_bias_hh[i], DatasetNameToDatasetPath("bias_hh" + ParameterExtension(i))));
+                }
                 result.RemoveAll(t => t.Item1 == null);
                 return result;
             }
@@ -583,36 +645,34 @@ namespace SharpNet.Layers
             }
         }
 #endregion
-
-        private string WeightDatasetPath => DatasetNameToDatasetPath("kernel:0");
-
 #region serialization
         public override string Serialize()
         {
             return RootSerializer()
                 .Add(nameof(HiddenSize), HiddenSize)
-                .Add(nameof(CellMode), (int)CellMode)
-                .Add(nameof(BiasMode), (int)BiasMode)
+                .Add(nameof(CellMode), CellMode.ToString())
+                .Add(nameof(BiasMode), BiasMode.ToString())
                 .Add(nameof(_returnSequences), _returnSequences)
                 .Add(nameof(IsBidirectional), IsBidirectional)
                 .Add(nameof(NumLayers), NumLayers)
                 .Add(nameof(DropoutRate), DropoutRate)
+                .Add(nameof(IsEncoderThatWillBeFollowedByDecoder), IsEncoderThatWillBeFollowedByDecoder)
                 .ToString();
         }
         public static RecurrentLayer Deserialize(IDictionary<string, object> serialized, Network network)
         {
             var previousLayerIndexes = (int[]) serialized[nameof(PreviousLayerIndexes)];
-            int encoderLayerIndexIfAny = previousLayerIndexes.Length >= 2 ? previousLayerIndexes[1] : -1;
+            int encoderLayerIndexIfLayerIsDecoder = previousLayerIndexes.Length >= 2 ? previousLayerIndexes[1] : -1;
             return new RecurrentLayer(
                 (int) serialized[nameof(HiddenSize)],
-                (cudnnRNNMode_t) serialized[nameof(CellMode)],
-                (cudnnRNNBiasMode_t) serialized[nameof(BiasMode)],
+                (cudnnRNNMode_t)Enum.Parse(typeof(cudnnRNNMode_t), (string)serialized[nameof(CellMode)]),
+                (cudnnRNNBiasMode_t)Enum.Parse(typeof(cudnnRNNBiasMode_t), (string)serialized[nameof(BiasMode)]),
                 (bool) serialized[nameof(_returnSequences)],
                 (bool) serialized[nameof(IsBidirectional)],
                 (int) serialized[nameof(NumLayers)],
                 (double) serialized[nameof(DropoutRate)],
-                (bool) serialized[nameof(IsEncoder)],
-                encoderLayerIndexIfAny,
+                (bool) serialized[nameof(IsEncoderThatWillBeFollowedByDecoder)],
+                encoderLayerIndexIfLayerIsDecoder,
                 (bool) serialized[nameof(Trainable)],
                 network,
                 (string) serialized[nameof(LayerName)]);
@@ -656,7 +716,8 @@ namespace SharpNet.Layers
                 constructorLines.Add("torch.nn.init.zeros_(self." + LayerName + "." + biasParam + ")");
             }
 
-            string variableNamExtension = _returnSequences ? "" : "_return_sequences";
+            //string variableNamExtension = "_return_sequences_"+ Utils.ToPython(_returnSequences);
+            string variableNamExtension = "";
 
             forwardLines.Add(GetPyTorchOutputVariableName()+ variableNamExtension + ", "+ GetPyTorchOutputVariableName() + "_hidden"+variableNamExtension +" = self." + LayerName + "(" + GetInputVariableName() + ")");
             if (!_returnSequences)
@@ -701,7 +762,7 @@ namespace SharpNet.Layers
         public override int[] OutputShape(int batchSize)
         {
             int timeSteps = PrevLayer.OutputShape(1)[1];
-            return _rnnDescriptor.Y_Shape(_returnSequences, timeSteps, batchSize, IsEncoder);
+            return _rnnDescriptor.Y_Shape(_returnSequences, timeSteps, batchSize, IsEncoderThatWillBeFollowedByDecoder);
         }
     }
 }

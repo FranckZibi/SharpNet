@@ -19,8 +19,8 @@ public class WideResNetNetworkSample : NetworkSample
     /// any value > 0 will enable dropout
     /// </summary>
     public double WRN_DropOut;
-    public double WRN_DropOutAfterDenseLayer;
-    public POOLING_BEFORE_DENSE_LAYER WRN_PoolingBeforeDenseLayer = POOLING_BEFORE_DENSE_LAYER.AveragePooling_2;
+    public double WRN_DropOutAfterLinearLayer;
+    public POOLING_BEFORE_DENSE_LAYER WRN_PoolingBeforeLinearLayer = POOLING_BEFORE_DENSE_LAYER.AveragePooling_2;
     #endregion
 
 
@@ -44,11 +44,11 @@ public class WideResNetNetworkSample : NetworkSample
             //specific to WideResNetNetworkSample
             WRN_DropOut = 0.0, //by default we disable dropout
                                //Validated in 24-feb-2020 : +5bps, and independent of input picture size 
-            WRN_PoolingBeforeDenseLayer = POOLING_BEFORE_DENSE_LAYER.GlobalAveragePooling_And_GlobalMaxPooling,
-            //DropOutAfterDenseLayer = 0.3; //discarded on 05-june-2019: -136 bps
+            WRN_PoolingBeforeLinearLayer = POOLING_BEFORE_DENSE_LAYER.GlobalAveragePooling_And_GlobalMaxPooling,
+            //DropOutAfterLinearLayer = 0.3; //discarded on 05-june-2019: -136 bps
             //WRN_AvgPoolingSize = 2, 
             //discarded on 24-feb-2020: using Global Average Pooling + Global Max Pooling Instead
-            WRN_DropOutAfterDenseLayer = 0,
+            WRN_DropOutAfterLinearLayer = 0,
 
             //Data augmentation
             DataAugmentationType = ImageDataGenerator.DataAugmentationEnum.DEFAULT,
@@ -92,8 +92,8 @@ public class WideResNetNetworkSample : NetworkSample
 
             //wideResNetNetworkSample.
             WRN_DropOut = 0.0,
-            WRN_PoolingBeforeDenseLayer = POOLING_BEFORE_DENSE_LAYER.AveragePooling_2,
-            WRN_DropOutAfterDenseLayer = 0,
+            WRN_PoolingBeforeLinearLayer = POOLING_BEFORE_DENSE_LAYER.AveragePooling_2,
+            WRN_DropOutAfterLinearLayer = 0,
 
             //Data augmentation
             DataAugmentationType = ImageDataGenerator.DataAugmentationEnum.DEFAULT,
@@ -187,37 +187,37 @@ public class WideResNetNetworkSample : NetworkSample
         }
         network.BatchNorm_Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU);
 
-        if (WRN_PoolingBeforeDenseLayer == POOLING_BEFORE_DENSE_LAYER.AveragePooling_2)
+        if (WRN_PoolingBeforeLinearLayer == POOLING_BEFORE_DENSE_LAYER.AveragePooling_2)
         {
             network.AvgPooling(2, 2, 2, 2);
         }
-        else if (WRN_PoolingBeforeDenseLayer == POOLING_BEFORE_DENSE_LAYER.AveragePooling_8)
+        else if (WRN_PoolingBeforeLinearLayer == POOLING_BEFORE_DENSE_LAYER.AveragePooling_8)
         {
             network.AvgPooling(8, 8, 8, 8);
         }
-        else if (WRN_PoolingBeforeDenseLayer == POOLING_BEFORE_DENSE_LAYER.GlobalAveragePooling)
+        else if (WRN_PoolingBeforeLinearLayer == POOLING_BEFORE_DENSE_LAYER.GlobalAveragePooling)
         {
             network.GlobalAvgPooling();
         }
-        else if (WRN_PoolingBeforeDenseLayer == POOLING_BEFORE_DENSE_LAYER.GlobalAveragePooling_And_GlobalMaxPooling)
+        else if (WRN_PoolingBeforeLinearLayer == POOLING_BEFORE_DENSE_LAYER.GlobalAveragePooling_And_GlobalMaxPooling)
         {
             network.GlobalAvgPooling_And_GlobalMaxPooling();
         }
-        else if (WRN_PoolingBeforeDenseLayer == POOLING_BEFORE_DENSE_LAYER.GlobalMaxPooling)
+        else if (WRN_PoolingBeforeLinearLayer == POOLING_BEFORE_DENSE_LAYER.GlobalMaxPooling)
         {
             network.GlobalMaxPooling(network.Layers.Count - 1);
         }
 
 
-        if (WRN_DropOutAfterDenseLayer > 0)
+        if (WRN_DropOutAfterLinearLayer > 0)
         {
-            network.Dense(numClass, config.lambdaL2Regularization, false)
-                .Dropout(WRN_DropOutAfterDenseLayer)
+            network.Linear(numClass, true, config.lambdaL2Regularization, false)
+                .Dropout(WRN_DropOutAfterLinearLayer)
                 .Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
         }
         else
         {
-            network.Dense(numClass, config.lambdaL2Regularization, false)
+            network.Linear(numClass, true, config.lambdaL2Regularization, false)
                 .Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
         }
         return network;
