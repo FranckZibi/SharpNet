@@ -25,10 +25,10 @@ namespace SharpNetTests
             var network = GetNetwork();
             network
                 .Input(X.Shape[1], X.Shape[2], X.Shape[3])
-                .Linear(Y.Shape[1], true, 0.0, false)
+                .Linear(Y.Shape[1], true, false)
                 .Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU);
             network.Predict(X, true);
-            var linearLayer = (LinearLayer)network.Layers[1];
+            var linearLayer = (Linear)network.Layers[1];
             //We test the gradients computation for weights
             CompareExpectedVsObservedGradients(network, linearLayer, false, X, Y, _rand);
             //We test the gradients computation for bias
@@ -44,8 +44,8 @@ namespace SharpNetTests
             network.Sample.ConvolutionAlgoPreference = GPUWrapper.ConvolutionAlgoPreference.FASTEST_DETERMINIST_NO_TRANSFORM;
             network
                 .Input(X.Shape[1], X.Shape[2], X.Shape[3])
-                .Convolution(3, 3,1,ConvolutionLayer.PADDING_TYPE.SAME, 0.0, true)
-                .Linear(Y.Shape[1], true, 0.0, false)
+                .Convolution(3, 3,1,ConvolutionLayer.PADDING_TYPE.SAME, true)
+                .Linear(Y.Shape[1], true, false)
                 .Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU);
             network.Predict(X, true);
             var convLayer = (ConvolutionLayer)network.Layers[1];
@@ -64,8 +64,8 @@ namespace SharpNetTests
             network.Sample.ConvolutionAlgoPreference = GPUWrapper.ConvolutionAlgoPreference.FASTEST_DETERMINIST_NO_TRANSFORM;
             network
                 .Input(X.Shape[1], X.Shape[2], X.Shape[3])
-                .DepthwiseConvolution(3, 1, ConvolutionLayer.PADDING_TYPE.SAME, 1, 0.0, true )
-                .Linear(Y.Shape[1], true, 0.0, false)
+                .DepthwiseConvolution(3, 1, ConvolutionLayer.PADDING_TYPE.SAME, 1, true)
+                .Linear(Y.Shape[1], true, false)
                 .Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU);
             network.Predict(X, true);
             var convLayer = (ConvolutionLayer)network.Layers[1];
@@ -83,7 +83,7 @@ namespace SharpNetTests
             var network = GetNetwork();
             network
                 .Input(X.Shape[1], X.Shape[2], X.Shape[3])
-                .BatchNorm(1.0, 1e-5).Linear(Y.Shape[1], true, 0.0, false)
+                .BatchNorm(1.0, 1e-5).Linear(Y.Shape[1], true, false)
                 .Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_ELU);
             network.Predict(X, true);
             //n.SaveLayers();

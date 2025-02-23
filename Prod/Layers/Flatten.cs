@@ -5,10 +5,10 @@ using SharpNet.Networks;
 
 namespace SharpNet.Layers;
 
-public class FlattenLayer : Layer
+public class Flatten : Layer
 {
-    private readonly int _start_dim;
-    private readonly int _end_dim;
+    private readonly int start_dim;
+    private readonly int end_dim;
 
     /// <summary>
     /// convert the input tensor to a new Tensor by aggregating all dimensions between shape[start_dim] and shape[end_dim] (included)
@@ -23,11 +23,11 @@ public class FlattenLayer : Layer
     /// <param name="end_dim">last dim to flatten</param>
     /// <param name="network"></param>
     /// <param name="layerName"></param>
-    public FlattenLayer(int start_dim, int end_dim, Network network, string layerName = "") : base(network, layerName)
+    public Flatten(int start_dim, int end_dim, Network network, string layerName = "") : base(network, layerName)
     {
         Debug.Assert(end_dim < 0 || end_dim >= start_dim);
-        _start_dim = start_dim;
-        _end_dim = end_dim;
+        this.start_dim = start_dim;
+        this.end_dim = end_dim;
     }
 
     #region forward and backward propagation
@@ -56,13 +56,13 @@ public class FlattenLayer : Layer
     public override string Serialize()
     {
         return RootSerializer()
-            .Add(nameof(_start_dim), _start_dim)
-            .Add(nameof(_end_dim), _end_dim)
+            .Add(nameof(start_dim), start_dim)
+            .Add(nameof(end_dim), end_dim)
             .ToString();
     }
-    public static FlattenLayer Deserialize(IDictionary<string, object> serialized, Network network)
+    public static Flatten Deserialize(IDictionary<string, object> serialized, Network network)
     {
-        return new FlattenLayer(serialized.GetOrDefault(nameof(_start_dim), 1), serialized.GetOrDefault(nameof(_end_dim), -1), network, (string)serialized[nameof(LayerName)]);
+        return new Flatten(serialized.GetOrDefault(nameof(start_dim), 1), serialized.GetOrDefault(nameof(end_dim), -1), network, (string)serialized[nameof(LayerName)]);
     }
     public override void AddToOtherNetwork(Network otherNetwork) { AddToOtherNetwork(otherNetwork, Deserialize); }
     #endregion
@@ -71,7 +71,7 @@ public class FlattenLayer : Layer
     #region PyTorch support
     public override void ToPytorchModule(List<string> constructorLines, List<string> forwardLines)
     {
-        constructorLines.Add("self." + LayerName + " = torch.nn.Flatten(start_dim="+ _start_dim+"0, end_dim=" + _end_dim+ ")");
+        constructorLines.Add("self." + LayerName + " = torch.nn.Flatten(start_dim="+ start_dim+", end_dim=" + end_dim+ ")");
         UpdateForwardLines(forwardLines);
     }
 
@@ -79,7 +79,7 @@ public class FlattenLayer : Layer
     public override int[] OutputShape(int batchSize)
     {
         var inputShape = PrevLayer.OutputShape(batchSize);
-        return OutputShapeAfterFlatten(inputShape, _start_dim, _end_dim);
+        return OutputShapeAfterFlatten(inputShape, start_dim, end_dim);
     }
 
     public static int[] OutputShapeAfterFlatten(int[] initialShape, int start_dim, int end_dim)

@@ -7,7 +7,7 @@ using SharpNet.Networks;
 
 namespace SharpNet.Layers
 {
-    public class MultiplyLayer : Layer
+    public class Multiply : Layer
     {
         private static bool ShouldInvertInputMatrices(int mainMatrixLayerIndex, int diagonalMatrixLayerIndex, Network network)
         {
@@ -15,7 +15,7 @@ namespace SharpNet.Layers
         }
 
 
-        public MultiplyLayer(int mainMatrixLayerIndex, int diagonalMatrixLayerIndex, Network network, string layerName) : base(network, ShouldInvertInputMatrices(mainMatrixLayerIndex, diagonalMatrixLayerIndex, network) ?new []{ diagonalMatrixLayerIndex , mainMatrixLayerIndex}: new[] { mainMatrixLayerIndex, diagonalMatrixLayerIndex },  layerName)
+        public Multiply(int mainMatrixLayerIndex, int diagonalMatrixLayerIndex, Network network, string layerName) : base(network, ShouldInvertInputMatrices(mainMatrixLayerIndex, diagonalMatrixLayerIndex, network) ?new []{ diagonalMatrixLayerIndex , mainMatrixLayerIndex}: new[] { mainMatrixLayerIndex, diagonalMatrixLayerIndex },  layerName)
         {
             Debug.Assert(LayerIndex >= 2);
             if (!ValidLayerShapeToMultiply(PreviousLayerMainMatrix.OutputShape(1), PreviousLayerDiagonalMatrix.OutputShape(1)))
@@ -67,10 +67,10 @@ namespace SharpNet.Layers
         #endregion
 
         #region serialization
-        public static MultiplyLayer Deserialize(IDictionary<string, object> serialized, Network network)
+        public static Multiply Deserialize(IDictionary<string, object> serialized, Network network)
         {
             var previousLayerIndexes = (int[])serialized[nameof(PreviousLayerIndexes)];
-            return new MultiplyLayer(previousLayerIndexes[0], previousLayerIndexes[1], network, (string)serialized[nameof(LayerName)]);
+            return new Multiply(previousLayerIndexes[0], previousLayerIndexes[1], network, (string)serialized[nameof(LayerName)]);
         }
         public override void AddToOtherNetwork(Network otherNetwork) { AddToOtherNetwork(otherNetwork, Deserialize); }
         #endregion

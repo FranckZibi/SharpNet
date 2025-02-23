@@ -16,20 +16,20 @@ namespace SharpNet.Layers;
 /// =======================================================================================================
 /// input 'x' shape                                     output 'y' shape
 /// =======================================================================================================
-/// (batchSize, timeSteps)                              (batchSize, timeSteps, EmbeddingDim)
+/// (batchSize, timeSteps)                              (batchSize, timeSteps, embedding_dim)
 /// =======================================================================================================
-/// (batchSize, input_length)                           (batchSize, input_length+EmbeddingDim-1)
+/// (batchSize, input_length)                           (batchSize, input_length+embedding_dim-1)
 /// =======================================================================================================
-/// (batchSize, timeSteps, input_length)                (batchSize, timeSteps, input_length+EmbeddingDim-1)
+/// (batchSize, timeSteps, input_length)                (batchSize, timeSteps, input_length+embedding_dim-1)
 /// =======================================================================================================
 /// </summary>
 public sealed class EmbeddingLayer : Layer
 {
     #region Private fields
-        
+
     #region trainable parameters
     /// <summary>
-    /// Word Embedding, of shape: (VocabularySize, EmbeddingDim)
+    /// Word Embedding, of shape: (num_embeddings, embedding_dim)
     /// </summary>
     [NotNull] private Tensor _weights;
     #endregion
@@ -49,26 +49,22 @@ public sealed class EmbeddingLayer : Layer
 
     /// <summary>
     /// each element is the description of an embedding:
-    ///     vocabularySize:
+    ///     num_embeddings:
     ///         Size of the vocabulary, i.e. maximum integer index + 1
     ///         In the input 'x' tensor:
-    ///         each wordIndex element must be in [0, VocabularySize-1]
-    ///     embeddingDim:
+    ///         each wordIndex element must be in [0, num_embeddings-1]
+    ///     embedding_dim:
     ///         Dimension of the dense embedding
     ///     featureIndexInLastDimensionToUse:
     ///         index in last dimension of input tensor where to find the index of the feature to embed
     ///     embeddingTensorIndex:
     ///         index of the embedding tensor to use (in field 'EmbeddingTensors')
     /// </summary>
-    private readonly List<(int vocabularySize, int embeddingDim, int indexInLastDimensionToUse, int embeddingTensorIndex)> EmbeddingDescriptions;
+    private readonly List<(int num_embeddings, int embedding_dim, int indexInLastDimensionToUse, int embeddingTensorIndex)> EmbeddingDescriptions;
 
-    private readonly List<(int vocabularySize, int embeddingDim)> EmbeddingTensorShapes;
+    private readonly List<(int num_embeddings, int embedding_dim)> EmbeddingTensorShapes;
 
 
-    /// <summary>
-    /// regularization hyper parameter. 0 if no L2 regularization
-    /// </summary>
-    private readonly double LambdaL2Regularization;
     /// <summary>
     /// if value > 0 
     ///     clip values of weights gradients in range [-ClipValueForGradients, ClipValueForGradients]
@@ -76,28 +72,24 @@ public sealed class EmbeddingLayer : Layer
     ///     do not clip values
     /// </summary>
     private readonly float ClipValueForGradients;
-    /// <summary>
-    /// true if we should divide the weight gradients by the time steps
-    /// </summary>
-    private readonly bool DivideGradientsByTimeSteps;
     #endregion
 
 
 
-    public static List<(int vocabularySize, int embeddingDim, int indexInLastDimensionToUse, int embeddingTensorIndex)> ToEmbeddingLayerDescription(
-        int[] vocabularySizes,
-        int[] embeddingDims,
+    public static List<(int num_embeddings, int embedding_dim, int indexInLastDimensionToUse, int embeddingTensorIndex)> ToEmbeddingLayerDescription(
+        int[] num_embeddings_array,
+        int[] embedding_dim_array,
         int[] indexesInLastDimensionToUse, 
         int[] embeddingTensorIndex)
     {
-        List<(int vocabularySize, int embeddingDim, int indexInLastDimensionToUse, int embeddingTensorIndex)> result = new();
-        if (vocabularySizes.Length != embeddingDims.Length || vocabularySizes.Length != indexesInLastDimensionToUse.Length)
+        List<(int num_embeddings, int embedding_dim, int indexInLastDimensionToUse, int embeddingTensorIndex)> result = new();
+        if (num_embeddings_array.Length != embedding_dim_array.Length || num_embeddings_array.Length != indexesInLastDimensionToUse.Length)
         {
-            throw new ArgumentException($"input are not the same length : {vocabularySizes.Length} vs {embeddingDims.Length} vs {indexesInLastDimensionToUse.Length}");
+            throw new ArgumentException($"input are not the same length : {num_embeddings_array.Length} vs {embedding_dim_array.Length} vs {indexesInLastDimensionToUse.Length}");
         }
-        for (int i = 0; i < vocabularySizes.Length; i++)
+        for (int i = 0; i < num_embeddings_array.Length; i++)
         {
-            result.Add((vocabularySizes[i], embeddingDims[i], indexesInLastDimensionToUse[i], embeddingTensorIndex[i]));
+            result.Add((num_embeddings_array[i], embedding_dim_array[i], indexesInLastDimensionToUse[i], embeddingTensorIndex[i]));
         }
         return result;
     }
@@ -106,10 +98,8 @@ public sealed class EmbeddingLayer : Layer
 
     #region constructor
     public EmbeddingLayer(
-        IEnumerable<(int vocabularySize, int embeddingDim, int indexInLastDimensionToUse, int embeddingTensorIndex)> embeddingDescriptions,
-        double lambdaL2Regularization,
+        IEnumerable<(int num_embeddings, int embedding_dim, int indexInLastDimensionToUse, int embeddingTensorIndex)> embeddingDescriptions,
         float clipValueForGradients,
-        bool divideGradientsByTimeSteps,
         bool trainable, Network network, string layerName) : base(network, layerName)
     {
         EmbeddingDescriptions = embeddingDescriptions.OrderBy(t => t.indexInLastDimensionToUse).ToList();
@@ -119,14 +109,12 @@ public sealed class EmbeddingLayer : Layer
         {
             throw new ArgumentException($"only 1 element is allowed if indexesInLastDimensionToUse = {EmbeddingDescriptions[0].indexInLastDimensionToUse}");
         }
-        LambdaL2Regularization = lambdaL2Regularization;
         ClipValueForGradients = clipValueForGradients;
-        DivideGradientsByTimeSteps = divideGradientsByTimeSteps;
-
+        
         Trainable = trainable;
 
         //trainable params
-        int weightColumns = EmbeddingTensorShapes.Select(t=>t.vocabularySize*t.embeddingDim).Sum();
+        int weightColumns = EmbeddingTensorShapes.Select(t=>t.num_embeddings*t.embedding_dim).Sum();
         _weights = GetFloatTensor(new[] { 1, weightColumns });
         _weightGradients = GetFloatTensor(_weights.Shape);
 
@@ -134,21 +122,21 @@ public sealed class EmbeddingLayer : Layer
         ResetParameters(false);
     }
 
-    private static List<(int vocabularySize, int embeddingDim)> ExtractEmbeddingTensorShapes(List<(int vocabularySize, int embeddingDim, int indexInLastDimensionToUse, int embeddingTensorIndex)> embeddingDescriptions)
+    private static List<(int num_embeddings, int embedding_dim)> ExtractEmbeddingTensorShapes(List<(int num_embeddings, int embedding_dim, int indexInLastDimensionToUse, int embeddingTensorIndex)> embeddingDescriptions)
     {
-        IDictionary<int, (int vocabularySize, int embeddingDim)> allEmbeddingTensors = new Dictionary<int, (int vocabularySize, int embeddingDim)>();
+        IDictionary<int, (int num_embeddings, int embedding_dim)> allEmbeddingTensors = new Dictionary<int, (int num_embeddings, int embedding_dim)>();
         foreach (var c in embeddingDescriptions)
         {
             if (!allEmbeddingTensors.ContainsKey(c.embeddingTensorIndex))
             {
-                allEmbeddingTensors[c.embeddingTensorIndex] = (c.vocabularySize, c.embeddingDim);
+                allEmbeddingTensors[c.embeddingTensorIndex] = (c.num_embeddings, c.embedding_dim);
             }
             else
             {
                 var observedTensor = allEmbeddingTensors[c.embeddingTensorIndex];
-                if (observedTensor.vocabularySize != c.vocabularySize || observedTensor.embeddingDim != c.embeddingDim)
+                if (observedTensor.num_embeddings != c.num_embeddings || observedTensor.embedding_dim != c.embedding_dim)
                 {
-                    throw new ArgumentException($"embedding tensor {c.embeddingTensorIndex} has already been defined with different vocabularySize or embeddingDim");
+                    throw new ArgumentException($"embedding tensor {c.embeddingTensorIndex} has already been defined with different num_embeddings or embedding_dim");
                 }
             }
         }
@@ -173,7 +161,7 @@ public sealed class EmbeddingLayer : Layer
 
         // we'll ensure that in all cases:
         //  the x shape is (batchSize, timeSteps, input_length)
-        //  the y shape is (batchSize, timeSteps, input_length+EmbeddingDim-1)
+        //  the y shape is (batchSize, timeSteps, input_length+embedding_dim-1)
         if (x.Shape.Length == 2)
         {
             if (ShouldEmbedEachElementOfLastDimension)
@@ -185,7 +173,7 @@ public sealed class EmbeddingLayer : Layer
             {
                 //x shape from (batchSize, input_length) to (batchSize, 1, input_length)
                 x.ReshapeInPlace(new [] { x.Shape[0], 1, x.Shape[1] });
-                //y shape from (batchSize, input_length+EmbeddingDim-1) to (batchSize, 1, input_length+EmbeddingDim-1)
+                //y shape from (batchSize, input_length+embedding_dim-1) to (batchSize, 1, input_length+embedding_dim-1)
                 y.ReshapeInPlace(new [] { y.Shape[0], 1, y.Shape[1] });
             }
         }
@@ -216,9 +204,9 @@ public sealed class EmbeddingLayer : Layer
     {
         var res = new List<Tensor>();
         int nextIdxInWeights = 0;
-        foreach(var (vocabularySize, embeddingDim) in EmbeddingTensorShapes)
+        foreach(var (num_embeddings, embedding_dim) in EmbeddingTensorShapes)
         {
-            var shape = new[] { vocabularySize, embeddingDim};
+            var shape = new[] { num_embeddings, embedding_dim};
             res.Add(w.Slice(nextIdxInWeights, shape));
             nextIdxInWeights += shape[0] * shape[1];
         }
@@ -247,7 +235,7 @@ public sealed class EmbeddingLayer : Layer
 
         // we'll ensure that in all cases:
         //  the x shape is (batchSize, timeSteps, input_length)
-        //  the y shape is (batchSize, timeSteps, input_length+EmbeddingDim-1)
+        //  the y shape is (batchSize, timeSteps, input_length+embedding_dim-1)
         if (x.Shape.Length == 2)
         {
             if (ShouldEmbedEachElementOfLastDimension)
@@ -261,7 +249,7 @@ public sealed class EmbeddingLayer : Layer
                 //x shape from (batchSize, input_length) to (batchSize, 1, input_length)
                 x.ReshapeInPlace(new[] { x.Shape[0], 1, x.Shape[1] });
                 dx.ReshapeInPlace(x.Shape);
-                //dy shape from (batchSize, input_length+EmbeddingDim-1) to (batchSize, 1, input_length+EmbeddingDim-1)
+                //dy shape from (batchSize, input_length+embedding_dim-1) to (batchSize, 1, input_length+embedding_dim-1)
                 dy.ReshapeInPlace(new[] { dy.Shape[0], 1, dy.Shape[1] });
             }
         }
@@ -288,22 +276,16 @@ public sealed class EmbeddingLayer : Layer
         dx.ReshapeInPlace(dxOriginalShape);
         dy.ReshapeInPlace(dyOriginalShape);
 
-        if (DivideGradientsByTimeSteps)
-        {
-            int timeSteps = x.Shape[1];
-            _weightGradients.Update_Multiplying_By_Alpha(1f/ timeSteps);
-        }
-
         if (ClipValueForGradients > 1e-6)
         {
             _weightGradients.Clip(-ClipValueForGradients, ClipValueForGradients);
         }
 
-        //L2 regularization on dW
-        if (UseL2Regularization)
+        //weight_decay on dW
+        if (Sample.Use_weight_decay_in_backpropagation)
         {
             int batchSize = dy.Shape[0];
-            var alpha = 2 * batchSize * (float)LambdaL2Regularization;
+            var alpha = 2 * batchSize * (float)Sample.weight_decay;
             _weightGradients.Update_Adding_Alpha_X(alpha, _weights);
         }
 
@@ -370,28 +352,26 @@ public sealed class EmbeddingLayer : Layer
     {
         return RootSerializer()
             .Add(nameof(VocabularySizes), VocabularySizes)
-            .Add(nameof(EmbeddingDims), EmbeddingDims)
+            .Add(nameof(embedding_dim_array), embedding_dim_array)
             .Add(nameof(IndexesInLastDimensionToUse), IndexesInLastDimensionToUse)
             .Add(nameof(EmbeddingTensorIndex), EmbeddingTensorIndex)
-            .Add(nameof(LambdaL2Regularization), LambdaL2Regularization)
             .Add(nameof(ClipValueForGradients), ClipValueForGradients)
-            .Add(nameof(DivideGradientsByTimeSteps), DivideGradientsByTimeSteps)
             .ToString();
     }
 
-    public int[] VocabularySizes => EmbeddingDescriptions.Select(t => t.vocabularySize).ToArray();
-    public int[] EmbeddingDims => EmbeddingDescriptions.Select(t => t.embeddingDim).ToArray();
+    public int[] VocabularySizes => EmbeddingDescriptions.Select(t => t.num_embeddings).ToArray();
+    public int[] embedding_dim_array => EmbeddingDescriptions.Select(t => t.embedding_dim).ToArray();
     public int[] IndexesInLastDimensionToUse => EmbeddingDescriptions.Select(t => t.indexInLastDimensionToUse).ToArray();
     public int[] EmbeddingTensorIndex => EmbeddingDescriptions.Select(t => t.embeddingTensorIndex).ToArray();
 
     public static EmbeddingLayer Deserialize(IDictionary<string, object> serialized, Network network)
     {
-        int[] VocabularySizes = serialized.ContainsKey("VocabularySize")
-            ? new[] { (int)serialized["VocabularySize"] }
+        int[] VocabularySizes = serialized.ContainsKey("num_embeddings")
+            ? new[] { (int)serialized["num_embeddings"] }
             : (int[])serialized[nameof(VocabularySizes)];
-        int[] EmbeddingDims = serialized.ContainsKey("EmbeddingDim")
-            ? new[] { (int)serialized["EmbeddingDim"] }
-            : (int[])serialized[nameof(EmbeddingDims)];
+        int[] embedding_dim_array = serialized.ContainsKey("embedding_dim")
+            ? new[] { (int)serialized["embedding_dim"] }
+            : (int[])serialized[nameof(embedding_dim_array)];
         int[] IndexesInLastDimensionToUse = serialized.ContainsKey("IndexInLastDimensionToUse")
             ? new[] { (int)serialized["IndexInLastDimensionToUse"] }
             : (int[])serialized[nameof(IndexesInLastDimensionToUse)];
@@ -400,15 +380,32 @@ public sealed class EmbeddingLayer : Layer
             : (int[])serialized[nameof(EmbeddingTensorIndex)];
 
         return new EmbeddingLayer(
-            ToEmbeddingLayerDescription(VocabularySizes, EmbeddingDims, IndexesInLastDimensionToUse, EmbeddingTensorIndex),
-            (double)serialized[nameof(LambdaL2Regularization)],
+            ToEmbeddingLayerDescription(VocabularySizes, embedding_dim_array, IndexesInLastDimensionToUse, EmbeddingTensorIndex),
             (float)serialized[nameof(ClipValueForGradients)],
-            (bool)serialized[nameof(DivideGradientsByTimeSteps)],
             (bool)serialized[nameof(Trainable)],
             network,
             (string)serialized[nameof(LayerName)]);
     }
     public override void AddToOtherNetwork(Network otherNetwork) { AddToOtherNetwork(otherNetwork, Deserialize); }
+    #endregion
+
+    #region PyTorch support
+    //see : https://pytorch.org/docs/stable/generated/torch.nn.Linear.html
+    public override void ToPytorchModule(List<string> constructorLines, List<string> forwardLines)
+    {
+        var line = "self." + LayerName + " = torch.nn.Embedding(num_embeddings=" + EmbeddingTensorShapes[0].num_embeddings + ", embedding_dim=" + EmbeddingTensorShapes[0].embedding_dim + ")";
+        if (ClipValueForGradients>1e-6)
+        {
+            line += $" # ClipValueForGradients={ClipValueForGradients} is not supported in PyTorch";
+        }
+        if (EmbeddingTensorShapes.Count != 1)
+        {
+            line += $" # EmbeddingTensorShapes.Count={EmbeddingTensorShapes.Count} is not supported in PyTorch";
+        }
+        constructorLines.Add(line);
+        UpdateForwardLines(forwardLines);
+    }
+
     #endregion
 
     public override int[] OutputShape(int batchSize)
@@ -418,26 +415,20 @@ public sealed class EmbeddingLayer : Layer
         {
             Debug.Assert(IndexesInLastDimensionToUse.Length == 1);
             //Debug.Assert(prevLayerOutputShape.Length == 2);
-            outputShape = outputShape.Append(EmbeddingDims[0]).ToArray();
+            outputShape = outputShape.Append(embedding_dim_array[0]).ToArray();
             return outputShape;
         }
         else
         {
             //Debug.Assert(prevLayerOutputShape.Length == 3);
-            outputShape[^1] += EmbeddingDims.Sum() - EmbeddingDims.Length;
+            outputShape[^1] += embedding_dim_array.Sum() - embedding_dim_array.Length;
             return outputShape;
         }
     }
     public override string ToString()
     {
         var result = LayerName + ": " + ShapeChangeDescription();
-        if (UseL2Regularization)
-        {
-            result += " with L2Regularization[lambdaValue=" + LambdaL2Regularization + "]";
-        }
         result += " " + _weights + " (" + TotalParams + " neurons)";
         return result;
     }
-
-    private bool UseL2Regularization => LambdaL2Regularization > 0.0;
 }

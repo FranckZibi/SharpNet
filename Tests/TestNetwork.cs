@@ -77,22 +77,21 @@ namespace SharpNetTests
             networkFiles.ForEach(File.Delete);
         }
 
-        public static void Fit(Network network, CpuTensor<float> X, CpuTensor<float> Y, double learningRate, int num_epochs, int batchSize, DataSet testDataSet = null)
+        public static void Fit(Network network, CpuTensor<float> X, CpuTensor<float> Y, int num_epochs, int batchSize, DataSet testDataSet = null)
         {
             network.Sample.DisableReduceLROnPlateau = true;
             using var trainingDataSet = new InMemoryDataSet(X, Y);
 
-            network.Sample.InitialLearningRate = learningRate;
+            
             network.Sample.num_epochs = num_epochs;
             network.Sample.BatchSize = batchSize;
 
-            Fit(network, trainingDataSet, learningRate, num_epochs, batchSize, testDataSet);
+            Fit(network, trainingDataSet, num_epochs, batchSize, testDataSet);
         }
 
-        public static void Fit(Network network, DataSet trainingDataSet, double learningRate, int num_epochs, int batchSize, DataSet testDataSet = null)
+        public static void Fit(Network network, DataSet trainingDataSet, int num_epochs, int batchSize, DataSet testDataSet = null)
         {
             network.Sample.DisableReduceLROnPlateau = true;
-            network.Sample.InitialLearningRate = learningRate;
             network.Sample.num_epochs = num_epochs;
             network.Sample.BatchSize = batchSize;
             network.Fit(trainingDataSet, testDataSet);

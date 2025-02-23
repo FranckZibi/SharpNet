@@ -279,33 +279,34 @@ namespace SharpNetTests.NonReg
         public void TestGPUBenchmark_Speed()
         {
             var mnist = new MnistDataset();
-            const double learningRate = 0.01;
+            const double lr = 0.01;
             var network = TestNetwork.NewForTests(
                 new NetworkSample()
                 {
                     ResourceIds = new List<int> { 0 },
                     BatchSize = 64,
                     num_epochs = 5,
-                    DisableReduceLROnPlateau = true
-                }.WithAdam()
-                .WithConstantLearningRateScheduler(learningRate)
+                    DisableReduceLROnPlateau = true,
+                }.WithAdam(lr, 0.9, 0.999, 1e-8, weight_decay:0)
+                .WithConstantLearningRateScheduler(lr)
                 ,
                 NetworkSample.DefaultWorkingDirectory,
                 "GPUBenchmark"
                 );
             network
                 .Input(MnistDataset.Shape_CHW)
-                .Convolution(16, 3, 1, ConvolutionLayer.PADDING_TYPE.SAME, 0.0, true)
+                .Convolution(16, 3, 1, ConvolutionLayer.PADDING_TYPE.SAME, true)
                 .BatchNorm(0.99, 1e-5)
                 .Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU)
                 .Dropout(0.2)
                 .MaxPooling(2, 2, 2, 2)
 
-                .Convolution(32, 3, 1, ConvolutionLayer.PADDING_TYPE.SAME, 0.0, true)
+                .Convolution(32, 3, 1, ConvolutionLayer.PADDING_TYPE.SAME, true)
                 .Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU)
-                .Linear(1000, true, 0.0, false)
+                .Linear(1000, true, false)
                 .Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU)
-                .Dropout(0.2).Linear(MnistDataset.NumClass, true, 0.0, false)
+                .Dropout(0.2)
+                .Linear(MnistDataset.NumClass, true, false)
                 .Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID);
 
             var sw = Stopwatch.StartNew();
@@ -320,7 +321,7 @@ namespace SharpNetTests.NonReg
                 + network.TotalParams() + ";"
                 + network.Sample.num_epochs + ";"
                 + network.Sample.BatchSize + ";"
-                + learningRate + ";"
+                + network.Sample.InitialLearningRate + ";"
 #if DEBUG
                 +"DEBUG;"
 #else

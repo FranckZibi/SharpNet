@@ -21,10 +21,10 @@ namespace SharpNet.Layers
         /// it is equal to:
         ///     1-exponentialAverageSmoothingFactor
         ///     (see https://en.wikipedia.org/wiki/Exponential_smoothing)
-        /// The PyTorch momentum is (1 - _momentum)
+        /// The PyTorch momentum is (1 - momentum)
         /// </summary>
-        private readonly double _momentum;
-        private readonly double _epsilon;
+        private readonly double momentum;
+        private readonly double eps;
         #region trainable parameters
         /// <summary>
         /// Scale (= gammas) Tensor
@@ -68,10 +68,10 @@ namespace SharpNet.Layers
         #endregion
 
         //No need to configure the number of channels by filter: it is always the same as in previous layer
-        public BatchNormalizationLayer(double momentum, double epsilon, bool trainable, Network network, string layerName) : base(network, layerName)
+        public BatchNormalizationLayer(double momentum, double eps, bool trainable, Network network, string layerName) : base(network, layerName)
         {
-            _momentum = momentum;
-            _epsilon = epsilon;
+            this.momentum = momentum;
+            this.eps = eps;
             Trainable = trainable;
 
             var scaleAndBiasShape = ScaleAndBiasShape();
@@ -108,15 +108,15 @@ namespace SharpNet.Layers
         public override void ForwardPropagation(List<Tensor> allX, Tensor y, bool isTraining)
         {
             Debug.Assert(allX.Count == 1);
-            var exponentialAverageSmoothingFactor = 1 - _momentum;
-            allX[0].BatchNormalization(y, _scale, _bias, exponentialAverageSmoothingFactor, _resultRunningMean, _resultRunningVariance, LayerBatchNormalizationMode(), _epsilon, _meanBuffer, _invertOfUnbiasedVolatilityBuffer, isTraining);
+            var exponentialAverageSmoothingFactor = 1 - momentum;
+            allX[0].BatchNormalization(y, _scale, _bias, exponentialAverageSmoothingFactor, _resultRunningMean, _resultRunningVariance, LayerBatchNormalizationMode(), eps, _meanBuffer, _invertOfUnbiasedVolatilityBuffer, isTraining);
         }
         public override void BackwardPropagation(List<Tensor> allX, Tensor y_NotUsed, Tensor dy, List<Tensor> dx)
         {
             Debug.Assert(allX.Count == 1);
             Debug.Assert(y_NotUsed == null);
             var x = allX[0];
-            x.BatchNormalizationBackward(dy, dx[0], _scale, _scaleGradients, _biasGradients, LayerBatchNormalizationMode(), _epsilon, _meanBuffer, _invertOfUnbiasedVolatilityBuffer);
+            x.BatchNormalizationBackward(dy, dx[0], _scale, _scaleGradients, _biasGradients, LayerBatchNormalizationMode(), eps, _meanBuffer, _invertOfUnbiasedVolatilityBuffer);
         }
         public override bool OutputNeededForBackwardPropagation => false;
         #endregion
@@ -226,13 +226,13 @@ namespace SharpNet.Layers
         #region serialization
         public override string Serialize()
         {
-            return RootSerializer().Add(nameof(_epsilon), _epsilon).Add(nameof(_momentum), _momentum).ToString();
+            return RootSerializer().Add(nameof(eps), eps).Add(nameof(momentum), momentum).ToString();
         }
         public static BatchNormalizationLayer Deserialize(IDictionary<string, object> serialized, Network network)
         {
             return new BatchNormalizationLayer(
-                (double)serialized[nameof(_momentum)],
-                (double)serialized[nameof(_epsilon)],
+                (double)serialized[nameof(momentum)],
+                (double)serialized[nameof(eps)],
                 (bool)serialized[nameof(Trainable)],
                 network,
                 (string)serialized[nameof(LayerName)]);
@@ -246,15 +246,15 @@ namespace SharpNet.Layers
         {
             var input_shape = PreviousLayers.Count == 0 ? new[] { -1, -1, -1, -1 } : PreviousLayers[0].OutputShape(666);
             int num_features = input_shape[1];
-            constructorLines.Add("self." + LayerName + " = torch.nn.BatchNorm2d(num_features=" + num_features + ", eps=" + _epsilon.ToString(CultureInfo.InvariantCulture) + ", momentum=" + PyTorch_momentum().ToString(CultureInfo.InvariantCulture) + ")");
+            constructorLines.Add("self." + LayerName + " = torch.nn.BatchNorm2d(num_features=" + num_features + ", eps=" + eps.ToString(CultureInfo.InvariantCulture) + ", momentum=" + PyTorch_momentum().ToString(CultureInfo.InvariantCulture) + ")");
             UpdateForwardLines(forwardLines);
         }
         //see: https://stackoverflow.com/questions/48345857/batchnorm-momentum-convention-pytorch
-        private double PyTorch_momentum() => 1-_momentum;
+        private double PyTorch_momentum() => 1-momentum;
         #endregion
         #region Tensorflow support
         // ReSharper disable once UnusedMember.Global
-        public double Tensorflow_momentum() => _momentum;
+        public double Tensorflow_momentum() => momentum;
         #endregion
 
         public override string ToString()

@@ -108,7 +108,6 @@ public class EncoderDecoder_NetworkSample: NetworkSample
     public bool EncoderDecoder_NetworkSample_UseGPU = true;
 
     public float ClipValueForGradients = 0;
-    public bool DivideGradientsByTimeSteps = false;
     public bool Use_GRU_instead_of_LSTM = false;
     public bool Use_Bidirectional_RNN = true;
 
@@ -154,12 +153,7 @@ public class EncoderDecoder_NetworkSample: NetworkSample
 
     public override void BuildLayers(Network nn, AbstractDatasetSample datasetSample)
     {
-        nn.Input_and_Embedding_if_required(datasetSample, Pid_EmbeddingDim, lambdaL2Regularization, ClipValueForGradients);
-        //network.Input(Encoder_TimeSteps, Encoder_InputSize, -1);
-        //if (Pid_EmbeddingDim >= 1)
-        //{
-        //    network.Embedding(new[] { CFM60Entry.DISTINCT_PID_COUNT }, new[] { Pid_EmbeddingDim }, new[] { 0 }, network.Sample.lambdaL2Regularization, ClipValueForGradients, DivideGradientsByTimeSteps);
-        //}
+        nn.Input_and_Embedding_if_required(datasetSample, Pid_EmbeddingDim, ClipValueForGradients);
 
         if (InputNormalizationType == InputNormalizationEnum.BATCH_NORM_LAYER || InputNormalizationType == InputNormalizationEnum.DEDUCE_MEAN_AND_BATCH_NORM_LAYER)
         {
@@ -170,7 +164,7 @@ public class EncoderDecoder_NetworkSample: NetworkSample
 
         if (UseConv1D)
         {
-            nn.Conv1D(Encoder_TimeSteps, Conv1DKernelWidth, 1, Conv1DPaddingType, nn.Sample.lambdaL2Regularization, true);
+            nn.Conv1D(Encoder_TimeSteps, Conv1DKernelWidth, 1, Conv1DPaddingType, true);
 
             if (UseBatchNormAfterConv1D)
             {
@@ -213,7 +207,7 @@ public class EncoderDecoder_NetworkSample: NetworkSample
             nn.Input(Decoder_TimeSteps, ((DatasetSampleForTimeSeries)datasetSample).GetInputSize(false), -1);
             if (Pid_EmbeddingDim >= 1)
             {
-                nn.Embedding(new[] { CFM60Entry.DISTINCT_PID_COUNT }, new[] { Pid_EmbeddingDim }, new[] { 0 }, new[] { 0 }, nn.Sample.lambdaL2Regularization, ClipValueForGradients, DivideGradientsByTimeSteps);
+                nn.Embedding(CFM60Entry.DISTINCT_PID_COUNT, Pid_EmbeddingDim, ClipValueForGradients);
             }
             nn.DecoderLayer(encoderLayerIndex, Decoder_NumLayers, Decoder_DropoutRate);
         }
@@ -224,9 +218,9 @@ public class EncoderDecoder_NetworkSample: NetworkSample
             nn.Dropout(DropoutRate_After_EncoderDecoder);
         }
 
-        nn.Linear(DenseUnits, true, nn.Sample.lambdaL2Regularization, true)
+        nn.Linear(DenseUnits, true, true)
             .Activation(ActivationFunctionAfterFirstDense);
-        nn.Linear(1, true, nn.Sample.lambdaL2Regularization, true);
+        nn.Linear(1, true, true);
         nn.Flatten();
 
         if (WithSpecialEndV1)
@@ -266,9 +260,8 @@ public class EncoderDecoder_NetworkSample: NetworkSample
 
             // Optimizer 
             { nameof(NetworkSample.OptimizerType), new[] { "AdamW", "SGD", "Adam" /*, "VanillaSGD", "VanillaSGDOrtho"*/ } },
-            { nameof(NetworkSample.AdamW_L2Regularization), new[] { 1e-5, 1e-4, 1e-3, 1e-2, 1e-1 } },
-            { nameof(NetworkSample.SGD_usenesterov), new[] { true, false } },
-            { nameof(NetworkSample.lambdaL2Regularization), new[] { 0, 1e-5, 1e-4, 1e-3, 1e-2, 1e-1 } },
+            { nameof(NetworkSample.weight_decay), new[] {0, 1e-5, 1e-4, 1e-3, 1e-2, 1e-1 } },
+            { nameof(NetworkSample.nesterov), new[] { true, false } },
 
             // Learning Rate
             { nameof(NetworkSample.InitialLearningRate), HyperparameterSearchSpace.Range(1e-5f, 1f, HyperparameterSearchSpace.range_type.normal) },

@@ -711,11 +711,11 @@ namespace SharpNet.GPU
 
             if (isDepthwiseConvolution)
             {
-                //only depthMultiplier=1 is supported
-                int depthMultiplier = filters.Shape[0];
-                if (depthMultiplier != 1)
+                //only depth_multiplier=1 is supported
+                int depth_multiplier = filters.Shape[0];
+                if (depth_multiplier != 1)
                 {
-                    throw new NotImplementedException("only depthMultiplier=1 is supported");
+                    throw new NotImplementedException("only depth_multiplier=1 is supported");
                 }
                 Debug.Assert(inputChannelCount == y.Shape[1]);
             }
@@ -1134,20 +1134,20 @@ namespace SharpNet.GPU
             CheckStatus(res);
         }
         public override void UpdateAdamOptimizer(double learningRate, double beta1, double beta2, double epsilon,
-            double adamW_l2Regularization, Tensor dW, Tensor adam_vW, Tensor adam_sW, int timeStep)
+            double weight_decay, Tensor dW, Tensor adam_vW, Tensor adam_sW, int timeStep)
         {
             var W = this;
             var beta1_power = Math.Pow(beta1, timeStep);
             var beta2_power = Math.Pow(beta2, timeStep);
             var multiplicative_factor = learningRate * (Math.Sqrt(1.0 - beta2_power) / (1.0 - beta1_power));
-            _wrapper.RunKernel("UpdateAdamOptimizer", Count, new object[] { beta1, beta2, epsilon, adamW_l2Regularization, multiplicative_factor, dW, W, adam_vW, adam_sW });
+            _wrapper.RunKernel("UpdateAdamOptimizer", Count, new object[] { beta1, beta2, epsilon, weight_decay, multiplicative_factor, dW, W, adam_vW, adam_sW });
         }
-        public override void UpdateSGDOptimizer(double learningRate, double momentum, bool usenesterov, Tensor dW, Tensor velocity)
+        public override void UpdateSGDOptimizer(double learningRate, double momentum, bool nesterov, Tensor dW, Tensor velocity)
         {
             var W = this;
             //velocity[i] = (momentum * velocity[i]) - (dW[i] * learningRate);
             velocity.AddTensor((float)-learningRate, dW, (float)momentum);
-            if (usenesterov)
+            if (nesterov)
             {
                 //W[i] += momentum * velocity[i] - (dW[i] * learningRate);
                 W.Update_Adding_Alpha_X((float)momentum, velocity);
@@ -1534,10 +1534,10 @@ namespace SharpNet.GPU
             int batchSize = x.Shape[0];
             int timeSteps = x.Shape[1];
             int inputSize = x.Shape[2];
-            int embeddingDim = wordEmbedding.Shape[1];
+            int embedding_dim = wordEmbedding.Shape[1];
             // 'y' shape:  (batchSize, timeSteps, outputSize)
             int outputSize = y.Shape[2];
-            _wrapper.RunKernel("WordEmbeddingForwardPropagation", batchSize* timeSteps, new object[] { inputSize, outputSize, xIndexInLastDimensionToUse, yIndexInLastDimensionToUse, copyCountBeforeIndex, copyCountAfterIndex, embeddingDim, x, y, wordEmbedding});
+            _wrapper.RunKernel("WordEmbeddingForwardPropagation", batchSize* timeSteps, new object[] { inputSize, outputSize, xIndexInLastDimensionToUse, yIndexInLastDimensionToUse, copyCountBeforeIndex, copyCountAfterIndex, embedding_dim, x, y, wordEmbedding});
         }
 
         public override void WordEmbeddingBackwardPropagation( /*in*/ Tensor x, /*out*/ Tensor dx, /*in*/ Tensor dy, int dxIndexInLastDimensionToUse, int dyIndexInLastDimensionToUse, int copyCountBeforeIndex, int copyCountAfterIndex)
@@ -1556,10 +1556,10 @@ namespace SharpNet.GPU
             int batchSize = x.Shape[0];
             int timeSteps = x.Shape[1];
             int inputSize = x.Shape[2];
-            int embeddingDim = dW.Shape[1];
+            int embedding_dim = dW.Shape[1];
             // 'dy' shape:  (batchSize, timeSteps, outputSize)
             int outputSize = dy.Shape[2];
-            _wrapper.RunKernel("WordEmbeddingBackwardPropagation", batchSize* timeSteps, new object[] { inputSize, outputSize, dxIndexInLastDimensionToUse, dyIndexInLastDimensionToUse, copyCountBeforeIndex, copyCountAfterIndex, embeddingDim, x, dx, dy, dW });
+            _wrapper.RunKernel("WordEmbeddingBackwardPropagation", batchSize* timeSteps, new object[] { inputSize, outputSize, dxIndexInLastDimensionToUse, dyIndexInLastDimensionToUse, copyCountBeforeIndex, copyCountAfterIndex, embedding_dim, x, dx, dy, dW });
         }
 
         protected override int DeviceId => _wrapper.DeviceId;
@@ -1569,8 +1569,8 @@ namespace SharpNet.GPU
             Debug.Assert(Shape.Length == 3);
             int batchSize = Shape[0];
             int timeSteps = Shape[1];
-            int embeddingDim = Shape[2];
-            _wrapper.RunKernel("UpdateWithPositionalEncoding_AttnIsAllYouNeed", batchSize * timeSteps* embeddingDim, new object[] { timeSteps, embeddingDim, n, this });
+            int embedding_dim = Shape[2];
+            _wrapper.RunKernel("UpdateWithPositionalEncoding_AttnIsAllYouNeed", batchSize * timeSteps* embedding_dim, new object[] { timeSteps, embedding_dim, n, this });
         }
 
 

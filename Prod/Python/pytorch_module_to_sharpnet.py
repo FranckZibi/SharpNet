@@ -1,5 +1,4 @@
 import torch
-from sharpnet_network_config_utils import sharpnet_network_config_utils
 import utils
 from torch_fx_utils import torch_fx_utils
 from pytorch_utils import pytorch_utils
@@ -8,9 +7,9 @@ from typing import List
 
 class pytorch_module_to_sharpnet:
 
-    def value_of(node: torch.fx.node.Node, module, sharpnet_network_config, previous_nodes: List[torch.fx.node.Node]) -> str:
+    def value_of(node: torch.fx.node.Node, module, previous_nodes: List[torch.fx.node.Node]) -> str:
         if isinstance(module, torch.nn.modules.linear.Linear):
-            return pytorch_module_to_sharpnet.Linear(node, module, sharpnet_network_config, previous_nodes)
+            return pytorch_module_to_sharpnet.Linear(node, module, previous_nodes)
         if isinstance(module, torch.nn.modules.activation.MultiheadAttention):
             return  pytorch_module_to_sharpnet.MultiheadAttention(node, module, previous_nodes)
         if isinstance(module, torch.nn.modules.rnn.RNNBase):
@@ -18,9 +17,9 @@ class pytorch_module_to_sharpnet:
         if isinstance(module, torch.nn.modules.flatten.Flatten):
             return  pytorch_module_to_sharpnet.Flatten(node, module, previous_nodes)
         if isinstance(module, torch.nn.modules.conv.Conv1d):
-            return  pytorch_module_to_sharpnet.Conv1d(node, module, sharpnet_network_config, previous_nodes)
+            return  pytorch_module_to_sharpnet.Conv1d(node, module, previous_nodes)
         if isinstance(module, torch.nn.modules.conv.Conv2d):
-            return  pytorch_module_to_sharpnet.Conv2d(node, module, sharpnet_network_config, previous_nodes)
+            return  pytorch_module_to_sharpnet.Conv2d(node, module, previous_nodes)
         if isinstance(module, torch.nn.modules.pooling.AvgPool2d):
             return  pytorch_module_to_sharpnet.AvgPool2d(node, module, previous_nodes)
         if isinstance(module, torch.nn.modules.pooling.AdaptiveAvgPool2d):
@@ -37,6 +36,8 @@ class pytorch_module_to_sharpnet:
             return  pytorch_module_to_sharpnet.RMSNorm(node, module, previous_nodes)
         if isinstance(module, torch.nn.modules.batchnorm.BatchNorm2d):
             return  pytorch_module_to_sharpnet.BatchNorm2d(node, module, previous_nodes)
+        if isinstance(module, torch.nn.modules.sparse.Embedding):
+            return  pytorch_module_to_sharpnet.Embedding(node, module, previous_nodes)
         if pytorch_utils.is_activation_module(module):
             return pytorch_module_to_sharpnet.activation(node, module, previous_nodes)
         raise Exception(f"unknown call_module {node.target} in {node} , {node.op}")
@@ -90,12 +91,11 @@ class pytorch_module_to_sharpnet:
         return result  
 
     @staticmethod
-    def Linear(node: torch.fx.node.Node, module: torch.nn.modules.linear.Linear, sharpnet_network_config, previous_nodes: List[torch.fx.node.Node]) -> str:
+    def Linear(node: torch.fx.node.Node, module: torch.nn.modules.linear.Linear, previous_nodes: List[torch.fx.node.Node]) -> str:
         previous_node_index = torch_fx_utils.get_previous_nodes_indexes(node, previous_nodes, mandatory_length=1)[0]
         has_bias = module.bias is not None
-        lambdaL2Regularization = sharpnet_network_config_utils.get_lambdaL2Regularization(sharpnet_network_config)
         flattenInputTensorOnLastDimension = True # this is the only supported mode in PyTorch
-        result = f"Type;Layer;LinearLayer;intVector;PreviousLayerIndexes;1;{previous_node_index};string;LayerName;{torch_fx_utils.extract_node_name(node)};bool;Trainable;True;int;out_features;{module.out_features};bool;bias;{has_bias};double;LambdaL2Regularization;{lambdaL2Regularization};bool;_flattenInputTensorOnLastDimension;{flattenInputTensorOnLastDimension};"
+        result = f"Type;Layer;Linear;intVector;PreviousLayerIndexes;1;{previous_node_index};string;LayerName;{torch_fx_utils.extract_node_name(node)};bool;Trainable;True;int;out_features;{module.out_features};bool;bias;{has_bias};bool;_flattenInputTensorOnLastDimension;{flattenInputTensorOnLastDimension};"
         return result
     
     @staticmethod
@@ -123,7 +123,7 @@ class pytorch_module_to_sharpnet:
     @staticmethod
     def Flatten(node: torch.fx.node.Node, module: torch.nn.modules.flatten.Flatten, previous_nodes: List[torch.fx.node.Node]) -> str:
         previous_node_index = torch_fx_utils.get_previous_nodes_indexes(node, previous_nodes, mandatory_length=1)[0]
-        result = f"Type;Layer;FlattenLayer;intVector;PreviousLayerIndexes;1;{previous_node_index};string;LayerName;{torch_fx_utils.extract_node_name(node)};bool;Trainable;True;int;_start_dim;{module.start_dim};int;_end_dim;{module.end_dim};"
+        result = f"Type;Layer;Flatten;intVector;PreviousLayerIndexes;1;{previous_node_index};string;LayerName;{torch_fx_utils.extract_node_name(node)};bool;Trainable;True;int;_start_dim;{module.start_dim};int;_end_dim;{module.end_dim};"
         return result
 
     @staticmethod
@@ -150,10 +150,9 @@ class pytorch_module_to_sharpnet:
         raise Exception(f"do not know how to manage padding {module_padding}")
     
     @staticmethod
-    def Conv2d(node: torch.fx.node.Node, module: torch.nn.modules.conv.Conv2d, sharpnet_network_config, previous_nodes: List[torch.fx.node.Node]) -> str:
-        lambdaL2Regularization = sharpnet_network_config_utils.get_lambdaL2Regularization(sharpnet_network_config)
+    def Conv2d(node: torch.fx.node.Node, module: torch.nn.modules.conv.Conv2d, previous_nodes: List[torch.fx.node.Node]) -> str:
         previous_node_index = torch_fx_utils.get_previous_nodes_indexes(node, previous_nodes, mandatory_length=1)[0]
-        has_bias = module.bias is not None
+        bias = module.bias is not None
         (kernel_height, kernel_width) = utils.extract_first_second_element(module.kernel_size)
         (stride_height, stride_width) = utils.extract_first_second_element(module.stride)
         if stride_height!=stride_width:
@@ -176,15 +175,14 @@ class pytorch_module_to_sharpnet:
             depthwise_convolution = False
             out_channels = module.out_channels
         result = f"Type;Layer;ConvolutionLayer;intVector;PreviousLayerIndexes;1;{previous_node_index};string;LayerName;{torch_fx_utils.extract_node_name(node)};bool;Trainable;True;"
-        result += f"bool;_isDepthwiseConvolution;{depthwise_convolution};bool;_isConv1D;False;int;_out_channels;{out_channels};int;_depthMultiplier;{depth_multiplier};int;_kernelHeight;{kernel_height};int;_kernelWidth;{kernel_width};"
-        result += f"int;_stride;{stride_height};string;_paddingType;{padding};double;_lambdaL2Regularization;{lambdaL2Regularization};bool;UseBias;{has_bias};"
+        result += f"bool;_isDepthwiseConvolution;{depthwise_convolution};bool;_isConv1D;False;int;_out_channels;{out_channels};int;depth_multiplier;{depth_multiplier};int;kernel_height;{kernel_height};int;kernel_width;{kernel_width};"
+        result += f"int;_stride;{stride_height};string;_paddingType;{padding};bool;bias;{bias};"
         return result
 
     @staticmethod
-    def Conv1d(node: torch.fx.node.Node, module: torch.nn.modules.conv.Conv1d, sharpnet_network_config, previous_nodes: List[torch.fx.node.Node]) -> str:
-        lambdaL2Regularization = sharpnet_network_config_utils.get_lambdaL2Regularization(sharpnet_network_config)
+    def Conv1d(node: torch.fx.node.Node, module: torch.nn.modules.conv.Conv1d, previous_nodes: List[torch.fx.node.Node]) -> str:
         previous_node_index = torch_fx_utils.get_previous_nodes_indexes(node, previous_nodes, mandatory_length=1)[0]
-        has_bias = module.bias is not None
+        bias = module.bias is not None
         if utils.count_integers(module.kernel_size) != 1:
             raise Exception(f'only 1 kernel size allowed in Conv1d, found: {module.kernel_size}')
         (_, kernel_width) = utils.extract_first_second_element(module.kernel_size)
@@ -192,7 +190,7 @@ class pytorch_module_to_sharpnet:
         if stride_height!=stride_width:
             raise Exception(f"Invalid stride {module.stride} in {module}")
         padding = pytorch_module_to_sharpnet.extract_padding(module.padding, kernel_width, kernel_width)
-        result = f"Type;Layer;ConvolutionLayer;intVector;PreviousLayerIndexes;1;{previous_node_index};string;LayerName;{torch_fx_utils.extract_node_name(node)};bool;Trainable;True;bool;_isDepthwiseConvolution;False;bool;_isConv1D;True;int;_out_channels;{module.out_channels};int;_depthMultiplier;-1;int;_kernelHeight;1;int;_kernelWidth;{kernel_width};int;_stride;{stride_height};string;_paddingType;{padding};double;_lambdaL2Regularization;{lambdaL2Regularization};bool;UseBias;{has_bias};"
+        result = f"Type;Layer;ConvolutionLayer;intVector;PreviousLayerIndexes;1;{previous_node_index};string;LayerName;{torch_fx_utils.extract_node_name(node)};bool;Trainable;True;bool;_isDepthwiseConvolution;False;bool;_isConv1D;True;int;_out_channels;{module.out_channels};int;depth_multiplier;-1;int;kernel_height;1;int;kernel_width;{kernel_width};int;_stride;{stride_height};string;_paddingType;{padding};bool;bias;{bias};"
         return result
 
     @staticmethod
@@ -219,10 +217,18 @@ class pytorch_module_to_sharpnet:
         result = f"Type;Layer;BatchNormalizationLayer;intVector;PreviousLayerIndexes;1;{previous_node_index};string;LayerName;{torch_fx_utils.extract_node_name(node)};bool;Trainable;True;double;_epsilon;{module.eps};double;_momentum;{1.0-module.momentum};"
         return result
 
+
+    @staticmethod
+    def Embedding(node: torch.fx.node.Node, module: torch.nn.modules.sparse.Embedding, previous_nodes: List[torch.fx.node.Node]) -> str:
+        previous_node_index = torch_fx_utils.get_previous_nodes_indexes(node, previous_nodes, mandatory_length=1)[0]
+        result = f"Type;Layer;EmbeddingLayer;intVector;PreviousLayerIndexes;1;{previous_node_index};string;LayerName;{torch_fx_utils.extract_node_name(node)};bool;Trainable;True;int;num_embeddings;{module.num_embeddings};int;embedding_dim;{module.embedding_dim};"
+        return result
+
+
     @staticmethod
     def Dropout(node: torch.fx.node.Node, module: torch.nn.modules.dropout.Dropout, previous_nodes: List[torch.fx.node.Node]) -> str:
         previous_node_index = torch_fx_utils.get_previous_nodes_indexes(node, previous_nodes, mandatory_length=1)[0]
-        result = f"Type;Layer;DropoutLayer;intVector;PreviousLayerIndexes;1;{previous_node_index};string;LayerName;{torch_fx_utils.extract_node_name(node)};bool;Trainable;True;double;p;{module.p};"
+        result = f"Type;Layer;Dropout;intVector;PreviousLayerIndexes;1;{previous_node_index};string;LayerName;{torch_fx_utils.extract_node_name(node)};bool;Trainable;True;double;p;{module.p};"
         return result
 
     @staticmethod

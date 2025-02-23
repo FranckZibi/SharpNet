@@ -8,10 +8,6 @@ using SharpNet.Datasets;
 using SharpNet.GPU;
 using SharpNet.Layers;
 using SharpNet.Models;
-// ReSharper disable UnusedMember.Global
-// ReSharper disable MemberCanBePrivate.Global
-// ReSharper disable ConvertToConstant.Global
-// ReSharper disable FieldCanBeMadeReadOnly.Global
 
 namespace SharpNet.Networks;
 
@@ -64,17 +60,15 @@ public class EfficientNetNetworkSample : NetworkSample
         {
             LossFunction = EvaluationMetricEnum.CategoricalCrossentropy,
             CompatibilityMode = CompatibilityModeEnum.TensorFlow,
-            lambdaL2Regularization = 0.0005,
             //!D WorkingDirectory = Path.Combine(NetworkSample.DefaultWorkingDirectory, "ImageNet"),
             num_epochs = 150,
             BatchSize = 128,
-            InitialLearningRate = 0.1,
 
             //specific to EfficientNetNetworkSample
             BatchNormMomentum = 0.99,
             BatchNormEpsilon = 0.001,
         }
-            .WithSGD(0.9, false)
+            .WithSGD(0.1, 0.9, 0.0005, false)
             //.WithCifar10WideResNetLearningRateScheduler(true, true, false) : discarded on 14-aug-2019 : Cyclic annealing is better
             .WithCyclicCosineAnnealingLearningRateScheduler(10, 2); //new default value on 14-aug-2019
 
@@ -92,12 +86,10 @@ public class EfficientNetNetworkSample : NetworkSample
         {
             LossFunction = EvaluationMetricEnum.CategoricalCrossentropyWithHierarchy,
             CompatibilityMode = CompatibilityModeEnum.TensorFlow,
-            lambdaL2Regularization = 0.0005,
             //!D WorkingDirectory = Path.Combine(NetworkSample.DefaultWorkingDirectory, "Cancel"),
             AlwaysUseFullTestDataSetForLossAndAccuracy = false,
             num_epochs = 150,
             BatchSize = 128,
-            InitialLearningRate = 0.03,
 
             //EfficientNetNetworkSample
             BatchNormMomentum = 0.99,
@@ -115,7 +107,7 @@ public class EfficientNetNetworkSample : NetworkSample
             AlphaCutMix = 0.0, //CutMix is discarded
             CutoutPatchPercentage = 0.1
         }
-            .WithSGD(0.9, false)
+            .WithSGD(0.03, 0.9, 0.0005, false)
             .WithCyclicCosineAnnealingLearningRateScheduler(10, 2);
         return config;
     }
@@ -131,11 +123,9 @@ public class EfficientNetNetworkSample : NetworkSample
         {
             LossFunction = EvaluationMetricEnum.CategoricalCrossentropy,
             CompatibilityMode = CompatibilityModeEnum.TensorFlow,
-            lambdaL2Regularization = 0.0005,
             //!D WorkingDirectory = Path.Combine(NetworkSample.DefaultWorkingDirectory, CIFAR10DataSet.NAME),
             num_epochs = 150,
             BatchSize = 128,
-            InitialLearningRate = 0.1,
 
             //Data augmentation
             DataAugmentationType = ImageDataGenerator.DataAugmentationEnum.DEFAULT,
@@ -149,7 +139,7 @@ public class EfficientNetNetworkSample : NetworkSample
             AlphaCutMix = 1.0,
             CutoutPatchPercentage = 0.0
         }
-            .WithSGD(0.9, false)
+            .WithSGD(0.1, 0.9, 0.0005, false)
             .WithCyclicCosineAnnealingLearningRateScheduler(10, 2);
         return config;
 
@@ -201,8 +191,6 @@ public class EfficientNetNetworkSample : NetworkSample
 
         blocks = blocks.Select(x => x.ApplyScaling(widthCoefficient, depthDivisor, depthCoefficient)).ToList();
         //var network = BuildNetworkWithoutLayers(workingDirectory, modelName);
-        var config = network.Sample;
-
         network.Input(inputShape_CHW);
 
 
@@ -214,7 +202,7 @@ public class EfficientNetNetworkSample : NetworkSample
         //{
         //    stemStride = 1;
         //}
-        network.Convolution(stemChannels, 3, stemStride, ConvolutionLayer.PADDING_TYPE.SAME, config.lambdaL2Regularization, false, "stem_conv")
+        network.Convolution(stemChannels, 3, stemStride, ConvolutionLayer.PADDING_TYPE.SAME, false, "stem_conv")
             .BatchNorm(BatchNormMomentum, BatchNormEpsilon, "stem_bn")
             .Activation(DefaultActivation, "stem_activation");
 
@@ -237,7 +225,7 @@ public class EfficientNetNetworkSample : NetworkSample
 
         //# Build top
         var outputChannelsTop = MobileBlocksDescription.RoundFilters(1280, widthCoefficient, depthDivisor);
-        network.Convolution(outputChannelsTop, 1, 1, ConvolutionLayer.PADDING_TYPE.SAME, config.lambdaL2Regularization, false, "top_conv");
+        network.Convolution(outputChannelsTop, 1, 1, ConvolutionLayer.PADDING_TYPE.SAME, false, "top_conv");
         network.BatchNorm(BatchNormMomentum, BatchNormEpsilon, "top_bn");
         network.Activation(DefaultActivation, "top_activation");
         if (includeTop)
@@ -249,7 +237,7 @@ public class EfficientNetNetworkSample : NetworkSample
             }
 
             network.Flatten();
-            network.Linear(numClass, true, config.lambdaL2Regularization, false, "probs");
+            network.Linear(numClass, true, false, "probs");
             network.Activation(LastActivationLayer);
         }
         else
@@ -296,17 +284,16 @@ public class EfficientNetNetworkSample : NetworkSample
         var inputLayerIndex = network.LastLayerIndex;
 
         //Expansion phase
-        var config = network.Sample;
         var hidden_dim = in_channels * block_args.ExpandRatio;
         if (block_args.ExpandRatio != 1)
         {
-            network.Convolution(hidden_dim, 1, 1, ConvolutionLayer.PADDING_TYPE.SAME, config.lambdaL2Regularization, false, layerPrefix + "expand_conv")
+            network.Convolution(hidden_dim, 1, 1, ConvolutionLayer.PADDING_TYPE.SAME, false, layerPrefix + "expand_conv")
                 .BatchNorm(BatchNormMomentum, BatchNormEpsilon, layerPrefix + "expand_bn")
                 .Activation(DefaultActivation, layerPrefix + "expand_activation");
         }
 
         //Depthwise Convolution
-        network.DepthwiseConvolution(block_args.KernelSize, block_args.ColStride, ConvolutionLayer.PADDING_TYPE.SAME, 1, config.lambdaL2Regularization, false, layerPrefix + "dwconv")
+        network.DepthwiseConvolution(block_args.KernelSize, block_args.ColStride, ConvolutionLayer.PADDING_TYPE.SAME, 1, false, layerPrefix + "dwconv")
             .BatchNorm(BatchNormMomentum, BatchNormEpsilon, layerPrefix + "bn")
             .Activation(DefaultActivation, layerPrefix + "activation");
 
@@ -317,15 +304,15 @@ public class EfficientNetNetworkSample : NetworkSample
             var xLayerIndex = network.LastLayerIndex;
             var num_reduced_filters = Math.Max(1, (int)(in_channels * block_args.SeRatio));
             network.GlobalAvgPooling(layerPrefix + "se_squeeze");
-            network.Convolution(num_reduced_filters, 1, 1, ConvolutionLayer.PADDING_TYPE.SAME, config.lambdaL2Regularization, true, layerPrefix + "se_reduce")
+            network.Convolution(num_reduced_filters, 1, 1, ConvolutionLayer.PADDING_TYPE.SAME, true, layerPrefix + "se_reduce")
                 .Activation(DefaultActivation);
-            network.Convolution(hidden_dim, 1, 1, ConvolutionLayer.PADDING_TYPE.SAME, config.lambdaL2Regularization, true, layerPrefix + "se_expand")
+            network.Convolution(hidden_dim, 1, 1, ConvolutionLayer.PADDING_TYPE.SAME, true, layerPrefix + "se_expand")
                 .Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID);
-            network.MultiplyLayer(xLayerIndex, network.LastLayerIndex /*diagonal matrix */, layerPrefix + "se_excite");
+            network.Multiply(xLayerIndex, network.LastLayerIndex /*diagonal matrix */, layerPrefix + "se_excite");
         }
 
         //Output phase
-        network.Convolution(block_args.OutputFilters, 1, 1, ConvolutionLayer.PADDING_TYPE.SAME, config.lambdaL2Regularization, false, layerPrefix + "project_conv");
+        network.Convolution(block_args.OutputFilters, 1, 1, ConvolutionLayer.PADDING_TYPE.SAME, false, layerPrefix + "project_conv");
         network.BatchNorm(BatchNormMomentum, BatchNormEpsilon, layerPrefix + "project_bn");
         if (block_args.IdSkip && block_args.RowStride == 1 && block_args.ColStride == 1 && block_args.OutputFilters == in_channels)
         {

@@ -48,7 +48,7 @@ namespace SharpNetTests.Data
         public void TestStandardConvolutionOutputShape()
         {
             const int batchSize = 666;
-            const int inputChannels = 1313;
+            const int input_channels = 1313;
             const int out_channels = 317;
 
             foreach (var h in new[] { 3, 33, 50, 100, 200, 201 })
@@ -57,8 +57,8 @@ namespace SharpNetTests.Data
                 {
                     foreach (var f in new[] { 3, 5, 7 })
                     {
-                        var inputShape = new[] { batchSize, inputChannels, h, w };
-                        var shapeConvolution = new[] { out_channels, inputChannels, f, f };
+                        var inputShape = new[] { batchSize, input_channels, h, w };
+                        var shapeConvolution = new[] { out_channels, input_channels, f, f };
                         // padding = 0 , stride == 1
                         Assert.IsTrue(ConvolutionLayer.OutputShape(inputShape, shapeConvolution, ConvolutionLayer.PADDING_TYPE.VALID, 1, false).SequenceEqual(new[] { batchSize, out_channels, h - f + 1, w - f + 1 }));
                         // padding = same , stride == 1
@@ -75,24 +75,24 @@ namespace SharpNetTests.Data
         public void TestDepthwiseConvolutionOutputShape()
         {
             const int batchSize = 666;
-            const int inputChannels = 1313;
-            const int depthMultiplier = 1;
+            const int input_channels = 1313;
+            const int depth_multiplier = 1;
             foreach (var h in new[] { 3, 33, 50, 100, 200, 201 })
             {
                 foreach (var w in new[] { 3, 33, 50, 100, 200, 201 })
                 {
                     foreach (var f in new[] { 3, 5, 7 })
                     {
-                        var inputShape = new[] { batchSize, inputChannels, h, w };
-                        var shapeConvolution = new[] { depthMultiplier, inputChannels, f, f };
+                        var inputShape = new[] { batchSize, input_channels, h, w };
+                        var shapeConvolution = new[] { depth_multiplier, input_channels, f, f };
                         // padding = 0 , stride == 1
-                        Assert.IsTrue(ConvolutionLayer.OutputShape(inputShape, shapeConvolution, ConvolutionLayer.PADDING_TYPE.VALID, 1, true).SequenceEqual(new[] { batchSize, inputChannels, h - f + 1, w - f + 1 }));
+                        Assert.IsTrue(ConvolutionLayer.OutputShape(inputShape, shapeConvolution, ConvolutionLayer.PADDING_TYPE.VALID, 1, true).SequenceEqual(new[] { batchSize, input_channels, h - f + 1, w - f + 1 }));
                         // padding = same , stride == 1
-                        Assert.IsTrue(ConvolutionLayer.OutputShape(inputShape, shapeConvolution, ConvolutionLayer.PADDING_TYPE.SAME, 1, true).SequenceEqual(new[] { batchSize, inputChannels, h, w }));
+                        Assert.IsTrue(ConvolutionLayer.OutputShape(inputShape, shapeConvolution, ConvolutionLayer.PADDING_TYPE.SAME, 1, true).SequenceEqual(new[] { batchSize, input_channels, h, w }));
                         // padding = 0, stride == 2
-                        Assert.IsTrue(ConvolutionLayer.OutputShape(inputShape, shapeConvolution, ConvolutionLayer.PADDING_TYPE.VALID, 2, true).SequenceEqual(new[] { batchSize, inputChannels, (h - f) / 2 + 1, (w - f) / 2 + 1 }));
+                        Assert.IsTrue(ConvolutionLayer.OutputShape(inputShape, shapeConvolution, ConvolutionLayer.PADDING_TYPE.VALID, 2, true).SequenceEqual(new[] { batchSize, input_channels, (h - f) / 2 + 1, (w - f) / 2 + 1 }));
                         // padding = same, stride == 2
-                        Assert.IsTrue(ConvolutionLayer.OutputShape(inputShape, shapeConvolution, ConvolutionLayer.PADDING_TYPE.SAME, 2, true).SequenceEqual(new[] { batchSize, inputChannels, (h - 1) / 2 + 1, (w - 1) / 2 + 1 }));
+                        Assert.IsTrue(ConvolutionLayer.OutputShape(inputShape, shapeConvolution, ConvolutionLayer.PADDING_TYPE.SAME, 2, true).SequenceEqual(new[] { batchSize, input_channels, (h - 1) / 2 + 1, (w - 1) / 2 + 1 }));
                     }
                 }
             }

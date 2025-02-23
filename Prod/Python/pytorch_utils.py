@@ -164,7 +164,8 @@ class pytorch_utils:
             except Exception:
                 pass
     
-        X = torch.tensor(X_numpy, device=device, dtype=torch.float32)
+        torch_X_dtype = torch.int32 if np.issubdtype(X_numpy.dtype, np.integer) else torch.float32
+        X = torch.tensor(X_numpy, device=device, dtype=torch_X_dtype)
         Y_true = torch.tensor(Y_numpy, device=device, dtype=torch.float32)
         dataset = TensorDataset(X, Y_true) 
         data_loader = DataLoader(dataset, batch_size=batch_size, shuffle=False)
@@ -243,8 +244,7 @@ class pytorch_utils:
             pytorch_utils.log("PyTorch nesterov = " + str(optimizer.param_groups[0]['nesterov']))
         pytorch_utils.log("PyTorch batch_size = " + str(batch_size))
         if 'weight_decay' in optimizer.param_groups[0]:    
-            pytorch_utils.log("PyTorch lambdaL2Regularization = " + str(optimizer.param_groups[0]['weight_decay']))
-        #pytorch_utils.log("PyTorch use_bias = " + str(use_bias))
+            pytorch_utils.log("PyTorch weight_decay = " + str(optimizer.param_groups[0]['weight_decay']))
         pytorch_utils.log(Y_pred_before, "PyTorch Y_pred_before", True)
         pytorch_utils.log("PyTorch loss_before="+str(train_loss_before))
         pytorch_utils.log(Y_pref_after, "PyTorch Y_pref_after", True)

@@ -63,9 +63,9 @@ class sharpnet_network_config_utils:
         if isinstance(optimizer, torch.optim.SGD):
             result['InitialLearningRate'] = optimizer.param_groups[0]['lr']
             result['SGD_momentum'] = optimizer.param_groups[0]['momentum'] or 0
-            result['lambdaL2Regularization'] = optimizer.param_groups[0]['weight_decay'] or 0
-            result['SGD_usenesterov'] = optimizer.param_groups[0]['nesterov'] if optimizer.param_groups[0]['nesterov'] is not None else False
-            if result['SGD_momentum'] == 0 and result['lambdaL2Regularization'] == 0 and result['SGD_usenesterov'] == False:
+            result['weight_decay'] = optimizer.param_groups[0]['weight_decay'] or 0
+            result['nesterov'] = optimizer.param_groups[0]['nesterov'] if optimizer.param_groups[0]['nesterov'] is not None else False
+            if result['SGD_momentum'] == 0 and result['weight_decay'] == 0 and result['nesterov'] == False:
                 result['OptimizerType'] = 'VanillaSGD'
             else:
                 result['OptimizerType'] = 'SGD'
@@ -73,17 +73,15 @@ class sharpnet_network_config_utils:
             result['InitialLearningRate'] = optimizer.param_groups[0]['lr']
             result['Adam_beta1'] = optimizer.param_groups[0]['betas'][0]
             result['Adam_beta2'] = optimizer.param_groups[0]['betas'][1]
-            result['Adam_epsilon'] = optimizer.param_groups[0]['eps']
-            result['lambdaL2Regularization'] = 0
-            result['AdamW_L2Regularization'] = optimizer.param_groups[0]['weight_decay'] or 0
+            result['Adam_eps'] = optimizer.param_groups[0]['eps']
+            result['weight_decay'] = optimizer.param_groups[0]['weight_decay'] or 0
             result['OptimizerType'] = 'AdamW'
         elif isinstance(optimizer, torch.optim.Adam):
             result['InitialLearningRate'] = optimizer.param_groups[0]['lr']
             result['Adam_beta1'] = optimizer.param_groups[0]['betas'][0]
             result['Adam_beta2'] = optimizer.param_groups[0]['betas'][1]
-            result['Adam_epsilon'] = optimizer.param_groups[0]['eps']
-            result['lambdaL2Regularization'] = optimizer.param_groups[0]['weight_decay'] or 0
-            result['AdamW_L2Regularization'] = 0
+            result['Adam_eps'] = optimizer.param_groups[0]['eps']
+            result['weight_decay'] = optimizer.param_groups[0]['weight_decay'] or 0
         else:
             raise Exception(f"not supported optimizer {type(optimizer)} , {optimizer}")
         return result
@@ -93,8 +91,4 @@ class sharpnet_network_config_utils:
         if key in sharpnet_network_config:
             return sharpnet_network_config[key]
         return default_value
-
-    @staticmethod
-    def get_lambdaL2Regularization(sharpnet_network_config):
-        return sharpnet_network_config_utils.get_with_default(sharpnet_network_config, "lambdaL2Regularization", 0.0)
 

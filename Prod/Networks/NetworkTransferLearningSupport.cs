@@ -18,9 +18,9 @@ namespace SharpNet.Networks
         public void SetNumClass(int newNumClass)
         {
             LogInfo("setting number of output numClass to " + newNumClass);
-            if (Layers.Count >= 2 && Layers[Layers.Count - 1] is ActivationLayer && Layers[Layers.Count - 2] is LinearLayer)
+            if (Layers.Count >= 2 && Layers[Layers.Count - 1] is ActivationLayer && Layers[Layers.Count - 2] is Linear)
             {
-                var linearLayer = (LinearLayer) Layers[Layers.Count - 2];
+                var linearLayer = (Linear) Layers[Layers.Count - 2];
                 if (linearLayer.out_features == newNumClass)
                 {
                     LogInfo("no need to set the NumClass to " + newNumClass);
@@ -34,20 +34,19 @@ namespace SharpNet.Networks
                 RemoveAndDisposeLastLayer();
 
                 //we remove the Linear layer
-                var lambdaL2Regularization = linearLayer.LambdaL2Regularization;
                 var linearLayerName = linearLayer.LayerName;
                 RemoveAndDisposeLastLayer();
 
-                //We add a new LinearLayer (with weight reseted)
+                //We add a new Linear layer (with weight reseted)
                 LogInfo("Resetting weights of layer " + linearLayerName + " to have " + newNumClass + " categories");
-                Linear(newNumClass, true, lambdaL2Regularization, false, linearLayerName);
+                Linear(newNumClass, true, false, linearLayerName);
 
                 //we put back the ActivationLayer
                 Activation(activationFunctionType, activationLayerName);
 
                 return;
             }
-            throw new NotImplementedException("can only update a network where the 2 last layers are LinearLayer & ActivationLayer");
+            throw new NotImplementedException("can only update a network where the 2 last layers are Linear layer & ActivationLayer");
         }
         private void RemoveAndDisposeLastLayer()
         {

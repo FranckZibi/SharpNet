@@ -62,7 +62,7 @@ public static class MyNameIsGrootUtils
             //{nameof(NetworkSample.CompatibilityMode), new[]{nameof(CompatibilityModeEnum.TensorFlow),nameof(CompatibilityModeEnum.PyTorch)}},
 
             {nameof(TransformerDatasetSample.max_length), 3 },
-            {nameof(TransformerDatasetSample.vocab_size), 4},
+            {nameof(TransformerDatasetSample.num_embeddings), 4},
             //{nameof(TransformerDatasetSample.layer_norm_epsilon), new[]{1e-5, 1e-6 } },
             {nameof(TransformerNetworkSample.embedding_dim), 2},
             {nameof(TransformerNetworkSample.decoder_num_transformer_blocks), new[]{1 /*,6*/ } },
@@ -84,7 +84,7 @@ public static class MyNameIsGrootUtils
             // Optimizer 
             { nameof(NetworkSample.OptimizerType), new[]{OptimizationEnum.AdamW}},
             //{ nameof(NetworkSample.OptimizerType), new[]{nameof(OptimizationEnum.AdamW), nameof(OptimizationEnum.Adam), nameof(OptimizationEnum.SGD), nameof(OptimizationEnum.VanillaSGD)}},
-            //{ nameof(NetworkSample.AdamW_L2Regularization), 0.01},
+            { nameof(NetworkSample.weight_decay), 0.01},
             // Learning Rate
             //{ nameof(NetworkSample.InitialLearningRate), new[]{0.05 } },
             //{ nameof(NetworkSample.InitialLearningRate), new[]{10, 5, 1.0,0.5,0.1,0.05,0.01,0.005,0.001,0.0005,0.0001,0.00005, 0.00001, 0.000005, 0.000001 , 0.0000005, 0.0000001 } },
@@ -114,8 +114,8 @@ public static class MyNameIsGrootUtils
     {
         var outputShape = nn.YPredicted_MiniBatch_Shape(1);
         var max_length = outputShape[1];
-        var vocab_size = outputShape[2];
-        var datasetSample = new MyNameIsGrootDatasetSample() { max_length = max_length, vocab_size = vocab_size };
+        var num_embeddings = outputShape[2];
+        var datasetSample = new MyNameIsGrootDatasetSample() { max_length = max_length, num_embeddings = num_embeddings };
         var tokenizer = datasetSample.GetTokenizer();
 
         var xInputSingleRow = new CpuTensor<float>(new[] { 1, max_length});

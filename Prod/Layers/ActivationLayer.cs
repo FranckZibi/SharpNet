@@ -57,7 +57,7 @@ namespace SharpNet.Layers
             }
             StartBackwardTimer(LayerType() + ">" + ToString(ActivationFunction));
             //we compute dx
-            if (IsOutputLayer && Network.Sample.GetLoss() != EvaluationMetricEnum.Huber)
+            if (IsOutputLayer && Sample.GetLoss() != EvaluationMetricEnum.Huber)
             {
                 dy.CopyTo(dx[0]);
             }
@@ -110,7 +110,7 @@ namespace SharpNet.Layers
         public override void ToPytorchModule(List<string> constructorLines, List<string> forwardLines)
         {
             //special case : for cross entropy loss, we do not need to use the softmax function in PyTorch torch.nn.Module
-            if (Network.Sample.GetLoss() == EvaluationMetricEnum.CategoricalCrossentropy && LayerIndex == (Layers.Count-1))
+            if (Sample.GetLoss() == EvaluationMetricEnum.CategoricalCrossentropy && LayerIndex == (Layers.Count-1))
             {
                 return;
             }

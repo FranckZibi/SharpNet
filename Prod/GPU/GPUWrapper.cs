@@ -401,29 +401,29 @@ namespace SharpNet.GPU
         {
             CheckThreadId();
 
-            int inputChannels; //Number of input channels
+            int input_channels; //Number of input channels
             int outputChannels; //number of output channels
             if (isDepthwiseConvolution)
             {
-                //the depthwise Convolution shape: (depthMultiplier=1, channels, kernelHeight, kernelWidth)
-                inputChannels = 1;
+                //the depthwise Convolution shape: (depth_multiplier=1, channels, kernel_height, kernel_width)
+                input_channels = 1;
                 outputChannels = shape[1];
             }
             else
             {
-                //the Convolution shape: (outputChannels, inputChannels, kernelHeight, kernelWidth)
-                inputChannels = shape[1];
+                //the Convolution shape: (outputChannels, input_channels, kernel_height, kernel_width)
+                input_channels = shape[1];
                 outputChannels = shape[0];
             }
-            var kernelHeight = shape[2]; //Height of each filter
-            var kernelWidth = shape[3]; //Width of each filter
+            var kernel_height = shape[2]; //Height of each filter
+            var kernel_width = shape[3]; //Width of each filter
 
-            var key = Tuple.Create(cudaType, outputChannels, inputChannels, kernelHeight, kernelWidth);
+            var key = Tuple.Create(cudaType, outputChannels, input_channels, kernel_height, kernel_width);
             if (!cacheFilterDesc.TryGetValue(key, out var desc))
             {
                 var res = CudnnWrapper.cudnnCreateFilterDescriptor(out desc);
                 CheckStatus(res);
-                res = CudnnWrapper.cudnnSetFilter4dDescriptor(desc, cudaType, cudnnTensorFormat_t.CUDNN_TENSOR_NCHW, outputChannels, inputChannels, kernelHeight, kernelWidth);
+                res = CudnnWrapper.cudnnSetFilter4dDescriptor(desc, cudaType, cudnnTensorFormat_t.CUDNN_TENSOR_NCHW, outputChannels, input_channels, kernel_height, kernel_width);
                 CheckStatus(res);
                 cacheFilterDesc[key] = desc;
             }

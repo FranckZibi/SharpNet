@@ -19,7 +19,7 @@ namespace SharpNet.Layers
     ///     (batchSize, out_features)                      if flattenInputTensorOnLastDimension == false
     /// </summary>
 
-    public sealed class LinearLayer : Layer
+    public sealed class Linear : Layer
     {
         #region Private fields
         #region trainable parameters
@@ -55,10 +55,6 @@ namespace SharpNet.Layers
         #endregion
         #region public fields and properties
         /// <summary>
-        /// regularization hyper parameter. 0 if no L2 regularization
-        /// </summary>
-        public double LambdaL2Regularization { get; }
-        /// <summary>
         /// dimensionality of the output space
         /// </summary>
         public int out_features { get; }
@@ -81,11 +77,10 @@ namespace SharpNet.Layers
         #endregion
 
         #region constructor
-        public LinearLayer(int out_features, bool bias, double lambdaL2Regularization, bool flattenInputTensorOnLastDimension, bool trainable, Network network, string layerName) : base(network, layerName)
+        public Linear(int out_features, bool bias, bool flattenInputTensorOnLastDimension, bool trainable, Network network, string layerName) : base(network, layerName)
         {
             _flattenInputTensorOnLastDimension = flattenInputTensorOnLastDimension;
             this.out_features = out_features;
-            LambdaL2Regularization = lambdaL2Regularization;
             Trainable = trainable;
 
             //trainable params
@@ -100,7 +95,9 @@ namespace SharpNet.Layers
         }
 
 
+
         #endregion
+
 
         private int[] WeightShape
         {
@@ -139,10 +136,10 @@ namespace SharpNet.Layers
             Debug.Assert(allX.Count == 1);
             Debug.Assert(y_NotUsed == null);
             Debug.Assert(dx.Count == 1);
-            DenseBackwardPropagation(dx[0], _weightGradients, _biasGradients, allX[0], dy, _weights, _bias, Sample, LambdaL2Regularization, PrevLayer.IsInputLayer, _flattenInputTensorOnLastDimension);
+            DenseBackwardPropagation(dx[0], _weightGradients, _biasGradients, allX[0], dy, _weights, _bias, Sample, Sample.weight_decay, PrevLayer.IsInputLayer, _flattenInputTensorOnLastDimension);
         }
 
-        public static void DenseBackwardPropagation(/* Out */ Tensor dx, /* Out */ Tensor weightGradients, /* Out */ Tensor biasGradients_1D, /* In */ Tensor x, /* In */ Tensor dy, /* In */ Tensor weights, /* In */ Tensor bias_1D, NetworkSample sample, double LambdaL2Regularization, bool prevLayerIsInputLayer, bool flattenInputTensorOnLastDimension)
+        public static void DenseBackwardPropagation(/* Out */ Tensor dx, /* Out */ Tensor weightGradients, /* Out */ Tensor biasGradients_1D, /* In */ Tensor x, /* In */ Tensor dy, /* In */ Tensor weights, /* In */ Tensor bias_1D, NetworkSample sample, double weight_decay, bool prevLayerIsInputLayer, bool flattenInputTensorOnLastDimension)
         {
             var xAs2DMatrix = x.As2DTensor(flattenInputTensorOnLastDimension);
             var dyAs2DMatrix = dy.As2DTensor(flattenInputTensorOnLastDimension);
@@ -163,19 +160,19 @@ namespace SharpNet.Layers
             if (biasGradients_1D != null)
             {
                 //Debug.Assert(_bias != null);
-                //Debug.Assert(UseBias);
+                //Debug.Assert(bias);
                 dyAs2DMatrix.Compute_BiasGradient_from_dy(biasGradients_1D);
             }
 
-            //L2 regularization on dW (and dB for PyTorch)
-            if (LambdaL2Regularization > 0.0)
+            //weight_decay on dW (and dB for PyTorch)
+            if (sample.Use_weight_decay_in_backpropagation && weight_decay>0)
             {
-                var multiplier_LambdaL2Regularization = 2;
+                var weight_decay_mulitplier = 2;
                 if (sample.CompatibilityMode == CompatibilityModeEnum.PyTorch)
                 {
-                    multiplier_LambdaL2Regularization = 1;
+                    weight_decay_mulitplier = 1;
                 }
-                var alpha = multiplier_LambdaL2Regularization * batchSize * (float)LambdaL2Regularization;
+                var alpha = weight_decay_mulitplier * batchSize * (float)weight_decay;
                 weightGradients.Update_Adding_Alpha_X(alpha, weights);
                 if (sample.CompatibilityMode == CompatibilityModeEnum.PyTorch && biasGradients_1D != null)
                 {
@@ -294,19 +291,17 @@ namespace SharpNet.Layers
         {
             return RootSerializer().Add(nameof(out_features), out_features)
                 .Add("bias", UseBias)
-                .Add(nameof(LambdaL2Regularization), LambdaL2Regularization)
                 .Add(nameof(_flattenInputTensorOnLastDimension), _flattenInputTensorOnLastDimension)
                 .ToString();
         }
-        public static LinearLayer Deserialize(IDictionary<string, object> serialized, Network network)
+        public static Linear Deserialize(IDictionary<string, object> serialized, Network network)
         {
             var out_features_value = serialized.ContainsKey(nameof(out_features)) ? (int)serialized[nameof(out_features)] : (int)serialized["NumClass"];
             bool bias = serialized.ContainsKey("bias") ? (bool)serialized["bias"] : true;
             var flattenInputTensorOnLastDimension = serialized.ContainsKey(nameof(_flattenInputTensorOnLastDimension)) && (bool)serialized[nameof(_flattenInputTensorOnLastDimension)];
-            return new LinearLayer(
+            return new Linear(
                 out_features_value,
                 bias,
-                (double)serialized[nameof(LambdaL2Regularization)],
                 flattenInputTensorOnLastDimension,
                 (bool)serialized[nameof(Trainable)],
                 network,
@@ -357,15 +352,13 @@ namespace SharpNet.Layers
         public override string ToString()
         {
             var result = LayerName+": "+ShapeChangeDescription();
-            if (UseL2Regularization)
+            if (Sample.weight_decay>0)
             {
-                result += " with L2Regularization[lambdaValue=" + LambdaL2Regularization + "]";
+                result += " with weight_decay=" + Sample.weight_decay;
             }
             result += " " + _weights+ " " + _bias + " (" +TotalParams+" neurons)";
             return result;
         }
-
-        private bool UseL2Regularization => LambdaL2Regularization > 0.0;
         private bool UseBias => _bias != null;
     }
 }

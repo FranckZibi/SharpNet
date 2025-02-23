@@ -44,12 +44,11 @@ namespace SharpNet.Networks
         {
             var config = (Yolov3NetworkSample)new Yolov3NetworkSample(blocks ?? YOLOV3Config)
             {
-                    LossFunction = EvaluationMetricEnum.CategoricalCrossentropy,
-                    CompatibilityMode = CompatibilityModeEnum.TensorFlow,
-                    lambdaL2Regularization = 0.0005,
-                    ResourceIds = resourceIds.ToList(),
-            }
-                .WithSGD(0.9, false)
+                LossFunction = EvaluationMetricEnum.CategoricalCrossentropy,
+                CompatibilityMode = CompatibilityModeEnum.TensorFlow,
+                ResourceIds = resourceIds.ToList(),
+            };
+            config.WithSGD(config.InitialLearningRate,0.9, 0.0005, false)
                 .WithCyclicCosineAnnealingLearningRateScheduler(10, 2);
             return config;
         }
@@ -138,7 +137,6 @@ namespace SharpNet.Networks
                 int.Parse(block["size"]),
                 stride,
                 (stride > 1) ? ConvolutionLayer.PADDING_TYPE.VALID:ConvolutionLayer.PADDING_TYPE.SAME,
-                0.0, //lambdaL2Regularization
                 !batch_normalize,
                 lastLayerIndex,
                 "conv_" + (blockId - 1));

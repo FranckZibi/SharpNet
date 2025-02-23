@@ -151,8 +151,8 @@ namespace SharpNet.Data
         /// </param>
         /// <param name="wordEmbedding">
         ///  'wordEmbedding' shape:
-        ///     (vocabularySize, embeddingDim)
-        ///     vocabularySize = 1+number of distinct words in the embedding
+        ///     (num_embeddings, embedding_dim)
+        ///     num_embeddings = 1+number of distinct words in the embedding
         /// </param>
         /// <param name="xIndexInLastDimensionToUse">the index in the last dimension of the 'x' tensor that contains the wordIndex to embed</param>
         /// <param name="yIndexInLastDimensionToUse">the index in the last dimension of the 'y' tensor where we'll store the embedding associated with the wordIndex above </param>
@@ -379,7 +379,7 @@ namespace SharpNet.Data
 
         /// <summary>
         /// Update this tensor with positional encoding using the formula in 'Attention is All You Need'
-        /// 'this' tensor of shape (batchSize, timeSteps, embeddingDim)
+        /// 'this' tensor of shape (batchSize, timeSteps, embedding_dim)
         /// </summary>
         /// <param name="n">The 'n' described in the paper</param>
         public abstract void UpdateWithPositionalEncoding_AttnIsAllYouNeed(int n);
@@ -629,7 +629,7 @@ namespace SharpNet.Data
 
         #region Convolution
         /// <summary>
-        /// this = x (N, inputChannels, x.H, x.W)
+        /// this = x (N, input_channels, x.H, x.W)
         /// if isDepthwiseConvolution is true
         ///             Compute:      y = x (depthwise convolution) convolution (with padding / stride)
         ///             Both, x (= this), depthwiseConvolution and y must have the same number of channels.
@@ -637,10 +637,10 @@ namespace SharpNet.Data
         ///             Compute:      y = x (convolution) convolution (with padding / stride)
         /// <param name="convolution">
         /// if isDepthwiseConvolution is true
-        ///             convolution shape is (depthMultiplier=1, inputChannels, f1, f2)
-        ///             outputChannels = inputChannels*depthMultiplier
+        ///             convolution shape is (depth_multiplier=1, input_channels, f1, f2)
+        ///             outputChannels = input_channels*depth_multiplier
         /// else
-        ///             convolution shape is (out_channels, inputChannels, f1,f2)
+        ///             convolution shape is (out_channels, input_channels, f1,f2)
         /// </param>
         /// <param name="paddingTop">zero-padding height: number of rows of zeros implicitly concatenated onto the top of input images</param>
         /// <param name="paddingBottom">zero-padding height: number of rows of zeros implicitly concatenated onto the bottom of input images</param>
@@ -651,7 +651,7 @@ namespace SharpNet.Data
         /// </param>
         /// <param name="y">
         /// if isDepthwiseConvolution is true
-        ///             y shape is (N, depthMultiplier*inputChannels, y.H, y.W)
+        ///             y shape is (N, depth_multiplier*input_channels, y.H, y.W)
         /// else
         ///             y shape is (N, outputChannels, y.H, y.W)
         /// </param>
@@ -709,9 +709,9 @@ namespace SharpNet.Data
         //this = dy
         public abstract void Compute_BiasGradient_from_dy(Tensor biasGradient_1D);
         //this = Weights or B
-        public abstract void UpdateAdamOptimizer(double learningRate, double beta1, double beta2, double epsilon, double adamW_l2Regularization, Tensor dW, Tensor adam_vW, Tensor adam_sW, int timeStep);
+        public abstract void UpdateAdamOptimizer(double learningRate, double beta1, double beta2, double epsilon, double weight_decay, Tensor dW, Tensor adam_vW, Tensor adam_sW, int timeStep);
         //this = Weights or B
-        public abstract void UpdateSGDOptimizer(double learningRate, double momentum, bool usenesterov, Tensor dW, Tensor velocity);
+        public abstract void UpdateSGDOptimizer(double learningRate, double momentum, bool nesterov, Tensor dW, Tensor velocity);
         public Tensor RowSlice(int startRowIndex, int nbRows)
         {
             Debug.Assert(Shape.Length >= 2);

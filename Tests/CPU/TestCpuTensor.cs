@@ -761,8 +761,8 @@ namespace SharpNetTests.CPU
         public void TestWordEmbeddingForwardPropagation2D()
         {
             //x:                (batchSize, timeSteps)
-            //y:                (batchSize, timeSteps, embeddingDim)
-            //wordEmbedding:    (vocabularySize, embeddingDim)
+            //y:                (batchSize, timeSteps, embedding_dim)
+            //wordEmbedding:    (num_embeddings, embedding_dim)
             var x = TestNetworkPropagation.FromNumpyArray("[[3,1], [2,1], [2,3], [1,2]]");
             var wordEmbedding = TestNetworkPropagation.FromNumpyArray("[[0,0,0], [101,102,103], [201,202,203], [301,302,303]]");
             var yExpected = TestNetworkPropagation.FromNumpyArray("[ [[301,302,303],[101,102,103]], [ [201,202,203],[101,102,103]], [ [201,202,203],[301,302,303]], [[101,102,103],[201,202,203]] ]");
@@ -775,8 +775,8 @@ namespace SharpNetTests.CPU
         public void TestWordEmbeddingForwardPropagation3D()
         {
             //x:                (batchSize, timeSteps, inputSize)
-            //y:                (batchSize, timeSteps, inputSize+embeddingDim-1)
-            //wordEmbedding:    (vocabularySize, embeddingDim)
+            //y:                (batchSize, timeSteps, inputSize+embedding_dim-1)
+            //wordEmbedding:    (num_embeddings, embedding_dim)
             var x = TestNetworkPropagation.FromNumpyArray("[ [[3000,3,3001],[1000,1,1001]], [[2000,2,2001],[1002,1,1003]], [[2002,2,2003],[3002,3,3003]], [[1003,1,1004],[2004,2,2005]] ]");
             var wordEmbedding = TestNetworkPropagation.FromNumpyArray("[[0,0,0], [101,102,103], [201,202,203], [301,302,303]]");
             var yExpected = TestNetworkPropagation.FromNumpyArray("[ [[3000,301,302,303,3001],[1000,101,102,103,1001]], [[2000,201,202,203,2001],[1002,101,102,103,1003]], [[2002,201,202,203,2003],[3002,301,302,303,3003]], [[1003,101,102,103,1004], [2004,201,202,203,2005]] ]");
@@ -790,8 +790,8 @@ namespace SharpNetTests.CPU
         public void WordEmbeddingBackwardPropagation2D()
         {
             //x:                (batchSize, timeSteps)
-            //dy:               (batchSize, timeSteps, embeddingDim)
-            //wordEmbedding:    (vocabularySize, embeddingDim)
+            //dy:               (batchSize, timeSteps, embedding_dim)
+            //wordEmbedding:    (num_embeddings, embedding_dim)
             var x = TestNetworkPropagation.FromNumpyArray("[[3,1], [2,1], [2,3], [1,2]]");
             var dxPredicted = RandomTensor(x.Shape);
             var dxExpected = TestNetworkPropagation.FromNumpyArray("[[0,0], [0,0], [0,0], [0,0]]");
@@ -807,8 +807,8 @@ namespace SharpNetTests.CPU
         public void WordEmbeddingBackwardPropagation3D()
         {
             //x:                (batchSize, timeSteps, inputSize)
-            //dy:               (batchSize, timeSteps, inputSize+embeddingDim-1)
-            //wordEmbedding:    (vocabularySize, embeddingDim)
+            //dy:               (batchSize, timeSteps, inputSize+embedding_dim-1)
+            //wordEmbedding:    (num_embeddings, embedding_dim)
             var x = TestNetworkPropagation.FromNumpyArray("[ [[3000,3,3001],[1000,1,1001]], [[2000,2,2001],[1002,1,1003]], [[2002,2,2003],[3002,3,3003]], [[1003,1,1004],[2004,2,2005]] ]");
             var dxPredicted = RandomTensor(x.Shape);
             var dxExpected = TestNetworkPropagation.FromNumpyArray("[ [[3.000,0,3.001],[1.000,0,1.001]], [[2.000,0,2.001],[1.002,0,1.003]], [[2.002,0,2.003],[3.002,0,3.003]], [[1.003,0,1.004],[2.004,0,2.005]] ]");

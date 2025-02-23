@@ -208,7 +208,7 @@ public sealed class DataFrame
             dfs[0].StringTensor,
             dfs[0].IntTensor);
     }
-    public static void TfIdfEncode(string[] csvFiles, bool hasHeader, bool isNormalized, string columnToEncode, int embeddingDim,
+    public static void TfIdfEncode(string[] csvFiles, bool hasHeader, bool isNormalized, string columnToEncode, int embedding_dim,
         bool keepEncodedColumnName = false, bool reduceEmbeddingDimIfNeeded = false, TfIdfEncoding.TfIdfEncoding_norm norm = TfIdfEncoding.TfIdfEncoding_norm.L2, bool scikitLearnCompatibilityMode = false)
     {
         string directory = Path.GetDirectoryName(csvFiles[0]) ?? "";
@@ -230,7 +230,7 @@ public sealed class DataFrame
 
         ISample.Log.Info($"Encoding column {columnToEncode}");
         var encoded_column_df = df_ColumnToEncode
-            .TfIdfEncode(columnToEncode, embeddingDim, true, reduceEmbeddingDimIfNeeded, norm, scikitLearnCompatibilityMode)
+            .TfIdfEncode(columnToEncode, embedding_dim, true, reduceEmbeddingDimIfNeeded, norm, scikitLearnCompatibilityMode)
             .AverageBy(columnToEncode);
 
         var encoded_column_df_path = Path.Combine(directory, "tfidf_for_" + columnToEncode + ".csv");
@@ -731,11 +731,11 @@ public sealed class DataFrame
         return SumOrAvgForColumns(idColumns[0], true);
     }
     /// <summary>
-    /// encode the string column 'columnToEncode' using Tf*Idf with 'embeddingDim' words and return a new DataFrame with this encoding
+    /// encode the string column 'columnToEncode' using Tf*Idf with 'embedding_dim' words and return a new DataFrame with this encoding
     /// </summary>
     /// <param name="columnToEncode"></param>
-    /// <param name="embeddingDim">the number of dimension for the encoding.
-    /// Only the top frequent 'embeddingDim' words will be considered for the encoding.
+    /// <param name="embedding_dim">the number of dimension for the encoding.
+    /// Only the top frequent 'embedding_dim' words will be considered for the encoding.
     /// The other will be discarded</param>
     /// <param name="keepEncodedColumnName">
     /// Each new feature will have in its name the associated word for the TfIdf encoding</param>
@@ -743,9 +743,9 @@ public sealed class DataFrame
     /// <param name="norm"></param>
     /// <param name="scikitLearnCompatibilityMode"></param>
     /// <returns></returns>
-    public DataFrame TfIdfEncode(string columnToEncode, int embeddingDim, bool keepEncodedColumnName = false, bool reduceEmbeddingDimIfNeeded = false, TfIdfEncoding.TfIdfEncoding_norm norm = TfIdfEncoding.TfIdfEncoding_norm.L2, bool scikitLearnCompatibilityMode = false)
+    public DataFrame TfIdfEncode(string columnToEncode, int embedding_dim, bool keepEncodedColumnName = false, bool reduceEmbeddingDimIfNeeded = false, TfIdfEncoding.TfIdfEncoding_norm norm = TfIdfEncoding.TfIdfEncoding_norm.L2, bool scikitLearnCompatibilityMode = false)
     {
-        return TfIdfEncoding.Encode(new[] { this }, columnToEncode, embeddingDim, keepEncodedColumnName, reduceEmbeddingDimIfNeeded, norm, scikitLearnCompatibilityMode)[0];
+        return TfIdfEncoding.Encode(new[] { this }, columnToEncode, embedding_dim, keepEncodedColumnName, reduceEmbeddingDimIfNeeded, norm, scikitLearnCompatibilityMode)[0];
     }
     /// <summary>
     /// join the 2 DataFrame ('this' and 'right_df' using the key 'joinKey' to join.

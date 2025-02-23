@@ -1,9 +1,4 @@
-﻿// ReSharper disable UnusedMember.Global
-// ReSharper disable InconsistentNaming
-// ReSharper disable IdentifierTypo
-// ReSharper disable CommentTypo
-
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using SharpNet.Datasets;
@@ -1077,7 +1072,6 @@ public class LightGBMSample : AbstractModelSample
     /// The default Search Space for CatBoost Model
     /// </summary>
     /// <returns></returns>
-    // ReSharper disable once UnusedMember.Global
     public static Dictionary<string, object> DefaultSearchSpace(int num_iterations)
     {
         var searchSpace = new Dictionary<string, object>

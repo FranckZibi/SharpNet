@@ -226,10 +226,8 @@ public static class PlumeLabs88Utils
             // Optimizer 
             { nameof(NetworkSample.OptimizerType), new[] { "AdamW", } },
             //{ nameof(NetworkSample.OptimizerType), new[] { "SGD"} },
-            { nameof(NetworkSample.AdamW_L2Regularization), new[] { 1e-5 /*, 1e-4, 1e-3, 1e-2, 1e-1*/ } }, //0.00001
-            { nameof(NetworkSample.SGD_usenesterov), new[] { true, false } },
-            //{ nameof(NetworkSample.lambdaL2Regularization), new[] { 0.0005, 0.001, 0.00005 } },
-            { nameof(NetworkSample.lambdaL2Regularization), new[] {0.001, 0.0005, 0.0001, 0.00005 } }, // 0.0001 or 0.001
+            { nameof(NetworkSample.weight_decay), new[] { 1e-5 /*, 1e-4, 1e-3, 1e-2, 1e-1*/ } }, //0.00001
+            { nameof(NetworkSample.nesterov), new[] { true, false } },
             //{nameof(EfficientNetNetworkSample.DefaultMobileBlocksDescriptionCount), new[]{5}},
             {"LastActivationLayer", nameof(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU)},
             // Learning Rate
@@ -275,11 +273,9 @@ public static class PlumeLabs88Utils
                {
                    LossFunction = EvaluationMetricEnum.CategoricalCrossentropy,
                    CompatibilityMode = NetworkSample.CompatibilityModeEnum.TensorFlow,
-                   lambdaL2Regularization = 0.0005,
                    //!D WorkingDirectory = Path.Combine(NetworkSample.DefaultWorkingDirectory, CIFAR10DataSet.NAME),
                    num_epochs = 10,
                    BatchSize = 1000,
-                   InitialLearningRate = 0.01,
 
                    //Data augmentation
                    DataAugmentationType = ImageDataGenerator.DataAugmentationEnum.NO_AUGMENTATION,
@@ -292,7 +288,7 @@ public static class PlumeLabs88Utils
                    AlphaCutMix = 0.0,
                    CutoutPatchPercentage = 0.0
                }
-               .WithSGD(0.9, false)
+               .WithSGD(0.01, 0.9, 0.0005, false)
                .WithCyclicCosineAnnealingLearningRateScheduler(10, 2);
            return config;
 

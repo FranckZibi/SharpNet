@@ -48,19 +48,19 @@ public class Biosonar85TransformersNetworkSample : NetworkSample
     {
         nn.Input(datasetSample.X_Shape(1).Skip(1).ToArray());
 
-        nn.Convolution(8, 5, 2, ConvolutionLayer.PADDING_TYPE.VALID, lambdaL2Regularization, true); //padding =2
+        nn.Convolution(8, 5, 2, ConvolutionLayer.PADDING_TYPE.VALID, true); //padding =2
         nn.Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU);
         nn.BatchNorm(batchNorm_momentum, 1e-5);
 
-        nn.Convolution(16, 3, 2, ConvolutionLayer.PADDING_TYPE.VALID, lambdaL2Regularization, true); //padding =1
+        nn.Convolution(16, 3, 2, ConvolutionLayer.PADDING_TYPE.VALID, true); //padding =1
         nn.Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU);
         nn.BatchNorm(batchNorm_momentum, 1e-5);
 
-        nn.Convolution(32, 3, 2, ConvolutionLayer.PADDING_TYPE.VALID, lambdaL2Regularization, true); //padding =1
+        nn.Convolution(32, 3, 2, ConvolutionLayer.PADDING_TYPE.VALID, true); //padding =1
         nn.Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU);
         nn.BatchNorm(batchNorm_momentum, 1e-5);
 
-        nn.Convolution(64, 3, 2, ConvolutionLayer.PADDING_TYPE.VALID, lambdaL2Regularization, true); //padding =1
+        nn.Convolution(64, 3, 2, ConvolutionLayer.PADDING_TYPE.VALID, true); //padding =1
         nn.Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU);
         nn.BatchNorm(batchNorm_momentum, 1e-5);
 
@@ -73,7 +73,7 @@ public class Biosonar85TransformersNetworkSample : NetworkSample
             nn.GlobalMaxPooling();
         }
         nn.Flatten();
-        nn.Linear(datasetSample.NumClass, true, lambdaL2Regularization, true);
+        nn.Linear(datasetSample.NumClass, true, true);
         nn.Activation(nn.NetworkSample.GetActivationForLastLayer(datasetSample.NumClass));
     }
 

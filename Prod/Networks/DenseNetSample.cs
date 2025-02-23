@@ -11,7 +11,7 @@ SharpNet on 8-may-2019
 LearningRate = Orig Paper
 BatchSize = 64
 EpochCount = 300
-SGD with momentum = 0.9 & Nesterov & L2 = 1-e4 
+SGD with momentum = 0.9 & nesterov & weight_decay = 1-e4 
 Cutout 16 / FillMode = Reflect
 Orig Paper = https://arxiv.org/pdf/1608.06993.pdf
 # ------------------------------------------------------------
@@ -47,12 +47,10 @@ namespace SharpNet.Networks
             var config = (DenseNetNetworkSample)new DenseNetNetworkSample
             {
                     LossFunction = EvaluationMetricEnum.CategoricalCrossentropy,
-                    lambdaL2Regularization = 1e-4,
                     num_epochs = 300,
                     BatchSize = 64,
-                    InitialLearningRate = 0.1,
 
-                    //Data AUgmentation
+                    //Data Augmentation
                     DataAugmentationType = ImageDataGenerator.DataAugmentationEnum.DEFAULT,
                     WidthShiftRangeInPercentage = 0.1,
                     HeightShiftRangeInPercentage = 0.1,
@@ -63,7 +61,7 @@ namespace SharpNet.Networks
                     CutoutPatchPercentage = 0.5
 
             }
-                .WithSGD(0.9, true)
+                .WithSGD(lr:0.1, 0.9, weight_decay: 1e-4, true)
                 .WithCifar10DenseNetLearningRateScheduler(false, true, false);
 
             return config;
@@ -130,28 +128,27 @@ namespace SharpNet.Networks
             Debug.Assert(net.Layers.Count == 0);
             net.Input(xShape[1], xShape[2], xShape[3]);
             var out_channels = 2 * growthRate;
-            var lambdaL2Regularization = sample.lambdaL2Regularization;
 
             if (subSampleInitialBlock)
             {
-                net.Convolution(out_channels, 7, 2, ConvolutionLayer.PADDING_TYPE.SAME, lambdaL2Regularization, false)
+                net.Convolution(out_channels, 7, 2, ConvolutionLayer.PADDING_TYPE.SAME, false)
                     .BatchNorm(0.99, 1e-5)
                     .Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU)
                     .MaxPooling(3, 3, 2, 2);
             }
             else
             {
-                net.Convolution(out_channels, 3, 1, ConvolutionLayer.PADDING_TYPE.SAME, lambdaL2Regularization, false);
+                net.Convolution(out_channels, 3, 1, ConvolutionLayer.PADDING_TYPE.SAME, false);
                 //net.Convolution(out_channels, 3, 1, 1, 0.0, false);
             }
 
             for (int denseBlockId = 0; denseBlockId < nbConvBlocksInEachDenseBlock.Length; ++denseBlockId)
             {
-                AddDenseBlock(net, nbConvBlocksInEachDenseBlock[denseBlockId], growthRate, useBottleneckInEachConvBlock, dropoutRate, lambdaL2Regularization);
+                AddDenseBlock(net, nbConvBlocksInEachDenseBlock[denseBlockId], growthRate, useBottleneckInEachConvBlock, dropoutRate);
                 if (denseBlockId != nbConvBlocksInEachDenseBlock.Length - 1)
                 {
                     //the last dense block does not have a transition block
-                    AddTransitionBlock(net, compression, lambdaL2Regularization);
+                    AddTransitionBlock(net, compression);
                 }
                 out_channels = (int)Math.Round(out_channels * compression);
             }
@@ -161,8 +158,8 @@ namespace SharpNet.Networks
                 .BatchNorm(0.99, 1e-5)
                 .Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU)
                 .GlobalAvgPooling()
-                //.Linear(numClass, 0.0) //!D check if lambdaL2Regularization should be 0
-                .Linear(numClass, true, lambdaL2Regularization, false)
+                //.Linear(numClass, 0.0) //!D check if weight_decay should be 0
+                .Linear(numClass, true, false)
                 .Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
             return net;
         }
@@ -175,20 +172,19 @@ namespace SharpNet.Networks
         /// <param name="growthRate"></param>
         /// <param name="bottleneck"></param>
         /// <param name="dropoutRate"></param>
-        /// <param name="lambdaL2Regularization"></param>
+        /// <param name="weight_decay"></param>
         /// <returns></returns>
         private static void AddDenseBlock(
             Network network,
             int nbConvBlocksInDenseBlock,
             int growthRate,
             bool bottleneck,
-            double? dropoutRate,
-            double lambdaL2Regularization)
+            double? dropoutRate)
         {
             for (int convBlockId = 0; convBlockId < nbConvBlocksInDenseBlock; ++convBlockId)
             {
                 var previousLayerIndex1 = network.LastLayerIndex;
-                AddConvolutionBlock(network, growthRate, bottleneck, dropoutRate, lambdaL2Regularization);
+                AddConvolutionBlock(network, growthRate, bottleneck, dropoutRate);
                 var previousLayerIndex2 = network.LastLayerIndex;
                 network.ConcatenateLayer(previousLayerIndex1, previousLayerIndex2);
             }
@@ -200,16 +196,16 @@ namespace SharpNet.Networks
         /// <param name="growthRate"></param>
         /// <param name="bottleneck"></param>
         /// <param name="dropoutRate">optional value, if presents will add a Dropout layer at the end of the block</param>
-        /// <param name="lambdaL2Regularization"></param>
+        /// <param name="weight_decay"></param>
         /// <returns></returns>
-        private static void AddConvolutionBlock(Network network, int growthRate, bool bottleneck, double? dropoutRate, double lambdaL2Regularization)
+        private static void AddConvolutionBlock(Network network, int growthRate, bool bottleneck, double? dropoutRate)
         {
             if (bottleneck)
             {
-                network.BatchNorm_Activation_Convolution(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU, 4 * growthRate, 1, 1, ConvolutionLayer.PADDING_TYPE.VALID, lambdaL2Regularization, true);
+                network.BatchNorm_Activation_Convolution(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU, 4 * growthRate, 1, 1, ConvolutionLayer.PADDING_TYPE.VALID, true);
             }
-            //network.BatchNorm_Activation_Convolution(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU, growthRate, 3, 1, 1, lambdaL2Regularization, true);
-            network.BatchNorm_Activation_Convolution(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU, growthRate, 3, 1, ConvolutionLayer.PADDING_TYPE.SAME, 0.0, true);
+            //network.BatchNorm_Activation_Convolution(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU, growthRate, 3, 1, 1, weight_decay, true);
+            network.BatchNorm_Activation_Convolution(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU, growthRate, 3, 1, ConvolutionLayer.PADDING_TYPE.SAME, true);
             if (dropoutRate.HasValue)
             {
                 network.Dropout(dropoutRate.Value);
@@ -220,12 +216,12 @@ namespace SharpNet.Networks
         /// </summary>
         /// <param name="network"></param>
         /// <param name="compression"></param>
-        /// <param name="lambdaL2Regularization"></param>
+        /// <param name="weight_decay"></param>
         /// <returns></returns>
-        private static void AddTransitionBlock(Network network, double compression, double lambdaL2Regularization)
+        private static void AddTransitionBlock(Network network, double compression)
         {
             var out_channels = network.Layers.Last().OutputShape(1)[1];
-            network.BatchNorm_Activation_Convolution(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU, (int)Math.Round(out_channels * compression), 1, 1, ConvolutionLayer.PADDING_TYPE.VALID, lambdaL2Regularization, true)
+            network.BatchNorm_Activation_Convolution(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU, (int)Math.Round(out_channels * compression), 1, 1, ConvolutionLayer.PADDING_TYPE.VALID, true)
                 .AvgPooling(2, 2, 2, 2);
         }
     }

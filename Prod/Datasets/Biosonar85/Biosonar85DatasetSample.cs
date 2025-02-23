@@ -100,8 +100,8 @@ public class Biosonar85DatasetSample : AbstractDatasetSample
     private static InMemoryDataSet trainDataset_NETWORK_4D;
     private static InMemoryDataSet testDataset_NETWORK_4D;
 
-    private static DataSet trainDataset_PNG_1CHANNEL;
-    private static DataSet testDataset_PNG_1CHANNEL;
+    //private static DataSet trainDataset_PNG_1CHANNEL;
+    //private static DataSet testDataset_PNG_1CHANNEL;
 
     private static DataSet trainDataset_PNG_1CHANNEL_V2;
     private static DataSet testDataset_PNG_1CHANNEL_V2;

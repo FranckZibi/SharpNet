@@ -1,4 +1,3 @@
-import stat
 import torch
 import numpy as np
 import os
@@ -18,18 +17,15 @@ np.random.seed(0)
 class pytorch_to_sharpnet:
     
     @staticmethod
-    def save_sharpnet(model, model_name:str, directory:str, optimizer, loss_criterion, input_shape: List[int], verbose:bool=False) -> List[str]:
-        pytorch_to_sharpnet.save_sharpnet_model_parameters(model, model_name, directory, True)
-        pytorch_to_sharpnet.save_sharpnet_model_description(model, model_name, directory, optimizer, loss_criterion, input_shape, verbose=verbose)
+    def save_sharpnet(model, model_name:str, directory:str, optimizer, loss_criterion, input_shape: List[int], concrete_args=None, verbose:bool=False) -> List[str]:
+        pytorch_to_sharpnet.save_sharpnet_model_description(model, model_name, directory, optimizer, loss_criterion, input_shape, concrete_args=concrete_args, verbose=verbose)
         sharpnet_network_config_utils.save_sharpnet_conf(model, model_name, directory, optimizer, loss_criterion, input_shape)
+        pytorch_to_sharpnet.save_sharpnet_model_parameters(model, model_name, directory, True)
         torch.save(model, os.path.join(directory, model_name+'.pth'))
 
     @staticmethod  
     def to_sharpnet_InputLayer_string(node: torch.fx.node.Node, input_shape: List[int], previous_nodes: List[torch.fx.node.Node]) -> str:
         # Type;Layer;InputLayer;intVector;PreviousLayerIndexes;0;string;LayerName;input;bool;Trainable;True;int;_c;3;int;_h;4;int;_w;5;
-        if len(node.args) == 0:
-            if len(previous_nodes) != 0:
-                raise Exception(f"error in node {node} : node with no args must be the first node")
         if len(input_shape) <2 or  len(input_shape) > 4:
             raise Exception(f"Invalid input shape {input_shape}")
         c = input_shape[1] if len(input_shape)>=2 else -1
@@ -38,12 +34,22 @@ class pytorch_to_sharpnet:
         result = f"Type;Layer;InputLayer;intVector;PreviousLayerIndexes;0;string;LayerName;{torch_fx_utils.extract_node_name(node)};bool;Trainable;True;int;_c;{c};int;_h;{h};int;_w;{w};"
         return result
 
+
+    def count_placeholder_nodes(nodes: List[torch.fx.node.Node]) -> int:
+        result = 0
+        for n in nodes:
+            if n.op == 'placeholder':
+                result += 1
+        return result
+
     @staticmethod
-    def to_sharpnet_string(node: torch.fx.node.Node, loss_criterion, sharpnet_network_config, input_shape: List[int], name2module, previous_nodes: List[torch.fx.node.Node]) -> str:
-        if len(node.args) == 0:
-            if len(previous_nodes) != 0:
-                raise Exception(f"error in node {node} : node with no args must be the first node")
+    def to_sharpnet_string(node: torch.fx.node.Node, loss_criterion, input_shape: List[int], name2module, previous_nodes: List[torch.fx.node.Node]) -> str:
+
+        if node.op == 'placeholder':
+            if len(node.args) != 0:
+                raise Exception(f"placeholder node {node} must have no args")
             return pytorch_to_sharpnet.to_sharpnet_InputLayer_string(node, input_shape, previous_nodes)
+
 
         if node.op == 'output':
             if  isinstance(loss_criterion, torch.nn.CrossEntropyLoss):
@@ -60,14 +66,24 @@ class pytorch_to_sharpnet:
                 raise Exception(f'expecting str type for {node.target} , got {type(node.target)} for {node} , {node.op}')
             if node.target not in name2module:
                 raise Exception(f"invalid node {node} / {node.target}: not among {name2module.keys()}")
-            return pytorch_module_to_sharpnet.value_of(node, name2module[node.target], sharpnet_network_config, previous_nodes)
+            return pytorch_module_to_sharpnet.value_of(node, name2module[node.target], previous_nodes)
 
-        raise Exception(f"unknown {node.target} in {node} , {node.op}")
+        '''
+        if node.op == 'call_method':
+            return f"unknown {node.target} in {node} , {node.op}" #//!D TO CHECK
+        if node.op == 'get_attr':
+            return f"unknown {node.target} in {node} , {node.op}" #//!D TO CHECK
+        '''
+        #//!D TO CHECK
+        error_msg = f"* * * * unknown {node.target} in {node} , {node.op}"
+        print(error_msg)
+        return error_msg 
+        #raise Exception(f"unknown {node.target} in {node} , {node.op}")
       
 
 
     @staticmethod
-    def save_sharpnet_model_description(model, model_name:str, directory:str, optimizer, loss_criterion, input_shape: List[int], verbose:bool = False) -> List[str]:
+    def save_sharpnet_model_description(model, model_name:str, directory:str, optimizer, loss_criterion, input_shape: List[int], concrete_args = None, verbose:bool = False) -> List[str]:
     
         previous_nodes = []
         previous_nodes_sharpnet = []
@@ -78,11 +94,18 @@ class pytorch_to_sharpnet:
                 raise Exception(f"duplicate module_name {module_name}")
             name2module[module_name] = module
     
-        network_config = sharpnet_network_config_utils.to_sharpnet_network_config(model, optimizer, loss_criterion, input_shape)
-    
         # Trace the model with torch.fx
         model.eval()
-        tracer = torch.fx.symbolic_trace(model)
+
+
+        if type(model).__module__.startswith('transformers.models.'):
+            from transformers.utils.fx import symbolic_trace as transformers_symbolic_trace
+            tracer = transformers_symbolic_trace(model, input_names=["input_ids", "attention_mask", "token_type_ids"])
+        else:
+            if concrete_args:
+                tracer = torch.fx.symbolic_trace(model, concrete_args=concrete_args)
+            else:
+                tracer = torch.fx.symbolic_trace(model)
         nodes  = list(tracer.graph.nodes)
     
         # we remove invalid nodes and update args
@@ -94,7 +117,7 @@ class pytorch_to_sharpnet:
             node = nodes[i]
             if verbose:
                 torch_fx_utils.display_node(node, name2module)
-            current_string = pytorch_to_sharpnet.to_sharpnet_string(node, loss_criterion, network_config, input_shape, name2module, previous_nodes)
+            current_string = pytorch_to_sharpnet.to_sharpnet_string(node, loss_criterion, input_shape, name2module, previous_nodes)
             if current_string:
                 previous_nodes.append(node)
                 previous_nodes_sharpnet.append(current_string)
@@ -128,4 +151,3 @@ class pytorch_to_sharpnet:
                     return pytorch_utils.normalize_module_name(parameter_name[:-len(s)])+s
             left_part, right_part = parameter_name.rsplit('.', 1)
             return f"{pytorch_utils.normalize_module_name(left_part)}.{right_part}"
-    

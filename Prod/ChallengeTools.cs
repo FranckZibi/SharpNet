@@ -59,7 +59,7 @@ public static class ChallengeTools
         //string[] csvFiles = { @"C:\Projects\Challenges\KaggleDays\Data\item_info.csv" };
         //string columnToEncode = "name";
 
-        const int embeddingDim = 300;
+        const int embedding_dim = 300;
         const bool hasHeader = true;
         const bool isNormalized = true;
         const bool keepEncodedColumnName = false;
@@ -70,16 +70,16 @@ public static class ChallengeTools
         string directory = Path.GetDirectoryName(csvFiles[0]) ?? "";
         Utils.ConfigureGlobalLog4netProperties(directory, $"{nameof(TfIdfEncode)}");
         Utils.ConfigureThreadLog4netProperties(directory, $"{nameof(TfIdfEncode)}");
-        DataFrame.TfIdfEncode(csvFiles, hasHeader, isNormalized, columnToEncode, embeddingDim, 
+        DataFrame.TfIdfEncode(csvFiles, hasHeader, isNormalized, columnToEncode, embedding_dim, 
             keepEncodedColumnName, reduceEmbeddingDimIfNeeded, norm, scikitLearnCompatibilityMode);
     }
 
     ///// <summary>
-    ///// encode the string column 'columnToEncode' using Tf*Idf with 'embeddingDim' words and return a new DataFrame with this encoding
+    ///// encode the string column 'columnToEncode' using Tf*Idf with 'embedding_dim' words and return a new DataFrame with this encoding
     ///// </summary>
     ///// <param name="columnToEncode"></param>
-    ///// <param name="embeddingDim">the number of dimension for the encoding.
-    ///// Only the top frequent 'embeddingDim' words will be considered for the encoding.
+    ///// <param name="embedding_dim">the number of dimension for the encoding.
+    ///// Only the top frequent 'embedding_dim' words will be considered for the encoding.
     ///// The other will be discarded</param>
     ///// <param name="keepEncodedColumnName">
     ///// Each new feature will have in its name the associated word for the TfIdf encoding</param>
@@ -87,9 +87,9 @@ public static class ChallengeTools
     ///// <param name="norm"></param>
     ///// <param name="scikitLearnCompatibilityMode"></param>
     ///// <returns></returns>
-    //public DataFrame TfIdfEncode(string columnToEncode, int embeddingDim, bool keepEncodedColumnName = false, bool reduceEmbeddingDimIfNeeded = false, TfIdfEncoding.TfIdfEncoding_norm norm = TfIdfEncoding.TfIdfEncoding_norm.L2, bool scikitLearnCompatibilityMode = false)
+    //public DataFrame TfIdfEncode(string columnToEncode, int embedding_dim, bool keepEncodedColumnName = false, bool reduceEmbeddingDimIfNeeded = false, TfIdfEncoding.TfIdfEncoding_norm norm = TfIdfEncoding.TfIdfEncoding_norm.L2, bool scikitLearnCompatibilityMode = false)
     //{
-    //    return TfIdfEncoding.Encode(new[] { this }, columnToEncode, embeddingDim, keepEncodedColumnName, reduceEmbeddingDimIfNeeded, norm, scikitLearnCompatibilityMode)[0];
+    //    return TfIdfEncoding.Encode(new[] { this }, columnToEncode, embedding_dim, keepEncodedColumnName, reduceEmbeddingDimIfNeeded, norm, scikitLearnCompatibilityMode)[0];
     //}
 
 

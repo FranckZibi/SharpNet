@@ -97,7 +97,7 @@ namespace SharpNet.Networks
                 }
 
 
-                if (layer.GetNetwork().Sample.LogNetworkPropagation)
+                if (layer.GetSample().LogNetworkPropagation)
                 {
                     layer.LogDebug(Environment.NewLine+ "--------------------------------------------------------------------"
                                    + Environment.NewLine + "Forward: "
@@ -203,7 +203,7 @@ namespace SharpNet.Networks
                 //computes 'dx' and weight gradients of current layer
                 layer.BackwardPropagation(allX, y, dy, dxBuffer);
 
-                if (layer.GetNetwork().Sample.LogNetworkPropagation && layer is not RecurrentLayer)
+                if (layer.GetSample().LogNetworkPropagation && layer is not RecurrentLayer)
                 {
                     layer.LogDebug("backward: "+layer);
                     if (layer.WeightGradients != null)

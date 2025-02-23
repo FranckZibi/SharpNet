@@ -104,19 +104,16 @@ namespace SharpNetTests
 
             var networkMetaParameters = new List<Func<NetworkSample>>
             {
-                //(p) =>{p.UseNesterov = false; p.Config.num_epochs = 50; p.Config.ExtraDescription = "_50Epoch_no_nesterov";},
                 //(p) =>{p.UseAdam = true; p.Config.num_epochs = 5; p.Config.ExtraDescription = "_50Epoch_Adam";},
                 //(p) =>{p.SaveNetworkStatsAfterEachEpoch = true; p.Config.ExtraDescription = "_Adam_with_l2_inConv";},
-                //(p) =>{p.SaveNetworkStatsAfterEachEpoch = false;p.SaveLossAfterEachMiniBatch = false;p.UseAdam = true;p.UseNesterov = false;p.Config.BatchSize = -1;p.Config.num_epochs = 150; p.Config.ExtraDescription = "_Adam";},
                 //(p) =>{ p.Config.ExtraDescription = "_OrigPaper";},
 
-                () =>{var p = DenseNetNetworkSample.CIFAR10();p.num_epochs = 240;p.BatchSize = -1;p.WithSGD(0.9,true); p.CompatibilityMode = NetworkSample.CompatibilityModeEnum.TensorFlow;p.CutoutPatchPercentage = 0.0;return p;},
-                () =>{var p = DenseNetNetworkSample.CIFAR10();p.num_epochs = 240;p.BatchSize = -1;p.WithSGD(0.9,false); p.CompatibilityMode = NetworkSample.CompatibilityModeEnum.TensorFlow;p.CutoutPatchPercentage = 0.0;return p;},
+                () =>{var p = DenseNetNetworkSample.CIFAR10();p.num_epochs = 240;p.BatchSize = -1;p.WithSGD(p.InitialLearningRate, 0.9, p.weight_decay, true); p.CompatibilityMode = NetworkSample.CompatibilityModeEnum.TensorFlow;p.CutoutPatchPercentage = 0.0;return p;},
+                () =>{var p = DenseNetNetworkSample.CIFAR10();p.num_epochs = 240;p.BatchSize = -1;p.WithSGD(p.InitialLearningRate, 0.9, p.weight_decay, false); p.CompatibilityMode = NetworkSample.CompatibilityModeEnum.TensorFlow;p.CutoutPatchPercentage = 0.0;return p;},
 
 
                 //(p) =>{p.Config.num_epochs = 300;p.Config.BatchSize = -1;p.CutoutPatchPercentage = 0.25;p.Config.ExtraDescription = "_200Epochs_L2InDense_CutoutPatchPercentage0_25;},
                 //(p) =>{p.Config.num_epochs = 300;p.Config.BatchSize = -1;p.CutoutPatchPercentage = 0.0;p.Config.ExtraDescription = "_200Epochs_L2_InDense_CutoutPatchPercentage0";},
-                //(p) =>{p.Config.num_epochs = 200;p.Config.WithSGD(0.9,false);p.Config.ExtraDescription = "_200Epochs_NoNesterov";},
 
             };
             PerformAllActionsInAllGpu(networkMetaParameters, networkGeometries);
@@ -143,7 +140,6 @@ namespace SharpNetTests
             {
                 () =>{var p = EfficientNetNetworkSample.Cancel();p.InitialLearningRate = defaultInitialLearningRate;p.BatchSize = batchSize;p.num_epochs = num_epochs;return p;},
                 //() =>{var p = EfficientNetBuilder.Cancel();p.InitialLearningRate = defaultInitialLearningRate;p.DA.CutoutPatchPercentage=0 ;p.Config.BatchSize = batchSize;p.Config.num_epochs = num_epochs;p.Config.ExtraDescription = "_Cancel_NoCutout"+targetWidth+"_"+targetHeight;return p;},
-                //() =>{var p = EfficientNetBuilder.Cancel();p.InitialLearningRate = defaultInitialLearningRate;p.Config.WithSGD(0.9, true);p.Config.BatchSize = batchSize;p.Config.num_epochs = num_epochs;p.Config.ExtraDescription = "_nesterov_Cancel_"+targetWidth+"_"+targetHeight;return p;},
                 //() =>{var p = EfficientNetBuilder.Cancel();p.InitialLearningRate = defaultInitialLearningRate;p.DA.DataAugmentationType =ImageDataGenerator.DataAugmentationEnum.DEFAULT;p.Config.BatchSize = batchSize;p.Config.num_epochs = num_epochs;p.Config.ExtraDescription = "_Cancel_Augment_DEFAULT"+targetWidth+"_"+targetHeight;return p;},
                 //() =>{var p = EfficientNetBuilder.Cancel();p.InitialLearningRate = 0.025;p.Config.BatchSize = batchSize;p.Config.num_epochs = num_epochs;p.Config.ExtraDescription = "_lr_0_25_Cancel_"+targetWidth+"_"+targetHeight;return p;},
                 //() =>{var p = EfficientNetBuilder.Cancel();p.InitialLearningRate = 0.015;p.Config.BatchSize = batchSize;p.Config.num_epochs = num_epochs;p.Config.ExtraDescription = "_lr_0_15_Cancel_"+targetWidth+"_"+targetHeight;return p;},
@@ -157,7 +153,6 @@ namespace SharpNetTests
                 //() =>{var p = EfficientNetBuilder.Cancel();p.InitialLearningRate = defaultInitialLearningRate;p.DA.DataAugmentationType =ImageDataGenerator.DataAugmentationEnum.AUTO_AUGMENT_IMAGENET;p.Config.BatchSize = batchSize;p.Config.num_epochs = num_epochs;p.Config.ExtraDescription = "_Cancel_AutoAugment_ImageNet"+targetWidth+"_"+targetHeight;return p;},
                 //() =>{var p = EfficientNetBuilder.Cancel();p.InitialLearningRate = 0.015;p.Config.BatchSize = batchSize;p.Config.num_epochs = num_epochs;p.Config.ExtraDescription = "_lr_0_15_Cancel_"+targetWidth+"_"+targetHeight;return p;},
                 //() =>{var p = EfficientNetBuilder.Cancel();p.InitialLearningRate = 0.025;p.Config.BatchSize = batchSize;p.Config.num_epochs = num_epochs;p.Config.ExtraDescription = "_lr_0_25_Cancel_"+targetWidth+"_"+targetHeight;return p;},
-                //() =>{var p = EfficientNetBuilder.Cancel();p.InitialLearningRate = defaultInitialLearningRate;p.Config.WithSGD(0.9, true);p.Config.BatchSize = batchSize;p.Config.num_epochs = num_epochs;p.Config.ExtraDescription = "_nesterov_Cancel_"+targetWidth+"_"+targetHeight;return p;},
                 //() =>{var p = EfficientNetBuilder.Cancel();p.InitialLearningRate = defaultInitialLearningRate;p.BatchNormEpsilon=0.0001;p.Config.BatchSize = batchSize;p.Config.num_epochs = num_epochs;p.Config.ExtraDescription = "_BatchNormEpsilon_0_0001_Cancel_"+targetWidth+"_"+targetHeight;return p;},
 
 
@@ -298,7 +293,7 @@ namespace SharpNetTests
 
             var networkMetaParameters = new List<Func<ResNetNetworkSample>>
             {
-                () =>{var p = ResNetNetworkSample.CIFAR10();p.WithSGD(0.9,true);return p;},
+                () =>{var p = ResNetNetworkSample.CIFAR10();p.WithSGD(p.InitialLearningRate, 0.9, p.weight_decay, true);return p;},
             };
             PerformAllActionsInAllGpu(networkMetaParameters, networkGeometries);
         }

@@ -1,4 +1,5 @@
-﻿using System;
+﻿
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
@@ -39,13 +40,12 @@ namespace SharpNet.Networks
         /// </summary>
         public ConvolutionAlgoPreference ConvolutionAlgoPreference = ConvolutionAlgoPreference.FASTEST_DETERMINIST;
 
-        public double AdamW_L2Regularization = 0.01;
         public double Adam_beta1 = 0.9;
         public double Adam_beta2 = 0.999;
-        public double Adam_epsilon = 1e-8;
+        public double Adam_eps = 1e-8;
         public double SGD_momentum = 0.9;
-        public double lambdaL2Regularization;
-        public bool SGD_usenesterov = true;
+        public double weight_decay = 0.0;
+        public bool nesterov = true;
         public bool ShuffleDatasetBeforeEachEpoch = true;
         //when ShuffleDatasetBeforeEachEpoch is true, consider that the dataset is built from block of 'ShuffleDatasetBeforeEachEpochBlockSize' element (that must be kept in same order)
         public int ShuffleDatasetBeforeEachEpochBlockSize = 1;
@@ -164,6 +164,8 @@ namespace SharpNet.Networks
             var metrics = GetAllEvaluationMetrics();
             return metrics.Count != 0 ? metrics[0] : EvaluationMetricEnum.DEFAULT_VALUE;
         }
+
+        public bool Use_weight_decay_in_backpropagation => (weight_decay > 0) && (OptimizerType != Optimizer.OptimizationEnum.AdamW);
 
 
         public virtual string ToPytorchModule(Network model)
@@ -364,23 +366,27 @@ namespace SharpNet.Networks
             switch (OptimizerType)
             {
                 case Optimizer.OptimizationEnum.AdamW:
-                    WithAdamW(AdamW_L2Regularization, Adam_beta1, Adam_beta2, Adam_epsilon);
-                    //lambdaL2Regularization = SGD_momentum = 0;
-                    //SGD_usenesterov = false;
+                    if (weight_decay <= 0)
+                    {
+                        return false; //weight_decay must be > 0 for AdamW
+                    }
+                    WithAdamW(InitialLearningRate, Adam_beta1, Adam_beta2, Adam_eps, weight_decay);
+                    //SGD_momentum = 0;
+                    //nesterov = false;
                     break;
                 case Optimizer.OptimizationEnum.SGD:
-                    WithSGD(SGD_momentum, SGD_usenesterov);
-                    //AdamW_L2Regularization = Adam_beta1 = Adam_beta2 = Adam_epsilon = 0;
+                    WithSGD(InitialLearningRate,SGD_momentum, weight_decay, nesterov);
+                    //Adam_beta1 = Adam_beta2 = Adam_eps = 0;
                     break;
                 case Optimizer.OptimizationEnum.Adam:
-                    WithAdam(Adam_beta1, Adam_beta2, Adam_epsilon);
-                    //AdamW_L2Regularization = SGD_momentum = 0;
-                    //SGD_usenesterov = false;
+                    WithAdam(InitialLearningRate,Adam_beta1, Adam_beta2, Adam_eps, weight_decay);
+                    //SGD_momentum = 0;
+                    //nesterov = false;
                     break;
                 case Optimizer.OptimizationEnum.VanillaSGD:
                 case Optimizer.OptimizationEnum.VanillaSGDOrtho:
-                    //SGD_momentum = AdamW_L2Regularization = Adam_beta1 = Adam_beta2 = Adam_epsilon = 0;
-                    //SGD_usenesterov = false;
+                    //SGD_momentum = Adam_beta1 = Adam_beta2 = Adam_eps = 0;
+                    //nesterov = false;
                     break; // no extra configuration needed
             }
 
@@ -465,44 +471,6 @@ namespace SharpNet.Networks
             }
         }
 
-        public NetworkSample WithAdam(double _beta1 = 0.9, double _beta2 = 0.999, double _epsilon = 1e-8)
-        {
-            Debug.Assert(_beta1 >= 0);
-            Debug.Assert(_beta1 <= 1.0);
-            Debug.Assert(_beta2 >= 0);
-            Debug.Assert(_beta2 <= 1.0);
-            AdamW_L2Regularization = 0.0;
-            Adam_beta1 = _beta1;
-            Adam_beta2 = _beta2;
-            Adam_epsilon = _epsilon;
-            OptimizerType = Optimizer.OptimizationEnum.Adam;
-            return this;
-        }
-
-        /// <summary>
-        /// 
-        /// </summary>
-        /// <param name="adamW_L2Regularization">also known as weight decay</param>
-        /// <param name="beta1"></param>
-        /// <param name="beta2"></param>
-        /// <param name="epsilon"></param>
-        /// <returns></returns>
-        public NetworkSample WithAdamW(double adamW_L2Regularization = 0.01, double beta1 = 0.9, double beta2 = 0.999, double epsilon = 1e-8)
-        {
-            Debug.Assert(beta1 >= 0);
-            Debug.Assert(beta1 <= 1.0);
-            Debug.Assert(beta2 >= 0);
-            Debug.Assert(beta2 <= 1.0);
-            Debug.Assert(adamW_L2Regularization>1e-6);
-            AdamW_L2Regularization = adamW_L2Regularization;
-            lambdaL2Regularization = 0; //L2 regularization is not compatible with AdamW
-            Adam_beta1 = beta1;
-            Adam_beta2 = beta2;
-            Adam_epsilon = epsilon;
-            OptimizerType = Optimizer.OptimizationEnum.AdamW;
-            return this;
-        }
-
         public virtual void BuildLayers(Network nn, AbstractDatasetSample datasetSample)
         {
             ISample.Log.Warn($"{nameof(BuildLayers)} is not overriden and will do nothing");
@@ -554,13 +522,55 @@ namespace SharpNet.Networks
 
 
 
-        public NetworkSample WithSGD(double momentum = 0.9, bool useNesterov = true)
+        public NetworkSample WithAdam(double lr, double beta1, double beta2, double eps, double weight_decay)
+        {
+            Debug.Assert(beta1 >= 0);
+            Debug.Assert(beta1 <= 1.0);
+            Debug.Assert(beta2 >= 0);
+            Debug.Assert(beta2 <= 1.0);
+            OptimizerType = Optimizer.OptimizationEnum.Adam;
+            InitialLearningRate = lr;
+            Adam_beta1 = beta1;
+            Adam_beta2 = beta2;
+            this.Adam_eps = eps;
+            this.weight_decay = weight_decay;
+            return this;
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="lr">learnig rate</param>
+        /// <param name="beta1"></param>
+        /// <param name="beta2"></param>
+        /// <param name="eps"></param>
+        /// <param name="weight_decay">weight decay</param>
+        /// <returns></returns>
+        public NetworkSample WithAdamW(double lr, double beta1, double beta2, double eps, double weight_decay)
+        {
+            Debug.Assert(beta1 >= 0);
+            Debug.Assert(beta1 <= 1.0);
+            Debug.Assert(beta2 >= 0);
+            Debug.Assert(beta2 <= 1.0);
+            Debug.Assert(weight_decay > 1e-6);
+            OptimizerType = Optimizer.OptimizationEnum.AdamW;
+            InitialLearningRate = lr;
+            Adam_beta1 = beta1;
+            Adam_beta2 = beta2;
+            Adam_eps = eps;
+            this.weight_decay = weight_decay;
+            return this;
+        }
+
+        public NetworkSample WithSGD(double lr, double momentum, double weight_decay, bool nesterov)
         {
             Debug.Assert(momentum >= 0);
             Debug.Assert(momentum <= 1.0);
-            SGD_momentum = momentum;
-            SGD_usenesterov = useNesterov;
             OptimizerType = Optimizer.OptimizationEnum.SGD;
+            InitialLearningRate = lr;
+            SGD_momentum = momentum;
+            this.weight_decay = weight_decay;
+            this.nesterov = nesterov;
             return this;
         }
 
@@ -569,23 +579,15 @@ namespace SharpNet.Networks
             switch (OptimizerType)
             {
                 case Optimizer.OptimizationEnum.Adam:
-                    if (Math.Abs(AdamW_L2Regularization) > 1e-6)
-                    {
-                        throw new Exception("Invalid AdamW_L2Regularization (" + AdamW_L2Regularization + ") for Adam: should be 0");
-                    }
-                    return new Adam(memoryPool, Adam_beta1, Adam_beta2, Adam_epsilon, 0.0, weightShape, biasShape);
+                    return new Adam(memoryPool, Adam_beta1, Adam_beta2, Adam_eps, 0.0, weightShape, biasShape);
                 case Optimizer.OptimizationEnum.AdamW:
-                    if (Math.Abs(lambdaL2Regularization) > 1e-6)
+                    if (weight_decay < 1e-6)
                     {
-                        throw new Exception("Can't use both AdamW and L2 Regularization");
+                        throw new Exception("Invalid weight_decay (" + weight_decay + ") for AdamW: should be > 0");
                     }
-                    if (AdamW_L2Regularization < 1e-6)
-                    {
-                        throw new Exception("Invalid AdamW_L2Regularization (" + AdamW_L2Regularization + ") for AdamW: should be > 0");
-                    }
-                    return new Adam(memoryPool, Adam_beta1, Adam_beta2, Adam_epsilon, AdamW_L2Regularization, weightShape, biasShape);
+                    return new Adam(memoryPool, Adam_beta1, Adam_beta2, Adam_eps, weight_decay, weightShape, biasShape);
                 case Optimizer.OptimizationEnum.SGD:
-                    return new Sgd(memoryPool, SGD_momentum, SGD_usenesterov, weightShape, biasShape);
+                    return new Sgd(memoryPool, SGD_momentum, nesterov, weightShape, biasShape);
                 case Optimizer.OptimizationEnum.VanillaSGDOrtho:
                     return new VanillaSgdOrtho(memoryPool, weightShape);
                 case Optimizer.OptimizationEnum.VanillaSGD:
@@ -605,22 +607,18 @@ namespace SharpNet.Networks
                     //see https://pytorch.org/docs/stable/generated/torch.optim.Adam.html
                     string resAdam = "torch.optim.Adam(model.parameters(), lr = " + InitialLearningRate.ToString(CultureInfo.InvariantCulture);
                     resAdam += ", betas=(" + Adam_beta1.ToString(CultureInfo.InvariantCulture) + ", " + Adam_beta2.ToString(CultureInfo.InvariantCulture) + ")";
-                    resAdam += ", eps=" + Adam_epsilon.ToString(CultureInfo.InvariantCulture);
-                    if (lambdaL2Regularization > 0)
+                    resAdam += ", eps=" + Adam_eps.ToString(CultureInfo.InvariantCulture);
+                    if (weight_decay > 0)
                     {
-                        Debug.Assert(AdamW_L2Regularization == 0);
-                        resAdam += ", weight_decay=" + lambdaL2Regularization.ToString(CultureInfo.InvariantCulture);
+                        resAdam += ", weight_decay=" + weight_decay.ToString(CultureInfo.InvariantCulture);
                     }
                     return resAdam + ")";
                 case Optimizer.OptimizationEnum.AdamW:
                     //see: https://pytorch.org/docs/stable/generated/torch.optim.AdamW.html
                     string resAdamW = "torch.optim.AdamW(model.parameters(), lr = " + InitialLearningRate.ToString(CultureInfo.InvariantCulture);
                     resAdamW += ", betas=(" + Adam_beta1.ToString(CultureInfo.InvariantCulture) + ", " + Adam_beta2.ToString(CultureInfo.InvariantCulture) + ")";
-                    resAdamW += ", eps=" + Adam_epsilon.ToString(CultureInfo.InvariantCulture);
-                    if (AdamW_L2Regularization > 0)
-                    {
-                        resAdamW += ", weight_decay=" + AdamW_L2Regularization.ToString(CultureInfo.InvariantCulture);
-                    }
+                    resAdamW += ", eps=" + Adam_eps.ToString(CultureInfo.InvariantCulture);
+                    resAdamW += ", weight_decay=" + weight_decay.ToString(CultureInfo.InvariantCulture);
                     return resAdamW + ")";
                 case Optimizer.OptimizationEnum.SGD:
                     //see: https://pytorch.org/docs/stable/generated/torch.optim.SGD.html
@@ -629,11 +627,11 @@ namespace SharpNet.Networks
                     {
                         resSGD += ", momentum=" + SGD_momentum.ToString(CultureInfo.InvariantCulture);
                     }
-                    if (lambdaL2Regularization > 0)
+                    if (weight_decay > 0)
                     {
-                        resSGD += ", weight_decay=" + lambdaL2Regularization.ToString(CultureInfo.InvariantCulture);
+                        resSGD += ", weight_decay=" + weight_decay.ToString(CultureInfo.InvariantCulture);
                     }
-                    if (SGD_usenesterov)
+                    if (nesterov)
                     {
                         resSGD += ", nesterov=True";
                     }

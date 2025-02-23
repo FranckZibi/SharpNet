@@ -99,7 +99,7 @@ namespace SharpNet.CPU
             Debug.Assert(xIndexInLastDimensionToUse>=0);
             Debug.Assert(yIndexInLastDimensionToUse>=0);
             var timeSteps = x.Shape[1];
-            var embeddingDim = wordEmbedding.Shape[1];
+            var embedding_dim = wordEmbedding.Shape[1];
 
             void ProcessBatch(int batchIndex)
             {
@@ -122,14 +122,14 @@ namespace SharpNet.CPU
                     }
 
                     int wordIndex = (int)(xSpan[xTimeStepIndex] + 0.1);
-                    wordEmbeddingSpan.Slice(wordIndex*embeddingDim, embeddingDim).CopyTo(ySpan.Slice(yTimeStepIndex, embeddingDim));
+                    wordEmbeddingSpan.Slice(wordIndex*embedding_dim, embedding_dim).CopyTo(ySpan.Slice(yTimeStepIndex, embedding_dim));
 
                     //for the current timeStep, we copy the elements from 'x' to 'y' after 'indexInLastDimensionToUse'
                     //int xElementsAfterEmbeddingIndex = inputSize - indexInLastDimensionToUse - 1;
                     if (copyCountAfterIndex > 0)
                     {
                         //we copy the 'xElementsAfterEmbeddingIndex' elements after index 'indexInLastDimensionToUse'
-                        xSpan.Slice(xTimeStepIndex+ 1, copyCountAfterIndex).CopyTo(ySpan.Slice(yTimeStepIndex+ embeddingDim, copyCountAfterIndex));
+                        xSpan.Slice(xTimeStepIndex+ 1, copyCountAfterIndex).CopyTo(ySpan.Slice(yTimeStepIndex+ embedding_dim, copyCountAfterIndex));
                     }
                 }
             }
@@ -154,7 +154,7 @@ namespace SharpNet.CPU
             dW.ZeroMemory();
             var batchSize = dy.Shape[0];
             var timeSteps = x.Shape[1];
-            var embeddingDim = dW.Shape[1];
+            var embedding_dim = dW.Shape[1];
 
             var xSpan = x.AsReadonlyFloatCpuSpan;
             var dxSpan = dx.AsFloatCpuSpan;
@@ -169,7 +169,7 @@ namespace SharpNet.CPU
                     int wordIndex = (int)(xSpan[xCpu.Idx(batchIndex, timeStep, dxIndexInLastDimensionToUse)] + 0.1);
                     int indexInDw = dW.Idx(wordIndex, 0);
                     int indexIndY = dyCpu.Idx(batchIndex, timeStep, dyIndexInLastDimensionToUse);
-                    for (int embeddingId = 0; embeddingId < embeddingDim; ++embeddingId)
+                    for (int embeddingId = 0; embeddingId < embedding_dim; ++embeddingId)
                     {
                         dWSpan[indexInDw] += dySpan[indexIndY];
                         ++indexInDw;
@@ -194,7 +194,7 @@ namespace SharpNet.CPU
                     if (copyCountAfterIndex > 0)
                     {
                         //we copy the 'xElementsAfterEmbeddingIndex' elements after index 'indexInLastDimensionToUse'
-                        dySpan.Slice(dyTimeStepIndex + embeddingDim, copyCountAfterIndex).CopyTo(dxSpan.Slice(dxTimeStepIndex + 1, copyCountAfterIndex));
+                        dySpan.Slice(dyTimeStepIndex + embedding_dim, copyCountAfterIndex).CopyTo(dxSpan.Slice(dxTimeStepIndex + 1, copyCountAfterIndex));
                     }
                 }
             }
@@ -467,7 +467,7 @@ namespace SharpNet.CPU
         }
 
         #region Tensor implementation
-        public override void UpdateSGDOptimizer(double learningRate, double momentum, bool usenesterov, Tensor dW, Tensor velocity)
+        public override void UpdateSGDOptimizer(double learningRate, double momentum, bool nesterov, Tensor dW, Tensor velocity)
         {
             var W = this;
             var wContent = W.AsFloatCpuSpan;
@@ -478,7 +478,7 @@ namespace SharpNet.CPU
             for (int i = 0; i < W.Count; ++i)
             {
                 velocityContent[i] = (momentumFloat * velocityContent[i]) - (dWContent[i] * learningRateFloat);
-                if (usenesterov)
+                if (nesterov)
                 {
                     wContent[i] += momentumFloat * velocityContent[i] - (dWContent[i] * learningRateFloat);
                 }
@@ -1496,17 +1496,17 @@ namespace SharpNet.CPU
                 throw new NotImplementedException("only "+ ConvolutionAlgoPreference.FASTEST_DETERMINIST_NO_TRANSFORM+" is available on CPU ("+ forwardAlgoPreference+ " is not supported)");
             }
             var x = this;
-            int inputChannels = x.Shape[1];
+            int input_channels = x.Shape[1];
             int outputChannels = y.Shape[1];
-            Debug.Assert(inputChannels == convolution.Shape[1]);
+            Debug.Assert(input_channels == convolution.Shape[1]);
             if (isDepthwiseConvolution)
             {
-                Debug.Assert(inputChannels == y.Shape[1]);
+                Debug.Assert(input_channels == y.Shape[1]);
                 Debug.Assert(outputChannels == convolution.Shape[1]);
-                var depthMultiplier = convolution.Shape[0];
-                if (depthMultiplier != 1)
+                var depth_multiplier = convolution.Shape[0];
+                if (depth_multiplier != 1)
                 {
-                    throw new NotImplementedException("only depthMultiplier=1 is supported");
+                    throw new NotImplementedException("only depth_multiplier=1 is supported");
                 }
             }
             else
@@ -1517,8 +1517,8 @@ namespace SharpNet.CPU
             int batchSize = x.Shape[0];
             int hInput = x.Shape[2];
             int wInput = x.Shape[3];
-            int kernelHeight = convolution.Shape[2];
-            int kernelWidth = convolution.Shape[3];
+            int kernel_height = convolution.Shape[2];
+            int kernel_width = convolution.Shape[3];
             int hOutput = y.Shape[2];
             int wOutput = y.Shape[3];
             Debug.Assert(batchSize == y.Shape[0]);
@@ -1536,17 +1536,17 @@ namespace SharpNet.CPU
                     {
                         int colFilterStart = -paddingLeft;
                         var rowInputStart = Math.Max(0, rowFilterStart);
-                        var rowInputEndExcluded = Math.Min(hInput, rowFilterStart + kernelHeight);
+                        var rowInputEndExcluded = Math.Min(hInput, rowFilterStart + kernel_height);
                         for (int colOutput = 0; colOutput < wOutput; ++colOutput)
                         {
                             //we want to compute the point in y[m, filterId, row_output, col_output]
                             //it is computed by applying a filter located (for its top left) in (row_filter_start,col_filter_start) in the x 
                             double outputPointResult = 0.0;
                             var colInputStart = Math.Max(0, colFilterStart);
-                            var colInputEndExcluded = Math.Min(wInput, colFilterStart + kernelWidth);
+                            var colInputEndExcluded = Math.Min(wInput, colFilterStart + kernel_width);
 
                             int startInputChannelId = isDepthwiseConvolution ? outputChannelId : 0;
-                            int endInputChannelId = isDepthwiseConvolution ? (outputChannelId+1) : inputChannels;
+                            int endInputChannelId = isDepthwiseConvolution ? (outputChannelId+1) : input_channels;
                             for (int inputChannelId = startInputChannelId; inputChannelId < endInputChannelId; ++inputChannelId)
                             {
                                 var convolutionIdxForStartRow = convolution.Idx(isDepthwiseConvolution?0:outputChannelId, inputChannelId, rowInputStart - rowFilterStart, colInputStart - colFilterStart);
@@ -1609,18 +1609,18 @@ namespace SharpNet.CPU
                 throw new NotImplementedException("only " + ConvolutionAlgoPreference.FASTEST_DETERMINIST_NO_TRANSFORM + " is available on CPU (" + backwardAlgoPreference + " is not supported)");
             }
             var x = this;
-            int inputChannels = x.Shape[1];
+            int input_channels = x.Shape[1];
             int outputChannels = dy.Shape[1];
-            Debug.Assert(inputChannels == convolution.Shape[1]);
+            Debug.Assert(input_channels == convolution.Shape[1]);
             Debug.Assert(dx == null ||dx.SameShape(x));
             if (isDepthwiseConvolution)
             {
-                Debug.Assert(inputChannels == dy.Shape[1]);
+                Debug.Assert(input_channels == dy.Shape[1]);
                 Debug.Assert(outputChannels == convolution.Shape[1]);
-                var depthMultiplier = convolution.Shape[0];
-                if (depthMultiplier != 1)
+                var depth_multiplier = convolution.Shape[0];
+                if (depth_multiplier != 1)
                 {
-                    throw new NotImplementedException("only depthMultiplier=1 is supported");
+                    throw new NotImplementedException("only depth_multiplier=1 is supported");
                 }
             }
             else
@@ -1632,12 +1632,12 @@ namespace SharpNet.CPU
             Debug.Assert(batchSize == dy.Shape[0]);
             int hInput = x.Shape[2];
             int wInput = x.Shape[3];
-            int kernelHeight = convolution.Shape[2];
-            int kernelWidth = convolution.Shape[3];
+            int kernel_height = convolution.Shape[2];
+            int kernel_width = convolution.Shape[3];
             int hOutput = dy.Shape[2];
-            Debug.Assert(hOutput == ((hInput - kernelHeight + paddingTop+paddingBottom) / stride + 1));
+            Debug.Assert(hOutput == ((hInput - kernel_height + paddingTop+paddingBottom) / stride + 1));
             int wOutput = dy.Shape[3];
-            Debug.Assert(wOutput == ((wInput - kernelWidth + paddingLeft+paddingRight) / stride + 1));
+            Debug.Assert(wOutput == ((wInput - kernel_width + paddingLeft+paddingRight) / stride + 1));
             dx?.ZeroMemory();
             convGradient.ZeroMemory();
 
@@ -1656,7 +1656,7 @@ namespace SharpNet.CPU
                     {
                         int colFilterStart = -paddingLeft;
                         var rowInputStart = Math.Max(0, rowFilterStart);
-                        var rowInputEndExcluded = Math.Min(hInput, rowFilterStart + kernelHeight);
+                        var rowInputEndExcluded = Math.Min(hInput, rowFilterStart + kernel_height);
                         for (int colOutput = 0; colOutput < wOutput; ++colOutput)
                         {
                             //we want to compute the point in y[m, filterId, rowOutput, colOutput]
@@ -1664,9 +1664,9 @@ namespace SharpNet.CPU
                             // and centered at this particular location
                             var chainGradientFloat = dy.AsFloatCpu.Get(m, outputChannelId, rowOutput, colOutput);
                             var colInputStart = Math.Max(0, colFilterStart);
-                            var colInputEndExcluded = Math.Min(wInput, colFilterStart + kernelWidth);
+                            var colInputEndExcluded = Math.Min(wInput, colFilterStart + kernel_width);
                             int startInputChannelId = isDepthwiseConvolution ? outputChannelId : 0;
-                            int endInputChannelId = isDepthwiseConvolution ? (outputChannelId + 1) : inputChannels;
+                            int endInputChannelId = isDepthwiseConvolution ? (outputChannelId + 1) : input_channels;
                             for (int inputChannelId = startInputChannelId; inputChannelId < endInputChannelId; ++inputChannelId)
                             {
                                 int convIdxStartRow = convGradient.Idx(isDepthwiseConvolution ? 0 : outputChannelId, inputChannelId, rowInputStart - rowFilterStart, colInputStart - colFilterStart);
@@ -1747,13 +1747,13 @@ namespace SharpNet.CPU
         /// <param name="beta1"></param>
         /// <param name="beta2"></param>
         /// <param name="epsilon"></param>
-        /// <param name="adamW_l2Regularization"></param>
+        /// <param name="weight_decay"></param>
         /// <param name="dW"></param>
         /// <param name="adam_vW">biased first moment estimate</param>
         /// <param name="adam_sW">biased second raw moment estimate</param>
         /// <param name="timeStep"></param>
         public override void UpdateAdamOptimizer(double learningRate, double beta1, double beta2, double epsilon,
-            double adamW_l2Regularization, Tensor dW, Tensor adam_vW, Tensor adam_sW, int timeStep)
+            double weight_decay, Tensor dW, Tensor adam_vW, Tensor adam_sW, int timeStep)
         {
             var beta1_power = Math.Pow(beta1, timeStep);
             var beta2_power = Math.Pow(beta2, timeStep);
@@ -1765,7 +1765,7 @@ namespace SharpNet.CPU
             adam_sW.AsFloatCpu.Update(dW, (adam_sw, dw) => (float) (beta2 * adam_sw + (1 - beta2) * dw * dw));
             var multiplicative_factor = learningRate * (Math.Sqrt(1.0 - beta2_power) / (1.0 - beta1_power));
             //Update parameters
-            W.AsFloatCpu.Update(adam_vW, adam_sW, (w, adam_vw, adam_sw) => (float)(w - ( multiplicative_factor * (adam_vw / (Math.Sqrt(adam_sw) + epsilon)) + adamW_l2Regularization*w )));
+            W.AsFloatCpu.Update(adam_vW, adam_sW, (w, adam_vw, adam_sw) => (float)(w - ( multiplicative_factor * (adam_vw / (Math.Sqrt(adam_sw) + epsilon)) + weight_decay * w )));
         }
 
         public override void NormalDistribution(Random rand, double mean, double stdDev)
@@ -2965,19 +2965,19 @@ namespace SharpNet.CPU
             Debug.Assert(Shape.Length == 3);
             int batchSize = Shape[0];
             int timeSteps = Shape[1];
-            int embeddingDim = Shape[2];
+            int embedding_dim = Shape[2];
             var spanContent = AsFloatCpuSpan;
             int idx = 0;
             for (int batch = 0; batch < batchSize; ++batch)
             {
                 for (int k = 0; k < timeSteps; ++k)
                 {
-                    for (int col = 0; col < embeddingDim; ++col)
+                    for (int col = 0; col < embedding_dim; ++col)
                     {
                         int i = col / 2;
                         float value = col % 2 == 0 
-                            ? MathF.Sin(k / MathF.Pow(n, (2f * i) / embeddingDim)) 
-                            : MathF.Cos(k / MathF.Pow(n, (2f * i) / embeddingDim));
+                            ? MathF.Sin(k / MathF.Pow(n, (2f * i) / embedding_dim)) 
+                            : MathF.Cos(k / MathF.Pow(n, (2f * i) / embedding_dim));
                         spanContent[idx++] += value;
                     }
                 }
@@ -3191,7 +3191,6 @@ namespace SharpNet.CPU
         /// <param name="toFloat">Function to convert 'T' type to double</param>
         /// <returns>A list of Tuple (one Tuple per channel)
         /// In each channel Tuple: Tuple.Item1: mean of the channel / Tuple.Item2: vol of the channel</returns>
-        // ReSharper disable once UnusedMember.Global
         public List<Tuple<float, float>> ComputeMeanAndVolatilityOfEachChannel(Func<T, float> toFloat)
         {
             return Enumerable.Range(0, Shape[1]).Select(c => ComputeMeanAndVolatilityOfChannel(c, toFloat)).ToList();
@@ -3397,9 +3396,6 @@ namespace SharpNet.CPU
             }
         }
 
-
-
-        // ReSharper disable once UnusedMember.Global
         public void Save(string filePath, Func<int, bool> shouldSaveRow, bool addColumnWithRowIndex, string header = null)
         {
             var sb = new StringBuilder();

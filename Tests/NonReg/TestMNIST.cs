@@ -24,10 +24,9 @@ namespace SharpNetTests.NonReg
                         num_epochs = 1000,
                         DisableReduceLROnPlateau = true,
                         ResourceIds = new List<int> { useGpu ? 0 : -1 },
-                        InitialLearningRate = 0.01
                 }
                     //.WithAdam()
-                    .WithSGD(0.99, true)
+                    .WithSGD(0.01, 0.99, 0,true)
                     .WithCyclicCosineAnnealingLearningRateScheduler(10,2),
                 NetworkSample.DefaultWorkingDirectory,
                 "MNIST"
@@ -39,22 +38,20 @@ namespace SharpNetTests.NonReg
 
             var mnist = new MnistDataset();
 
-            const double lambdaL2Regularization = 0.0;
-
             network
                 .Input(MnistDataset.Shape_CHW[0], MnistDataset.Shape_CHW[1], MnistDataset.Shape_CHW[2])
 
-                .Convolution_BatchNorm_Activation(16, 3, 1, ConvolutionLayer.PADDING_TYPE.SAME, lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_RELU)
+                .Convolution_BatchNorm_Activation(16, 3, 1, ConvolutionLayer.PADDING_TYPE.SAME, cudnnActivationMode_t.CUDNN_ACTIVATION_RELU)
                 .MaxPooling(2, 2, 2, 2)
                 //.AddBatchNorm()
                 //.AddPooling(2, 2)
 
                 //.AddDropout(0.2)
 
-                .Convolution_BatchNorm_Activation(32, 3, 1, ConvolutionLayer.PADDING_TYPE.SAME, lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_RELU)
-                .MaxPooling(2, 2, 2, 2).Linear(1000, true, 0.0, false)
+                .Convolution_BatchNorm_Activation(32, 3, 1, ConvolutionLayer.PADDING_TYPE.SAME, cudnnActivationMode_t.CUDNN_ACTIVATION_RELU)
+                .MaxPooling(2, 2, 2, 2).Linear(1000, true, false)
                 .Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU)
-                .Dropout(0.5).Linear(MnistDataset.NumClass, true, 0.0, false)
+                .Dropout(0.5).Linear(MnistDataset.NumClass, true, false)
                 .Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_SIGMOID);
 
             network.Fit(mnist.Training, mnist.Test);

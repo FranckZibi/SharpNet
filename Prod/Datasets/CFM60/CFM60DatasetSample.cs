@@ -469,7 +469,7 @@ public class CFM60DatasetSample : DatasetSampleForTimeSeries
             {nameof(NetworkSample.OneCycle_PercentInAnnealing), 0.1},
 
             {nameof(NetworkSample.OptimizerType), "Adam"},
-            {nameof(NetworkSample.lambdaL2Regularization), 0.00005},
+            {nameof(NetworkSample.weight_decay), 0.00005},
             
             {"Encoder_NumLayers", 1},
             {"Encoder_TimeSteps", 60},

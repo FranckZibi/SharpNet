@@ -16,14 +16,14 @@ extern "C" {
 	}
 
 
-    __global__ void UpdateAdamOptimizer(int N, float beta1, float beta2, float epsilon, float adamW_l2Regularization, float multiplicative_factor,
+    __global__ void UpdateAdamOptimizer(int N, float beta1, float beta2, float epsilon, float weight_decay, float multiplicative_factor,
 				const float* __restrict dW, float* __restrict W,
 				float* __restrict adam_vW, float* __restrict adam_sW) {
 		for (int i = blockIdx.x * blockDim.x + threadIdx.x; i < N; i += blockDim.x * gridDim.x) {
 			float dw = dW[i];
 			adam_vW[i] = beta1*adam_vW[i]+(1-beta1)*dw;
             adam_sW[i] = beta2*adam_sW[i]+(1-beta2)*dw*dw;
-			W[i] -= (multiplicative_factor * adam_vW[i]) / (sqrtf(adam_sW[i]) + epsilon) + adamW_l2Regularization * W[i];
+			W[i] -= (multiplicative_factor * adam_vW[i]) / (sqrtf(adam_sW[i]) + epsilon) + weight_decay * W[i];
 		}
 	}
 	
@@ -613,8 +613,8 @@ extern "C" {
 
 	//'x' shape:                (batchSize, timeSteps, inputSize)
 	//'y' shape :               (batchSize, timeSteps, outputSize)
-	//'wordEmbedding' shape:    (vocabularySize, embeddingDim)
-	__global__ void WordEmbeddingForwardPropagation(int N, int inputSize, int outputSize, int xIndexInLastDimensionToUse, int yIndexInLastDimensionToUse, int copyCountBeforeIndex, int copyCountAfterIndex, int embeddingDim, float* x, float* y, float* wordEmbedding)
+	//'wordEmbedding' shape:    (num_embeddings, embedding_dim)
+	__global__ void WordEmbeddingForwardPropagation(int N, int inputSize, int outputSize, int xIndexInLastDimensionToUse, int yIndexInLastDimensionToUse, int copyCountBeforeIndex, int copyCountAfterIndex, int embedding_dim, float* x, float* y, float* wordEmbedding)
 	{
 		int i = blockIdx.x * blockDim.x + threadIdx.x;	// in [0, batchSize*timeSteps-1]
 		if (i >= N) return;
@@ -622,8 +622,8 @@ extern "C" {
 		int xIndex = xIndexInLastDimensionToUse + i * inputSize;
 		int yIndex = yIndexInLastDimensionToUse + i * outputSize;
 		//we retrieve the wordIndex 
-		int wordIndex = (int)(x[xIndex] + 0.1f);	//in [0, vocabularySize-1]
-		int indexInWordEmbedding = wordIndex*embeddingDim;
+		int wordIndex = (int)(x[xIndex] + 0.1f);	//in [0, num_embeddings-1]
+		int indexInWordEmbedding = wordIndex*embedding_dim;
 
 		//for the current timeStep, we copy the elements from 'x' to 'y' before 'indexInLastDimensionToUse'
 		if (copyCountBeforeIndex > 0)
@@ -631,23 +631,23 @@ extern "C" {
 			memcpy(y + yIndex-copyCountBeforeIndex, x + xIndex-copyCountBeforeIndex, sizeof(float) * copyCountBeforeIndex);
 		}
 
-		if (embeddingDim>0)
+		if (embedding_dim>0)
 		{
-			memcpy(y+ yIndex, wordEmbedding+indexInWordEmbedding, sizeof(float) * embeddingDim);
+			memcpy(y+ yIndex, wordEmbedding+indexInWordEmbedding, sizeof(float) * embedding_dim);
 		}
 
 		//for the current timeStep, we copy the elements from 'x' to 'y' after 'indexInLastDimensionToUse'
 		if (copyCountAfterIndex > 0)
 		{
-			memcpy(y + yIndex+ embeddingDim, x + xIndex+1, sizeof(float) * copyCountAfterIndex);
+			memcpy(y + yIndex+ embedding_dim, x + xIndex+1, sizeof(float) * copyCountAfterIndex);
 		}
 	}
 
 	// N :						batchSize * timeSteps
 	// 'x' & 'dx' shape :       (batchSize, timeSteps, inputSize)
 	// 'dy' shape :             (batchSize, timeSteps, outputSize)
-	//'dw' shape:				(vocabularySize, embeddingDim)
-	__global__ void WordEmbeddingBackwardPropagation(int N, int inputSize, int outputSize, int xIndexInLastDimensionToUse, int yIndexInLastDimensionToUse, int copyCountBeforeIndex, int copyCountAfterIndex, int embeddingDim, float* x, float* dx, float* dy, float* dw)
+	//'dw' shape:				(num_embeddings, embedding_dim)
+	__global__ void WordEmbeddingBackwardPropagation(int N, int inputSize, int outputSize, int xIndexInLastDimensionToUse, int yIndexInLastDimensionToUse, int copyCountBeforeIndex, int copyCountAfterIndex, int embedding_dim, float* x, float* dx, float* dy, float* dw)
 	{
 		int i = blockIdx.x * blockDim.x + threadIdx.x;	// in [0, batchSize*timeSteps-1]
 		if (i >= N) return;
@@ -655,11 +655,11 @@ extern "C" {
 		int dxIndex = xIndexInLastDimensionToUse + i * inputSize;
 
 		//we retrieve the wordIndex 
-		int wordIndex = (int)(x[dxIndex] + 0.1f);	//in [0, vocabularySize-1]
-		int indexInDw = embeddingDim * wordIndex;
+		int wordIndex = (int)(x[dxIndex] + 0.1f);	//in [0, num_embeddings-1]
+		int indexInDw = embedding_dim * wordIndex;
 
 		int dyIndex = yIndexInLastDimensionToUse + i * outputSize;
-		for (int embeddingId = 0; embeddingId < embeddingDim; ++embeddingId)
+		for (int embeddingId = 0; embeddingId < embedding_dim; ++embeddingId)
 		{
 			float valueToAdd = dy[dyIndex+embeddingId];
 			atomicAdd(dw+ indexInDw, valueToAdd);
@@ -676,7 +676,7 @@ extern "C" {
 		//for the current timeStep, we copy the elements from 'dy' to 'dx' after 'indexInLastDimensionToUse'
 		if (copyCountAfterIndex > 0)
 		{
-			memcpy(dx + dxIndex+ 1, dy + dyIndex + embeddingDim, sizeof(float) * copyCountAfterIndex);
+			memcpy(dx + dxIndex+ 1, dy + dyIndex + embedding_dim, sizeof(float) * copyCountAfterIndex);
 		}
 	}
 
@@ -1265,19 +1265,19 @@ extern "C" {
 		}
 	}
 
-	// add positional encoding to 'src' tensor of shape (batchSize, timeSteps, embeddingDim)
-	__global__ void UpdateWithPositionalEncoding_AttnIsAllYouNeed(int N, int timeSteps, int embeddingDim, int n, float* __restrict src)
+	// add positional encoding to 'src' tensor of shape (batchSize, timeSteps, embedding_dim)
+	__global__ void UpdateWithPositionalEncoding_AttnIsAllYouNeed(int N, int timeSteps, int embedding_dim, int n, float* __restrict src)
 	{
 		int src_index = blockIdx.x * blockDim.x + threadIdx.x;
 		if (src_index >= N)
 			return;
-		int timeSteps_embeddingDim = src_index % (timeSteps*embeddingDim);
-		int k = timeSteps_embeddingDim / embeddingDim;
-		int col = timeSteps_embeddingDim %embeddingDim;
+		int timeSteps_embeddingDim = src_index % (timeSteps*embedding_dim);
+		int k = timeSteps_embeddingDim / embedding_dim;
+		int col = timeSteps_embeddingDim %embedding_dim;
 		int i = col / 2;
 		float value = col % 2 == 0 
-                            ? sinf(k  / powf(n, (2.0f * i) / embeddingDim)) 
-                            : cosf(k / powf(n, (2.0f * i) / embeddingDim));
+                            ? sinf(k  / powf(n, (2.0f * i) / embedding_dim)) 
+                            : cosf(k / powf(n, (2.0f * i) / embedding_dim));
 		src[src_index] += value;
 	}
 

@@ -44,17 +44,17 @@ public class TransformerDataset : DataSet
         if (yBuffer != null)
         {
             var yBufferSpan = yBuffer.RowSpanSlice(indexInBuffer, 1);
-            Debug.Assert(yBufferSpan.Length == TransformerDatasetSample.vocab_size);
+            Debug.Assert(yBufferSpan.Length == TransformerDatasetSample.num_embeddings);
             yBufferSpan.Clear();
             yBufferSpan[_textToSequence[elementId + TransformerDatasetSample.max_length]] = 1;
             /*
-            Debug.Assert(yBufferSpan.Length == TransformerDatasetSample.max_length * TransformerDatasetSample.vocab_size);
+            Debug.Assert(yBufferSpan.Length == TransformerDatasetSample.max_length * TransformerDatasetSample.num_embeddings);
             yBufferSpan.Clear();
             for (int j = 0; j< TransformerDatasetSample.max_length; ++j)
             {
                 Debug.Assert( (elementId + j + 1) < _textToSequence.Length);
                 var new_token_index_in_vocab_size = _textToSequence[elementId+j+1];
-                yBufferSpan[j*TransformerDatasetSample.vocab_size + new_token_index_in_vocab_size] = 1;
+                yBufferSpan[j*TransformerDatasetSample.num_embeddings + new_token_index_in_vocab_size] = 1;
             }
             */
         }

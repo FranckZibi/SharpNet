@@ -458,16 +458,16 @@ namespace SharpNetTests
         [Test]
         public void TestWordEmbeddingForwardPropagation()
         {
-            const int vocabularySize = 3;
+            const int num_embeddings = 3;
             foreach(var timeSteps in new []{1,100})
             foreach(var inputSize in new[] {1,7})
-            foreach(var embeddingDim in new[] {0, 1, 10})
+            foreach(var embedding_dim in new[] {0, 1, 10})
             {
                 for (int indexInLastDimensionToUse = 0; indexInLastDimensionToUse<inputSize;++indexInLastDimensionToUse)
                 { 
-                    var x = XWithRandomWordIndexes3D(BatchSize, timeSteps, vocabularySize, inputSize, indexInLastDimensionToUse);
-                    var y = RandomTensor(new[] { BatchSize, timeSteps, inputSize+embeddingDim-1 });
-                    var wordEmbedding = RandomTensor(new[] { vocabularySize, embeddingDim });
+                    var x = XWithRandomWordIndexes3D(BatchSize, timeSteps, num_embeddings, inputSize, indexInLastDimensionToUse);
+                    var y = RandomTensor(new[] { BatchSize, timeSteps, inputSize+embedding_dim-1 });
+                    var wordEmbedding = RandomTensor(new[] { num_embeddings, embedding_dim });
                     var indexInLastDimensionToUseLocal = indexInLastDimensionToUse;
                     TestAll(new[] { y, x, wordEmbedding }, tensors => tensors[0].WordEmbeddingForwardPropagation(tensors[1], tensors[2], indexInLastDimensionToUseLocal, indexInLastDimensionToUseLocal, indexInLastDimensionToUseLocal, x.Shape[2]-indexInLastDimensionToUseLocal-1));
                 }
@@ -477,23 +477,23 @@ namespace SharpNetTests
         [Test]
         public void TestWordEmbeddingBackwardPropagation()
         {
-            const int vocabularySize = 50;
+            const int num_embeddings = 50;
             foreach (var timeSteps in new[] { 1, 100 })
             foreach (var inputSize in new[] { 1, 7 })
-            foreach (var embeddingDim in new[] { 0, 1, 10 })
+            foreach (var embedding_dim in new[] { 0, 1, 10 })
             {
                 for (int indexInLastDimensionToUse = 0; indexInLastDimensionToUse < inputSize; ++indexInLastDimensionToUse)
                 {
-                    var dW = RandomTensor(new[] {vocabularySize, embeddingDim});
-                    var x = XWithRandomWordIndexes3D(BatchSize, timeSteps, vocabularySize, inputSize, indexInLastDimensionToUse);
+                    var dW = RandomTensor(new[] {num_embeddings, embedding_dim});
+                    var x = XWithRandomWordIndexes3D(BatchSize, timeSteps, num_embeddings, inputSize, indexInLastDimensionToUse);
                     var dx = RandomTensor(x.Shape);
-                    var dy = RandomTensor(new[] { BatchSize, timeSteps, inputSize + embeddingDim - 1 });
+                    var dy = RandomTensor(new[] { BatchSize, timeSteps, inputSize + embedding_dim - 1 });
                     var indexInLastDimensionToUseCopy = indexInLastDimensionToUse;
                     TestAll(new[] { dW, x, dx, dy }, tensors => tensors[0].WordEmbeddingBackwardPropagation(tensors[1], tensors[2], tensors[3], indexInLastDimensionToUseCopy, indexInLastDimensionToUseCopy, indexInLastDimensionToUseCopy, x.Shape[2]-indexInLastDimensionToUseCopy-1));
                 }
             }
         }
-        private CpuTensor<float> XWithRandomWordIndexes3D(int batchSize, int timeSteps, int vocabularySize, int inputSize, int indexInLastDimensionToUse)
+        private CpuTensor<float> XWithRandomWordIndexes3D(int batchSize, int timeSteps, int num_embeddings, int inputSize, int indexInLastDimensionToUse)
         {
             var x = RandomTensor(new[] { batchSize, timeSteps, inputSize });
             var xSpan = x.AsFloatCpuSpan;
@@ -502,7 +502,7 @@ namespace SharpNetTests
             {
                 for (int timeStep = 0; timeStep < timeSteps; ++timeStep)
                 {
-                    xSpan[x.Idx(batchIndex, timeStep, indexInLastDimensionToUse)] = 1f + r.Next(vocabularySize - 1);
+                    xSpan[x.Idx(batchIndex, timeStep, indexInLastDimensionToUse)] = 1f + r.Next(num_embeddings - 1);
                 }
             }
             return x;
@@ -956,24 +956,24 @@ namespace SharpNetTests
         [Test]
         public void TestUpdateAdamWOptimizer()
         {
-            const double adamW_l2Regularization = 0.0005;
+            const double weight_decay = 0.0005;
             var W = RandomTensor(new[] { Width, Height });
             var dW = RandomTensor(W.Shape);
             var adam_vW = RandomTensor(W.Shape);
             var adam_sW = RandomTensor(W.Shape);
-            TestAll(new[] { W, dW, adam_vW, adam_sW }, tensors => tensors[0].UpdateAdamOptimizer(0.001, 0.9, 0.999, 1e-8, adamW_l2Regularization, tensors[1], tensors[2], tensors[3], 5));
+            TestAll(new[] { W, dW, adam_vW, adam_sW }, tensors => tensors[0].UpdateAdamOptimizer(0.001, 0.9, 0.999, 1e-8, weight_decay, tensors[1], tensors[2], tensors[3], 5));
         }
 
         [TestCase(0.1, 0.9, 0.0, true)]
         [TestCase(0.1, 0.9, 0.0, false)]
         [TestCase(0.1, 0.9, 1e-4, true)]
         [TestCase(0.1, 0.9, 1e-4, false)]
-        public void TestUpdateSGDOptimizer(double learningRate, double momentum, double decay, bool usenesterov)
+        public void TestUpdateSGDOptimizer(double learningRate, double momentum, double decay, bool nesterov)
         {
             var W = RandomTensor(new[] { Width, Height });
             var dW = RandomTensor(W.Shape);
             var velocity = RandomTensor(W.Shape);
-            TestAll(new[] { W, dW, velocity }, tensors => tensors[0].UpdateSGDOptimizer(learningRate, momentum, usenesterov, tensors[1], tensors[2]));
+            TestAll(new[] { W, dW, velocity }, tensors => tensors[0].UpdateSGDOptimizer(learningRate, momentum, nesterov, tensors[1], tensors[2]));
         }
 
         [TestCase(1, EvaluationMetricEnum.Huber)]

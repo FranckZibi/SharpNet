@@ -16,7 +16,7 @@ namespace SharpNet.Layers;
 public sealed class LayerNorm : Layer
 {
     #region Private fields
-    private readonly double _epsilon;
+    private readonly double eps;
     //we'll normalize over the last 'D' dimension of the input tensor
     // for example:
     //  if D == 3 and input shape is [N,C,H,W]:
@@ -58,10 +58,10 @@ public sealed class LayerNorm : Layer
 
     public const float DEFAULT_EPSILON = 1e-5f;
 
-    public LayerNorm(int last_D_dimension, double epsilon, bool trainable, Network network, string layerName, int prevLayerIndex) : base(network, prevLayerIndex == -1 ? new[]{network.LastLayerIndex}:new[]{ prevLayerIndex }, layerName)
+    public LayerNorm(int last_D_dimension, double eps, bool trainable, Network network, string layerName, int prevLayerIndex) : base(network, prevLayerIndex == -1 ? new[]{network.LastLayerIndex}:new[]{ prevLayerIndex }, layerName)
     {
         _last_D_dimension = last_D_dimension;
-        _epsilon = epsilon;
+        this.eps = eps;
         Trainable = trainable;
 
         var scaleAndBiasShape = ScaleAndBiasShape();
@@ -103,7 +103,7 @@ public sealed class LayerNorm : Layer
         GetFloatTensor(ref _mean_buffer, new[] { 1, reshape_rows });
         GetFloatTensor(ref _variance_buffer, _mean_buffer.Shape);
         x.Compute_Row_Mean_Variance(_mean_buffer, _variance_buffer, false);
-        x.LayerNormalization(y, _gammas, _betas, _mean_buffer, _variance_buffer, (float)_epsilon);
+        x.LayerNormalization(y, _gammas, _betas, _mean_buffer, _variance_buffer, (float)eps);
     }
 
     public override void BackwardPropagation(List<Tensor> allX, Tensor y_NotUsed, Tensor dy, List<Tensor> allDx)
@@ -120,14 +120,14 @@ public sealed class LayerNorm : Layer
         //dgamma = np.sum(dy * hat_x, axis = 0)
         var hat_x = dx;
         x.CopyTo(hat_x);
-        hat_x.StandardizeInPlace(_mean_buffer, _variance_buffer, 1, (float)_epsilon);
+        hat_x.StandardizeInPlace(_mean_buffer, _variance_buffer, 1, (float)eps);
         hat_x.Update_Multiply_By_x(dy);
         hat_x.numpy_sum(_gammasGradients, 0);
 
         var dmean_row = GetFloatTensor(_mean_buffer.Shape);
         var dvariance_row = GetFloatTensor(_mean_buffer.Shape);
         //we compute 'dx'
-        x.LayerNormalizationBackward(dy, dx, _gammas, _mean_buffer, _variance_buffer, (float)_epsilon, dmean_row, dvariance_row);
+        x.LayerNormalizationBackward(dy, dx, _gammas, _mean_buffer, _variance_buffer, (float)eps, dmean_row, dvariance_row);
 
         FreeFloatTensor(dmean_row);
         FreeFloatTensor(dvariance_row);
@@ -220,7 +220,7 @@ public sealed class LayerNorm : Layer
     {
         return RootSerializer()
             .Add(nameof(_last_D_dimension), _last_D_dimension)
-            .Add(nameof(_epsilon), _epsilon)
+            .Add(nameof(eps), eps)
             .ToString();
     }
     public static LayerNorm Deserialize(IDictionary<string, object> serialized, Network network)
@@ -228,7 +228,7 @@ public sealed class LayerNorm : Layer
         int prevLayerIndex = ((int[])serialized[nameof(PreviousLayerIndexes)])[0];
         return new LayerNorm(
             (int)serialized[nameof(_last_D_dimension)],
-            (double)serialized[nameof(_epsilon)],
+            (double)serialized[nameof(eps)],
             (bool)serialized[nameof(Trainable)],
             network,
             (string)serialized[nameof(LayerName)],
@@ -243,7 +243,7 @@ public sealed class LayerNorm : Layer
     {
         var input_shape = PreviousLayers.Count == 0 ? new[] { -1, -1, -1, -1 } : PreviousLayers[0].OutputShape(666);
         var normalized_shape = Utils.ShapeToString(input_shape.Skip(input_shape.Length - _last_D_dimension).ToArray());
-        constructorLines.Add("self." + LayerName + " = torch.nn.LayerNorm(normalized_shape=" + normalized_shape + ", eps=" + _epsilon + ")");
+        constructorLines.Add("self." + LayerName + " = torch.nn.LayerNorm(normalized_shape=" + normalized_shape + ", eps=" + eps + ")");
         UpdateForwardLines(forwardLines);
     }
     #endregion

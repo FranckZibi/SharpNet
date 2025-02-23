@@ -7,7 +7,7 @@ using SharpNet.Networks;
 /*
 BatchSize = 128
 EpochCount = 150
-SGD with momentum = 0.9 & L2 = 0.5* 1-e4
+SGD with momentum = 0.9 & weight_decay = 0.5* 1-e4
 CutMix / no Cutout / no MixUp / FillMode = Reflect / Disable DivideBy10OnPlateau
 AvgPoolingStride = 2
 # ------------------------------------------------------------------------------------------------

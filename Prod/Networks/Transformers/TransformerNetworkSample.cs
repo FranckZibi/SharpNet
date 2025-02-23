@@ -74,13 +74,13 @@ public class TransformerNetworkSample : NetworkSample
 
     #endregion
 
-    //public static TransformerNetworkSample DefaultFullEncoders(int embedding_dim, int N, int num_heads, bool use_bias, float mha_dropout, int feed_forward_dim, float feed_forward_dropout)
+    //public static TransformerNetworkSample DefaultFullEncoders(int embedding_dim, int N, int num_heads, bool bias, float mha_dropout, int feed_forward_dim, float feed_forward_dropout)
     //{
     //    var sample = (TransformerNetworkSample)new TransformerNetworkSample()
     //        {
     //            LossFunction = EvaluationMetricEnum.CategoricalCrossentropy,
     //            CompatibilityMode = CompatibilityModeEnum.TensorFlow,
-    //            lambdaL2Regularization = 0.0005,
+    //            weight_decay = 0.0005,
     //            num_epochs = 150,
     //            BatchSize = 128,
     //            InitialLearningRate = 0.1,
@@ -90,7 +90,7 @@ public class TransformerNetworkSample : NetworkSample
 
     //        }
     //        .WithCommonParams(embedding_dim)
-    //        .WithEncoders(N, num_heads, use_bias, mha_dropout, feed_forward_dim, feed_forward_dropout)
+    //        .WithEncoders(N, num_heads, bias, mha_dropout, feed_forward_dim, feed_forward_dropout)
     //        .WithSGD(0.9, false)
     //        .WithCyclicCosineAnnealingLearningRateScheduler(10, 2);
     //    return sample;
@@ -115,7 +115,7 @@ public class TransformerNetworkSample : NetworkSample
             }
             int timeSteps = inputShapeOfSingleElement[0];
             nn.Input(timeSteps, -1, -1);
-            nn.Embedding(new[] { datasetSample.NumClass }, new[] { embedding_dim }, new[] { -1 }, new[] { 0 }, 0.0);
+            nn.Embedding(datasetSample.NumClass, embedding_dim);
         }
         else
         {
@@ -138,22 +138,22 @@ public class TransformerNetworkSample : NetworkSample
         return;
     }
 
-    //private TransformerNetworkSample WithEncoders(int N, int num_heads, bool use_bias, float mha_dropout, int feed_forward_dim, float feed_forward_dropout, bool is_causal = false, bool add_layer_norm_before_mha = false, bool add_layer_norm_after_mha = true)
+    //private TransformerNetworkSample WithEncoders(int N, int num_heads, bool bias, float mha_dropout, int feed_forward_dim, float feed_forward_dropout, bool is_causal = false, bool add_layer_norm_before_mha = false, bool add_layer_norm_after_mha = true)
     //{
     //    encoder_num_transformer_blocks = N;
     //    encoder_num_heads = num_heads;
-    //    encoder_mha_use_bias = use_bias;
+    //    encoder_mha_use_bias = bias;
     //    encoder_mha_dropout = mha_dropout;
     //    encoder_feed_forward_dim = feed_forward_dim;
     //    encoder_feed_forward_dropout = feed_forward_dropout;
     //    encoder_is_causal = is_causal;
     //    return this;
     //}
-    //private TransformerNetworkSample WithDecoders(int N, int num_heads, bool use_bias, float mha_dropout, int feed_forward_dim, float feed_forward_dropout, bool add_layer_norm_before_mha, bool add_layer_norm_after_mha)
+    //private TransformerNetworkSample WithDecoders(int N, int num_heads, bool bias, float mha_dropout, int feed_forward_dim, float feed_forward_dropout, bool add_layer_norm_before_mha, bool add_layer_norm_after_mha)
     //{
     //    decoder_num_transformer_blocks = N;
     //    decoder_num_heads = num_heads;
-    //    decoder_mha_use_bias = use_bias;
+    //    decoder_mha_use_bias = bias;
     //    decoder_mha_dropout = mha_dropout;
     //    decoder_feed_forward_dim = feed_forward_dim;
     //    decoder_feed_forward_dropout = feed_forward_dropout;
@@ -193,11 +193,11 @@ public class TransformerNetworkSample : NetworkSample
             network.GlobalMaxPooling("max_pool");
         }
 
-        network.Linear(numClass, true, network.Sample.lambdaL2Regularization, flattenInputTensorOnLastDimension_in_last_dense, "probs");
+        network.Linear(numClass, true, flattenInputTensorOnLastDimension_in_last_dense, "probs");
 
         if (output_shape_must_be_scalar)
         {
-            network.Linear(1, true, network.Sample.lambdaL2Regularization, false, "probs_scalar");
+            network.Linear(1, true, false, "probs_scalar");
         }
 
         network.Activation(LastActivationLayer);
@@ -312,9 +312,9 @@ public class TransformerNetworkSample : NetworkSample
             network.LayerNorm(1, layer_norm_epsilon, layerPrefix + "layer_norm_before");
         }
 
-        network.Linear(feed_forward_dim, true, network.Sample.lambdaL2Regularization, true, layerPrefix + "dense1");
+        network.Linear(feed_forward_dim, true, true, layerPrefix + "dense1");
         network.Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU, layerPrefix + "activation");
-        network.Linear(embedding_dim, true, network.Sample.lambdaL2Regularization, true, layerPrefix + "dense2");
+        network.Linear(embedding_dim, true, true, layerPrefix + "dense2");
         
         network.Dropout(feed_forward_dropoutRate, layerPrefix + "dropout");
         network.AddLayer(network.LastLayerIndex, inputLayerIndex, layerPrefix + "add");

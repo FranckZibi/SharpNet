@@ -17,8 +17,8 @@ namespace SharpNet.Optimizers
         private int _timestep = 0;
         private readonly double _adam_beta1;
         private readonly double _adam_beta2;
-        private readonly double _adam_epsilon;
-        private readonly double _adamW_l2Regularization;
+        private readonly double _adam_eps;
+        private readonly double weight_decay;
         private readonly Tensor _adam_VW;                      // same as 'Weights'
         private readonly Tensor _adam_SW;                      // same as 'Weights'
         [CanBeNull] private readonly Tensor _adam_VB;          // same as 'Bias'
@@ -27,14 +27,14 @@ namespace SharpNet.Optimizers
 
         #endregion
 
-        public Adam(TensorMemoryPool memoryPool, double adam_beta1, double adam_beta2, double adam_epsilon, double adamW_l2Regularization,
+        public Adam(TensorMemoryPool memoryPool, double adam_beta1, double adam_beta2, double adam_eps, double weight_decay,
             int[] weightShape, int[] biasShapeIfAny)
         {
             _memoryPool = memoryPool;
             _adam_beta1 = adam_beta1;
             _adam_beta2 = adam_beta2;
-            _adam_epsilon = adam_epsilon;
-            _adamW_l2Regularization = adamW_l2Regularization;
+            _adam_eps = adam_eps;
+            this.weight_decay = weight_decay;
             _memoryPool.GetFloatTensor(ref _adam_VW, weightShape);
             _memoryPool.GetFloatTensor(ref _adam_SW , weightShape);
             if (biasShapeIfAny != null)
@@ -62,11 +62,11 @@ namespace SharpNet.Optimizers
             Debug.Assert(learningRate<=maxLearningRate+1e-6);
             ++_timestep;
 
-            var pondered_l2Regularization = (learningRate / maxLearningRate) * _adamW_l2Regularization;
+            var pondered_weight_decay = (learningRate / maxLearningRate) * weight_decay;
 
             var ponderedLearningRate = (float)learningRate;
-            weights.UpdateAdamOptimizer(ponderedLearningRate, _adam_beta1, _adam_beta2, _adam_epsilon, pondered_l2Regularization, weightGradients, _adam_VW, _adam_SW, _timestep);
-            bias?.UpdateAdamOptimizer(ponderedLearningRate, _adam_beta1, _adam_beta2, _adam_epsilon, pondered_l2Regularization, biasGradient, _adam_VB, _adam_SB, _timestep);
+            weights.UpdateAdamOptimizer(ponderedLearningRate, _adam_beta1, _adam_beta2, _adam_eps, pondered_weight_decay, weightGradients, _adam_VW, _adam_SW, _timestep);
+            bias?.UpdateAdamOptimizer(ponderedLearningRate, _adam_beta1, _adam_beta2, _adam_eps, pondered_weight_decay, biasGradient, _adam_VB, _adam_SB, _timestep);
         }
         public override void Dispose()
         {
@@ -78,38 +78,5 @@ namespace SharpNet.Optimizers
             base.Dispose();
             EmbeddedTensors.ForEach(t => _memoryPool?.FreeFloatTensor(t));
         }
-
-        #region serialization
-        public override string Serialize()
-        {
-            return new Serializer()
-                .Add(nameof(_timestep), _timestep)
-                .Add(nameof(_adam_beta1), _adam_beta1)
-                .Add(nameof(_adam_beta2), _adam_beta2)
-                .Add(nameof(_adam_epsilon), _adam_epsilon)
-                .Add(nameof(_adamW_l2Regularization), _adamW_l2Regularization)
-                .Add(nameof(_adam_VW), _adam_VW)
-                .Add(nameof(_adam_SW), _adam_SW)
-                .Add(nameof(_adam_VB), _adam_VB)
-                .Add(nameof(_adam_SB), _adam_SB)
-                .ToString();
-        }
-        public static Optimizer DeserializeAdam(IDictionary<string, object> serialized)
-        {
-            return serialized.ContainsKey(nameof(_adam_VW)) ? new Adam(serialized) : null;
-        }
-        private Adam(IDictionary<string, object> serialized)
-        {
-            serialized.TryGet(nameof(_timestep), out _timestep);
-            serialized.TryGet(nameof(_adam_beta1), out _adam_beta1);
-            serialized.TryGet(nameof(_adam_beta2), out _adam_beta2);
-            serialized.TryGet(nameof(_adam_epsilon), out _adam_epsilon);
-            serialized.TryGet(nameof(_adamW_l2Regularization), out _adamW_l2Regularization);
-            serialized.TryGet(nameof(_adam_VW), out _adam_VW);
-            serialized.TryGet(nameof(_adam_SW), out _adam_SW);
-            serialized.TryGet(nameof(_adam_VB), out _adam_VB);
-            serialized.TryGet(nameof(_adam_SB), out _adam_SB);
-        }
-        #endregion
     }
 }

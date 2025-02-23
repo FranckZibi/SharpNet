@@ -31,8 +31,8 @@ public static class TextTransformersUtils
     {
         var outputShape = nn.YPredicted_MiniBatch_Shape(1);
         var max_length = outputShape[1];
-        var vocab_size = outputShape[2];
-        var datasetSample = new CharLevelTransformersDatasetSample() { max_length = max_length, vocab_size = vocab_size };
+        var num_embeddings = outputShape[2];
+        var datasetSample = new CharLevelTransformersDatasetSample() { max_length = max_length, num_embeddings = num_embeddings };
         var tokenizer = datasetSample.GetTokenizer();
 
         var xInputSingleRow = new CpuTensor<float>(new[] { 1, max_length});
@@ -161,11 +161,11 @@ public static class TextTransformersUtils
             {"encoder_feed_forward_dim", 4*64},
             {"encoder_feed_forward_dropout", new[]{0.2f,0f,0.1f }},
             {"encoder_is_causal", true},
-            //{"vocab_size", 58},   //shakespeare
-            {"vocab_size", 81},     // victor hugo 
+            //{"num_embeddings", 58},   //shakespeare
+            {"num_embeddings", 81},     // victor hugo 
             // Optimizer 
             { nameof(NetworkSample.OptimizerType), "AdamW" },
-            //{ nameof(NetworkSample.AdamW_L2Regularization), 0.01},
+            { nameof(NetworkSample.weight_decay), 0.01},
             // Learning Rate
             { nameof(NetworkSample.InitialLearningRate), new[]{ 0.01 /*,0.05,0.001*/ } },
             // Learning Rate Scheduler

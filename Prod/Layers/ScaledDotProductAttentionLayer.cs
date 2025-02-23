@@ -21,15 +21,15 @@ namespace SharpNet.Layers;
 /// </summary>
 public class ScaledDotProductAttentionLayer : Layer
 {
-    private readonly bool _use_scale;
-    private readonly bool _is_causal;
+    private readonly bool use_scale;
+    private readonly bool is_causal;
 
     private Tensor _weights_buffer = null;
     public ScaledDotProductAttentionLayer(bool use_scale, bool is_causal, int queriesLayerIndex, int keysLayerIndex, int valuesLayerIndex,
         Network network, string layerName = "") : base(network, new[]{queriesLayerIndex, keysLayerIndex, valuesLayerIndex }, layerName)
     {
-        _use_scale = use_scale;
-        _is_causal = is_causal;
+        this.use_scale = use_scale;
+        this.is_causal = is_causal;
     }
 
     #region forward and backward propagation
@@ -40,7 +40,7 @@ public class ScaledDotProductAttentionLayer : Layer
         var K = allX[KEY_LAYER_INDEX];        // keys:    (batch_size, value_timeSteps, embedding_dim)
         var V = allX[VALUE_LAYER_INDEX];      // values:  (batch_size, value_timeSteps, embedding_dim)
 
-        ScaledDotProductAttentionForwardPropagation(Q, K, V, y, isTraining, ref _weights_buffer, Network.MemoryPool, _use_scale, _is_causal);
+        ScaledDotProductAttentionForwardPropagation(Q, K, V, y, isTraining, ref _weights_buffer, Network.MemoryPool, use_scale, is_causal);
     }
 
     public static void ScaledDotProductAttentionForwardPropagation(Tensor Q, Tensor K, Tensor V, Tensor y, bool isTraining, ref Tensor _weights_buffer, TensorMemoryPool memoryPool, bool use_scale, bool is_causal)
@@ -104,7 +104,7 @@ public class ScaledDotProductAttentionLayer : Layer
         var Q = allX[QUERY_LAYER_INDEX];
         var K = allX[KEY_LAYER_INDEX];
         var V = allX[VALUE_LAYER_INDEX];
-        ScaledDotProductAttentionBackwardPropagation(dQ, dK, dV, Q, K, V, dy, ref _weights_buffer, Network.MemoryPool, _use_scale);
+        ScaledDotProductAttentionBackwardPropagation(dQ, dK, dV, Q, K, V, dy, ref _weights_buffer, Network.MemoryPool, use_scale);
     }
 
     
@@ -144,14 +144,14 @@ public class ScaledDotProductAttentionLayer : Layer
     public override string Serialize()
     {
         return RootSerializer()
-            .Add(nameof(_use_scale), _use_scale)
-            .Add(nameof(_is_causal), _is_causal)
+            .Add(nameof(use_scale), use_scale)
+            .Add(nameof(is_causal), is_causal)
             .ToString();
     }
     public static ScaledDotProductAttentionLayer Deserialize(IDictionary<string, object> serialized, Network network)
     {
-        var useScale = (bool)serialized[nameof(_use_scale)];
-        var useCausalMask = (bool)serialized[nameof(_is_causal)];
+        var useScale = (bool)serialized[nameof(use_scale)];
+        var useCausalMask = (bool)serialized[nameof(is_causal)];
         var previousLayerIndexes = (int[])serialized[nameof(PreviousLayerIndexes)];
         return new ScaledDotProductAttentionLayer(useScale, useCausalMask, previousLayerIndexes[0], previousLayerIndexes[1], previousLayerIndexes[2], network, (string)serialized[nameof(LayerName)]);
     }
@@ -169,8 +169,8 @@ public class ScaledDotProductAttentionLayer : Layer
                                                         + ", " + ValueLayer.GetPyTorchOutputVariableName()
                                                         + ", attn_mask=None"
                                                         + ", dropout_p=0.0"
-                                                        + ", is_causal="+ Utils.ToPython(_is_causal)
-                                                        + ", scale="+ (_use_scale?"None":"1")
+                                                        + ", is_causal="+ Utils.ToPython(is_causal)
+                                                        + ", scale="+ (use_scale?"None":"1")
                                                         + ")");
     }
 

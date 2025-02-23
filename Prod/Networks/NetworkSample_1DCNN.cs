@@ -50,12 +50,12 @@ public class NetworkSample_1DCNN : NetworkSample
 
         int cha_po_1 = hidden_size / channel_1 / 2;
 
-        nn.Input_and_Embedding_if_required(datasetSample, EmbeddingDim, lambdaL2Regularization);
+        nn.Input_and_Embedding_if_required(datasetSample, EmbeddingDim);
 
         //expand(x)
         nn.BatchNorm(batchNorm_momentum, 1e-5);
         nn.Dropout(dropout_top);
-        nn.Linear(hidden_size, true, lambdaL2Regularization, false);
+        nn.Linear(hidden_size, true, false);
         nn.BatchNorm(batchNorm_momentum, 1e-5);//nn.utils.weight_norm(, dim = None), //!D was Weight Norm
         nn.Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU); //nn.CELU(0.06) if celu else nn.ReLU()
 
@@ -64,7 +64,7 @@ public class NetworkSample_1DCNN : NetworkSample
         //conv1 
         nn.BatchNorm(batchNorm_momentum, 1e-5);
         nn.Dropout(dropout_top);
-        nn.Conv1D(channel_2, kernel1, 1, ConvolutionLayer.PADDING_TYPE.SAME, lambdaL2Regularization, false); //nn.Conv1d(channel_1, channel_2, kernel_size = kernel1, stride = 1, padding = kernel1 / 2, bias = False);
+        nn.Conv1D(channel_2, kernel1, 1, ConvolutionLayer.PADDING_TYPE.SAME, false); //nn.Conv1d(channel_1, channel_2, kernel_size = kernel1, stride = 1, padding = kernel1 / 2, bias = False);
         if (weight_norm) { nn.BatchNorm(batchNorm_momentum, 1e-5); }
         nn.Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU);
         int AdaptiveAvgPool1d_input_size = nn.Layers.Last().OutputShape(1).Last();
@@ -75,7 +75,7 @@ public class NetworkSample_1DCNN : NetworkSample
         if (weight_norm) { nn.BatchNorm(batchNorm_momentum, 1e-5); }
         nn.Dropout(dropout_top);
 
-        nn.Conv1D(channel_2, 3, 1, ConvolutionLayer.PADDING_TYPE.SAME, lambdaL2Regularization, true); //nn.Conv1d(channel_2, channel_2, kernel_size = 3, stride = 1, padding = 1, bias = True);
+        nn.Conv1D(channel_2, 3, 1, ConvolutionLayer.PADDING_TYPE.SAME, true); //nn.Conv1d(channel_2, channel_2, kernel_size = 3, stride = 1, padding = 1, bias = True);
         nn.BatchNorm(batchNorm_momentum, 1e-5); //_norm();
         nn.Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU);
 
@@ -86,12 +86,12 @@ public class NetworkSample_1DCNN : NetworkSample
             //conv2 
             nn.BatchNorm(batchNorm_momentum, 1e-5);
             nn.Dropout(dropout_mid);
-            nn.Conv1D(channel_2, 3, 1, ConvolutionLayer.PADDING_TYPE.SAME, lambdaL2Regularization, true); //nn.Conv1d(channel_2, channel_2, kernel_size = 3, stride = 1, padding = 1, bias = True);
+            nn.Conv1D(channel_2, 3, 1, ConvolutionLayer.PADDING_TYPE.SAME, true); //nn.Conv1d(channel_2, channel_2, kernel_size = 3, stride = 1, padding = 1, bias = True);
             if (weight_norm) { nn.BatchNorm(batchNorm_momentum, 1e-5); }
             nn.Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU);
             nn.BatchNorm(batchNorm_momentum, 1e-5);
             nn.Dropout(dropout_bottom);
-            nn.Conv1D(channel_3, 5, 1, ConvolutionLayer.PADDING_TYPE.SAME, lambdaL2Regularization, true); //nn.Conv1d(channel_2, channel_3, kernel_size = 5, stride = 1, padding = 2, bias = True);
+            nn.Conv1D(channel_3, 5, 1, ConvolutionLayer.PADDING_TYPE.SAME, true); //nn.Conv1d(channel_2, channel_3, kernel_size = 5, stride = 1, padding = 2, bias = True);
             if (weight_norm) { nn.BatchNorm(batchNorm_momentum, 1e-5); }
             nn.Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU); // * x
             int previousLayerIndex2 = nn.LastLayerIndex;
@@ -114,7 +114,7 @@ public class NetworkSample_1DCNN : NetworkSample
         {
             nn.BatchNorm(batchNorm_momentum, 1e-5);
             nn.Dropout(dropout_bottom);
-            nn.Linear(datasetSample.NumClass, true, lambdaL2Regularization, false);
+            nn.Linear(datasetSample.NumClass, true, false);
             if (weight_norm) { nn.BatchNorm(batchNorm_momentum, 1e-5); }
             nn.Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_LEAKY_RELU); // * x
         }
@@ -122,7 +122,7 @@ public class NetworkSample_1DCNN : NetworkSample
         {
             nn.BatchNorm(batchNorm_momentum, 1e-5);
             nn.Dropout(dropout_bottom);
-            nn.Linear(datasetSample.NumClass, true, lambdaL2Regularization, false);
+            nn.Linear(datasetSample.NumClass, true, false);
             if (weight_norm) { nn.BatchNorm(batchNorm_momentum, 1e-5); }
         }
         nn.Activation(nn.NetworkSample.GetActivationForLastLayer(datasetSample.NumClass));
@@ -165,9 +165,8 @@ public class NetworkSample_1DCNN : NetworkSample
 
             // Optimizer 
             { nameof(NetworkSample.OptimizerType), new[] { "AdamW", "SGD", "Adam" /*, "VanillaSGD", "VanillaSGDOrtho"*/ } },
-            { nameof(NetworkSample.AdamW_L2Regularization), new[] { 1e-5, 1e-4, 1e-3, 1e-2, 1e-1 } },
-            { nameof(NetworkSample.SGD_usenesterov), new[] { true, false } },
-            { nameof(NetworkSample.lambdaL2Regularization), new[] { 0, 1e-5, 1e-4, 1e-3, 1e-2, 1e-1 } },
+            { nameof(NetworkSample.weight_decay), new[] {0, 1e-5, 1e-4, 1e-3, 1e-2, 1e-1 } },
+            { nameof(NetworkSample.nesterov), new[] { true, false } },
 
             // Learning Rate
             { nameof(NetworkSample.InitialLearningRate), HyperparameterSearchSpace.Range(1e-5f, 1f, HyperparameterSearchSpace.range_type.normal) },

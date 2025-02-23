@@ -39,12 +39,13 @@ class torch_fx_utils:
         node = nodes[idx]
         if node.op == "call_function" and "built-in function getitem>" in str(node.target):
             return False
-        #//?Dif node.op == 'output' and idx == len(nodes)-1:             return False
         return True
 
 
     @staticmethod            
     def node_index(node: torch.fx.node.Node, previous_nodes: List[torch.fx.node.Node]) -> int:
+        if not isinstance(node, torch.fx.node.Node):
+            return -1
         for i in range(0, len(previous_nodes)):
             if previous_nodes[i].name == node.name:
                 return i
@@ -61,20 +62,19 @@ class torch_fx_utils:
         for previous_node in node_args:
             previous_node_index = torch_fx_utils.node_index(previous_node, previous_nodes)
             if previous_node_index < 0:
+                print((f"* * * * fail to find node {previous_node} among {len(previous_nodes)} previous nodes {previous_nodes[-10:]} (last 10)")) #//!D
                 raise Exception(f"fail to find node {previous_node.name} among previous nodes {previous_nodes}")
             result.append(previous_node_index)
         return result
 
     @staticmethod
     def display_node(node: torch.fx.node.Node, name2module):
-        print('node.name', node.name, type(node.name))
+        print('-'*50)
         print('node', node, type(node))
+        print('node.name', node.name, type(node.name))
         print('node.op', node.op, type(node.op))
         print('node.args', node.args, type(node.args))
         if len(node.kwargs): print('node.kwargs', node.kwargs, type(node.kwargs))
         print('node.target', node.target, type(node.target))
         if isinstance(node.target,str) and node.target in name2module:
             print('module', name2module[node.target], type(name2module[node.target]))
-        print('-'*50)
-
-        

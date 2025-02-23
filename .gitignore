@@ -1,4 +1,4 @@
-﻿# User-specific files
+# User-specific files
 *.suo
 *.user
 *.sln.docstates
@@ -121,3 +121,4 @@ TestNonRegNew_*.csv
 /StampArbitragist/Install/StampArbitragistInstall.exe
 /ImageScanSplitter/TODO/
 /Tests/SharpNetTests.csproj.fzibi.nvuser
+/Private/

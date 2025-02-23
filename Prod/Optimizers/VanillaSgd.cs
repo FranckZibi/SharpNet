@@ -20,9 +20,5 @@ namespace SharpNet.Optimizers
             bias?.Update_Adding_Alpha_X(-ponderedLearningRate, biasGradients);
         }
         public override List<Tensor> EmbeddedTensors => new ();
-
-        #region serialization
-        public override string Serialize() {return "";}
-        #endregion
     }
 }

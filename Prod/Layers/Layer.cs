@@ -34,7 +34,9 @@ namespace SharpNet.Layers
         /// false if it is a frozen layer
         /// </summary>
         public bool Trainable { get; set; } = true;
+        public NetworkSample GetSample() => Sample;
         protected readonly Network Network;
+        protected NetworkSample Sample => Network.Sample;
         protected bool _isDisposed;
         public int[] LazyOutputShape { private get; set; }
         private string _layerName;
@@ -88,8 +90,6 @@ namespace SharpNet.Layers
         /// </summary>
         public virtual bool InputNeededForBackwardPropagation => true;
 
-
-        public Network GetNetwork() => Network;
 
         /// <summary>
         /// update all weights of the layer thanks to the weight (& bias)  gradients computed in the backward propagation step
@@ -235,16 +235,16 @@ namespace SharpNet.Layers
                 case nameof(BatchNormalizationLayer): return BatchNormalizationLayer.Deserialize(serialized, network);
                 case nameof(ConcatenateLayer): return ConcatenateLayer.Deserialize(serialized, network);
                 case nameof(ConvolutionLayer): return ConvolutionLayer.Deserialize(serialized, network);
-                case nameof(LinearLayer): return LinearLayer.Deserialize(serialized, network);
-                case nameof(DropoutLayer): return DropoutLayer.Deserialize(serialized, network);
+                case nameof(Linear): return Linear.Deserialize(serialized, network);
+                case nameof(Dropout): return Dropout.Deserialize(serialized, network);
                 case nameof(EmbeddingLayer): return EmbeddingLayer.Deserialize(serialized, network);
-                case nameof(FlattenLayer): return FlattenLayer.Deserialize(serialized, network);
+                case nameof(Flatten): return Flatten.Deserialize(serialized, network);
                 case nameof(InputLayer): return InputLayer.Deserialize(serialized, network);
                 case nameof(LayerNorm): return LayerNorm.Deserialize(serialized, network);
                 case nameof(RMSNorm): return RMSNorm.Deserialize(serialized, network);
                 case nameof(LinearFunctionLayer): return LinearFunctionLayer.Deserialize(serialized, network);
                 case nameof(MultiheadAttention): return MultiheadAttention.Deserialize(serialized, network);
-                case nameof(MultiplyLayer): return MultiplyLayer.Deserialize(serialized, network);
+                case nameof(Multiply): return Multiply.Deserialize(serialized, network);
                 case nameof(NonMaxSuppressionLayer): return NonMaxSuppressionLayer.Deserialize(serialized, network);
                 case nameof(PoolingLayer): return PoolingLayer.Deserialize(serialized, network);
                 case nameof(PositionalEncodingAttnIsAllYouNeedLayer): return PositionalEncodingAttnIsAllYouNeedLayer.Deserialize(serialized, network);
@@ -491,7 +491,6 @@ namespace SharpNet.Layers
         protected Random Rand => Network.Rand;
         protected TensorMemoryPool MemoryPool => Network.MemoryPool;
         protected List<Layer> Layers => Network.Layers;
-        protected NetworkSample Sample => Network.Sample;
 
 
         

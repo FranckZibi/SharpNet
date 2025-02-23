@@ -115,26 +115,4 @@ public class VanillaSgdOrtho : Optimizer
         base.Dispose();
         EmbeddedTensors.ForEach(t => _memoryPool?.FreeFloatTensor(t));
     }
-
-    #region serialization
-    public override string Serialize()
-    {
-        return new Serializer()
-            .Add(nameof(Q), Q)
-            .Add(nameof(R), R)
-            .Add(nameof(QRFactorization_buffer), QRFactorization_buffer)
-            .ToString();
-    }
-
-    public static Optimizer DeserializeVanillaSgdOrtho(IDictionary<string, object> serialized)
-    {
-        return serialized.ContainsKey(nameof(QRFactorization_buffer)) ? new VanillaSgdOrtho(serialized) : null;
-    }
-    private VanillaSgdOrtho(IDictionary<string, object> serialized)
-    {
-        serialized.TryGet(nameof(Q), out Q);
-        serialized.TryGet(nameof(R), out R);
-        serialized.TryGet(nameof(QRFactorization_buffer), out QRFactorization_buffer);
-    }
-    #endregion
 }

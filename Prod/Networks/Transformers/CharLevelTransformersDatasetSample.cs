@@ -45,7 +45,7 @@ public class CharLevelTransformersDatasetSample : TransformerDatasetSample
 
     public Tokenizer GetTokenizer()
     {
-        var tokenizer = new Tokenizer(vocab_size, oovToken: null, char_level: true, lowerCase: false, filters: "\r",
+        var tokenizer = new Tokenizer(num_embeddings, oovToken: null, char_level: true, lowerCase: false, filters: "\r",
             firstElementIsPaddingToken: false);
         tokenizer.FitOnTexts(new[] { _fullText });
         return tokenizer;

@@ -78,7 +78,7 @@ public static class TfIdfEncoding
         L2,
         Standardization // we scale the embedding with 0 mean and 1 as standard deviation (= volatility). This is not a norm
     };
-    public static List<DataFrame> Encode(IList<DataFrame> dfs, string columnToEncode, int embeddingDim, bool keepEncodedColumnName = false, bool reduceEmbeddingDimIfNeeded = false, TfIdfEncoding_norm norm = TfIdfEncoding_norm.L2, bool scikitLearnCompatibilityMode = false)
+    public static List<DataFrame> Encode(IList<DataFrame> dfs, string columnToEncode, int embedding_dim, bool keepEncodedColumnName = false, bool reduceEmbeddingDimIfNeeded = false, TfIdfEncoding_norm norm = TfIdfEncoding_norm.L2, bool scikitLearnCompatibilityMode = false)
     {
         var documents = new List<string>();
         foreach (var df in dfs)
@@ -86,7 +86,7 @@ public static class TfIdfEncoding
             documents.AddRange(df?.StringColumnContent(columnToEncode) ?? Array.Empty<string>());
         }
 
-        var documents_tfidf_encoded = Encode(documents, embeddingDim, columnToEncode, reduceEmbeddingDimIfNeeded, norm, scikitLearnCompatibilityMode);
+        var documents_tfidf_encoded = Encode(documents, embedding_dim, columnToEncode, reduceEmbeddingDimIfNeeded, norm, scikitLearnCompatibilityMode);
         var dfs_encoded = new List<DataFrame>();
         var startRowIndex = 0;
         for (var index = 0; index < dfs.Count; index++)
@@ -113,25 +113,25 @@ public static class TfIdfEncoding
 
 
 
-    public static DataFrame Encode(IList<string> documents, int embeddingDim, [NotNull] string columnNameToEncode, bool reduceEmbeddingDimIfNeeded = false, TfIdfEncoding_norm norm = TfIdfEncoding_norm.L2, bool scikitLearnCompatibilityMode = false)
+    public static DataFrame Encode(IList<string> documents, int embedding_dim, [NotNull] string columnNameToEncode, bool reduceEmbeddingDimIfNeeded = false, TfIdfEncoding_norm norm = TfIdfEncoding_norm.L2, bool scikitLearnCompatibilityMode = false)
     {
         var tokenizer = new Tokenizer(oovToken: null, lowerCase: true, stemmer: _stemmer);
        
         tokenizer.FitOnTexts(documents);
         var training_sequences = tokenizer.TextsToSequences(documents);
-        if (reduceEmbeddingDimIfNeeded && tokenizer.DistinctWords < embeddingDim)
+        if (reduceEmbeddingDimIfNeeded && tokenizer.DistinctWords < embedding_dim)
         {
-            embeddingDim = Math.Max(1, tokenizer.DistinctWords);
+            embedding_dim = Math.Max(1, tokenizer.DistinctWords);
         }
 
         Log.Info($"number of distinct words for {columnNameToEncode}: {tokenizer.DistinctWords}");
 
-        var tfIdf = new float[documents.Count * embeddingDim];
+        var tfIdf = new float[documents.Count * embedding_dim];
         // documentsContainingWord[wordIdx] : number of distinct documents containing the word at index 'wordIdx'
-        var documentsContainingWord = new int[embeddingDim];
+        var documentsContainingWord = new int[embedding_dim];
 
         //first step: we compute the Text Frequency (tf)
-        //  tfIdf[documentId * embeddingDim + wordIdx] : number of time the word at 'wordIdx' appears in document 'documentId'
+        //  tfIdf[documentId * embedding_dim + wordIdx] : number of time the word at 'wordIdx' appears in document 'documentId'
         for (int documentId = 0; documentId < documents.Count; ++documentId)
         {
             var wordIdxStartingAt1S = training_sequences[documentId];
@@ -140,16 +140,16 @@ public static class TfIdfEncoding
                 // the first id start at 1, we want it to start at 0
                 Debug.Assert(wordIdx_starting_at_1 >= 1);
                 int wordIdx = wordIdx_starting_at_1 - 1;
-                if (wordIdx >= embeddingDim | wordIdx < 0)
+                if (wordIdx >= embedding_dim | wordIdx < 0)
                 {
                     continue;
                 }
 
-                if (tfIdf[documentId * embeddingDim + wordIdx] == 0)
+                if (tfIdf[documentId * embedding_dim + wordIdx] == 0)
                 {
                     ++documentsContainingWord[wordIdx];
                 }
-                tfIdf[documentId * embeddingDim + wordIdx] += 1f/ wordIdxStartingAt1S.Count;
+                tfIdf[documentId * embedding_dim + wordIdx] += 1f/ wordIdxStartingAt1S.Count;
             }
         }
 
@@ -157,10 +157,10 @@ public static class TfIdfEncoding
         //  tfIdf[documentId * columns + wordIdx] : tf*idf of word at 'wordIdx' for document 'documentId'
         for (int documentId = 0; documentId < documents.Count; ++documentId)
         {
-            for (int wordIdx = 0; wordIdx < embeddingDim; ++wordIdx)
+            for (int wordIdx = 0; wordIdx < embedding_dim; ++wordIdx)
             {
                 //number of time the word at 'wordIdx' appears in document 'documentId'
-                var tf = tfIdf[documentId * embeddingDim + wordIdx];
+                var tf = tfIdf[documentId * embedding_dim + wordIdx];
                 if (tf == 0)
                 {
                     continue;
@@ -169,14 +169,14 @@ public static class TfIdfEncoding
                 {
                     float df = (1f+documentsContainingWord[wordIdx]) / (1f+documents.Count);
                     float idf = MathF.Log(1 / df)+1;
-                    tfIdf[documentId * embeddingDim + wordIdx] = tf * idf;
+                    tfIdf[documentId * embedding_dim + wordIdx] = tf * idf;
                 }
                 else
                 {
                     // % of document containing (at least one time) the word at 'wordIdx'
                     float df = ((float)documentsContainingWord[wordIdx]) / documents.Count;
                     float idf = MathF.Log(1 / df);
-                    tfIdf[documentId * embeddingDim + wordIdx] = tf * idf;
+                    tfIdf[documentId * embedding_dim + wordIdx] = tf * idf;
                 }
             }
         }
@@ -188,9 +188,9 @@ public static class TfIdfEncoding
                 double sumForRow = 0.0;         // for Standardization
                 double absSumForRow = 0.0;      // for L1 norm
                 double sumSquareForRow = 0.0;   // for L2 norm and Standardization
-                for (int wordIdx = 0; wordIdx < embeddingDim; ++wordIdx)
+                for (int wordIdx = 0; wordIdx < embedding_dim; ++wordIdx)
                 {
-                    var val = tfIdf[documentId * embeddingDim + wordIdx];
+                    var val = tfIdf[documentId * embedding_dim + wordIdx];
                     sumForRow += val;
                     absSumForRow += Math.Abs(val);
                     sumSquareForRow +=(val * val);
@@ -209,8 +209,8 @@ public static class TfIdfEncoding
                         toAdd = 0.0f;
                         break;
                     case TfIdfEncoding_norm.Standardization:
-                        var mean = (float)sumForRow / embeddingDim;
-                        var variance = Math.Abs(sumSquareForRow - embeddingDim * mean * mean) / embeddingDim;
+                        var mean = (float)sumForRow / embedding_dim;
+                        var variance = Math.Abs(sumSquareForRow - embedding_dim * mean * mean) / embedding_dim;
                         var stdDev = (float)Math.Sqrt(variance);
                         multiplier = (stdDev>0)? (1 / stdDev):0;
                         toAdd = (stdDev > 0)?(-mean/ stdDev):0;
@@ -218,19 +218,19 @@ public static class TfIdfEncoding
                     default:
                         throw new NotSupportedException($"invalid norm {norm}");
                 }
-                for (int wordIdx = 0; wordIdx < embeddingDim; ++wordIdx)
+                for (int wordIdx = 0; wordIdx < embedding_dim; ++wordIdx)
                 {
-                    var index = documentId * embeddingDim + wordIdx;
+                    var index = documentId * embedding_dim + wordIdx;
                     tfIdf[index] = multiplier* tfIdf[index]+toAdd;
                 }
             }
         }
 
         //we create the column names
-        var sequenceToWords = tokenizer.SequenceToWords(Enumerable.Range(1, embeddingDim)).Select(x => x ?? "OOV")
+        var sequenceToWords = tokenizer.SequenceToWords(Enumerable.Range(1, embedding_dim)).Select(x => x ?? "OOV")
             .ToList();
         List<string> columns = new();
-        for (int i = 1; i <= embeddingDim; ++i)
+        for (int i = 1; i <= embedding_dim; ++i)
         {
             var tfidfColumnName = columnNameToEncode + TFIDF_COLUMN_NAME_KEY + sequenceToWords[i - 1];
             columns.Add(tfidfColumnName);

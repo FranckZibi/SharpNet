@@ -16,7 +16,7 @@ namespace SharpNet.Layers;
 public sealed class RMSNorm : Layer
 {
     #region Private fields
-    private readonly double _epsilon;
+    private readonly double eps;
     //we'll normalize over the last 'D' dimension of the input tensor
     // for example:
     //  if D == 3 and input shape is [N,C,H,W]:
@@ -29,7 +29,7 @@ public sealed class RMSNorm : Layer
     //          we'll normalize over the last dimension [C]
     //          the input tensor will be treated as a 2D matrix (N, C)
     // 
-    private readonly int _last_D_dimension;
+    private readonly int last_D_dimension;
     #region trainable parameters
     /// <summary>
     /// Scale (= gammas) Tensor
@@ -53,10 +53,10 @@ public sealed class RMSNorm : Layer
     // to check with actual value used in PyTorch
     public const float DEFAULT_EPSILON = 1.2f * 1e-7f;
 
-    public RMSNorm(int last_D_dimension, double epsilon, bool trainable, Network network, string layerName, int prevLayerIndex) : base(network, prevLayerIndex == -1 ? new[] { network.LastLayerIndex } : new[] { prevLayerIndex }, layerName)
+    public RMSNorm(int last_D_dimension, double eps, bool trainable, Network network, string layerName, int prevLayerIndex) : base(network, prevLayerIndex == -1 ? new[] { network.LastLayerIndex } : new[] { prevLayerIndex }, layerName)
     {
-        _last_D_dimension = last_D_dimension;
-        _epsilon = epsilon;
+        this.last_D_dimension = last_D_dimension;
+        this.eps = eps;
         Trainable = trainable;
 
         var scaleAndBiasShape = ScaleAndBiasShape();
@@ -88,7 +88,7 @@ public sealed class RMSNorm : Layer
         // we compute the sum of squares
         GetFloatTensor(ref _mean_squares_buffer, new[] { 1, reshape_rows });
         x.Compute_Mean_Squares_Buffer(_mean_squares_buffer);
-        x.RMSNormalization(y, _gammas, _mean_squares_buffer, (float)_epsilon);
+        x.RMSNormalization(y, _gammas, _mean_squares_buffer, (float)eps);
     }
 
     public override void BackwardPropagation(List<Tensor> allX, Tensor y_NotUsed, Tensor dy, List<Tensor> allDx)
@@ -101,13 +101,13 @@ public sealed class RMSNorm : Layer
         //dgamma = np.sum(dy * hat_x, axis = 0)
         var hat_x = dx;
         x.CopyTo(hat_x);
-        hat_x.RMSStandardizeInPlace(_mean_squares_buffer, (float)_epsilon);
+        hat_x.RMSStandardizeInPlace(_mean_squares_buffer, (float)eps);
         hat_x.Update_Multiply_By_x(dy);
         hat_x.numpy_sum(_gammasGradients, 0);
 
         var dmean_squares_row = GetFloatTensor(_mean_squares_buffer.Shape);
         //we compute 'dx'
-        x.RMSNormalizationBackward(dy, dx, _gammas, _mean_squares_buffer, (float)_epsilon, dmean_squares_row);
+        x.RMSNormalizationBackward(dy, dx, _gammas, _mean_squares_buffer, (float)eps, dmean_squares_row);
 
         FreeFloatTensor(dmean_squares_row);
     }
@@ -182,16 +182,16 @@ public sealed class RMSNorm : Layer
     public override string Serialize()
     {
         return RootSerializer()
-            .Add(nameof(_last_D_dimension), _last_D_dimension)
-            .Add(nameof(_epsilon), _epsilon)
+            .Add(nameof(last_D_dimension), last_D_dimension)
+            .Add(nameof(eps), eps)
             .ToString();
     }
     public static RMSNorm Deserialize(IDictionary<string, object> serialized, Network network)
     {
         int prevLayerIndex = ((int[])serialized[nameof(PreviousLayerIndexes)])[0];
         return new RMSNorm(
-            (int)serialized[nameof(_last_D_dimension)],
-            (double)serialized[nameof(_epsilon)],
+            (int)serialized[nameof(last_D_dimension)],
+            (double)serialized[nameof(eps)],
             (bool)serialized[nameof(Trainable)],
             network,
             (string)serialized[nameof(LayerName)],
@@ -205,8 +205,8 @@ public sealed class RMSNorm : Layer
     public override void ToPytorchModule(List<string> constructorLines, List<string> forwardLines)
     {
         var input_shape = PreviousLayers.Count == 0 ? new[] { -1, -1, -1, -1 } : PreviousLayers[0].OutputShape(666);
-        var normalized_shape = Utils.ShapeToString(input_shape.Skip(input_shape.Length - _last_D_dimension).ToArray());
-        constructorLines.Add("self." + LayerName + " = torch.nn.RMSNorm(normalized_shape=" + normalized_shape + ", eps=" + _epsilon + ")");
+        var normalized_shape = Utils.ShapeToString(input_shape.Skip(input_shape.Length - last_D_dimension).ToArray());
+        constructorLines.Add("self." + LayerName + " = torch.nn.RMSNorm(normalized_shape=" + normalized_shape + ", eps=" + eps + ")");
         UpdateForwardLines(forwardLines);
     }
     #endregion
@@ -237,7 +237,7 @@ public sealed class RMSNorm : Layer
     private int[] ScaleAndBiasShape()
     {
         var res = OutputShape(1);
-        int cols = Utils.Product(res.Skip(res.Length - _last_D_dimension).ToArray());
+        int cols = Utils.Product(res.Skip(res.Length - last_D_dimension).ToArray());
         return new[] { cols };
     }
 }

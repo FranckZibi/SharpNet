@@ -18,7 +18,10 @@ class pytorch_call_function_to_sharpnet:
             return pytorch_call_function_to_sharpnet.cat(node, previous_nodes)
         if "built-in method flatten" in str(node.target):
             return pytorch_call_function_to_sharpnet.flatten(node, previous_nodes)
-        raise Exception(f"unknown call_function {node.target} in {node} , {node.op}")
+        error_msg = f"* * * * not implemented {str(node.target)} /  {node.target} in {node} , {node.op}" #//!D TODO
+        print(error_msg)
+        return error_msg 
+        #raise Exception(f"unknown call_function {node.target} in {node} , {node.op}")
 
     @staticmethod
     def flatten(node: torch.fx.node.Node, previous_nodes: List[torch.fx.node.Node]) -> str:
@@ -29,13 +32,13 @@ class pytorch_call_function_to_sharpnet:
             raise Exception(f"fail to find node {node.args[0].name} among previous nodes {previous_nodes}")
         start_dim = 0 if len(node.args) <2 else node.args[1]
         end_dim = -1 if len(node.args) <3 else node.args[2]
-        result = f"Type;Layer;FlattenLayer;intVector;PreviousLayerIndexes;1;{previous_node_index};string;LayerName;{torch_fx_utils.extract_node_name(node)};bool;Trainable;True;int;_start_dim;{start_dim};int;_end_dim;{end_dim};"
+        result = f"Type;Layer;Flatten;intVector;PreviousLayerIndexes;1;{previous_node_index};string;LayerName;{torch_fx_utils.extract_node_name(node)};bool;Trainable;True;int;_start_dim;{start_dim};int;_end_dim;{end_dim};"
         return result
 
     @staticmethod
     def mul(node: torch.fx.node.Node, previous_nodes: List[torch.fx.node.Node]) -> str:
         previous_node_index1,previous_node_index2 = torch_fx_utils.get_previous_nodes_indexes(node, previous_nodes, mandatory_length=2)
-        result = f"Type;Layer;MultiplyLayer;intVector;PreviousLayerIndexes;2;{previous_node_index1};{previous_node_index2};string;LayerName;{torch_fx_utils.extract_node_name(node)};bool;Trainable;True;"
+        result = f"Type;Layer;Multiply;intVector;PreviousLayerIndexes;2;{previous_node_index1};{previous_node_index2};string;LayerName;{torch_fx_utils.extract_node_name(node)};bool;Trainable;True;"
         return result  
 
     @staticmethod

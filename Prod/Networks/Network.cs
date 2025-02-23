@@ -126,14 +126,14 @@ namespace SharpNet.Networks
             return Input(shape_CHW[0], shape_CHW.Length>=2?shape_CHW[1]:-1, shape_CHW.Length>=3?shape_CHW[2]:-1, layerName);
         }
 
-        public Network Input_and_Embedding_if_required(AbstractDatasetSample datasetSample, int embeddingDim, double lambdaL2Regularization, float clipValueForGradients= 0, string layerName = "")
+        public Network Input_and_Embedding_if_required(AbstractDatasetSample datasetSample, int embedding_dim, float clipValueForGradients= 0, string layerName = "")
         {
             Input(datasetSample.X_Shape(1).Skip(1).ToArray(), layerName);
-            var (vocabularySizes, embeddingDims, indexesInLastDimensionToUse, embeddingTensorIndex) = datasetSample.EmbeddingDescription(embeddingDim);
+            var (vocabularySizes, embeddingDims, indexesInLastDimensionToUse, embeddingTensorIndex) = datasetSample.EmbeddingDescription(embedding_dim);
             if (indexesInLastDimensionToUse.Length != 0)
             {
                 //We need to add an embedding layer to manage categorical features
-                Embedding(vocabularySizes, embeddingDims, indexesInLastDimensionToUse, embeddingTensorIndex, lambdaL2Regularization, clipValueForGradients);
+                Embedding(vocabularySizes, embeddingDims, indexesInLastDimensionToUse, embeddingTensorIndex, clipValueForGradients);
             }
             return this;
         }
@@ -150,22 +150,31 @@ namespace SharpNet.Networks
             return this;
         }
 
+        public Network Embedding(
+            int num_embeddings,
+            int embedding_dim,
+            float clipValueForGradients = 0f,
+            string layerName = "")
+        {
+            return Embedding(new int[] { num_embeddings },
+                new int[] { embedding_dim },
+                new int[] { -1 },
+                new int[] { 0 },
+                clipValueForGradients,
+                layerName);
+        }
+
         public Network Embedding(int[] vocabularySizes,
                 int[] embeddingDims,
                 int[] indexesInLastDimensionToUse,
                 int[] embeddingTensorIndex,
-                double lambdaL2Regularization,
                 float clipValueForGradients = 0f,
-
-                bool divideGradientsByTimeSteps = false,
-                //bool divideGradientsByTimeSteps = true,
-
                 string layerName = "")
             {
             Debug.Assert(Layers.Count >= 1);
             Debug.Assert(Layers.Last().IsInputLayer);
 
-            Layers.Add(new EmbeddingLayer(EmbeddingLayer.ToEmbeddingLayerDescription(vocabularySizes, embeddingDims, indexesInLastDimensionToUse, embeddingTensorIndex), lambdaL2Regularization, clipValueForGradients, divideGradientsByTimeSteps, true, this, layerName));
+            Layers.Add(new EmbeddingLayer(EmbeddingLayer.ToEmbeddingLayerDescription(vocabularySizes, embeddingDims, indexesInLastDimensionToUse, embeddingTensorIndex), clipValueForGradients, true, this, layerName));
             return this;
         }
         public Network SwitchSecondAndThirdDimension(bool addOneDimensionInOutputShape, string layerName = "")
@@ -247,20 +256,18 @@ namespace SharpNet.Networks
             var timeSteps = xLayerShape[1];
             bool returnSequences = timeSteps != 1;
 
-            return RecurrentLayer(encoder.HiddenSize, encoder.CellMode, encoder.BiasMode, returnSequences,
-                encoder.IsBidirectional, numLayers, dropoutRate, false, encoderLayerIndex, layerName);
+            return RecurrentLayer(encoder.hidden_size, encoder.CellMode, encoder.BiasMode, returnSequences,
+                encoder.bidirectional, numLayers, dropoutRate, false, encoderLayerIndex, layerName);
         }
 
-        public Network Linear(int out_features, bool bias, double lambdaL2Regularization, bool flattenInputTensorOnLastDimension, string layerName = "")
+        public Network Linear(int out_features, bool bias, bool flattenInputTensorOnLastDimension, string layerName = "")
         {
             Debug.Assert(Layers.Count >= 1);
-            var fullyConnectedLayer = new LinearLayer(out_features, bias, lambdaL2Regularization, flattenInputTensorOnLastDimension, true, this, layerName);
+            var fullyConnectedLayer = new Linear(out_features, bias, flattenInputTensorOnLastDimension, true, this, layerName);
             Layers.Add(fullyConnectedLayer);
             return this;
         }
 
-
-        // ReSharper disable once UnusedMethodReturnValue.Global
         public Network Linear(float slope, float intercept, string layerName = "")
         {
             var linearFunctionLayer = new LinearFunctionLayer(slope, intercept, this, layerName);
@@ -275,27 +282,26 @@ namespace SharpNet.Networks
             return this;
         }
 
-        public Network Convolution_BatchNorm(int out_channels, int kernelSize, int stride, ConvolutionLayer.PADDING_TYPE paddingType, double lambdaL2Regularization)
+        public Network Convolution_BatchNorm(int out_channels, int kernelSize, int stride, ConvolutionLayer.PADDING_TYPE paddingType)
         {
-            return Convolution(out_channels, kernelSize, stride, paddingType, lambdaL2Regularization, false)
+            return Convolution(out_channels, kernelSize, stride, paddingType, false)
                 .BatchNorm(0.99, 1e-5);
         }
-        public Network Convolution_BatchNorm_Activation(int out_channels, int kernelSize, int stride, ConvolutionLayer.PADDING_TYPE paddingType, double lambdaL2Regularization, cudnnActivationMode_t activationFunction)
+        public Network Convolution_BatchNorm_Activation(int out_channels, int kernelSize, int stride, ConvolutionLayer.PADDING_TYPE paddingType, cudnnActivationMode_t activationFunction)
         {
-            return Convolution_BatchNorm(out_channels, kernelSize, stride, paddingType, lambdaL2Regularization)
+            return Convolution_BatchNorm(out_channels, kernelSize, stride, paddingType)
                 .Activation(activationFunction);
         }
-        // ReSharper disable once UnusedMethodReturnValue.Global
         public Network BatchNorm_Activation(cudnnActivationMode_t activationFunction)
         {
             return BatchNorm(0.99, 1e-5).Activation(activationFunction);
         }
-        public Network BatchNorm_Activation_Convolution(cudnnActivationMode_t activationFunction, int out_channels, int kernelSize, int stride, ConvolutionLayer.PADDING_TYPE paddingType, double lambdaL2Regularization, bool useBias)
+        public Network BatchNorm_Activation_Convolution(cudnnActivationMode_t activationFunction, int out_channels, int kernelSize, int stride, ConvolutionLayer.PADDING_TYPE paddingType, bool bias)
         {
             return 
                 BatchNorm(0.99, 1e-5)
                 .Activation(activationFunction)
-                .Convolution(out_channels, kernelSize, stride, paddingType, lambdaL2Regularization, useBias);
+                .Convolution(out_channels, kernelSize, stride, paddingType, bias);
         }
         public Network AddLayer(int previousResidualLayerIndex, int previousIdentityLayerIndex, string layerName = "")
         {
@@ -312,12 +318,11 @@ namespace SharpNet.Networks
             Layers.Add(new ConcatenateLayer(previousLayers, this, layerName));
             return this;
         }
-        public Network MultiplyLayer(int previousLayerIndex1, int previousLayerIndexDiagonalMatrix, string layerName = "")
+        public Network Multiply(int previousLayerIndex1, int previousLayerIndexDiagonalMatrix, string layerName = "")
         {
-            Layers.Add(new MultiplyLayer(previousLayerIndex1, previousLayerIndexDiagonalMatrix, this, layerName));
+            Layers.Add(new Multiply(previousLayerIndex1, previousLayerIndexDiagonalMatrix, this, layerName));
             return this;
         }
-        // ReSharper disable once UnusedMethodReturnValue.Global
         public Network NonMaxSuppression(float minScore, float IOU_threshold_for_duplicate, int maxOutputSize, int maxOutputSizePerClass, string layerName)
         {
             Layers.Add(new NonMaxSuppressionLayer(maxOutputSizePerClass, maxOutputSize, IOU_threshold_for_duplicate, minScore, this, layerName));
@@ -328,7 +333,6 @@ namespace SharpNet.Networks
             Layers.Add(new UpSampling2DLayer(rowFactor, colFactor, interpolation, this, layerName));
             return this;
         }
-        // ReSharper disable once UnusedMethodReturnValue.Global
         public Network YOLOV3Layer(int[] anchors, int previousLayerIndex, string layerName)
         {
             Layers.Add(new YOLOV3Layer(anchors, previousLayerIndex, this, layerName));
@@ -345,8 +349,7 @@ namespace SharpNet.Networks
         }
 
         //add a shortcut from layer 'AddSumLayer' to current layer, adding a Conv Layer if necessary (for matching size)
-        // ReSharper disable once UnusedMethodReturnValue.Global
-        public Network Shortcut_IdentityConnection(int startOfBlockLayerIndex, int out_channels, int stride, double lambdaL2Regularization)
+        public Network Shortcut_IdentityConnection(int startOfBlockLayerIndex, int out_channels, int stride)
         {
             int previousResidualLayerIndex = LastLayerIndex;
 
@@ -358,25 +361,23 @@ namespace SharpNet.Networks
             else
             {
                 //we need to add a convolution layer to make correct output format
-                Convolution(out_channels, 1, stride, 0, lambdaL2Regularization, true, startOfBlockLayerIndex);
+                Convolution(out_channels, 1, stride, 0, true, startOfBlockLayerIndex);
                 int convLayerIdInIdentityBlock = LastLayerIndex;
                 Layers.Add(new AddLayer(new[]{previousResidualLayerIndex, convLayerIdInIdentityBlock}, this));
                 Debug.Assert(Layers[convLayerIdInIdentityBlock].SameOutputShape(Layers[previousResidualLayerIndex]));
             }
             return this;
         }
-        public Network Convolution(int out_channels, int kernelSize, int stride, ConvolutionLayer.PADDING_TYPE paddingType, double lambdaL2Regularization, bool useBias, string layerName = "")
+        public Network Convolution(int out_channels, int kernelSize, int stride, ConvolutionLayer.PADDING_TYPE paddingType, bool bias, string layerName = "")
         {
-            return Convolution(out_channels, kernelSize, stride, paddingType, lambdaL2Regularization, useBias, Layers.Count - 1, layerName);
+            return Convolution(out_channels, kernelSize, stride, paddingType, bias, Layers.Count - 1, layerName);
         }
-        public Network Convolution(int out_channels, int kernelSize, int stride, ConvolutionLayer.PADDING_TYPE paddingType, double lambdaL2Regularization, bool useBias, int previousLayerIndex, string layerName = "")
+        public Network Convolution(int out_channels, int kernelSize, int stride, ConvolutionLayer.PADDING_TYPE paddingType, bool bias, int previousLayerIndex, string layerName = "")
         {
             Debug.Assert(Layers.Count >= 1);
-            Layers.Add(new ConvolutionLayer(false, false, out_channels, -1, kernelSize, kernelSize, stride, paddingType, lambdaL2Regularization, useBias, previousLayerIndex, true, this, layerName));
+            Layers.Add(new ConvolutionLayer(false, false, out_channels, -1, kernelSize, kernelSize, stride, paddingType, bias, previousLayerIndex, true, this, layerName));
             return this;
         }
-
-        // ReSharper disable once UnusedMember.Global
         public Network ScaledDotProductAttention(bool use_scale, bool is_causal = false, string layerName = "")
         {
             var previousLayerIndex = Layers.Count - 1;
@@ -401,20 +402,20 @@ namespace SharpNet.Networks
             return this;
         }
 
-        public Network Conv1D(int out_channels, int kernelWidth, int stride, ConvolutionLayer.PADDING_TYPE paddingType, double lambdaL2Regularization, bool useBias, string layerName = "")
+        public Network Conv1D(int out_channels, int kernel_width, int stride, ConvolutionLayer.PADDING_TYPE paddingType, bool bias, string layerName = "")
         {
-            return Conv1D(out_channels, kernelWidth, stride, paddingType, lambdaL2Regularization, useBias, Layers.Count - 1, layerName);
+            return Conv1D(out_channels, kernel_width, stride, paddingType, bias, Layers.Count - 1, layerName);
         }
-        public Network Conv1D(int out_channels, int kernelWidth, int stride, ConvolutionLayer.PADDING_TYPE paddingType, double lambdaL2Regularization, bool useBias, int previousLayerIndex, string layerName = "")
+        public Network Conv1D(int out_channels, int kernel_width, int stride, ConvolutionLayer.PADDING_TYPE paddingType, bool bias, int previousLayerIndex, string layerName = "")
         {
             Debug.Assert(Layers.Count >= 1);
-            Layers.Add(new ConvolutionLayer(false, true, out_channels, -1, 1, kernelWidth, stride, paddingType, lambdaL2Regularization, useBias, previousLayerIndex, true, this, layerName));
+            Layers.Add(new ConvolutionLayer(false, true, out_channels, -1, 1, kernel_width, stride, paddingType, bias, previousLayerIndex, true, this, layerName));
             return this;
         }
-        public Network DepthwiseConvolution(int kernelSize, int stride, ConvolutionLayer.PADDING_TYPE paddingType, int depthMultiplier, double lambdaL2Regularization, bool useBias, string layerName = "")
+        public Network DepthwiseConvolution(int kernelSize, int stride, ConvolutionLayer.PADDING_TYPE paddingType, int depth_multiplier, bool bias, string layerName = "")
         {
             Debug.Assert(Layers.Count >= 1);
-            Layers.Add(new ConvolutionLayer(true, false, -1, depthMultiplier, kernelSize, kernelSize, stride, paddingType, lambdaL2Regularization, useBias, Layers.Count - 1, true, this, layerName));
+            Layers.Add(new ConvolutionLayer(true, false, -1, depth_multiplier, kernelSize, kernelSize, stride, paddingType, bias, Layers.Count - 1, true, this, layerName));
             return this;
         }
         public Network Dropout(double dropoutRate, string layerName = "")
@@ -422,7 +423,7 @@ namespace SharpNet.Networks
             Debug.Assert(Layers.Count >= 1);
             if (dropoutRate > 0)
             {
-                Layers.Add(new DropoutLayer(dropoutRate, this, layerName));
+                Layers.Add(new Dropout(dropoutRate, this, layerName));
             }
             return this;
         }
@@ -471,12 +472,10 @@ namespace SharpNet.Networks
         /// Global Average Pooling on the last dimension of a tensor
         /// It will transform a tensor from shape (n, ..., height, width) to shape (n, ..., height, 1)
         /// </summary>
-        // ReSharper disable once UnusedMember.Global
         public Network GlobalAvgPoolingOnWidth(string layerName = "")
         {
             return AvgPooling(1, -1, 1, -1, layerName);
         }
-        // ReSharper disable once UnusedMethodReturnValue.Global
         public Network GlobalMaxPooling(string layerName = "")
         {
             return GlobalMaxPooling(Layers.Count - 1, layerName);
@@ -485,7 +484,6 @@ namespace SharpNet.Networks
         {
             return MaxPooling(-1, -1, -1, -1, previousLayerIndex, layerName);
         }
-        // ReSharper disable once UnusedMethodReturnValue.Global
         public Network GlobalAvgPooling_And_GlobalMaxPooling()
         {
             GlobalAvgPooling();
@@ -520,7 +518,7 @@ namespace SharpNet.Networks
         public Network Flatten(int start_dim = 1, int end_dim =-1)
         {
             Debug.Assert(Layers.Count >= 1);
-            var flattenLayer = new FlattenLayer(start_dim, end_dim, this);
+            var flattenLayer = new Flatten(start_dim, end_dim, this);
             Layers.Add(flattenLayer);
             return this;
         }
@@ -553,7 +551,6 @@ namespace SharpNet.Networks
         }
 
         private int NonTrainableParams => Layers.Select(l => l.NonTrainableParams).Sum();
-        // ReSharper disable once UnusedMethodReturnValue.Global
         public double FindBestLearningRate(DataSet trainingDataSet, double minLearningRate, double maxLearningRate, int miniBatchSizeForAllWorkers)
         {
             Debug.Assert(minLearningRate >= 0);
@@ -1055,14 +1052,14 @@ namespace SharpNet.Networks
 
             if (Sample.GetLoss() == EvaluationMetricEnum.SparseCategoricalCrossentropy)
             {
-                // the Y Predicted shape is of shape (a, embeddingDim)
+                // the Y Predicted shape is of shape (a, embedding_dim)
                 // the Y Expected shape is of shape  (a,1)
                 if (YPredicted_MiniBatch_Shape.Length == 2)
                 {
                     YPredicted_MiniBatch_Shape[1] = 1;
                     return YPredicted_MiniBatch_Shape;
                 }
-                // the Y Predicted shape is of shape (a,b, ...,y,z, embeddingDim)
+                // the Y Predicted shape is of shape (a,b, ...,y,z, embedding_dim)
                 // the Y Expected shape is of shape  (a,b, ...,y,z)
                 return YPredicted_MiniBatch_Shape.Take(YPredicted_MiniBatch_Shape.Length - 1).ToArray();
             }

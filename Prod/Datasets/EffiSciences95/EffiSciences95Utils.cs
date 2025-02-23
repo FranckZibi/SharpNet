@@ -111,11 +111,9 @@ public static class EffiSciences95Utils
         {
             LossFunction = EvaluationMetricEnum.CategoricalCrossentropy,
             CompatibilityMode = NetworkSample.CompatibilityModeEnum.TensorFlow,
-            lambdaL2Regularization = 0.0005,
             //!D WorkingDirectory = Path.Combine(NetworkSample.DefaultWorkingDirectory, CIFAR10DataSet.NAME),
             num_epochs = 10,
             BatchSize = 64,
-            InitialLearningRate = 0.01,
 
             //Data augmentation
             DataAugmentationType = ImageDataGenerator.DataAugmentationEnum.DEFAULT,
@@ -128,7 +126,7 @@ public static class EffiSciences95Utils
             AlphaCutMix = 0.0,
             CutoutPatchPercentage = 0.0
         }
-            .WithSGD(0.9, false)
+            .WithSGD(lr:0.01, 0.9, weight_decay: 0.0005, false)
             .WithCyclicCosineAnnealingLearningRateScheduler(10, 2);
         return config;
 
@@ -155,9 +153,9 @@ public static class EffiSciences95Utils
             { nameof(NetworkSample.num_epochs), new[] { num_epochs } },
             // Optimizer 
             //{ nameof(NetworkSample.OptimizerType), new[] { "AdamW"} },
-            //{ nameof(NetworkSample.SGD_usenesterov), new[] { true, false } },
-            //{ nameof(NetworkSample.lambdaL2Regularization), new[] { 0.0005, 0.001, 0.00005 } },
-            { nameof(NetworkSample.lambdaL2Regularization), new[] { 0.0005 /*, 0.001, 0.00005*/ } },
+            //{ nameof(NetworkSample.nesterov), new[] { true, false } },
+            //{ nameof(NetworkSample.weight_decay), new[] { 0.0005, 0.001, 0.00005 } },
+            { nameof(NetworkSample.weight_decay), new[] { 0.0005 /*, 0.001, 0.00005*/ } },
             { nameof(EfficientNetNetworkSample.DefaultMobileBlocksDescriptionCount), new[]{4, 5}},
             // Learning Rate
             { nameof(NetworkSample.InitialLearningRate), new []{0.01 /*, 0.015, 0.005*/}},

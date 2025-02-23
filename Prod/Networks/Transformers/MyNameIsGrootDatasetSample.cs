@@ -41,7 +41,7 @@ public class MyNameIsGrootDatasetSample : TransformerDatasetSample
 
     public Tokenizer GetTokenizer()
     {
-        var tokenizer = new Tokenizer(vocab_size, oovToken: null, char_level: false, lowerCase: true, firstElementIsPaddingToken: false);
+        var tokenizer = new Tokenizer(num_embeddings, oovToken: null, char_level: false, lowerCase: true, firstElementIsPaddingToken: false);
         tokenizer.FitOnTexts(new[] { _fullText });
         return tokenizer;
     }

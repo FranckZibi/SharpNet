@@ -65,11 +65,11 @@ namespace SharpNet.Layers
 
         public cudnnRNNMode_t CellMode => _rnnDescriptor.cellMode;
         public cudnnRNNBiasMode_t BiasMode => _rnnDescriptor.biasMode;
-        private int NumLayers => _rnnDescriptor.numLayers;
-        private double DropoutRate => _rnnDescriptor.dropoutRate;
-        private int InputSize => _rnnDescriptor.inputSize;      // == features
-        public int HiddenSize => _rnnDescriptor.hiddenSize;    // == units
-        public bool IsBidirectional => _rnnDescriptor.dirMode == cudnnDirectionMode_t.CUDNN_BIDIRECTIONAL;
+        private int num_layers => _rnnDescriptor.numLayers;
+        private double dropout => _rnnDescriptor.dropoutRate;
+        private int input_size => _rnnDescriptor.inputSize;      // == features
+        public int hidden_size => _rnnDescriptor.hiddenSize;    // == units
+        public bool bidirectional => _rnnDescriptor.dirMode == cudnnDirectionMode_t.CUDNN_BIDIRECTIONAL;
 
         #region constructor
         /// <summary>
@@ -241,13 +241,13 @@ namespace SharpNet.Layers
         {
             if (IsDecoder)
             {
-                return "Decoder" + (IsBidirectional ? " Bidirectional" : "");
+                return "Decoder" + (bidirectional ? " Bidirectional" : "");
             }
             if (IsEncoderThatWillBeFollowedByDecoder)
             {
-                return "Encoder" + (IsBidirectional ? " Bidirectional" : "");
+                return "Encoder" + (bidirectional ? " Bidirectional" : "");
             }
-            if (IsBidirectional)
+            if (bidirectional)
             {
                 return "Bidirectional";
             }
@@ -269,8 +269,8 @@ namespace SharpNet.Layers
         protected override string ComputeLayerName()
         {
             var result = LayerType().ToLowerInvariant().Replace("simplernn", "simple_rnn");
-            int countBefore = IsBidirectional
-                ? Layers.Count(l => l.LayerIndex < LayerIndex && l is RecurrentLayer layer && layer.IsBidirectional)
+            int countBefore = bidirectional
+                ? Layers.Count(l => l.LayerIndex < LayerIndex && l is RecurrentLayer layer && layer.bidirectional)
                 : Layers.Count(l => l.LayerIndex < LayerIndex && l is RecurrentLayer layer && layer.CellMode == CellMode);
             if (countBefore != 0)
             {
@@ -307,13 +307,13 @@ namespace SharpNet.Layers
             var x = allX[0];
             var batchSize = x.Shape[0];
             int timeSteps = x.Shape[1];
-            Debug.Assert(x.Shape[2] == InputSize);
+            Debug.Assert(x.Shape[2] == input_size);
             Debug.Assert(x.Shape.Length == 3);
 
             var (y, cy) = IsEncoderThatWillBeFollowedByDecoder? ExtractEncoderContextVector(yFull):(yFull,null);
             var (hx, cx) = IsDecoder ? ExtractEncoderContextVector(allX[1]) : (null, null);
 
-            var xRnnDataDesc = Network.GpuWrapper.RNNDataDesc(dataType, timeSteps, batchSize, InputSize);
+            var xRnnDataDesc = Network.GpuWrapper.RNNDataDesc(dataType, timeSteps, batchSize, input_size);
             var yRnnDataDesc = Network.GpuWrapper.RNNDataDesc(dataType, timeSteps, batchSize, y.Shape.Last());
 
             var fMode = isTraining
@@ -361,7 +361,7 @@ namespace SharpNet.Layers
                 _reserveSpace);        // null for inference
             GPUWrapper.CheckStatus(res);
 
-            if (IsBidirectional & !_returnSequences)
+            if (bidirectional & !_returnSequences)
             {
                 //We need to convert initial y ('hy') tensor to output 'y' tensor
                 // initial y (= 'hy') shape:
@@ -373,7 +373,7 @@ namespace SharpNet.Layers
                 var yShape = y.Shape;
                 const int K = 2;
                 y.CopyTo(yCopy);
-                yCopy.ReshapeInPlace(new[] { K, batchSize, HiddenSize });
+                yCopy.ReshapeInPlace(new[] { K, batchSize, hidden_size });
                 yCopy.Switch_First_2_axis(y);
                 y.ReshapeInPlace(yShape);
                 FreeFloatTensor(yCopy);
@@ -401,7 +401,7 @@ namespace SharpNet.Layers
             var x = allX[0];                // x shape  :     (batchSize, timeSteps, features)
             var batchSize = x.Shape[0];
             var timeSteps = x.Shape[1];
-            Debug.Assert(x.Shape[2] == InputSize);
+            Debug.Assert(x.Shape[2] == input_size);
 
             var (dy, dcy) = IsEncoderThatWillBeFollowedByDecoder ? ExtractEncoderContextVector(dyFull) : (dyFull, null);
             var (hx, cx) = IsDecoder ? ExtractEncoderContextVector(allX[1]) : (null, null);
@@ -432,7 +432,7 @@ namespace SharpNet.Layers
                 int lastDim = dyIfReturnSequences.Shape[^1];
                 for (int batchId = 0; batchId < batchSize; ++batchId)
                 {
-                    if (IsBidirectional)
+                    if (bidirectional)
                     {
                         dy.CopyTo(dy.Idx(batchId, 0), dyIfReturnSequences, dyIfReturnSequences.Idx(batchId, timeSteps - 1, 0), lastDim / 2);
                         dy.CopyTo(dy.Idx(batchId, lastDim / 2), dyIfReturnSequences, dyIfReturnSequences.Idx(batchId, 0, lastDim / 2), lastDim / 2);
@@ -445,7 +445,7 @@ namespace SharpNet.Layers
             }
 #endregion
 
-            var xDesc = Network.GpuWrapper.RNNDataDesc(dataType, timeSteps, batchSize, InputSize);
+            var xDesc = Network.GpuWrapper.RNNDataDesc(dataType, timeSteps, batchSize, input_size);
             var hDesc = HiddenDesc(batchSize);
             var cDesc = CellDesc(batchSize);
             var yIfReturnSequencesDesc = Network.GpuWrapper.RNNDataDesc(dataType, timeSteps, batchSize, _yIfReturnSequences.Shape.Last());
@@ -536,7 +536,7 @@ namespace SharpNet.Layers
         private cudnnTensorDescriptor_t HiddenDesc(int batchSize)
         {
             int K = (_rnnDescriptor.dirMode == cudnnDirectionMode_t.CUDNN_BIDIRECTIONAL) ? 2 : 1;
-            return Network.GpuWrapper.TensorDesc(dataType, new[] {K * NumLayers, batchSize, HiddenSize});
+            return Network.GpuWrapper.TensorDesc(dataType, new[] {K * num_layers, batchSize, hidden_size});
         }
         private cudnnTensorDescriptor_t CellDesc(int batchSize)
         {
@@ -560,7 +560,7 @@ namespace SharpNet.Layers
 
         private string ParameterExtension(int layerIndex)
         {
-            if (IsBidirectional)
+            if (bidirectional)
             {
                 if (layerIndex % 2 == 0)
                 {
@@ -649,13 +649,13 @@ namespace SharpNet.Layers
         public override string Serialize()
         {
             return RootSerializer()
-                .Add(nameof(HiddenSize), HiddenSize)
+                .Add(nameof(hidden_size), hidden_size)
                 .Add(nameof(CellMode), CellMode.ToString())
                 .Add(nameof(BiasMode), BiasMode.ToString())
                 .Add(nameof(_returnSequences), _returnSequences)
-                .Add(nameof(IsBidirectional), IsBidirectional)
-                .Add(nameof(NumLayers), NumLayers)
-                .Add(nameof(DropoutRate), DropoutRate)
+                .Add(nameof(bidirectional), bidirectional)
+                .Add(nameof(num_layers), num_layers)
+                .Add(nameof(dropout), dropout)
                 .Add(nameof(IsEncoderThatWillBeFollowedByDecoder), IsEncoderThatWillBeFollowedByDecoder)
                 .ToString();
         }
@@ -664,13 +664,13 @@ namespace SharpNet.Layers
             var previousLayerIndexes = (int[]) serialized[nameof(PreviousLayerIndexes)];
             int encoderLayerIndexIfLayerIsDecoder = previousLayerIndexes.Length >= 2 ? previousLayerIndexes[1] : -1;
             return new RecurrentLayer(
-                (int) serialized[nameof(HiddenSize)],
+                (int) serialized[nameof(hidden_size)],
                 (cudnnRNNMode_t)Enum.Parse(typeof(cudnnRNNMode_t), (string)serialized[nameof(CellMode)]),
                 (cudnnRNNBiasMode_t)Enum.Parse(typeof(cudnnRNNBiasMode_t), (string)serialized[nameof(BiasMode)]),
                 (bool) serialized[nameof(_returnSequences)],
-                (bool) serialized[nameof(IsBidirectional)],
-                (int) serialized[nameof(NumLayers)],
-                (double) serialized[nameof(DropoutRate)],
+                (bool) serialized[nameof(bidirectional)],
+                (int) serialized[nameof(num_layers)],
+                (double) serialized[nameof(dropout)],
                 (bool) serialized[nameof(IsEncoderThatWillBeFollowedByDecoder)],
                 encoderLayerIndexIfLayerIsDecoder,
                 (bool) serialized[nameof(Trainable)],
@@ -684,7 +684,6 @@ namespace SharpNet.Layers
         #region PyTorch support
         public override void ToPytorchModule(List<string> constructorLines, List<string> forwardLines)
         {
-          
             string extraInfo = "";
             string functionName = nameof(RecurrentLayer);
             switch (CellMode)
@@ -706,10 +705,10 @@ namespace SharpNet.Layers
             var input_shape = PreviousLayers.Count == 0 ? new[] { -1, -1 } : PreviousLayers[0].OutputShape(666);
             int input_size = input_shape[^1];
             const bool bias = true;
-            constructorLines.Add("self." + LayerName + " = torch.nn."+ functionName+"(input_size=" + input_size + ", hidden_size=" + HiddenSize 
-                                 + ", num_layers=" + NumLayers + extraInfo    
+            constructorLines.Add("self." + LayerName + " = torch.nn."+ functionName+"(input_size=" + input_size + ", hidden_size=" + hidden_size 
+                                 + ", num_layers=" + num_layers + extraInfo    
                                  + ", bias=" + bias 
-                                 + ", batch_first=True, dropout=" + DropoutRate + ", bidirectional=" + IsBidirectional +
+                                 + ", batch_first=True, dropout=" + dropout + ", bidirectional=" + bidirectional +
                                  ")");
             foreach (var biasParam in GetBiasPyTorchParameters(false, true))
             {
@@ -732,7 +731,7 @@ namespace SharpNet.Layers
             var res = new List<string>();
             if (weights)
             {
-                for (int i = 0; i < NumLayers; ++i)
+                for (int i = 0; i < num_layers; ++i)
                 {
                     res.Add("weight_ih_l" + i);
                     res.Add("weight_hh_l" + i);
@@ -740,14 +739,14 @@ namespace SharpNet.Layers
             }
             if (bias)
             {
-                for (int i = 0; i < NumLayers; ++i)
+                for (int i = 0; i < num_layers; ++i)
                 {
                     res.Add("bias_ih_l" + i);
                     res.Add("bias_hh_l" + i);
                 }
             }
 
-            if (IsBidirectional)
+            if (bidirectional)
             {
                 for (int i = res.Count - 1; i >= 0; --i)
                 {

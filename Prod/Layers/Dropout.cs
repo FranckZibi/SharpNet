@@ -7,14 +7,15 @@ using SharpNet.Networks;
 
 namespace SharpNet.Layers
 {
-    public class DropoutLayer : Layer
+    //see: https://pytorch.org/docs/stable/generated/torch.nn.Dropout.html
+    public class Dropout : Layer
     {
         #region fields
         private readonly double p; //the dropout rate
         private Tensor _dropoutReservedSpaceForTraining;
         #endregion
 
-        public DropoutLayer(double p, Network network, string layerName) : base(network, layerName)
+        public Dropout(double p, Network network, string layerName) : base(network, layerName)
         {
             this.p = p;
         }
@@ -59,9 +60,9 @@ namespace SharpNet.Layers
         {
             return RootSerializer().Add(nameof(p), p).ToString();
         }
-        public static DropoutLayer Deserialize(IDictionary<string, object> serialized, Network network)
+        public static Dropout Deserialize(IDictionary<string, object> serialized, Network network)
         {
-            return new DropoutLayer((double)serialized[nameof(p)], network, (string)serialized[nameof(LayerName)]);
+            return new Dropout((double)serialized[nameof(p)], network, (string)serialized[nameof(LayerName)]);
         }
         public override void AddToOtherNetwork(Network otherNetwork) { AddToOtherNetwork(otherNetwork, Deserialize); }
         #endregion

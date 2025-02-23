@@ -35,11 +35,9 @@ public class WideResNetNetworkSample : NetworkSample
         {
             LossFunction = EvaluationMetricEnum.CategoricalCrossentropy,
             ConvolutionAlgoPreference = GPUWrapper.ConvolutionAlgoPreference.FASTEST_DETERMINIST,
-            lambdaL2Regularization = 0.0005,
             //!D WorkingDirectory = Path.Combine(NetworkSample.DefaultWorkingDirectory, CIFAR10DataSet.NAME),
             num_epochs = 150, //changed on 8-aug-2019 : new default batch size : 150 (was 200)
             BatchSize = 128,
-            InitialLearningRate = 0.1,
 
             //specific to WideResNetNetworkSample
             WRN_DropOut = 0.0, //by default we disable dropout
@@ -67,7 +65,7 @@ public class WideResNetNetworkSample : NetworkSample
             //CutoutPatchPercentage = 0.25; //discarded on 04-aug-2019 for CIFAR-10: -60 bps vs 0.5
 
         }
-            .WithSGD(0.9, false)
+            .WithSGD(0.1, 0.9, 0.0005, false)
             //.WithCifar10WideResNetLearningRateScheduler(true, true, false) : discarded on 14 - aug - 2019 : Cyclic annealing is better
             .WithCyclicCosineAnnealingLearningRateScheduler(10, 2); //new default value on 14-aug-2019
 
@@ -84,11 +82,8 @@ public class WideResNetNetworkSample : NetworkSample
         {
             LossFunction = EvaluationMetricEnum.CategoricalCrossentropy,
             ConvolutionAlgoPreference = GPUWrapper.ConvolutionAlgoPreference.FASTEST_DETERMINIST,
-            lambdaL2Regularization = 0.0005,
-            //!D WorkingDirectory = Path.Combine(NetworkSample.DefaultWorkingDirectory, CIFAR100DataSet.NAME),
             num_epochs = 150,
             BatchSize = 128,
-            InitialLearningRate = 0.1,
 
             //wideResNetNetworkSample.
             WRN_DropOut = 0.0,
@@ -106,7 +101,7 @@ public class WideResNetNetworkSample : NetworkSample
             AlphaCutMix = 1.0,
             CutoutPatchPercentage = 0.0,
         }
-            .WithSGD(0.9, false)
+            .WithSGD(0.1, 0.9, 0.0005, false)
             .WithCyclicCosineAnnealingLearningRateScheduler(10, 2);
         return config;
     }
@@ -147,7 +142,6 @@ public class WideResNetNetworkSample : NetworkSample
 
         var networkName = "WRN-" + depth + "-" + k;
         var network = BuildNetworkWithoutLayers(workingDirectory, networkName);
-        var config = network.Sample;
         var channelCount = inputShape_CHW[0];
         var height = inputShape_CHW[1];
         var width = inputShape_CHW[2];
@@ -155,11 +149,11 @@ public class WideResNetNetworkSample : NetworkSample
 
         if (reduceInputSize)
         {
-            network.Convolution_BatchNorm_Activation(64, 7, 2, ConvolutionLayer.PADDING_TYPE.SAME, config.lambdaL2Regularization, cudnnActivationMode_t.CUDNN_ACTIVATION_RELU);
+            network.Convolution_BatchNorm_Activation(64, 7, 2, ConvolutionLayer.PADDING_TYPE.SAME, cudnnActivationMode_t.CUDNN_ACTIVATION_RELU);
             network.MaxPooling(2, 2, 2, 2);
         }
 
-        network.Convolution(16, 3, 1, ConvolutionLayer.PADDING_TYPE.SAME, config.lambdaL2Regularization, false);
+        network.Convolution(16, 3, 1, ConvolutionLayer.PADDING_TYPE.SAME, false);
 
         int stageC = 16 * k; //number of channels for current stage
         for (int stageId = 0; stageId < 3; ++stageId)
@@ -174,14 +168,14 @@ public class WideResNetNetworkSample : NetworkSample
                 {
                     startOfBlockLayerIndex = network.LastLayerIndex;
                 }
-                network.Convolution(stageC, 3, stride, ConvolutionLayer.PADDING_TYPE.SAME, config.lambdaL2Regularization, false);
+                network.Convolution(stageC, 3, stride, ConvolutionLayer.PADDING_TYPE.SAME, false);
                 if ((WRN_DropOut > 0.0) && (residualBlockId != 0))
                 {
                     network.Dropout(WRN_DropOut);
                 }
 
-                network.BatchNorm_Activation_Convolution(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU, stageC, 3, 1, ConvolutionLayer.PADDING_TYPE.SAME, config.lambdaL2Regularization, false);
-                network.Shortcut_IdentityConnection(startOfBlockLayerIndex, stageC, stride, config.lambdaL2Regularization);
+                network.BatchNorm_Activation_Convolution(cudnnActivationMode_t.CUDNN_ACTIVATION_RELU, stageC, 3, 1, ConvolutionLayer.PADDING_TYPE.SAME, false);
+                network.Shortcut_IdentityConnection(startOfBlockLayerIndex, stageC, stride);
             }
             stageC *= 2;
         }
@@ -211,13 +205,13 @@ public class WideResNetNetworkSample : NetworkSample
 
         if (WRN_DropOutAfterLinearLayer > 0)
         {
-            network.Linear(numClass, true, config.lambdaL2Regularization, false)
+            network.Linear(numClass, true, false)
                 .Dropout(WRN_DropOutAfterLinearLayer)
                 .Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
         }
         else
         {
-            network.Linear(numClass, true, config.lambdaL2Regularization, false)
+            network.Linear(numClass, true, false)
                 .Activation(cudnnActivationMode_t.CUDNN_ACTIVATION_SOFTMAX);
         }
         return network;
