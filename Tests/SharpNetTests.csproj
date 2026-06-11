@@ -23,6 +23,9 @@
     <PackageReference Include="NUnit3TestAdapter" version="3.16.1" />
 	<PackageReference Include="JetBrains.Annotations" Version="2019.1.3" />	
     <ProjectReference Include="..\Prod\SharpNet.csproj" />
+    <Compile Include="..\SharpNetWebApplication\Models\CancelIdentificationServices.cs">
+      <Link>WebApplication\CancelIdentificationServices.cs</Link>
+    </Compile>
 	<PackageReference Include="HDF.PInvoke" Version="1.10.6.1" />
     <PackageReference Include="PhotoSauce.MagicScaler" Version="0.11.1" />
 	<PackageReference Include="CsvHelper" Version="30.0.1" />	
