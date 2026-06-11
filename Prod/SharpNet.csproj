@@ -36,10 +36,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Include="..\..\..\Temp\Misc.cs" Link="Misc.cs" />
-  </ItemGroup>
-  
-  <ItemGroup>
 		<Reference Include="HDF.PInvoke">
 		  <HintPath>..\Dependencies\HDF.PInvoke.dll</HintPath>
 		  <Private>true</Private>
