@@ -22,200 +22,11 @@ using Path = System.IO.Path;
 
 namespace SharpNet
 {
-    public enum Objective_enum
-    {
-        Regression,
-        Classification
-    }
-
-    /// <summary>
-    /// the loss function (= the objective function)
-    /// the goal of the model will be to reduce the value returned by this loss function
-    /// (lower is always better)
-    /// </summary>
-    public enum EvaluationMetricEnum
-    {
-
-        /// <summary>
-        /// y true : a matrix of shape (batch_size, numClass) with, for each row the 'true' proba of each class
-        /// y_predicted: a matrix of shape (batch_size, numClass) with, for each row the predicted proba of each class
-        /// works only for metric (to rank submission), do not work as a loss function, higher s better
-        /// </summary>
-        Accuracy,
-
-        /// <summary>
-        /// y true : a sparse matrix of shape (batch_size, 1) with the index of the 'true' class
-        /// y_predicted: a matrix of shape (batch_size, numClass) with, for each row the predicted proba of each class
-        /// works only for metric (to rank submission), do not work as a loss function, higher s better
-        /// </summary>
-        SparseAccuracy,
-
-        AccuracyCategoricalCrossentropyWithHierarchy,   // works only for metric (to rank submission), do not work as a loss function, higher s better
-
-        /// <summary>
-        /// To be used with sigmoid activation layer.
-        /// In a single row, each value will be in [0,1] range
-        /// Support of multi labels (one element can belong to several numClass at the same time)
-        /// The expected Y value is a binary value: 0 or 1
-        /// </summary>
-        BinaryCrossentropy, // ok for loss, lower is better
-
-        /// <summary>
-        /// To be used with sigmoid activation layer.
-        /// In a single row, each value will be in [0,1] range
-        /// Support of multi labels (one element can belong to several numClass at the same time)
-        /// The expected Y value is a binary value: 0 or 1
-        /// </summary>
-        BCEWithFocalLoss, // ok for loss, lower is better
-
-
-        /// <summary>
-        /// To be used with sigmoid activation layer.
-        /// In a single row, each value will be in [0,1] range
-        /// Support of multi labels (one element can belong to several numClass at the same time)
-        /// The expected Y value is a continuous value in [0, 1] range (not a binary value: 0 or 1)
-        /// </summary>
-        BCEContinuousY, // ok for loss, lower is better
-
-        /// <summary>
-        /// To be used with softmax activation layer.
-        /// In a single row, each value will be in [0,1] range, and the sum of all values wil be equal to 1.0 (= 100%)
-        /// Do not support multi labels (each element can belong to exactly 1 category)
-        /// </summary>
-        CategoricalCrossentropy, // ok for loss, lower is better
-
-
-        /* Hierarchical Category:
-                              Object
-                          /           \
-                         /             \
-                        /               \
-                     Fruit             Flower
-                      75%                25%
-                   /   |   \            |    \
-             Cherry  Apple  Orange    Rose    Tulip 
-              70%     20%    10%      50%      50%
-                     /   \            
-                   Fuji  Golden
-                    15%   85%
-        */
-        /// <summary>
-        /// To be used with SoftmaxWithHierarchy activation layer.
-        /// Each category (parent node) can be divided into several sub categories (children nodes)
-        /// For any parent node: all children will have a proba in [0,1] range, and the sum of all children proba will be equal to 1.0 (= 100%)
-        /// </summary>
-        CategoricalCrossentropyWithHierarchy, // ok for loss, lower is better
-
-        /*
-         * Huber loss, see  https://en.wikipedia.org/wiki/Huber_loss
-         * */
-        Huber, // ok for loss, lower is better
-
-        /*
-        * Mean Squared Error loss, see https://en.wikipedia.org/wiki/Mean_squared_error
-        * loss = ( predicted - expected ) ^2
-        * */
-        Mse, // ok for loss, lower is better
-
-        /*
-        * Mean Squared Error of log loss,
-        * loss = ( log( max(predicted,epsilon) ) - log(expected) ) ^2
-        * */
-        MseOfLog, // ok for loss, lower is better
-
-        /*
-        * Mean Absolute Error loss, see https://en.wikipedia.org/wiki/Mean_absolute_error
-        * loss = abs( predicted - expected )
-        * */
-        Mae, // ok for loss, lower is better
-
-        /*
-         * RootMean Squared Error loss, see https://en.wikipedia.org/wiki/Mean_squared_error
-         * loss = ( predicted - expected ) ^2
-         * */
-        Rmse, // ok for loss, lower is better
-
-        F1Micro, // ok for loss, higher is better
-
-        PearsonCorrelation, // works only for metric (to rank submission), do not work as a loss function, higher s better
-        SpearmanCorrelation, // works only for metric (to rank submission), do not work as a loss function, higher s better
-
-        //Mean Squared Log Error, see: https://scikit-learn.org/stable/modules/model_evaluation.html#mean-squared-log-error
-        //loss = (log(1+predicted) - log(1+expected)) ^ 2
-        MeanSquaredLogError, // ok for loss, lower is better
-
-        /// <summary>
-        /// To be used with softmax activation layer.
-        /// For the prediction:
-        ///     In a single row, each value will be in [0,1] range, and the sum of all values wil be equal to 1.0 (= 100%)
-        /// For the y_true:
-        ///     In a single row, each value will be a scalar integer in the range [0, number_of_categories-1]
-        /// Do not support multi labels (each element can belong to exactly 1 category)
-        /// </summary>
-        SparseCategoricalCrossentropy, // ok for loss, lower is better
-
-
-        //Area Under the Curve, see: https://en.wikipedia.org/wiki/Receiver_operating_characteristic
-        AUC, // works only for metric (to rank submission), do not work as a loss function, higher s better
-
-        //Average Precision Score, see : https://scikit-learn.org/stable/modules/generated/sklearn.metrics.average_precision_score.html
-        AveragePrecisionScore, // works only for metric (to rank submission), do not work as a loss function, higher s better
-
-
-        DEFAULT_VALUE = AbstractSample.DEFAULT_VALUE, // default value, do not use
-    }
-
-
-    public static class Utils
+    public static partial class Utils
     {
         private static readonly ILog Log = LogManager.GetLogger(typeof(Utils));
 
 
-        public static int[] CloneShapeWithNewCount(int[] shape, int newCount)
-        {
-            if (shape == null)
-            {
-                return null;
-            }
-            var result = (int[])shape.Clone();
-            result[0] = newCount;
-            return result;
-        }
-        public static long LongProduct(int[] data)
-        {
-            return LongProduct(data.Select(i=>(long)i).ToArray());
-        }
-
-        private static long LongProduct(long[] data)
-        {
-            if ((data == null) || (data.Length == 0))
-            {
-                return 0;
-            }
-
-            long result = data[0];
-            for (int i = 1; i < data.Length; ++i)
-            {
-                result *= data[i];
-            }
-
-            return result;
-        }
-        public static int Product(int[] data)
-        {
-            if ((data == null) || (data.Length == 0))
-            {
-                return 0;
-            }
-
-            var result = data[0];
-            for (int i = 1; i < data.Length; ++i)
-            {
-                result *= data[i];
-            }
-
-            return result;
-        }
         // ReSharper disable once UnusedMember.Global
         public static ulong AvailableRamMemoryInBytes()
         {
@@ -320,24 +131,6 @@ namespace SharpNet
             }
             return result;
         }
-        public static string ShapeToStringWithBatchSize(int[] shape)
-        {
-            if (shape == null)
-            {
-                return "(?)";
-            }
-
-            return "(None, " + string.Join(", ", shape.Skip(1)) + ")";
-        }
-        public static string ShapeToString(int[] shape)
-        {
-            if (shape == null)
-            {
-                return "(?)";
-            }
-
-            return "(" + string.Join(", ", shape) + ")";
-        }
         public static ulong Sum(this IEnumerable<ulong> vector)
         {
             ulong result = 0;
@@ -408,34 +201,6 @@ namespace SharpNet
             double deltaLearningRate = (y2 - y1);
             return y1 + dEpoch * deltaLearningRate;
         }
-        public static void UniformDistribution(Span<float> toRandomize, Random rand, double minValue, double maxValue)
-        {
-            for (int j = 0; j < toRandomize.Length; ++j)
-            {
-                toRandomize[j] = (float)(minValue + rand.NextDouble() * (maxValue - minValue));
-            }
-        }
-        public static void UniformDistribution(Span<byte> toRandomize, Random rand, byte minValue, byte maxValue)
-        {
-            for (int j = 0; j < toRandomize.Length; ++j)
-            {
-                toRandomize[j] = (byte)(minValue + rand.Next(maxValue - minValue + 1));
-            }
-        }
-        public static void NormalDistribution(Span<float> toRandomize, Random rand, double mean, double stdDev)
-        {
-            for (int j = 0; j < toRandomize.Length; ++j)
-            {
-                toRandomize[j] = (float)NextDoubleNormalDistribution(rand, mean, stdDev);
-            }
-        }
-        public static void UniformDistribution(Span<int> toRandomize, Random rand, int minValue, int maxValue)
-        {
-            for (int j = 0; j < toRandomize.Length; ++j)
-            {
-                toRandomize[j] = rand.Next(minValue, maxValue+1);
-            }
-        }
         /// <summary>
         /// compute the mean and volatility of 'data'
         /// </summary>
@@ -461,30 +226,6 @@ namespace SharpNet
             var variance = (sumSquare / data.Length) - mean * mean;
             var volatility = Math.Sqrt(Math.Max(0, variance));
             return ((float)mean, (float)volatility);
-        }
-        public static void Shuffle<T>(IList<T> list, Random rand)
-        {
-            int n = list.Count;
-            while (n > 1)
-            {
-                n--;
-                int k = rand.Next(n + 1);
-                (list[k], list[n]) = (list[n], list[k]);
-            }
-        }
-        public static void Shuffle<T>(IList<T> list, Random rand, int blockSize)
-        {
-            Debug.Assert(list.Count%blockSize == 0);
-            var blockIds =Enumerable.Range(0, list.Count / blockSize).ToList();
-            Shuffle(blockIds, rand);
-            var listCopy = new List<T>(list);
-            foreach (var t in blockIds)
-            {
-                for (int j = 0; j < blockSize; ++j)
-                {
-                    list[t*blockSize + j] = listCopy[t*blockSize + j];
-                }
-            }
         }
         public static int FirstMultipleOfAtomicValueAboveOrEqualToMinimum(int minimum, int atomicValue)
         {
@@ -551,133 +292,6 @@ namespace SharpNet
             }
 
             return result;
-        }
-        //private static readonly Dictionary<string, List<string[]>> ReadCsvCache = new();
-        //private static readonly object LockObject = new();
-        //public static List<string[]> ReadCsvWithCache(string csvPath, char? mandatorySeparator = null)
-        //{
-        //    lock (LockObject)
-        //    {
-        //        if (!ReadCsvCache.ContainsKey(csvPath))
-        //        {
-        //            ReadCsvCache[csvPath] = ReadCsv(csvPath, mandatorySeparator).ToList();
-        //        }
-        //        return ReadCsvCache[csvPath];
-        //    }
-        //}
-        /// <summary>
-        /// Read all rows of a CSV file
-        /// if the separator (parameter: mandatorySeparator) is not provided, it will be detected automatically
-        /// </summary>
-        /// <param name="csvPath"></param>
-        /// <param name="mandatorySeparator">the separator to use (if provided)
-        /// if it is not provided, the CSV separator will be detected automatically (preferred method)
-        /// </param>
-        /// <returns></returns>
-        public static IEnumerable<string[]> ReadCsv(string csvPath, char? mandatorySeparator = null)
-        {
-            using TextReader fileReader = File.OpenText(csvPath);
-            var csvConfig = new CsvHelper.Configuration.CsvConfiguration(CultureInfo.InvariantCulture)
-            {
-                TrimOptions = CsvHelper.Configuration.TrimOptions.InsideQuotes | CsvHelper.Configuration.TrimOptions.Trim,
-                BadDataFound = null,
-            };
-            if (mandatorySeparator.HasValue)
-            {
-                csvConfig.DetectDelimiter = false;
-                csvConfig.Delimiter = mandatorySeparator.Value.ToString();
-            }
-            else
-            {
-                csvConfig.DetectDelimiter = true;
-            }
-
-            var csvParser = new CsvHelper.CsvParser(fileReader, csvConfig);
-
-            while (csvParser.Read())
-            {
-                string[] row = csvParser.Record;
-                if (row == null)
-                {
-                    break;
-                }
-                yield return row;
-            }
-        }
-
-        //!D TODO Add tests
-        public static float TryParseFloat(ReadOnlySpan<char> lineSpan, int nextItemStart, int nextItemLength)
-        {
-            const float invalid_float = float.NaN;
-            switch (nextItemLength)
-            {
-                case <= 0: return invalid_float;
-                case 1: return char.IsDigit(lineSpan[nextItemStart]) ? (lineSpan[nextItemStart] - '0') : invalid_float;
-                default: return float.TryParse(lineSpan.Slice(nextItemStart, nextItemLength), out var floatValue) ? floatValue : invalid_float;
-            }
-        }
-
-        //!D TODO Add tests
-        public static int TryParseInt(ReadOnlySpan<char> lineSpan, int nextItemStart, int nextItemLength)
-        {
-            const int invalid_int = 0; //TODO: return something more specific
-            switch (nextItemLength)
-            {
-                case <= 0: return invalid_int;
-                case 1: return char.IsDigit(lineSpan[nextItemStart]) ? (lineSpan[nextItemStart] - '0') : invalid_int;
-                default: return int.TryParse(lineSpan.Slice(nextItemStart, nextItemLength), out var intValue) ? intValue : invalid_int;
-            }
-        }
-
-        public static string SubStringWithCache(ReadOnlySpan<char> lineSpan, int nextItemStart, int nextItemLength, ConcurrentDictionary<int, string> cache)
-        {
-            var strSpan = lineSpan.Slice(nextItemStart, nextItemLength);
-            var hashStrSpan = string.GetHashCode(strSpan);
-            if (cache.TryGetValue(hashStrSpan, out var str) && strSpan.Equals(str, StringComparison.Ordinal))
-            {
-                return str;
-            }
-            //we need to allocate the string
-            str = strSpan.ToString();
-            cache.TryAdd(hashStrSpan, str);
-            return str;
-        }
-
-        public static string NormalizeCategoricalFeatureValue(string value)
-        {
-            if (!value.Any(CharToBeRemovedInStartOrEnd))
-            {
-                return value;
-            }
-
-            var sb = new StringBuilder(value.Length);
-            int currentContinuousSpaces = 0;
-            foreach (var c in value)
-            {
-                if (!CharToBeRemovedInStartOrEnd(c))
-                {
-                    currentContinuousSpaces = 0;
-                    sb.Append(c);
-                }
-                else
-                {
-                    if (sb.Length != 0)
-                    {
-                        sb.Append(' ');
-                        ++currentContinuousSpaces;
-                    }
-                }
-            }
-            if (currentContinuousSpaces != 0)
-            {
-                sb.Remove(sb.Length - currentContinuousSpaces, currentContinuousSpaces);
-            }
-            return sb.ToString();
-        }
-
-        private static bool CharToBeRemovedInStartOrEnd(char c)
-        {
-            return char.IsWhiteSpace(c) ||c == '\"' || c == '\n' || c == '\r' || c == ';' || c == ',';
         }
 
         /// <summary>
@@ -801,36 +415,6 @@ namespace SharpNet
             }
 
             return true;
-        }
-        public static double BetaDistribution(double a, double b, Random rand)
-        {
-            var alpha = a + b;
-            double beta;
-            if (Math.Min(a, b) <= 1.0)
-            {
-                beta = Math.Max(1 / a, 1 / b);
-            }
-            else
-            {
-                beta = Math.Sqrt(alpha - 2.0) / (2 * a * b - alpha);
-            }
-
-            double gamma = a + 1 / beta;
-            double w;
-            while (true)
-            {
-                var u1 = rand.NextDouble();
-                var u2 = rand.NextDouble();
-                var v = beta * Math.Log(u1 / (1 - u1));
-                w = a * Math.Exp(v);
-                var tmp = Math.Log(alpha / (b + w));
-                if ((alpha * tmp + (gamma * v) - 1.3862944) >= Math.Log(u1 * u1 * u2))
-                {
-                    break;
-                }
-            }
-
-            return w / (b + w);
         }
         public static string LoadResourceContent(Assembly assembly, string resourceName)
         {
@@ -1086,42 +670,6 @@ namespace SharpNet
         }
 
 
-        public static string ComputeHash(string input, int maxLength)
-        {
-            // Use input string to calculate MD5 hash
-            var sb = new StringBuilder();
-            using MD5 md5 = MD5.Create();
-            var inputBytes = Encoding.ASCII.GetBytes(input);
-            var hashBytes = md5.ComputeHash(inputBytes);
-
-            // Convert the byte array to hexadecimal string
-            foreach (var t in hashBytes)
-            {
-                sb.Append(t.ToString("X2"));
-            }
-
-            return sb.ToString().Substring(0, maxLength);
-        }
-
-        private static int? _cacheCoreCount;
-        public static int CoreCount
-        {
-            get
-            {
-                if (!_cacheCoreCount.HasValue)
-                {
-                    int coreCount = 0;
-                    foreach (var item in new System.Management.ManagementObjectSearcher("Select * from Win32_Processor").Get())
-                    {
-                        coreCount += int.Parse(item["NumberOfCores"].ToString() ?? "");
-                    }
-                    _cacheCoreCount = coreCount;
-                }
-
-                return _cacheCoreCount.Value;
-
-            }
-        }
         /// <summary>
         /// Compute the % of time to invest on each use case, knowing the error associated with each use case
         /// </summary>
@@ -1226,83 +774,6 @@ namespace SharpNet
             }
             return weights.Length - 1;
         }
-        public static string FieldValueToJsonString(object fieldValue)
-        {
-            if (fieldValue == null)
-            {
-                return "";
-            }
-
-            if (fieldValue is IList)
-            {
-                List<string> elements = new();
-                foreach (var o in (IList)fieldValue)
-                {
-                    elements.Add(FieldValueToJsonString(o));
-                }
-                return "["+string.Join(",", elements)+"]";
-            }
-            if (fieldValue is bool)
-            {
-                // ReSharper disable once PossibleNullReferenceException
-                return fieldValue.ToString().ToLower();
-            }
-
-            var asString = FieldValueToString(fieldValue);
-            if (fieldValue is string || fieldValue.GetType().IsEnum)
-            {
-                asString = "\""+asString+"\"";
-            }
-            return asString;
-        }
-        public static string FieldValueToString(object fieldValue)
-        {
-            if (fieldValue == null)
-            {
-                return "";
-            }
-            if (fieldValue is string)
-            {
-                return (string)fieldValue;
-            }
-            if (fieldValue is bool ||  fieldValue is int)
-            {
-                return fieldValue.ToString();
-            }
-            if (fieldValue is float)
-            {
-                return ((float)fieldValue).ToString(CultureInfo.InvariantCulture);
-            }
-            if (fieldValue is double)
-            {
-                return ((double)fieldValue).ToString(CultureInfo.InvariantCulture);
-            }
-            if (fieldValue.GetType().IsEnum)
-            {
-                return fieldValue.ToString();
-            }
-
-            if (fieldValue is IList)
-            {
-                List<string> elements = new();
-                foreach (var o in (IList)fieldValue)
-                {
-                    elements.Add(FieldValueToString(o));
-                }
-                return string.Join(",", elements);
-            }
-
-            throw new ArgumentException($"can transform to string field {fieldValue} of type {fieldValue.GetType()}");
-        }
-        public static IDictionary<string, object> FromString2String_to_String2Object(IDictionary<string, string> dicoString2String)
-        {
-            var dicoString2Object = new Dictionary<string, object>();
-            foreach (var (key, value) in dicoString2String)
-            {
-                dicoString2Object[key] = value;
-            }
-            return dicoString2Object;
-        }
         public static void TryDelete(IEnumerable<string> filePaths)
         {
             foreach(var filePath in filePaths)
@@ -1331,67 +802,6 @@ namespace SharpNet
             }
         }
         public static string ChallengesPath => @"C:\Projects\Challenges";
-        public static List<string> Launch(string workingDirectory, string exePath, string arguments, ILog log, bool returnOutputedLines)
-        {
-            var outputLines = returnOutputedLines?new List<string>():null;
-            Log.Debug($"Launching {exePath} {arguments} with WorkingDirectory={workingDirectory}");
-            var errorDataReceived = "";
-            var engineName = Path.GetFileNameWithoutExtension(exePath);
-            var psi = new ProcessStartInfo(exePath)
-            {
-                WorkingDirectory = workingDirectory,
-                UseShellExecute = false,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                Arguments = arguments,
-                CreateNoWindow = true,
-                WindowStyle = ProcessWindowStyle.Hidden
-            };
-            var process = Process.Start(psi);
-            if (process == null)
-            {
-                string errorMsg = "Fail to start " + engineName + " Engine";
-                log.Fatal(errorMsg);
-                throw new Exception(errorMsg);
-            }
-            process.ErrorDataReceived += (_, e) =>
-            {
-                if (e.Data != null)
-                {
-                    errorDataReceived = e.Data;
-                }
-            };
-            process.OutputDataReceived += (_, e) =>
-            {
-                outputLines?.Add(e.Data);
-                if (string.IsNullOrEmpty(e.Data)
-                    || e.Data.Contains("Object info sizes") 
-                    || e.Data.Contains("Skipping test eval output") 
-                    || e.Data.Contains(" min passed")
-                    || e.Data.Contains("No further splits with positive gain")
-                    || e.Data.Contains("remaining:")
-                    || e.Data.Contains("seconds elapsed")
-                    || e.Data.Contains("[Info] Iteration:")
-                   )
-                {
-                    return;
-                }
-                log.Debug(e.Data);
-            };
-            process.BeginErrorReadLine();
-            process.BeginOutputReadLine();
-            process.WaitForExit();
-            if (!string.IsNullOrEmpty(errorDataReceived) || process.ExitCode != 0)
-            {
-                if (!(errorDataReceived??"").Contains("is not implemented on GPU"))
-                {
-                    var errorMsg = "Error in " + engineName + " " + errorDataReceived;
-                    log.Fatal(errorMsg);
-                    throw new Exception(errorMsg);
-                }
-            }
-            return outputLines;
-        }
         private static void AllPermutationsHelper<T>(List<T> data, int i, IList<IList<T>> result)
         {
             if (i == data.Count - 1)
@@ -1412,17 +822,6 @@ namespace SharpNet
                 data[i] = data[j];
                 data[j] = tmp;
             }
-        }
-        private static double NextDoubleNormalDistribution(Random rand, double mean, double stdDev)
-        {
-            //uniform(0,1) random double
-            var u1 = rand.NextDouble();
-            //uniform(0,1) random double
-            var u2 = rand.NextDouble();
-            //random normal(0,1)
-            var randStdNormal = Math.Sqrt(-2.0 * Math.Log(u1)) * Math.Sin(2.0 * Math.PI * u2);
-            //random normal(mean,stdDev^2)
-            return mean + stdDev * randStdNormal;
         }
         private static string GetDirectoryName(string path)
         {
@@ -1452,87 +851,8 @@ namespace SharpNet
         }
 
 
-        /// <summary>
-        /// make a random coin flip, and returns:
-        ///     true if head
-        ///     false if tail
-        /// </summary>
-        /// <returns></returns>
-        public static bool RandomCoinFlip()
-        {
-            return new Random(RandomSeed()).NextDouble() > 0.5;
-        }
-
-        public static int RandomSeed()
-        {
-            var randomSeed = Guid.NewGuid().GetHashCode();
-            return randomSeed;
-        }
 
 
-        public static string GetEncoding(string filename)
-        {
-            using (FileStream fs = File.OpenRead(filename))
-            {
-                Ude.CharsetDetector cdet = new ();
-                cdet.Feed(fs);
-                cdet.DataEnd();
-                return cdet.Charset;
-            }
-        }
-
-        /// <summary>
-        /// process the log of a model to look for values after some specific token
-        /// the last value found for a token is always the one to use
-        /// </summary>
-        /// <param name="lines"></param>
-        /// <param name="indexValueAfterToken"></param>
-        /// <param name="tokenAndMandatoryItemAfterToken"></param>
-        /// <returns></returns>
-        public static double[] ExtractValuesFromOutputLog(IEnumerable<string> lines, int indexValueAfterToken, params string[] tokenAndMandatoryItemAfterToken)
-        {
-            Debug.Assert(tokenAndMandatoryItemAfterToken.Length%2 == 0);
-            var token = new string[tokenAndMandatoryItemAfterToken.Length / 2];
-            var mandatoryItemAfterToken = new string[token.Length];
-            for (int i = 0; i < tokenAndMandatoryItemAfterToken.Length; i += 2)
-            {
-                token[i / 2] = tokenAndMandatoryItemAfterToken[i];
-                mandatoryItemAfterToken[i / 2] = tokenAndMandatoryItemAfterToken[i + 1];
-            }
-
-            var results = Enumerable.Repeat(double.NaN, token.Length).ToArray();
-            foreach(var line in lines.Reverse())
-            {
-                if (string.IsNullOrEmpty(line))
-                {
-                    continue;
-                }
-                if (results.All(val => !double.IsNaN(val)))
-                {
-                    return results; //we already have filled all values, no need to look in other lines
-                }
-                for (var j = 0; j < token.Length; j++)
-                {
-                    if (!double.IsNaN(results[j]))
-                    {
-                        continue; //we have already filled the value for token 'token[j]'
-                    }
-                    int idx = line.IndexOf(token[j], StringComparison.Ordinal);
-                    if (idx < 0)
-                    {
-                        continue;
-                    }
-                    var splitted = line.Substring(idx + token[j].Length).Trim().Split();
-                    if (   indexValueAfterToken< splitted.Length
-                           && (mandatoryItemAfterToken[j] == null || mandatoryItemAfterToken[j] == splitted[0])
-                           && double.TryParse(splitted[indexValueAfterToken], out var d))
-                    {
-                        results[j] = d;
-                    }
-                }
-            }
-            return results;
-        }
 
         public static String UpdateFilePathWithPrefixSuffix(string filePath, string prefix, string suffix)
         {
